@@ -12,25 +12,67 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  CompanySettings? _localSettings;
+  bool _hasChanges = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppProvider>().loadCompanySettings();
+      final provider = context.read<AppProvider>();
+      provider.loadCompanySettings();
+      _localSettings = provider.companySettings;
     });
+  }
+
+  void _updateLocalSettings(CompanySettings newSettings) {
+    setState(() {
+      _localSettings = newSettings;
+      _hasChanges = true;
+    });
+  }
+
+  void _saveSettings() {
+    if (_localSettings != null && _hasChanges) {
+      context.read<AppProvider>().updateCompanySettings(_localSettings!);
+      setState(() {
+        _hasChanges = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Настройки сохранены')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Настройки'), centerTitle: false),
+      appBar: AppBar(
+        title: const Text('Настройки'),
+        centerTitle: false,
+        actions: [
+          if (_hasChanges)
+            FilledButton.icon(
+              onPressed: _saveSettings,
+              icon: const Icon(Icons.save, size: 18),
+              label: const Text('Сохранить'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
+          // Показываем индикатор загрузки только при первоначальной загрузке
+          if (provider.isLoading && _localSettings == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final settings = provider.companySettings;
+          final settings = _localSettings ?? provider.companySettings;
           if (settings == null) {
             return const Center(child: Text('Не удалось загрузить настройки'));
           }
@@ -48,35 +90,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.companyName,
                       icon: Icons.business,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(companyName: v)),
+                          _updateLocalSettings(settings.copyWith(companyName: v)),
                     ),
                     _buildTextField(
                       label: 'ФИО руководителя',
                       value: settings.directorName,
                       icon: Icons.person_outline,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(directorName: v)),
+                          _updateLocalSettings(settings.copyWith(directorName: v)),
                     ),
                     _buildTextField(
                       label: 'ИНН',
                       value: settings.inn,
                       icon: Icons.numbers,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(inn: v)),
+                          _updateLocalSettings(settings.copyWith(inn: v)),
                     ),
                     _buildTextField(
                       label: 'ОГРН',
                       value: settings.ogrn,
                       icon: Icons.numbers,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(ogrn: v)),
+                          _updateLocalSettings(settings.copyWith(ogrn: v)),
                     ),
                     _buildTextField(
                       label: 'Телефон',
                       value: settings.phone,
                       icon: Icons.phone,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(phone: v)),
+                          _updateLocalSettings(settings.copyWith(phone: v)),
                     ),
                   ],
                 ),
@@ -93,14 +135,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.bankAccount,
                       icon: Icons.account_balance,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(bankAccount: v)),
+                          _updateLocalSettings(settings.copyWith(bankAccount: v)),
                     ),
                     _buildTextField(
                       label: 'Банк',
                       value: settings.bankName,
                       icon: Icons.account_balance_wallet,
                       onChanged: (v) =>
-                          _updateSettings(settings.copyWith(bankName: v)),
+                          _updateLocalSettings(settings.copyWith(bankName: v)),
                     ),
                   ],
                 ),
@@ -116,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.location_on,
                   maxLines: 2,
                   onChanged: (v) =>
-                      _updateSettings(settings.copyWith(legalAddress: v)),
+                      _updateLocalSettings(settings.copyWith(legalAddress: v)),
                 ),
               ),
 
@@ -131,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.defaultWorkDayHours,
                       icon: Icons.access_time,
                       suffix: 'ч',
-                      onChanged: (v) => _updateSettings(
+                      onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(defaultWorkDayHours: v),
                       ),
                     ),
@@ -140,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.overtimeMultiplier,
                       icon: Icons.timer,
                       suffix: 'x',
-                      onChanged: (v) => _updateSettings(
+                      onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(overtimeMultiplier: v),
                       ),
                     ),
@@ -149,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.nightShiftMultiplier,
                       icon: Icons.nights_stay,
                       suffix: 'x',
-                      onChanged: (v) => _updateSettings(
+                      onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(nightShiftMultiplier: v),
                       ),
                     ),
@@ -279,10 +321,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _updateSettings(CompanySettings settings) {
-    // Отложенное сохранение — можно добавить debounce
-    context.read<AppProvider>().updateCompanySettings(settings);
-  }
+  // Этот метод больше не используется, но оставлен для совместимости
+  // void _updateSettings(CompanySettings settings) {
+  //   context.read<AppProvider>().updateCompanySettings(settings);
+  // }
 }
 
 /// Карточка настроек

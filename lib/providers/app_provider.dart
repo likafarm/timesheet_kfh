@@ -68,13 +68,12 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updateCompanySettings(CompanySettings settings) async {
-    _setLoading(true);
     try {
       await _db.updateCompanySettings(settings);
       await loadCompanySettings();
     } catch (e) {
       _error = 'Ошибка обновления настроек: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -88,35 +87,32 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addEmployee(Employee employee) async {
-    _setLoading(true);
     try {
       await _db.insertEmployee(employee);
       await loadEmployees();
     } catch (e) {
       _error = 'Ошибка добавления сотрудника: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> updateEmployee(Employee employee) async {
-    _setLoading(true);
     try {
       await _db.updateEmployee(employee);
       await loadEmployees();
     } catch (e) {
       _error = 'Ошибка обновления сотрудника: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteEmployee(int id) async {
-    _setLoading(true);
     try {
       await _db.deleteEmployee(id);
       await loadEmployees();
     } catch (e) {
       _error = 'Ошибка удаления сотрудника: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -143,35 +139,32 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addWorkSite(WorkSite site) async {
-    _setLoading(true);
     try {
       await _db.insertWorkSite(site);
       await loadWorkSites();
     } catch (e) {
       _error = 'Ошибка добавления участка: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> updateWorkSite(WorkSite site) async {
-    _setLoading(true);
     try {
       await _db.updateWorkSite(site);
       await loadWorkSites();
     } catch (e) {
       _error = 'Ошибка обновления участка: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteWorkSite(int id) async {
-    _setLoading(true);
     try {
       await _db.deleteWorkSite(id);
       await loadWorkSites();
     } catch (e) {
       _error = 'Ошибка удаления участка: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -185,35 +178,32 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addWorkType(WorkType workType) async {
-    _setLoading(true);
     try {
       await _db.insertWorkType(workType);
       await loadWorkTypes();
     } catch (e) {
       _error = 'Ошибка добавления вида работы: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> updateWorkType(WorkType workType) async {
-    _setLoading(true);
     try {
       await _db.updateWorkType(workType);
       await loadWorkTypes();
     } catch (e) {
       _error = 'Ошибка обновления вида работы: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteWorkType(int id) async {
-    _setLoading(true);
     try {
       await _db.deleteWorkType(id);
       await loadWorkTypes();
     } catch (e) {
       _error = 'Ошибка удаления вида работы: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -227,35 +217,32 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addMachinery(Machinery item) async {
-    _setLoading(true);
     try {
       await _db.insertMachinery(item);
       await loadMachinery();
     } catch (e) {
       _error = 'Ошибка добавления техники: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> updateMachinery(Machinery item) async {
-    _setLoading(true);
     try {
       await _db.updateMachinery(item);
       await loadMachinery();
     } catch (e) {
       _error = 'Ошибка обновления техники: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteMachinery(int id) async {
-    _setLoading(true);
     try {
       await _db.deleteMachinery(id);
       await loadMachinery();
     } catch (e) {
       _error = 'Ошибка удаления техники: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -284,35 +271,32 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
-    _setLoading(true);
     try {
       await _db.insertTimesheetRecord(record);
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
       _error = 'Ошибка добавления записи: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
-    _setLoading(true);
     try {
       await _db.updateTimesheetRecord(record);
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
       _error = 'Ошибка обновления записи: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteTimesheetRecord(int id) async {
-    _setLoading(true);
     try {
       await _db.deleteTimesheetRecord(id);
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
       _error = 'Ошибка удаления записи: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -341,24 +325,22 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addPayment(Payment payment) async {
-    _setLoading(true);
     try {
       await _db.insertPayment(payment);
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
       _error = 'Ошибка добавления выплаты: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deletePayment(int id) async {
-    _setLoading(true);
     try {
       await _db.deletePayment(id);
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
       _error = 'Ошибка удаления выплаты: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -372,24 +354,22 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addVacation(Vacation vacation) async {
-    _setLoading(true);
     try {
       await _db.insertVacation(vacation);
       await loadVacations(vacation.employeeId);
     } catch (e) {
       _error = 'Ошибка добавления отпуска: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteVacation(int id, int employeeId) async {
-    _setLoading(true);
     try {
       await _db.deleteVacation(id);
       await loadVacations(employeeId);
     } catch (e) {
       _error = 'Ошибка удаления отпуска: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -403,24 +383,22 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addSickLeave(SickLeave sickLeave) async {
-    _setLoading(true);
     try {
       await _db.insertSickLeave(sickLeave);
       await loadSickLeaves(sickLeave.employeeId);
     } catch (e) {
       _error = 'Ошибка добавления больничного: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
   Future<void> deleteSickLeave(int id, int employeeId) async {
-    _setLoading(true);
     try {
       await _db.deleteSickLeave(id);
       await loadSickLeaves(employeeId);
     } catch (e) {
       _error = 'Ошибка удаления больничного: $e';
-      _setLoading(false);
+      notifyListeners();
     }
   }
 
