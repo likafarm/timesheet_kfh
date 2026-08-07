@@ -15,6 +15,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   CompanySettings? _localSettings;
   bool _hasChanges = false;
+  
+  // Контроллеры для полей ввода
+  late TextEditingController _companyNameController;
+  late TextEditingController _directorNameController;
+  late TextEditingController _innController;
+  late TextEditingController _ogrnController;
+  late TextEditingController _phoneController;
+  late TextEditingController _bankAccountController;
+  late TextEditingController _bankNameController;
+  late TextEditingController _legalAddressController;
+  late TextEditingController _defaultWorkDayHoursController;
+  late TextEditingController _overtimeMultiplierController;
+  late TextEditingController _nightShiftMultiplierController;
 
   @override
   void initState() {
@@ -22,20 +35,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
       provider.loadCompanySettings();
-      _localSettings = provider.companySettings;
+      _initControllers(provider.companySettings);
     });
   }
 
-  void _updateLocalSettings(CompanySettings newSettings) {
-    setState(() {
-      _localSettings = newSettings;
-      _hasChanges = true;
-    });
+  void _initControllers(CompanySettings? settings) {
+    final s = settings ?? CompanySettings();
+    _companyNameController = TextEditingController(text: s.companyName ?? '');
+    _directorNameController = TextEditingController(text: s.directorName ?? '');
+    _innController = TextEditingController(text: s.inn ?? '');
+    _ogrnController = TextEditingController(text: s.ogrn ?? '');
+    _phoneController = TextEditingController(text: s.phone ?? '');
+    _bankAccountController = TextEditingController(text: s.bankAccount ?? '');
+    _bankNameController = TextEditingController(text: s.bankName ?? '');
+    _legalAddressController = TextEditingController(text: s.legalAddress ?? '');
+    _defaultWorkDayHoursController = TextEditingController(text: s.defaultWorkDayHours.toString());
+    _overtimeMultiplierController = TextEditingController(text: s.overtimeMultiplier.toString());
+    _nightShiftMultiplierController = TextEditingController(text: s.nightShiftMultiplier.toString());
+    
+    _setupListeners();
+  }
+
+  void _setupListeners() {
+    void notifyChange() {
+      setState(() {
+        _hasChanges = true;
+      });
+    }
+
+    _companyNameController.addListener(notifyChange);
+    _directorNameController.addListener(notifyChange);
+    _innController.addListener(notifyChange);
+    _ogrnController.addListener(notifyChange);
+    _phoneController.addListener(notifyChange);
+    _bankAccountController.addListener(notifyChange);
+    _bankNameController.addListener(notifyChange);
+    _legalAddressController.addListener(notifyChange);
+    _defaultWorkDayHoursController.addListener(notifyChange);
+    _overtimeMultiplierController.addListener(notifyChange);
+    _nightShiftMultiplierController.addListener(notifyChange);
+  }
+
+  @override
+  void dispose() {
+    _companyNameController.dispose();
+    _directorNameController.dispose();
+    _innController.dispose();
+    _ogrnController.dispose();
+    _phoneController.dispose();
+    _bankAccountController.dispose();
+    _bankNameController.dispose();
+    _legalAddressController.dispose();
+    _defaultWorkDayHoursController.dispose();
+    _overtimeMultiplierController.dispose();
+    _nightShiftMultiplierController.dispose();
+    super.dispose();
   }
 
   void _saveSettings() {
-    if (_localSettings != null && _hasChanges) {
-      context.read<AppProvider>().updateCompanySettings(_localSettings!);
+    if (_hasChanges) {
+      final updatedSettings = CompanySettings(
+        companyName: _companyNameController.text.isEmpty ? null : _companyNameController.text,
+        directorName: _directorNameController.text.isEmpty ? null : _directorNameController.text,
+        inn: _innController.text.isEmpty ? null : _innController.text,
+        ogrn: _ogrnController.text.isEmpty ? null : _ogrnController.text,
+        phone: _phoneController.text.isEmpty ? null : _phoneController.text,
+        bankAccount: _bankAccountController.text.isEmpty ? null : _bankAccountController.text,
+        bankName: _bankNameController.text.isEmpty ? null : _bankNameController.text,
+        legalAddress: _legalAddressController.text.isEmpty ? null : _legalAddressController.text,
+        defaultWorkDayHours: double.tryParse(_defaultWorkDayHoursController.text) ?? 8.0,
+        overtimeMultiplier: double.tryParse(_overtimeMultiplierController.text) ?? 1.5,
+        nightShiftMultiplier: double.tryParse(_nightShiftMultiplierController.text) ?? 1.2,
+      );
+      
+      context.read<AppProvider>().updateCompanySettings(updatedSettings);
       setState(() {
         _hasChanges = false;
       });
@@ -68,12 +141,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {
           // Показываем индикатор загрузки только при первоначальной загрузке
-          if (provider.isLoading && _localSettings == null) {
+          if (provider.isLoading && _companyNameController.text.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final settings = _localSettings ?? provider.companySettings;
-          if (settings == null) {
+          final settings = provider.companySettings;
+          if (settings == null && _companyNameController.text.isEmpty) {
             return const Center(child: Text('Не удалось загрузить настройки'));
           }
 
@@ -87,38 +160,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     _buildTextField(
                       label: 'Название КФХ',
-                      value: settings.companyName,
+                      controller: _companyNameController,
                       icon: Icons.business,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(companyName: v)),
                     ),
                     _buildTextField(
                       label: 'ФИО руководителя',
-                      value: settings.directorName,
+                      controller: _directorNameController,
                       icon: Icons.person_outline,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(directorName: v)),
                     ),
                     _buildTextField(
                       label: 'ИНН',
-                      value: settings.inn,
+                      controller: _innController,
                       icon: Icons.numbers,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(inn: v)),
                     ),
                     _buildTextField(
                       label: 'ОГРН',
-                      value: settings.ogrn,
+                      controller: _ogrnController,
                       icon: Icons.numbers,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(ogrn: v)),
                     ),
                     _buildTextField(
                       label: 'Телефон',
-                      value: settings.phone,
+                      controller: _phoneController,
                       icon: Icons.phone,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(phone: v)),
                     ),
                   ],
                 ),
@@ -132,17 +195,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     _buildTextField(
                       label: 'Расчётный счёт',
-                      value: settings.bankAccount,
+                      controller: _bankAccountController,
                       icon: Icons.account_balance,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(bankAccount: v)),
                     ),
                     _buildTextField(
                       label: 'Банк',
-                      value: settings.bankName,
+                      controller: _bankNameController,
                       icon: Icons.account_balance_wallet,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(bankName: v)),
                     ),
                   ],
                 ),
@@ -154,11 +213,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsCard(
                 child: _buildTextField(
                   label: 'Адрес',
-                  value: settings.legalAddress,
+                  controller: _legalAddressController,
                   icon: Icons.location_on,
                   maxLines: 2,
-                  onChanged: (v) =>
-                      _updateLocalSettings(settings.copyWith(legalAddress: v)),
                 ),
               ),
 
@@ -170,30 +227,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     _buildNumberField(
                       label: 'Норма часов в день',
-                      value: settings.defaultWorkDayHours,
+                      controller: _defaultWorkDayHoursController,
                       icon: Icons.access_time,
                       suffix: 'ч',
-                      onChanged: (v) => _updateLocalSettings(
-                        settings.copyWith(defaultWorkDayHours: v),
-                      ),
                     ),
                     _buildNumberField(
                       label: 'Коэффициент переработки',
-                      value: settings.overtimeMultiplier,
+                      controller: _overtimeMultiplierController,
                       icon: Icons.timer,
                       suffix: 'x',
-                      onChanged: (v) => _updateLocalSettings(
-                        settings.copyWith(overtimeMultiplier: v),
-                      ),
                     ),
                     _buildNumberField(
                       label: 'Коэффициент ночных',
-                      value: settings.nightShiftMultiplier,
+                      controller: _nightShiftMultiplierController,
                       icon: Icons.nights_stay,
                       suffix: 'x',
-                      onChanged: (v) => _updateLocalSettings(
-                        settings.copyWith(nightShiftMultiplier: v),
-                      ),
                     ),
                   ],
                 ),
@@ -280,43 +328,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildTextField({
     required String label,
-    required String? value,
+    required TextEditingController controller,
     required IconData icon,
     int maxLines = 1,
-    required ValueChanged<String?> onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: TextEditingController(text: value ?? ''),
+        controller: controller,
         decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
         maxLines: maxLines,
-        onChanged: (v) => onChanged(v.isEmpty ? null : v),
       ),
     );
   }
 
   Widget _buildNumberField({
     required String label,
-    required double value,
+    required TextEditingController controller,
     required IconData icon,
     required String suffix,
-    required ValueChanged<double> onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: TextEditingController(text: value.toString()),
+        controller: controller,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
           suffixText: suffix,
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (v) {
-          final parsed = double.tryParse(v);
-          if (parsed != null) onChanged(parsed);
-        },
       ),
     );
   }
