@@ -22,6 +22,10 @@ class AppProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Для перезагрузки табеля после изменений
+  DateTime? _currentPeriodStart;
+  DateTime? _currentPeriodEnd;
+
   // Геттеры
   List<Employee> get employees => _employees;
   List<WorkSite> get workSites => _workSites;
@@ -81,7 +85,8 @@ class AppProvider extends ChangeNotifier {
   // EMPLOYEES (СОТРУДНИКИ)
   // ==========================================================================
 
-  Future<void> loadEmployees({bool activeOnly = true}) async {
+  /// Загружает список сотрудников. По умолчанию загружаются все (activeOnly = false).
+  Future<void> loadEmployees({bool activeOnly = false}) async {
     _employees = await _db.getAllEmployees(activeOnly: activeOnly);
     notifyListeners();
   }
@@ -112,6 +117,46 @@ class AppProvider extends ChangeNotifier {
       await loadEmployees();
     } catch (e) {
       _error = 'Ошибка удаления сотрудника: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Увольнение сотрудника
+  Future<void> dismissEmployee(
+    int id,
+    DateTime dismissalDate,
+    String reason,
+  ) async {
+    try {
+      final employee = getEmployeeById(id);
+      if (employee == null) return;
+      final updated = employee.copyWith(
+        isActive: false,
+        dismissalDate: dismissalDate,
+        dismissalReason: reason,
+      );
+      await _db.updateEmployee(updated);
+      await loadEmployees();
+    } catch (e) {
+      _error = 'Ошибка увольнения: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Восстановление сотрудника
+  Future<void> reinstateEmployee(int id) async {
+    try {
+      final employee = getEmployeeById(id);
+      if (employee == null) return;
+      final updated = employee.copyWith(
+        isActive: true,
+        dismissalDate: null,
+        dismissalReason: null,
+      );
+      await _db.updateEmployee(updated);
+      await loadEmployees();
+    } catch (e) {
+      _error = 'Ошибка восстановления: $e';
       notifyListeners();
     }
   }
@@ -257,6 +302,8 @@ class AppProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
+      _currentPeriodStart = start;
+      _currentPeriodEnd = end;
       _timesheetRecords = await _db.getTimesheetByPeriod(
         start,
         end,
@@ -270,10 +317,19 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// Получение записей за конкретную дату (без изменения состояния)
+  Future<List<TimesheetRecord>> getTimesheetForDate(DateTime date) async {
+    return await _db.getTimesheetByPeriod(date, date);
+  }
+
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
     try {
       await _db.insertTimesheetRecord(record);
-      notifyListeners();
+      if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+        await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = 'Ошибка добавления записи: $e';
       notifyListeners();
@@ -283,7 +339,11 @@ class AppProvider extends ChangeNotifier {
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
     try {
       await _db.updateTimesheetRecord(record);
-      notifyListeners();
+      if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+        await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = 'Ошибка обновления записи: $e';
       notifyListeners();
@@ -293,9 +353,51 @@ class AppProvider extends ChangeNotifier {
   Future<void> deleteTimesheetRecord(int id) async {
     try {
       await _db.deleteTimesheetRecord(id);
-      notifyListeners();
+      if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+        await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = 'Ошибка удаления записи: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Сохранение записей за день (быстрый ввод)
+  Future<void> saveDailyTimesheet(
+    List<TimesheetRecord> records,
+    DateTime date,
+  ) async {
+    try {
+      final existing = await _db.getTimesheetByPeriod(date, date);
+      for (var record in records) {
+        TimesheetRecord? existingRecord;
+        for (var r in existing) {
+          if (r.employeeId == record.employeeId) {
+            existingRecord = r;
+            break;
+          }
+        }
+        if (existingRecord != null) {
+          final updated = existingRecord.copyWith(
+            hoursWorked: record.hoursWorked,
+            overtimeHours: record.overtimeHours,
+            workTypeId: record.workTypeId,
+          );
+          await _db.updateTimesheetRecord(updated);
+        } else {
+          await _db.insertTimesheetRecord(record);
+        }
+      }
+      // Перезагружаем табель, если есть текущий период
+      if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+        await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
+      } else {
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = 'Ошибка сохранения за день: $e';
       notifyListeners();
     }
   }
@@ -327,17 +429,17 @@ class AppProvider extends ChangeNotifier {
   Future<void> addPayment(Payment payment) async {
     try {
       await _db.insertPayment(payment);
-      notifyListeners();
+      await loadPayments(payment.employeeId);
     } catch (e) {
       _error = 'Ошибка добавления выплаты: $e';
       notifyListeners();
     }
   }
 
-  Future<void> deletePayment(int id) async {
+  Future<void> deletePayment(int id, int employeeId) async {
     try {
       await _db.deletePayment(id);
-      notifyListeners();
+      await loadPayments(employeeId);
     } catch (e) {
       _error = 'Ошибка удаления выплаты: $e';
       notifyListeners();

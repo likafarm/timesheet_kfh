@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/employee_form_dialog.dart';
 
-/// Экран управления сотрудниками КФХ
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
 
@@ -13,11 +13,20 @@ class EmployeesScreen extends StatefulWidget {
 }
 
 class _EmployeesScreenState extends State<EmployeesScreen> {
+  bool _showAll = false; // true - показывать всех, false - только активных
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppProvider>().loadEmployees();
+      context.read<AppProvider>().loadEmployees(activeOnly: !_showAll);
+    });
+  }
+
+  void _toggleFilter() {
+    setState(() {
+      _showAll = !_showAll;
+      context.read<AppProvider>().loadEmployees(activeOnly: !_showAll);
     });
   }
 
@@ -28,6 +37,13 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         title: const Text('Сотрудники'),
         centerTitle: false,
         actions: [
+          // Переключатель фильтра
+          Row(
+            children: [
+              const Text('Только активные'),
+              Switch(value: !_showAll, onChanged: (_) => _toggleFilter()),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: () => _showEmployeeDialog(context),
@@ -40,7 +56,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (provider.error != null) {
             return Center(
               child: Column(
@@ -55,14 +70,14 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => provider.loadEmployees(),
+                    onPressed: () =>
+                        provider.loadEmployees(activeOnly: !_showAll),
                     child: const Text('Повторить'),
                   ),
                 ],
               ),
             );
           }
-
           if (provider.employees.isEmpty) {
             return Center(
               child: Column(
@@ -71,20 +86,19 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'Нет сотрудников',
+                    _showAll ? 'Нет сотрудников' : 'Нет активных сотрудников',
                     style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: () => _showEmployeeDialog(context),
                     icon: const Icon(Icons.add),
-                    label: const Text('Добавить первого сотрудника'),
+                    label: const Text('Добавить сотрудника'),
                   ),
                 ],
               ),
             );
           }
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: provider.employees.length,
@@ -94,6 +108,8 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                 employee: employee,
                 onEdit: () => _showEmployeeDialog(context, employee: employee),
                 onDelete: () => _confirmDelete(context, employee),
+                onDismiss: () => _showDismissDialog(context, employee),
+                onReinstate: () => _confirmReinstate(context, employee),
               );
             },
           );
@@ -135,6 +151,99 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
       ),
     );
   }
+
+  void _showDismissDialog(BuildContext context, Employee employee) {
+    final dateController = TextEditingController(
+      text: DateFormat('dd.MM.yyyy').format(DateTime.now()),
+    );
+    final reasonController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Увольнение ${employee.fullName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Дата увольнения'),
+              subtitle: Text(DateFormat('dd.MM.yyyy').format(selectedDate)),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                );
+                if (date != null) {
+                  selectedDate = date;
+                  dateController.text = DateFormat('dd.MM.yyyy').format(date);
+                }
+              },
+            ),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Причина увольнения',
+                prefixIcon: Icon(Icons.description),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Укажите причину увольнения')),
+                );
+                return;
+              }
+              context.read<AppProvider>().dismissEmployee(
+                employee.id!,
+                selectedDate,
+                reasonController.text.trim(),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Уволить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmReinstate(BuildContext context, Employee employee) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Восстановление ${employee.fullName}'),
+        content: const Text(
+          'Восстановить сотрудника? Он снова станет активным.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () {
+              context.read<AppProvider>().reinstateEmployee(employee.id!);
+              Navigator.pop(context);
+            },
+            child: const Text('Восстановить'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Карточка сотрудника
@@ -142,22 +251,31 @@ class _EmployeeCard extends StatelessWidget {
   final Employee employee;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onDismiss;
+  final VoidCallback onReinstate;
 
   const _EmployeeCard({
     required this.employee,
     required this.onEdit,
     required this.onDelete,
+    required this.onDismiss,
+    required this.onReinstate,
   });
 
   @override
   Widget build(BuildContext context) {
     final initials = _getInitials(employee.fullName);
     final isHourly = employee.paymentType == 'hourly';
+    final formatter = NumberFormat('#,##0.00', 'ru');
     final rateText = isHourly
-        ? '${employee.hourlyRate.toStringAsFixed(2)} ₽/час'
+        ? '${formatter.format(employee.hourlyRate)} ₽/час'
         : employee.fixedSalary != null
-        ? '${employee.fixedSalary!.toStringAsFixed(2)} ₽ (оклад)'
+        ? '${formatter.format(employee.fixedSalary!)} ₽ (оклад)'
         : 'Ставка не указана';
+
+    // Статус
+    String statusText = employee.isActive ? 'Активен' : 'Уволен';
+    Color statusColor = employee.isActive ? Colors.green : Colors.red;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -191,18 +309,17 @@ class _EmployeeCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (!employee.isActive)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Уволен',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusColor.withAlpha(30),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Text(
+                statusText,
+                style: TextStyle(fontSize: 12, color: statusColor),
+              ),
+            ),
           ],
         ),
         subtitle: Column(
@@ -222,20 +339,53 @@ class _EmployeeCard extends StatelessWidget {
                 'Тел: ${employee.phone}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+            if (!employee.isActive && employee.dismissalDate != null)
+              Text(
+                'Уволен: ${DateFormat('dd.MM.yyyy').format(employee.dismissalDate!)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            if (!employee.isActive && employee.dismissalReason != null)
+              Text(
+                'Причина: ${employee.dismissalReason}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
           ],
         ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'edit') onEdit();
             if (value == 'delete') onDelete();
+            if (value == 'dismiss') onDismiss();
+            if (value == 'reinstate') onReinstate();
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Редактировать')),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Text('Удалить', style: TextStyle(color: Colors.red)),
-            ),
-          ],
+          itemBuilder: (context) {
+            final items = <PopupMenuItem<String>>[];
+            if (employee.isActive) {
+              items.add(
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Редактировать'),
+                ),
+              );
+              items.add(
+                const PopupMenuItem(value: 'dismiss', child: Text('Уволить')),
+              );
+            } else {
+              items.add(
+                const PopupMenuItem(
+                  value: 'reinstate',
+                  child: Text('Восстановить'),
+                ),
+              );
+            }
+            items.add(
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Удалить', style: TextStyle(color: Colors.red)),
+              ),
+            );
+            return items;
+          },
         ),
       ),
     );

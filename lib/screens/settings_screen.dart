@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
@@ -15,62 +17,157 @@ class _SettingsScreenState extends State<SettingsScreen> {
   CompanySettings? _localSettings;
   bool _hasChanges = false;
 
+  // Сохраняем ссылку на провайдера для использования в dispose
+  late AppProvider _provider;
+
   // Контроллеры для текстовых полей
-  late TextEditingController _companyNameController;
-  late TextEditingController _directorNameController;
-  late TextEditingController _innController;
-  late TextEditingController _ogrnController;
-  late TextEditingController _phoneController;
-  late TextEditingController _bankAccountController;
-  late TextEditingController _bankNameController;
-  late TextEditingController _legalAddressController;
-  late TextEditingController _defaultWorkDayHoursController;
-  late TextEditingController _overtimeMultiplierController;
-  late TextEditingController _nightShiftMultiplierController;
+  late final TextEditingController _companyNameController;
+  late final TextEditingController _directorNameController;
+  late final TextEditingController _innController;
+  late final TextEditingController _ogrnController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _bankAccountController;
+  late final TextEditingController _bankNameController;
+  late final TextEditingController _legalAddressController;
+  late final TextEditingController _defaultWorkDayHoursController;
+  late final TextEditingController _overtimeMultiplierController;
+  late final TextEditingController _nightShiftMultiplierController;
+
+  // FocusNode для числовых полей
+  final _defaultHoursFocus = FocusNode();
+  final _overtimeFocus = FocusNode();
+  final _nightShiftFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    // Сохраняем ссылку на провайдера
+    _provider = context.read<AppProvider>();
+
+    // Создаём контроллеры с пустыми строками
+    _companyNameController = TextEditingController();
+    _directorNameController = TextEditingController();
+    _innController = TextEditingController();
+    _ogrnController = TextEditingController();
+    _phoneController = TextEditingController();
+    _bankAccountController = TextEditingController();
+    _bankNameController = TextEditingController();
+    _legalAddressController = TextEditingController();
+    _defaultWorkDayHoursController = TextEditingController(text: '8.0');
+    _overtimeMultiplierController = TextEditingController(text: '1.5');
+    _nightShiftMultiplierController = TextEditingController(text: '1.2');
+
+    // Настройка числовых полей
+    _setupNumberField(_defaultWorkDayHoursController, _defaultHoursFocus);
+    _setupNumberField(_overtimeMultiplierController, _overtimeFocus);
+    _setupNumberField(_nightShiftMultiplierController, _nightShiftFocus);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AppProvider>();
-      provider.loadCompanySettings();
-      _localSettings = provider.companySettings;
-      _initControllers();
+      // Используем сохранённого провайдера
+      _provider.loadCompanySettings();
+      _provider.addListener(_onProviderChanged);
     });
   }
 
-  void _initControllers() {
-    final settings =
-        _localSettings ?? context.read<AppProvider>().companySettings;
-    if (settings == null) return;
+  void _setupNumberField(
+    TextEditingController controller,
+    FocusNode focusNode,
+  ) {
+    controller.addListener(() {
+      final text = controller.text;
+      if (text.contains(',')) {
+        controller.text = text.replaceAll(',', '.');
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    });
 
-    _companyNameController = TextEditingController(text: settings.companyName);
-    _directorNameController = TextEditingController(
-      text: settings.directorName ?? '',
-    );
-    _innController = TextEditingController(text: settings.inn ?? '');
-    _ogrnController = TextEditingController(text: settings.ogrn ?? '');
-    _phoneController = TextEditingController(text: settings.phone ?? '');
-    _bankAccountController = TextEditingController(
-      text: settings.bankAccount ?? '',
-    );
-    _bankNameController = TextEditingController(text: settings.bankName ?? '');
-    _legalAddressController = TextEditingController(
-      text: settings.legalAddress ?? '',
-    );
-    _defaultWorkDayHoursController = TextEditingController(
-      text: settings.defaultWorkDayHours.toString(),
-    );
-    _overtimeMultiplierController = TextEditingController(
-      text: settings.overtimeMultiplier.toString(),
-    );
-    _nightShiftMultiplierController = TextEditingController(
-      text: settings.nightShiftMultiplier.toString(),
-    );
+    focusNode.addListener(() {
+      if (!mounted) return;
+      if (!focusNode.hasFocus) {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            final formatter = NumberFormat('#,##0.00', 'ru');
+            controller.text = formatter.format(value);
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      } else {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            controller.text = value.toString();
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  void _onProviderChanged() {
+    final settings = _provider.companySettings;
+    if (settings != null && settings != _localSettings) {
+      setState(() {
+        _localSettings = settings;
+        _updateControllersFromSettings(settings);
+      });
+    }
+  }
+
+  void _updateControllersFromSettings(CompanySettings settings) {
+    _companyNameController.text = settings.companyName;
+    _directorNameController.text = settings.directorName ?? '';
+    _innController.text = settings.inn ?? '';
+    _ogrnController.text = settings.ogrn ?? '';
+    _phoneController.text = settings.phone ?? '';
+    _bankAccountController.text = settings.bankAccount ?? '';
+    _bankNameController.text = settings.bankName ?? '';
+    _legalAddressController.text = settings.legalAddress ?? '';
+    _defaultWorkDayHoursController.text = settings.defaultWorkDayHours
+        .toString();
+    _overtimeMultiplierController.text = settings.overtimeMultiplier.toString();
+    _nightShiftMultiplierController.text = settings.nightShiftMultiplier
+        .toString();
+
+    // Форматируем числовые поля
+    _formatControllerText(_defaultWorkDayHoursController);
+    _formatControllerText(_overtimeMultiplierController);
+    _formatControllerText(_nightShiftMultiplierController);
+  }
+
+  void _formatControllerText(TextEditingController controller) {
+    final raw = controller.text
+        .replaceAll(RegExp(r'\s'), '')
+        .replaceAll(',', '.');
+    if (raw.isNotEmpty) {
+      final value = double.tryParse(raw);
+      if (value != null) {
+        final formatter = NumberFormat('#,##0.00', 'ru');
+        controller.text = formatter.format(value);
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
+    // Отписываемся от провайдера, используя сохранённую ссылку
+    _provider.removeListener(_onProviderChanged);
+
     _companyNameController.dispose();
     _directorNameController.dispose();
     _innController.dispose();
@@ -82,6 +179,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _defaultWorkDayHoursController.dispose();
     _overtimeMultiplierController.dispose();
     _nightShiftMultiplierController.dispose();
+    _defaultHoursFocus.dispose();
+    _overtimeFocus.dispose();
+    _nightShiftFocus.dispose();
     super.dispose();
   }
 
@@ -94,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _saveSettings() {
     if (_localSettings != null && _hasChanges) {
-      context.read<AppProvider>().updateCompanySettings(_localSettings!);
+      _provider.updateCompanySettings(_localSettings!);
       setState(() {
         _hasChanges = false;
       });
@@ -126,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {
-          // Показываем индикатор загрузки только при первоначальной загрузке
+          // Если настройки ещё не загружены, показываем индикатор
           if (provider.isLoading && _localSettings == null) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -145,38 +245,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildTextField(
+                      controller: _companyNameController,
                       label: 'Название КФХ',
-                      value: settings.companyName,
                       icon: Icons.business,
                       onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(companyName: v),
                       ),
                     ),
                     _buildTextField(
+                      controller: _directorNameController,
                       label: 'ФИО руководителя',
-                      value: settings.directorName,
                       icon: Icons.person_outline,
                       onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(directorName: v),
                       ),
                     ),
                     _buildTextField(
+                      controller: _innController,
                       label: 'ИНН',
-                      value: settings.inn,
                       icon: Icons.numbers,
                       onChanged: (v) =>
                           _updateLocalSettings(settings.copyWith(inn: v)),
                     ),
                     _buildTextField(
+                      controller: _ogrnController,
                       label: 'ОГРН',
-                      value: settings.ogrn,
                       icon: Icons.numbers,
                       onChanged: (v) =>
                           _updateLocalSettings(settings.copyWith(ogrn: v)),
                     ),
                     _buildTextField(
+                      controller: _phoneController,
                       label: 'Телефон',
-                      value: settings.phone,
                       icon: Icons.phone,
                       onChanged: (v) =>
                           _updateLocalSettings(settings.copyWith(phone: v)),
@@ -192,16 +292,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildTextField(
+                      controller: _bankAccountController,
                       label: 'Расчётный счёт',
-                      value: settings.bankAccount,
                       icon: Icons.account_balance,
                       onChanged: (v) => _updateLocalSettings(
                         settings.copyWith(bankAccount: v),
                       ),
                     ),
                     _buildTextField(
+                      controller: _bankNameController,
                       label: 'Банк',
-                      value: settings.bankName,
                       icon: Icons.account_balance_wallet,
                       onChanged: (v) =>
                           _updateLocalSettings(settings.copyWith(bankName: v)),
@@ -215,8 +315,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSectionTitle(context, 'Юридический адрес'),
               _SettingsCard(
                 child: _buildTextField(
+                  controller: _legalAddressController,
                   label: 'Адрес',
-                  value: settings.legalAddress,
                   icon: Icons.location_on,
                   maxLines: 2,
                   onChanged: (v) =>
@@ -231,8 +331,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildNumberField(
+                      controller: _defaultWorkDayHoursController,
+                      focusNode: _defaultHoursFocus,
                       label: 'Норма часов в день',
-                      value: settings.defaultWorkDayHours,
                       icon: Icons.access_time,
                       suffix: 'ч',
                       onChanged: (v) => _updateLocalSettings(
@@ -240,8 +341,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     _buildNumberField(
+                      controller: _overtimeMultiplierController,
+                      focusNode: _overtimeFocus,
                       label: 'Коэффициент переработки',
-                      value: settings.overtimeMultiplier,
                       icon: Icons.timer,
                       suffix: 'x',
                       onChanged: (v) => _updateLocalSettings(
@@ -249,8 +351,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     _buildNumberField(
+                      controller: _nightShiftMultiplierController,
+                      focusNode: _nightShiftFocus,
                       label: 'Коэффициент ночных',
-                      value: settings.nightShiftMultiplier,
                       icon: Icons.nights_stay,
                       suffix: 'x',
                       onChanged: (v) => _updateLocalSettings(
@@ -305,8 +408,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Icons.agriculture,
                             size: 48,
                           ),
-                          children: [
-                            const Text(
+                          children: const [
+                            Text(
                               'Программа для ведения табеля учёта рабочего времени, '
                               'расчёта зарплаты и формирования отчётов в КФХ.',
                             ),
@@ -341,82 +444,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
-    required String? value,
     required IconData icon,
     int maxLines = 1,
-    required ValueChanged<String?> onChanged,
+    required ValueChanged<String> onChanged,
   }) {
-    TextEditingController? controller;
-
-    // Определяем контроллер в зависимости от метки поля
-    if (label == 'Название КФХ') {
-      controller = _companyNameController;
-    } else if (label == 'ФИО руководителя') {
-      controller = _directorNameController;
-    } else if (label == 'ИНН') {
-      controller = _innController;
-    } else if (label == 'ОГРН') {
-      controller = _ogrnController;
-    } else if (label == 'Телефон') {
-      controller = _phoneController;
-    } else if (label == 'Расчётный счёт') {
-      controller = _bankAccountController;
-    } else if (label == 'Банк') {
-      controller = _bankNameController;
-    } else if (label == 'Адрес') {
-      controller = _legalAddressController;
-    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: controller ?? TextEditingController(text: value ?? ''),
+        controller: controller,
         decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
         maxLines: maxLines,
-        onChanged: (v) => onChanged(v.isEmpty ? null : v),
+        onChanged: onChanged,
       ),
     );
   }
 
   Widget _buildNumberField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
     required String label,
-    required double value,
     required IconData icon,
     required String suffix,
     required ValueChanged<double> onChanged,
   }) {
-    TextEditingController? controller;
-
-    // Определяем контроллер в зависимости от метки поля
-    if (label == 'Норма часов в день') {
-      controller = _defaultWorkDayHoursController;
-    } else if (label == 'Коэффициент переработки') {
-      controller = _overtimeMultiplierController;
-    } else if (label == 'Коэффициент ночных') {
-      controller = _nightShiftMultiplierController;
-    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: controller ?? TextEditingController(text: value.toString()),
+        controller: controller,
+        focusNode: focusNode,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
           suffixText: suffix,
         ),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d*$')),
+        ],
         onChanged: (v) {
-          final parsed = double.tryParse(v);
+          final raw = v.replaceAll(RegExp(r'\s'), '').replaceAll(',', '.');
+          final parsed = double.tryParse(raw);
           if (parsed != null) onChanged(parsed);
         },
       ),
     );
   }
-
-  // Этот метод больше не используется, но оставлен для совместимости
-  // void _updateSettings(CompanySettings settings) {
-  //   context.read<AppProvider>().updateCompanySettings(settings);
-  // }
 }
 
 /// Карточка настроек

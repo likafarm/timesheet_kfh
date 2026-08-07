@@ -17,6 +17,10 @@ class Employee {
   final String? notes;
   final DateTime createdAt;
 
+  // Новые поля для увольнения
+  final DateTime? dismissalDate;
+  final String? dismissalReason;
+
   Employee({
     this.id,
     required this.fullName,
@@ -34,6 +38,8 @@ class Employee {
     this.isActive = true,
     this.notes,
     DateTime? createdAt,
+    this.dismissalDate,
+    this.dismissalReason,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory Employee.fromMap(Map<String, dynamic> map) {
@@ -58,6 +64,10 @@ class Employee {
       isActive: (map['is_active'] as int? ?? 1) == 1,
       notes: map['notes'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
+      dismissalDate: map['dismissal_date'] != null
+          ? DateTime.parse(map['dismissal_date'] as String)
+          : null,
+      dismissalReason: map['dismissal_reason'] as String?,
     );
   }
 
@@ -79,6 +89,8 @@ class Employee {
       'is_active': isActive ? 1 : 0,
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
+      'dismissal_date': dismissalDate?.toIso8601String(),
+      'dismissal_reason': dismissalReason,
     };
   }
 
@@ -99,6 +111,8 @@ class Employee {
     bool? isActive,
     String? notes,
     DateTime? createdAt,
+    DateTime? dismissalDate,
+    String? dismissalReason,
   }) {
     return Employee(
       id: id ?? this.id,
@@ -117,6 +131,8 @@ class Employee {
       isActive: isActive ?? this.isActive,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
+      dismissalDate: dismissalDate ?? this.dismissalDate,
+      dismissalReason: dismissalReason ?? this.dismissalReason,
     );
   }
 

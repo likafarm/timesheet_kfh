@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
@@ -168,6 +169,7 @@ class _PaymentsList extends StatelessWidget {
 
         // Считаем итого
         final total = provider.payments.fold(0.0, (sum, p) => sum + p.amount);
+        final formatter = NumberFormat('#,##0.00', 'ru');
 
         return Column(
           children: [
@@ -183,7 +185,7 @@ class _PaymentsList extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '${total.toStringAsFixed(2)} ₽',
+                    '${formatter.format(total)} ₽',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -203,7 +205,9 @@ class _PaymentsList extends StatelessWidget {
                   final payment = provider.payments[index];
                   return _PaymentCard(
                     payment: payment,
-                    onDelete: () => provider.deletePayment(payment.id!),
+                    employeeId: employeeId,
+                    onDelete: () =>
+                        provider.deletePayment(payment.id!, employeeId),
                   );
                 },
               ),
@@ -218,12 +222,18 @@ class _PaymentsList extends StatelessWidget {
 /// Карточка выплаты
 class _PaymentCard extends StatelessWidget {
   final Payment payment;
+  final int employeeId;
   final VoidCallback onDelete;
 
-  const _PaymentCard({required this.payment, required this.onDelete});
+  const _PaymentCard({
+    required this.payment,
+    required this.employeeId,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,##0.00', 'ru');
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -238,7 +248,7 @@ class _PaymentCard extends StatelessWidget {
         title: Row(
           children: [
             Text(
-              '${payment.amount.toStringAsFixed(2)} ₽',
+              '${formatter.format(payment.amount)} ₽',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
@@ -296,7 +306,7 @@ class _PaymentCard extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Удаление выплаты'),
         content: Text(
-          'Удалить выплату ${payment.paymentTypeName} на ${payment.amount.toStringAsFixed(2)} ₽?',
+          'Удалить выплату ${payment.paymentTypeName} на ${NumberFormat('#,##0.00', 'ru').format(payment.amount)} ₽?',
         ),
         actions: [
           TextButton(
@@ -364,11 +374,92 @@ class _PaymentFormDialog extends StatefulWidget {
 
 class _PaymentFormDialogState extends State<_PaymentFormDialog> {
   final _amountController = TextEditingController();
+  final _amountFocusNode = FocusNode();
+
   String _paymentType = 'salary';
   String? _paymentMethod;
   DateTime _date = DateTime.now();
   final _documentController = TextEditingController();
   final _notesController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _formatControllerText(_amountController);
+    _setupNumberField(_amountController, _amountFocusNode);
+  }
+
+  void _formatControllerText(TextEditingController controller) {
+    final raw = controller.text
+        .replaceAll(RegExp(r'\s'), '')
+        .replaceAll(',', '.');
+    if (raw.isNotEmpty) {
+      final value = double.tryParse(raw);
+      if (value != null) {
+        final formatter = NumberFormat('#,##0.00', 'ru');
+        controller.text = formatter.format(value);
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    }
+  }
+
+  void _setupNumberField(
+    TextEditingController controller,
+    FocusNode focusNode,
+  ) {
+    controller.addListener(() {
+      final text = controller.text;
+      if (text.contains(',')) {
+        controller.text = text.replaceAll(',', '.');
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    });
+
+    focusNode.addListener(() {
+      if (!mounted) return;
+      if (!focusNode.hasFocus) {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            final formatter = NumberFormat('#,##0.00', 'ru');
+            controller.text = formatter.format(value);
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      } else {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            controller.text = value.toString();
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _amountFocusNode.dispose();
+    _documentController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -425,13 +516,25 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
               ),
               const SizedBox(height: 16),
               // Сумма
-              TextField(
+              TextFormField(
                 controller: _amountController,
+                focusNode: _amountFocusNode,
                 decoration: const InputDecoration(
                   labelText: 'Сумма (₽) *',
                   prefixIcon: Icon(Icons.attach_money),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d*$')),
+                ],
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Введите сумму';
+                  final raw = v
+                      .replaceAll(RegExp(r'\s'), '')
+                      .replaceAll(',', '.');
+                  if (double.tryParse(raw) == null) return 'Введите число';
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
               // Тип выплаты
@@ -555,8 +658,11 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
         ),
         FilledButton(
           onPressed: () {
-            if (_amountController.text.isEmpty) return;
-            final amount = double.tryParse(_amountController.text);
+            final rawAmount = _amountController.text
+                .replaceAll(RegExp(r'\s'), '')
+                .replaceAll(',', '.');
+            if (rawAmount.isEmpty) return;
+            final amount = double.tryParse(rawAmount);
             if (amount == null || amount <= 0) return;
 
             final payment = Payment(

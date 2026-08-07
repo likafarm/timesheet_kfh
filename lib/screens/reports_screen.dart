@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
@@ -228,6 +229,9 @@ class _ReportCard extends StatelessWidget {
     final totalPaid = data['totalPaid'] as double;
     final balance = data['balance'] as double;
 
+    final currencyFormat = NumberFormat('#,##0.00', 'ru');
+    final hoursFormat = NumberFormat('#,##0.0', 'ru');
+
     return Expanded(
       child: Card(
         child: Padding(
@@ -271,33 +275,33 @@ class _ReportCard extends StatelessWidget {
               const Divider(height: 32),
 
               // Детализация
-              _ReportRow('Всего часов:', '${totalHours.toStringAsFixed(1)} ч'),
-              _ReportRow(
-                'Переработка:',
-                '${totalOvertime.toStringAsFixed(1)} ч',
-              ),
+              _ReportRow('Всего часов:', hoursFormat.format(totalHours)),
+              _ReportRow('Переработка:', hoursFormat.format(totalOvertime)),
               if (totalQuantity > 0)
-                _ReportRow('Сдельный объём:', totalQuantity.toStringAsFixed(2)),
+                _ReportRow(
+                  'Сдельный объём:',
+                  hoursFormat.format(totalQuantity),
+                ),
               if (totalPiecework > 0)
                 _ReportRow(
                   'Сдельная оплата:',
-                  '${totalPiecework.toStringAsFixed(2)} ₽',
+                  '${currencyFormat.format(totalPiecework)} ₽',
                 ),
               const Divider(height: 24),
               _ReportRow(
                 'Начислено:',
-                '${totalSalary.toStringAsFixed(2)} ₽',
+                '${currencyFormat.format(totalSalary)} ₽',
                 valueColor: Colors.green,
               ),
               _ReportRow(
                 'Выплачено:',
-                '${totalPaid.toStringAsFixed(2)} ₽',
+                '${currencyFormat.format(totalPaid)} ₽',
                 valueColor: Colors.blue,
               ),
               const Divider(height: 24),
               _ReportRow(
                 'Остаток к выплате:',
-                '${balance.toStringAsFixed(2)} ₽',
+                '${currencyFormat.format(balance)} ₽',
                 valueColor: balance > 0 ? Colors.orange : Colors.green,
                 isBold: true,
               ),

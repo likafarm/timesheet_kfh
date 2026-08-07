@@ -4,9 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/timesheet_record_dialog.dart';
+import '../widgets/daily_timesheet_dialog.dart';
 
-/// Экран табеля учёта рабочего времени
-/// Календарная сетка: строки = сотрудники, столбцы = дни месяца
 class TimesheetScreen extends StatefulWidget {
   const TimesheetScreen({super.key});
 
@@ -35,9 +34,45 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     context.read<AppProvider>().loadTimesheet(start, end);
   }
 
+  void _goToToday() {
+    setState(() {
+      _selectedMonth = DateTime.now();
+    });
+    _loadTimesheet();
+  }
+
+  Future<void> _selectMonth() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      helpText: 'Выберите месяц и год',
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedMonth = DateTime(picked.year, picked.month, 1);
+      });
+      _loadTimesheet();
+    }
+  }
+
+  void _showDailyInputDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => DailyTimesheetDialog(
+        initialDate: DateTime.now(),
+        onSaved: _loadTimesheet,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final monthName = DateFormat('MMMM yyyy', 'ru').format(_selectedMonth);
+    final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
+    final capitalizedMonth =
+        monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
     final daysInMonth = DateTime(
       _selectedMonth.year,
       _selectedMonth.month + 1,
@@ -64,11 +99,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Center(
-              child: Text(
-                monthName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              child: GestureDetector(
+                onTap: _selectMonth,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Text(
+                    capitalizedMonth,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -85,7 +126,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               _loadTimesheet();
             },
           ),
-          const SizedBox(width: 16),
+          IconButton(
+            icon: const Icon(Icons.today),
+            onPressed: _goToToday,
+            tooltip: 'Текущий месяц',
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_calendar),
+            onPressed: () => _showDailyInputDialog(context),
+            tooltip: 'Быстрый ввод за день',
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Consumer<AppProvider>(
@@ -106,6 +157,9 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           return _TimesheetGrid(
             employees: provider.employees,
             records: provider.timesheetRecords,
+            workTypes: provider.workTypes,
+            workSites: provider.workSites,
+            machinery: provider.machinery,
             selectedMonth: _selectedMonth,
             daysInMonth: daysInMonth,
             onCellTap: (employee, day) => _showRecordDialog(
@@ -124,7 +178,6 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     Employee employee,
     DateTime date,
   ) {
-    // Ищем существующую запись
     final provider = context.read<AppProvider>();
     final existingRecord = provider.timesheetRecords.firstWhere(
       (r) =>
@@ -147,10 +200,12 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 }
 
-/// Календарная сетка табеля
-class _TimesheetGrid extends StatelessWidget {
+class _TimesheetGrid extends StatefulWidget {
   final List<Employee> employees;
   final List<TimesheetRecord> records;
+  final List<WorkType> workTypes;
+  final List<WorkSite> workSites;
+  final List<Machinery> machinery;
   final DateTime selectedMonth;
   final int daysInMonth;
   final void Function(Employee, int) onCellTap;
@@ -158,45 +213,63 @@ class _TimesheetGrid extends StatelessWidget {
   const _TimesheetGrid({
     required this.employees,
     required this.records,
+    required this.workTypes,
+    required this.workSites,
+    required this.machinery,
     required this.selectedMonth,
     required this.daysInMonth,
     required this.onCellTap,
   });
 
   @override
+  State<_TimesheetGrid> createState() => _TimesheetGridState();
+}
+
+class _TimesheetGridState extends State<_TimesheetGrid> {
+  // Функция для преобразования ФИО в фамилию + инициалы
+  String _getShortName(String fullName) {
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return fullName;
+    if (parts.length == 1) return parts[0];
+    final surname = parts[0];
+    // Изменено: между инициалами вставляем пробел
+    final initials = parts
+        .skip(1)
+        .map((p) => p.isNotEmpty ? '${p[0]}.' : '')
+        .join(' ');
+    return '$surname $initials';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Фиксированная ширина столбцов
-    const employeeColumnWidth = 200.0;
-    const dayColumnWidth = 50.0;
+    const employeeColumnWidth = 152.0;
+    const dayColumnWidth = 51.0;
+    const cellHeight = 46.0;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заголовок с днями месяца
-          _buildHeader(employeeColumnWidth, dayColumnWidth),
-          // Строки сотрудников
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Column(
-                children: employees.map((employee) {
-                  return _buildEmployeeRow(
-                    employee,
-                    employeeColumnWidth,
-                    dayColumnWidth,
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
+          _buildHeader(employeeColumnWidth, dayColumnWidth, cellHeight),
+          ...widget.employees.map((employee) {
+            return _buildEmployeeRow(
+              employee,
+              employeeColumnWidth,
+              dayColumnWidth,
+              cellHeight,
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(double employeeWidth, double dayWidth) {
+  Widget _buildHeader(
+    double employeeWidth,
+    double dayWidth,
+    double cellHeight,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[200],
@@ -204,20 +277,22 @@ class _TimesheetGrid extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Колонка сотрудника
           Container(
             width: employeeWidth,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             alignment: Alignment.centerLeft,
             child: const Text(
               'Сотрудник',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ),
-          // Колонки дней
-          ...List.generate(daysInMonth, (index) {
+          ...List.generate(widget.daysInMonth, (index) {
             final day = index + 1;
-            final date = DateTime(selectedMonth.year, selectedMonth.month, day);
+            final date = DateTime(
+              widget.selectedMonth.year,
+              widget.selectedMonth.month,
+              day,
+            );
             final isWeekend =
                 date.weekday == DateTime.saturday ||
                 date.weekday == DateTime.sunday;
@@ -228,7 +303,7 @@ class _TimesheetGrid extends StatelessWidget {
 
             return Container(
               width: dayWidth,
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
               decoration: BoxDecoration(
                 color: isToday
                     ? Colors.blue[100]
@@ -243,7 +318,7 @@ class _TimesheetGrid extends StatelessWidget {
                     '$day',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: 13,
                       color: isWeekend ? Colors.red : null,
                     ),
                   ),
@@ -258,16 +333,15 @@ class _TimesheetGrid extends StatelessWidget {
               ),
             );
           }),
-          // Колонка итого
           Container(
             width: dayWidth,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: BoxDecoration(
               border: Border(left: BorderSide(color: Colors.grey[300]!)),
             ),
             child: const Text(
               'Итого',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ),
@@ -280,14 +354,17 @@ class _TimesheetGrid extends StatelessWidget {
     Employee employee,
     double employeeWidth,
     double dayWidth,
+    double cellHeight,
   ) {
-    // Считаем итого часов за месяц
     double totalHours = 0;
-    for (final record in records) {
+    for (final record in widget.records) {
       if (record.employeeId == employee.id) {
         totalHours += record.hoursWorked;
       }
     }
+
+    // Сокращаем ФИО
+    final shortName = _getShortName(employee.fullName);
 
     return Container(
       decoration: BoxDecoration(
@@ -295,37 +372,41 @@ class _TimesheetGrid extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Имя сотрудника
           Container(
             width: employeeWidth,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             alignment: Alignment.centerLeft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  employee.fullName,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  shortName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   employee.position,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          // Ячейки дней
-          ...List.generate(daysInMonth, (index) {
+          ...List.generate(widget.daysInMonth, (index) {
             final day = index + 1;
-            final date = DateTime(selectedMonth.year, selectedMonth.month, day);
+            final date = DateTime(
+              widget.selectedMonth.year,
+              widget.selectedMonth.month,
+              day,
+            );
             final isWeekend =
                 date.weekday == DateTime.saturday ||
                 date.weekday == DateTime.sunday;
 
-            // Ищем запись для этого дня
-            final record = records.firstWhere(
+            final record = widget.records.firstWhere(
               (r) =>
                   r.employeeId == employee.id &&
                   r.date.year == date.year &&
@@ -338,49 +419,22 @@ class _TimesheetGrid extends StatelessWidget {
               ),
             );
 
-            final hasRecord = record.id != null;
-            final hours = record.hoursWorked;
-
-            return GestureDetector(
-              onTap: () => onCellTap(employee, day),
-              child: Container(
-                width: dayWidth,
-                height: 50,
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: hasRecord
-                      ? (hours > 0 ? Colors.green[50] : Colors.orange[50])
-                      : isWeekend
-                      ? Colors.grey[100]
-                      : null,
-                  border: Border(left: BorderSide(color: Colors.grey[300]!)),
-                ),
-                child: Center(
-                  child: hasRecord && hours > 0
-                      ? Text(
-                          hours.toStringAsFixed(1),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: hours > 0 ? Colors.green[800] : null,
-                          ),
-                        )
-                      : hasRecord
-                      ? Icon(
-                          Icons.remove_circle_outline,
-                          size: 14,
-                          color: Colors.orange[400],
-                        )
-                      : null,
-                ),
-              ),
+            return _TimesheetCell(
+              record: record,
+              dayWidth: dayWidth,
+              cellHeight: cellHeight,
+              isWeekend: isWeekend,
+              workTypes: widget.workTypes,
+              workSites: widget.workSites,
+              machinery: widget.machinery,
+              employeeName: employee.fullName,
+              onDoubleTap: () => widget.onCellTap(employee, day),
             );
           }),
-          // Итого
           Container(
             width: dayWidth,
-            height: 50,
-            padding: const EdgeInsets.all(4),
+            height: cellHeight,
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               border: Border(left: BorderSide(color: Colors.grey[300]!)),
@@ -390,7 +444,7 @@ class _TimesheetGrid extends StatelessWidget {
                 totalHours.toStringAsFixed(1),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -403,5 +457,184 @@ class _TimesheetGrid extends StatelessWidget {
   String _getWeekdayShort(int weekday) {
     const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
     return days[weekday - 1];
+  }
+}
+
+class _TimesheetCell extends StatelessWidget {
+  final TimesheetRecord record;
+  final double dayWidth;
+  final double cellHeight;
+  final bool isWeekend;
+  final List<WorkType> workTypes;
+  final List<WorkSite> workSites;
+  final List<Machinery> machinery;
+  final String employeeName;
+  final VoidCallback onDoubleTap;
+
+  const _TimesheetCell({
+    required this.record,
+    required this.dayWidth,
+    required this.cellHeight,
+    required this.isWeekend,
+    required this.workTypes,
+    required this.workSites,
+    required this.machinery,
+    required this.employeeName,
+    required this.onDoubleTap,
+  });
+
+  bool get hasExtraData {
+    return record.overtimeHours != null && record.overtimeHours! > 0 ||
+        record.workTypeId != null ||
+        record.workSiteId != null ||
+        record.machineryId != null ||
+        (record.quantityDone != null && record.quantityDone! > 0) ||
+        (record.pieceworkRate != null && record.pieceworkRate! > 0) ||
+        (record.bonus != null && record.bonus! > 0) ||
+        (record.penalty != null && record.penalty! > 0) ||
+        (record.weatherCondition != null &&
+            record.weatherCondition!.isNotEmpty) ||
+        (record.notes != null && record.notes!.isNotEmpty);
+  }
+
+  String get tooltipText {
+    final buffer = StringBuffer();
+    buffer.writeln(
+      '$employeeName, ${DateFormat('dd.MM.yyyy').format(record.date)}',
+    );
+    buffer.writeln('Отработано: ${record.hoursWorked.toStringAsFixed(1)} ч');
+    if (record.overtimeHours != null && record.overtimeHours! > 0) {
+      buffer.writeln(
+        'Переработка: ${record.overtimeHours!.toStringAsFixed(1)} ч',
+      );
+    }
+    if (record.workTypeId != null) {
+      final wt = workTypes.firstWhere(
+        (t) => t.id == record.workTypeId,
+        orElse: () => WorkType(name: 'Неизвестно', category: ''),
+      );
+      buffer.writeln('Вид работы: ${wt.name} (${wt.categoryName})');
+    }
+    if (record.workSiteId != null) {
+      final ws = workSites.firstWhere(
+        (s) => s.id == record.workSiteId,
+        orElse: () => WorkSite(name: 'Неизвестно'),
+      );
+      buffer.writeln('Участок: ${ws.name}');
+    }
+    if (record.machineryId != null) {
+      final m = machinery.firstWhere(
+        (m) => m.id == record.machineryId,
+        orElse: () => Machinery(name: 'Неизвестно', type: ''),
+      );
+      buffer.writeln('Техника: ${m.name} (${m.typeName})');
+    }
+    if (record.quantityDone != null && record.quantityDone! > 0) {
+      buffer.writeln(
+        'Объём: ${record.quantityDone!.toStringAsFixed(2)} ${record.quantityUnit ?? ''}',
+      );
+    }
+    if (record.pieceworkRate != null && record.pieceworkRate! > 0) {
+      buffer.writeln('Расценка: ${record.pieceworkRate!.toStringAsFixed(2)} ₽');
+    }
+    if (record.bonus != null && record.bonus! > 0) {
+      buffer.writeln('Надбавка: ${record.bonus!.toStringAsFixed(2)} ₽');
+    }
+    if (record.penalty != null && record.penalty! > 0) {
+      buffer.writeln('Удержание: ${record.penalty!.toStringAsFixed(2)} ₽');
+    }
+    if (record.weatherCondition != null &&
+        record.weatherCondition!.isNotEmpty) {
+      buffer.writeln('Погода: ${record.weatherCondition}');
+    }
+    if (record.notes != null && record.notes!.isNotEmpty) {
+      buffer.writeln('Примечания: ${record.notes}');
+    }
+    return buffer.toString().trimRight();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRecord = record.id != null;
+    final hours = record.hoursWorked;
+    final overtime = record.overtimeHours ?? 0;
+
+    return GestureDetector(
+      onDoubleTap: onDoubleTap,
+      child: Tooltip(
+        message: hasRecord && hours > 0 ? tooltipText : '',
+        preferBelow: false,
+        verticalOffset: 20,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        textStyle: const TextStyle(color: Colors.white, fontSize: 11),
+        child: Container(
+          width: dayWidth,
+          height: cellHeight,
+          padding: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            color: hasRecord
+                ? (hours > 0 ? Colors.green[50] : Colors.orange[50])
+                : (isWeekend ? Colors.grey[100] : null),
+            border: Border(left: BorderSide(color: Colors.grey[300]!)),
+          ),
+          child: Stack(
+            children: [
+              if (hasRecord && hours > 0)
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          hours.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (overtime > 0)
+                          Text(
+                            '+${overtime.toStringAsFixed(1)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange[700],
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (hasRecord)
+                Icon(
+                  Icons.remove_circle_outline,
+                  size: 15,
+                  color: Colors.orange[400],
+                ),
+              if (hasRecord && hours > 0 && hasExtraData)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

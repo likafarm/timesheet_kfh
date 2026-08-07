@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 
-/// Диалог формы сотрудника (добавление/редактирование)
 class EmployeeFormDialog extends StatefulWidget {
   final Employee? employee;
-
   const EmployeeFormDialog({super.key, this.employee});
 
   @override
@@ -17,29 +16,23 @@ class EmployeeFormDialog extends StatefulWidget {
 class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  // Основные поля
   final _nameController = TextEditingController();
   final _positionController = TextEditingController();
   final _phoneController = TextEditingController();
-
-  // Паспортные данные
   final _passportSeriesController = TextEditingController();
   final _passportNumberController = TextEditingController();
   final _snilsController = TextEditingController();
   final _innController = TextEditingController();
-
-  // Финансовые
   final _rateController = TextEditingController();
   final _salaryController = TextEditingController();
   final _notesController = TextEditingController();
 
-  // Даты
+  final _rateFocusNode = FocusNode();
+  final _salaryFocusNode = FocusNode();
+
   DateTime _hireDate = DateTime.now();
   DateTime? _birthDate;
-
-  // Тип оплаты
   String _paymentType = 'hourly';
-  bool _isActive = true;
 
   @override
   void initState() {
@@ -59,8 +52,75 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       _hireDate = e.hireDate;
       _birthDate = e.birthDate;
       _paymentType = e.paymentType;
-      _isActive = e.isActive;
+
+      _formatControllerText(_rateController);
+      _formatControllerText(_salaryController);
     }
+    _setupNumberField(_rateController, _rateFocusNode);
+    _setupNumberField(_salaryController, _salaryFocusNode);
+  }
+
+  void _formatControllerText(TextEditingController controller) {
+    final raw = controller.text
+        .replaceAll(RegExp(r'\s'), '')
+        .replaceAll(',', '.');
+    if (raw.isNotEmpty) {
+      final value = double.tryParse(raw);
+      if (value != null) {
+        final formatter = NumberFormat('#,##0.00', 'ru');
+        controller.text = formatter.format(value);
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    }
+  }
+
+  void _setupNumberField(
+    TextEditingController controller,
+    FocusNode focusNode,
+  ) {
+    controller.addListener(() {
+      final text = controller.text;
+      if (text.contains(',')) {
+        controller.text = text.replaceAll(',', '.');
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
+    });
+
+    focusNode.addListener(() {
+      if (!mounted) return;
+      if (!focusNode.hasFocus) {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            final formatter = NumberFormat('#,##0.00', 'ru');
+            controller.text = formatter.format(value);
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      } else {
+        final raw = controller.text
+            .replaceAll(RegExp(r'\s'), '')
+            .replaceAll(',', '.');
+        if (raw.isNotEmpty) {
+          final value = double.tryParse(raw);
+          if (value != null) {
+            controller.text = value.toString();
+            controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length),
+            );
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -75,18 +135,19 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     _rateController.dispose();
     _salaryController.dispose();
     _notesController.dispose();
+    _rateFocusNode.dispose();
+    _salaryFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.employee != null;
-
     return AlertDialog(
       title: Text(isEditing ? 'Редактирование сотрудника' : 'Новый сотрудник'),
       content: SizedBox(
         width: 500,
-        height: 600,
+        height: 550, // чуть уменьшил, так как убрали свитч
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -94,7 +155,6 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // === ОСНОВНАЯ ИНФОРМАЦИЯ ===
                 _buildSectionTitle('Основная информация'),
                 TextFormField(
                   controller: _nameController,
@@ -134,13 +194,9 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                   label: 'Дата приёма *',
                   date: _hireDate,
                   onPick: (date) {
-                    if (date != null) {
-                      setState(() => _hireDate = date);
-                    }
+                    if (date != null) setState(() => _hireDate = date);
                   },
                 ),
-
-                // === ПАСПОРТНЫЕ ДАННЫЕ ===
                 const SizedBox(height: 16),
                 _buildSectionTitle('Паспортные данные'),
                 Row(
@@ -182,8 +238,6 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                   ),
                   keyboardType: TextInputType.number,
                 ),
-
-                // === ОПЛАТА ТРУДА ===
                 const SizedBox(height: 16),
                 _buildSectionTitle('Оплата труда'),
                 InputDecorator(
@@ -218,58 +272,56 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                 ),
                 const SizedBox(height: 12),
                 if (_paymentType == 'hourly')
-                  TextFormField(
+                  _buildNumberField(
                     controller: _rateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Почасовая ставка (₽/час) *',
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    focusNode: _rateFocusNode,
+                    label: 'Почасовая ставка (₽/час) *',
+                    icon: Icons.attach_money,
                     validator: (v) {
-                      if (_paymentType != 'hourly') return null;
-                      if (v?.isEmpty == true) return 'Обязательное поле';
-                      if (double.tryParse(v!) == null) return 'Введите число';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Обязательное поле';
+                      }
+                      final raw = v
+                          .replaceAll(RegExp(r'\s'), '')
+                          .replaceAll(',', '.');
+                      if (double.tryParse(raw) == null) return 'Введите число';
                       return null;
                     },
                   ),
                 if (_paymentType == 'salary')
-                  TextFormField(
+                  _buildNumberField(
                     controller: _salaryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Оклад (₽) *',
-                      prefixIcon: Icon(Icons.money),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    focusNode: _salaryFocusNode,
+                    label: 'Оклад (₽) *',
+                    icon: Icons.money,
                     validator: (v) {
-                      if (_paymentType != 'salary') return null;
-                      if (v?.isEmpty == true) return 'Обязательное поле';
-                      if (double.tryParse(v!) == null) return 'Введите число';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Обязательное поле';
+                      }
+                      final raw = v
+                          .replaceAll(RegExp(r'\s'), '')
+                          .replaceAll(',', '.');
+                      if (double.tryParse(raw) == null) return 'Введите число';
                       return null;
                     },
                   ),
                 if (_paymentType == 'piecework')
-                  TextFormField(
+                  _buildNumberField(
                     controller: _rateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Базовая ставка (₽/час) *',
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    focusNode: _rateFocusNode,
+                    label: 'Базовая ставка (₽/час) *',
+                    icon: Icons.attach_money,
                     validator: (v) {
-                      if (_paymentType != 'piecework') return null;
-                      if (v?.isEmpty == true) return 'Обязательное поле';
-                      if (double.tryParse(v!) == null) return 'Введите число';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Обязательное поле';
+                      }
+                      final raw = v
+                          .replaceAll(RegExp(r'\s'), '')
+                          .replaceAll(',', '.');
+                      if (double.tryParse(raw) == null) return 'Введите число';
                       return null;
                     },
                   ),
-
-                // === ПРИМЕЧАНИЯ ===
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _notesController,
@@ -279,17 +331,6 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                   ),
                   maxLines: 2,
                 ),
-
-                // === СТАТУС ===
-                if (isEditing) ...[
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    title: const Text('Сотрудник активен'),
-                    subtitle: const Text('Отключите, если сотрудник уволен'),
-                    value: _isActive,
-                    onChanged: (v) => setState(() => _isActive = v),
-                  ),
-                ],
               ],
             ),
           ),
@@ -353,18 +394,36 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     );
   }
 
+  Widget _buildNumberField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String label,
+    required IconData icon,
+    required String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+      keyboardType: TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d*$')),
+      ],
+      validator: validator,
+    );
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-
+    String getRaw(String text) =>
+        text.replaceAll(RegExp(r'\s'), '').replaceAll(',', '.');
     double rate = 0;
     double? salary;
-
     if (_paymentType == 'hourly' || _paymentType == 'piecework') {
-      rate = double.parse(_rateController.text);
+      rate = double.parse(getRaw(_rateController.text));
     } else if (_paymentType == 'salary') {
-      salary = double.parse(_salaryController.text);
+      salary = double.parse(getRaw(_salaryController.text));
     }
-
     final employee = Employee(
       id: widget.employee?.id,
       fullName: _nameController.text.trim(),
@@ -389,19 +448,21 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       hourlyRate: rate,
       fixedSalary: salary,
       paymentType: _paymentType,
-      isActive: _isActive,
+      isActive:
+          widget.employee?.isActive ??
+          true, // сохраняем текущий статус (при создании — true)
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
+      dismissalDate: widget.employee?.dismissalDate,
+      dismissalReason: widget.employee?.dismissalReason,
     );
-
     final provider = context.read<AppProvider>();
     if (widget.employee != null) {
       provider.updateEmployee(employee);
     } else {
       provider.addEmployee(employee);
     }
-
     Navigator.pop(context);
   }
 }

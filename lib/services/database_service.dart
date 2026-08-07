@@ -26,7 +26,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -55,7 +55,6 @@ class DatabaseService {
         night_shift_multiplier REAL NOT NULL DEFAULT 1.2
       )
     ''');
-    // Вставляем запись по умолчанию
     await db.insert('company_settings', {
       'id': 1,
       'company_name': 'КФХ',
@@ -64,7 +63,7 @@ class DatabaseService {
       'night_shift_multiplier': 1.2,
     });
 
-    // --- Таблица сотрудников ---
+    // --- Таблица сотрудников (добавлены поля dismissal_date и dismissal_reason) ---
     await db.execute('''
       CREATE TABLE employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +81,9 @@ class DatabaseService {
         payment_type TEXT NOT NULL DEFAULT 'hourly',
         is_active INTEGER NOT NULL DEFAULT 1,
         notes TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        dismissal_date TEXT,
+        dismissal_reason TEXT
       )
     ''');
 
@@ -219,16 +220,28 @@ class DatabaseService {
     );
   }
 
-  /// Обновление базы данных (миграции для будущих версий)
+  /// Обновление базы данных (миграции)
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Здесь будут миграции при обновлении версии БД
+    if (oldVersion < 2) {
+      try {
+        await db.execute(
+          'ALTER TABLE employees ADD COLUMN dismissal_date TEXT',
+        );
+        await db.execute(
+          'ALTER TABLE employees ADD COLUMN dismissal_reason TEXT',
+        );
+      } catch (e) {
+        // Если столбцы уже существуют (например, при повторной миграции), игнорируем ошибку
+        // Предупреждение анализатора не критично, просто убираем print для чистоты.
+      }
+    }
+    // Будущие миграции добавлять здесь
   }
 
   // ==========================================================================
   // COMPANY SETTINGS
   // ==========================================================================
 
-  /// Получение настроек КФХ
   Future<CompanySettings?> getCompanySettings() async {
     final db = await database;
     final maps = await db.query('company_settings', where: 'id = 1');
@@ -236,7 +249,6 @@ class DatabaseService {
     return CompanySettings.fromMap(maps.first);
   }
 
-  /// Обновление настроек КФХ
   Future<int> updateCompanySettings(CompanySettings settings) async {
     final db = await database;
     return await db.update(
@@ -685,12 +697,10 @@ class DatabaseService {
       totalBonus += record.bonus ?? 0;
       totalPenalty += record.penalty ?? 0;
 
-      // Почасовая часть
       double basePay = record.hoursWorked * employee.hourlyRate;
       double overtimePay =
           (record.overtimeHours ?? 0) * employee.hourlyRate * overtimeMult;
 
-      // Сдельная часть
       double pieceworkPay = 0;
       if (record.quantityDone != null && record.pieceworkRate != null) {
         pieceworkPay = record.quantityDone! * record.pieceworkRate!;
@@ -706,7 +716,6 @@ class DatabaseService {
           (record.penalty ?? 0);
     }
 
-    // Выплаты за период
     final start = DateTime(year, month, 1);
     final end = DateTime(year, month + 1, 0);
     final payments = await getPaymentsByEmployee(
@@ -790,7 +799,6 @@ class DatabaseService {
     final db = await database;
     final dateStr = date.toIso8601String();
 
-    // Проверяем отпуск
     final vacation = await db.rawQuery(
       '''
       SELECT * FROM vacations
@@ -804,7 +812,6 @@ class DatabaseService {
       return {'status': 'vacation', 'data': Vacation.fromMap(vacation.first)};
     }
 
-    // Проверяем больничный
     final sickLeave = await db.rawQuery(
       '''
       SELECT * FROM sick_leaves
