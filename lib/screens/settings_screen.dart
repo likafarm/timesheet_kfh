@@ -15,6 +15,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   CompanySettings? _localSettings;
   bool _hasChanges = false;
 
+  // Контроллеры для текстовых полей
+  late TextEditingController _companyNameController;
+  late TextEditingController _directorNameController;
+  late TextEditingController _innController;
+  late TextEditingController _ogrnController;
+  late TextEditingController _phoneController;
+  late TextEditingController _bankAccountController;
+  late TextEditingController _bankNameController;
+  late TextEditingController _legalAddressController;
+  late TextEditingController _defaultWorkDayHoursController;
+  late TextEditingController _overtimeMultiplierController;
+  late TextEditingController _nightShiftMultiplierController;
+
   @override
   void initState() {
     super.initState();
@@ -22,7 +35,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final provider = context.read<AppProvider>();
       provider.loadCompanySettings();
       _localSettings = provider.companySettings;
+      _initControllers();
     });
+  }
+
+  void _initControllers() {
+    final settings = _localSettings ?? context.read<AppProvider>().companySettings;
+    if (settings == null) return;
+
+    _companyNameController = TextEditingController(text: settings.companyName ?? '');
+    _directorNameController = TextEditingController(text: settings.directorName ?? '');
+    _innController = TextEditingController(text: settings.inn ?? '');
+    _ogrnController = TextEditingController(text: settings.ogrn ?? '');
+    _phoneController = TextEditingController(text: settings.phone ?? '');
+    _bankAccountController = TextEditingController(text: settings.bankAccount ?? '');
+    _bankNameController = TextEditingController(text: settings.bankName ?? '');
+    _legalAddressController = TextEditingController(text: settings.legalAddress ?? '');
+    _defaultWorkDayHoursController = TextEditingController(text: settings.defaultWorkDayHours.toString());
+    _overtimeMultiplierController = TextEditingController(text: settings.overtimeMultiplier.toString());
+    _nightShiftMultiplierController = TextEditingController(text: settings.nightShiftMultiplier.toString());
+  }
+
+  @override
+  void dispose() {
+    _companyNameController.dispose();
+    _directorNameController.dispose();
+    _innController.dispose();
+    _ogrnController.dispose();
+    _phoneController.dispose();
+    _bankAccountController.dispose();
+    _bankNameController.dispose();
+    _legalAddressController.dispose();
+    _defaultWorkDayHoursController.dispose();
+    _overtimeMultiplierController.dispose();
+    _nightShiftMultiplierController.dispose();
+    super.dispose();
   }
 
   void _updateLocalSettings(CompanySettings newSettings) {
@@ -287,10 +334,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     int maxLines = 1,
     required ValueChanged<String?> onChanged,
   }) {
+    TextEditingController? controller;
+
+    // Определяем контроллер в зависимости от метки поля
+    if (label == 'Название КФХ') controller = _companyNameController;
+    else if (label == 'ФИО руководителя') controller = _directorNameController;
+    else if (label == 'ИНН') controller = _innController;
+    else if (label == 'ОГРН') controller = _ogrnController;
+    else if (label == 'Телефон') controller = _phoneController;
+    else if (label == 'Расчётный счёт') controller = _bankAccountController;
+    else if (label == 'Банк') controller = _bankNameController;
+    else if (label == 'Адрес') controller = _legalAddressController;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: TextEditingController(text: value ?? ''),
+        controller: controller ?? TextEditingController(text: value ?? ''),
         decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
         maxLines: maxLines,
         onChanged: (v) => onChanged(v.isEmpty ? null : v),
@@ -305,10 +364,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String suffix,
     required ValueChanged<double> onChanged,
   }) {
+    TextEditingController? controller;
+
+    // Определяем контроллер в зависимости от метки поля
+    if (label == 'Норма часов в день') controller = _defaultWorkDayHoursController;
+    else if (label == 'Коэффициент переработки') controller = _overtimeMultiplierController;
+    else if (label == 'Коэффициент ночных') controller = _nightShiftMultiplierController;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: TextEditingController(text: value.toString()),
+        controller: controller ?? TextEditingController(text: value.toString()),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
