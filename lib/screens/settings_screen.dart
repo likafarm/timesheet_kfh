@@ -40,20 +40,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _initControllers() {
-    final settings = _localSettings ?? context.read<AppProvider>().companySettings;
+    final settings =
+        _localSettings ?? context.read<AppProvider>().companySettings;
     if (settings == null) return;
 
-    _companyNameController = TextEditingController(text: settings.companyName ?? '');
-    _directorNameController = TextEditingController(text: settings.directorName ?? '');
+    _companyNameController = TextEditingController(text: settings.companyName);
+    _directorNameController = TextEditingController(
+      text: settings.directorName ?? '',
+    );
     _innController = TextEditingController(text: settings.inn ?? '');
     _ogrnController = TextEditingController(text: settings.ogrn ?? '');
     _phoneController = TextEditingController(text: settings.phone ?? '');
-    _bankAccountController = TextEditingController(text: settings.bankAccount ?? '');
+    _bankAccountController = TextEditingController(
+      text: settings.bankAccount ?? '',
+    );
     _bankNameController = TextEditingController(text: settings.bankName ?? '');
-    _legalAddressController = TextEditingController(text: settings.legalAddress ?? '');
-    _defaultWorkDayHoursController = TextEditingController(text: settings.defaultWorkDayHours.toString());
-    _overtimeMultiplierController = TextEditingController(text: settings.overtimeMultiplier.toString());
-    _nightShiftMultiplierController = TextEditingController(text: settings.nightShiftMultiplier.toString());
+    _legalAddressController = TextEditingController(
+      text: settings.legalAddress ?? '',
+    );
+    _defaultWorkDayHoursController = TextEditingController(
+      text: settings.defaultWorkDayHours.toString(),
+    );
+    _overtimeMultiplierController = TextEditingController(
+      text: settings.overtimeMultiplier.toString(),
+    );
+    _nightShiftMultiplierController = TextEditingController(
+      text: settings.nightShiftMultiplier.toString(),
+    );
   }
 
   @override
@@ -337,15 +350,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     TextEditingController? controller;
 
     // Определяем контроллер в зависимости от метки поля
-    if (label == 'Название КФХ') controller = _companyNameController;
-    else if (label == 'ФИО руководителя') controller = _directorNameController;
-    else if (label == 'ИНН') controller = _innController;
-    else if (label == 'ОГРН') controller = _ogrnController;
-    else if (label == 'Телефон') controller = _phoneController;
-    else if (label == 'Расчётный счёт') controller = _bankAccountController;
-    else if (label == 'Банк') controller = _bankNameController;
-    else if (label == 'Адрес') controller = _legalAddressController;
-
+    if (label == 'Название КФХ') {
+      controller = _companyNameController;
+    } else if (label == 'ФИО руководителя') {
+      controller = _directorNameController;
+    } else if (label == 'ИНН') {
+      controller = _innController;
+    } else if (label == 'ОГРН') {
+      controller = _ogrnController;
+    } else if (label == 'Телефон') {
+      controller = _phoneController;
+    } else if (label == 'Расчётный счёт') {
+      controller = _bankAccountController;
+    } else if (label == 'Банк') {
+      controller = _bankNameController;
+    } else if (label == 'Адрес') {
+      controller = _legalAddressController;
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
@@ -367,10 +388,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     TextEditingController? controller;
 
     // Определяем контроллер в зависимости от метки поля
-    if (label == 'Норма часов в день') controller = _defaultWorkDayHoursController;
-    else if (label == 'Коэффициент переработки') controller = _overtimeMultiplierController;
-    else if (label == 'Коэффициент ночных') controller = _nightShiftMultiplierController;
-
+    if (label == 'Норма часов в день') {
+      controller = _defaultWorkDayHoursController;
+    } else if (label == 'Коэффициент переработки') {
+      controller = _overtimeMultiplierController;
+    } else if (label == 'Коэффициент ночных') {
+      controller = _nightShiftMultiplierController;
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
