@@ -12,7 +12,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _formKey = GlobalKey<FormState>();
   CompanySettings? _localSettings;
   bool _hasChanges = false;
 
@@ -39,9 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _hasChanges = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Настройки сохранены')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Настройки сохранены')));
     }
   }
 
@@ -89,15 +88,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: 'Название КФХ',
                       value: settings.companyName,
                       icon: Icons.business,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(companyName: v)),
+                      onChanged: (v) => _updateLocalSettings(
+                        settings.copyWith(companyName: v),
+                      ),
                     ),
                     _buildTextField(
                       label: 'ФИО руководителя',
                       value: settings.directorName,
                       icon: Icons.person_outline,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(directorName: v)),
+                      onChanged: (v) => _updateLocalSettings(
+                        settings.copyWith(directorName: v),
+                      ),
                     ),
                     _buildTextField(
                       label: 'ИНН',
@@ -134,8 +135,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: 'Расчётный счёт',
                       value: settings.bankAccount,
                       icon: Icons.account_balance,
-                      onChanged: (v) =>
-                          _updateLocalSettings(settings.copyWith(bankAccount: v)),
+                      onChanged: (v) => _updateLocalSettings(
+                        settings.copyWith(bankAccount: v),
+                      ),
                     ),
                     _buildTextField(
                       label: 'Банк',
