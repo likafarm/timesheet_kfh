@@ -1,0 +1,36 @@
+name: kfx_time_tracking
+description: "Учёт рабочего времени в КФХ"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Управление состоянием
+  provider: ^6.1.5
+
+  # Локальная база данных SQLite
+  sqflite: ^2.4.3
+  path: ^1.9.1
+  sqflite_common_ffi: ^2.3.5
+
+  # Иконки
+  cupertino_icons: ^1.0.9
+
+  # Форматирование дат и чисел
+  intl: ^0.20.3
+
+  # Локальное хранилище настроек
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

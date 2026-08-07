@@ -1,0 +1,466 @@
+import 'package:flutter/material.dart';
+import '../models/models.dart';
+import '../services/database_service.dart';
+
+/// Главный провайдер состояния приложения
+/// Связывает UI с базой данных SQLite
+class AppProvider extends ChangeNotifier {
+  final DatabaseService _db = DatabaseService();
+
+  // Списки данных
+  List<Employee> _employees = [];
+  List<WorkSite> _workSites = [];
+  List<WorkType> _workTypes = [];
+  List<Machinery> _machinery = [];
+  List<TimesheetRecord> _timesheetRecords = [];
+  List<Payment> _payments = [];
+  List<Vacation> _vacations = [];
+  List<SickLeave> _sickLeaves = [];
+  CompanySettings? _companySettings;
+
+  // Состояние загрузки
+  bool _isLoading = false;
+  String? _error;
+
+  // Геттеры
+  List<Employee> get employees => _employees;
+  List<WorkSite> get workSites => _workSites;
+  List<WorkType> get workTypes => _workTypes;
+  List<Machinery> get machinery => _machinery;
+  List<TimesheetRecord> get timesheetRecords => _timesheetRecords;
+  List<Payment> get payments => _payments;
+  List<Vacation> get vacations => _vacations;
+  List<SickLeave> get sickLeaves => _sickLeaves;
+  CompanySettings? get companySettings => _companySettings;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // ==========================================================================
+  // ЗАГРУЗКА ДАННЫХ
+  // ==========================================================================
+
+  /// Загрузка всех справочников
+  Future<void> loadAllData() async {
+    _setLoading(true);
+    try {
+      await Future.wait([
+        loadEmployees(),
+        loadWorkSites(),
+        loadWorkTypes(),
+        loadMachinery(),
+        loadCompanySettings(),
+      ]);
+      _error = null;
+    } catch (e) {
+      _error = 'Ошибка загрузки данных: $e';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // COMPANY SETTINGS (НАСТРОЙКИ КФХ)
+  // ==========================================================================
+
+  Future<void> loadCompanySettings() async {
+    _companySettings = await _db.getCompanySettings();
+    notifyListeners();
+  }
+
+  Future<void> updateCompanySettings(CompanySettings settings) async {
+    _setLoading(true);
+    try {
+      await _db.updateCompanySettings(settings);
+      await loadCompanySettings();
+    } catch (e) {
+      _error = 'Ошибка обновления настроек: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // EMPLOYEES (СОТРУДНИКИ)
+  // ==========================================================================
+
+  Future<void> loadEmployees({bool activeOnly = true}) async {
+    _employees = await _db.getAllEmployees(activeOnly: activeOnly);
+    notifyListeners();
+  }
+
+  Future<void> addEmployee(Employee employee) async {
+    _setLoading(true);
+    try {
+      await _db.insertEmployee(employee);
+      await loadEmployees();
+    } catch (e) {
+      _error = 'Ошибка добавления сотрудника: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateEmployee(Employee employee) async {
+    _setLoading(true);
+    try {
+      await _db.updateEmployee(employee);
+      await loadEmployees();
+    } catch (e) {
+      _error = 'Ошибка обновления сотрудника: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteEmployee(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deleteEmployee(id);
+      await loadEmployees();
+    } catch (e) {
+      _error = 'Ошибка удаления сотрудника: $e';
+      _setLoading(false);
+    }
+  }
+
+  Employee? getEmployeeById(int id) {
+    try {
+      return _employees.firstWhere((e) => e.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String getEmployeeName(int id) {
+    final emp = getEmployeeById(id);
+    return emp?.fullName ?? 'Неизвестно';
+  }
+
+  // ==========================================================================
+  // WORK SITES (УЧАСТКИ)
+  // ==========================================================================
+
+  Future<void> loadWorkSites() async {
+    _workSites = await _db.getAllWorkSites();
+    notifyListeners();
+  }
+
+  Future<void> addWorkSite(WorkSite site) async {
+    _setLoading(true);
+    try {
+      await _db.insertWorkSite(site);
+      await loadWorkSites();
+    } catch (e) {
+      _error = 'Ошибка добавления участка: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateWorkSite(WorkSite site) async {
+    _setLoading(true);
+    try {
+      await _db.updateWorkSite(site);
+      await loadWorkSites();
+    } catch (e) {
+      _error = 'Ошибка обновления участка: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteWorkSite(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deleteWorkSite(id);
+      await loadWorkSites();
+    } catch (e) {
+      _error = 'Ошибка удаления участка: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // WORK TYPES (ВИДЫ РАБОТ)
+  // ==========================================================================
+
+  Future<void> loadWorkTypes() async {
+    _workTypes = await _db.getAllWorkTypes();
+    notifyListeners();
+  }
+
+  Future<void> addWorkType(WorkType workType) async {
+    _setLoading(true);
+    try {
+      await _db.insertWorkType(workType);
+      await loadWorkTypes();
+    } catch (e) {
+      _error = 'Ошибка добавления вида работы: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateWorkType(WorkType workType) async {
+    _setLoading(true);
+    try {
+      await _db.updateWorkType(workType);
+      await loadWorkTypes();
+    } catch (e) {
+      _error = 'Ошибка обновления вида работы: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteWorkType(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deleteWorkType(id);
+      await loadWorkTypes();
+    } catch (e) {
+      _error = 'Ошибка удаления вида работы: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // MACHINERY (ТЕХНИКА)
+  // ==========================================================================
+
+  Future<void> loadMachinery() async {
+    _machinery = await _db.getAllMachinery();
+    notifyListeners();
+  }
+
+  Future<void> addMachinery(Machinery item) async {
+    _setLoading(true);
+    try {
+      await _db.insertMachinery(item);
+      await loadMachinery();
+    } catch (e) {
+      _error = 'Ошибка добавления техники: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateMachinery(Machinery item) async {
+    _setLoading(true);
+    try {
+      await _db.updateMachinery(item);
+      await loadMachinery();
+    } catch (e) {
+      _error = 'Ошибка обновления техники: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteMachinery(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deleteMachinery(id);
+      await loadMachinery();
+    } catch (e) {
+      _error = 'Ошибка удаления техники: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // TIMESHEET (ТАБЕЛЬ)
+  // ==========================================================================
+
+  Future<void> loadTimesheet(
+    DateTime start,
+    DateTime end, {
+    int? employeeId,
+  }) async {
+    _setLoading(true);
+    try {
+      _timesheetRecords = await _db.getTimesheetByPeriod(
+        start,
+        end,
+        employeeId: employeeId,
+      );
+      _error = null;
+    } catch (e) {
+      _error = 'Ошибка загрузки табеля: $e';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> addTimesheetRecord(TimesheetRecord record) async {
+    _setLoading(true);
+    try {
+      await _db.insertTimesheetRecord(record);
+      _setLoading(false);
+    } catch (e) {
+      _error = 'Ошибка добавления записи: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateTimesheetRecord(TimesheetRecord record) async {
+    _setLoading(true);
+    try {
+      await _db.updateTimesheetRecord(record);
+      _setLoading(false);
+    } catch (e) {
+      _error = 'Ошибка обновления записи: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteTimesheetRecord(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deleteTimesheetRecord(id);
+      _setLoading(false);
+    } catch (e) {
+      _error = 'Ошибка удаления записи: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // PAYMENTS (ВЫПЛАТЫ)
+  // ==========================================================================
+
+  Future<void> loadPayments(
+    int employeeId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _setLoading(true);
+    try {
+      _payments = await _db.getPaymentsByEmployee(
+        employeeId,
+        startDate: startDate,
+        endDate: endDate,
+      );
+      _error = null;
+    } catch (e) {
+      _error = 'Ошибка загрузки выплат: $e';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> addPayment(Payment payment) async {
+    _setLoading(true);
+    try {
+      await _db.insertPayment(payment);
+      _setLoading(false);
+    } catch (e) {
+      _error = 'Ошибка добавления выплаты: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deletePayment(int id) async {
+    _setLoading(true);
+    try {
+      await _db.deletePayment(id);
+      _setLoading(false);
+    } catch (e) {
+      _error = 'Ошибка удаления выплаты: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // VACATIONS (ОТПУСКА)
+  // ==========================================================================
+
+  Future<void> loadVacations(int employeeId) async {
+    _vacations = await _db.getVacationsByEmployee(employeeId);
+    notifyListeners();
+  }
+
+  Future<void> addVacation(Vacation vacation) async {
+    _setLoading(true);
+    try {
+      await _db.insertVacation(vacation);
+      await loadVacations(vacation.employeeId);
+    } catch (e) {
+      _error = 'Ошибка добавления отпуска: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteVacation(int id, int employeeId) async {
+    _setLoading(true);
+    try {
+      await _db.deleteVacation(id);
+      await loadVacations(employeeId);
+    } catch (e) {
+      _error = 'Ошибка удаления отпуска: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // SICK LEAVES (БОЛЬНИЧНЫЕ)
+  // ==========================================================================
+
+  Future<void> loadSickLeaves(int employeeId) async {
+    _sickLeaves = await _db.getSickLeavesByEmployee(employeeId);
+    notifyListeners();
+  }
+
+  Future<void> addSickLeave(SickLeave sickLeave) async {
+    _setLoading(true);
+    try {
+      await _db.insertSickLeave(sickLeave);
+      await loadSickLeaves(sickLeave.employeeId);
+    } catch (e) {
+      _error = 'Ошибка добавления больничного: $e';
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteSickLeave(int id, int employeeId) async {
+    _setLoading(true);
+    try {
+      await _db.deleteSickLeave(id);
+      await loadSickLeaves(employeeId);
+    } catch (e) {
+      _error = 'Ошибка удаления больничного: $e';
+      _setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // ОТЧЁТЫ
+  // ==========================================================================
+
+  Future<Map<String, dynamic>> calculateMonthlySalary(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    return await _db.calculateMonthlySalary(employeeId, year, month);
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkReportBySites(
+    DateTime start,
+    DateTime end,
+  ) async {
+    return await _db.getWorkReportBySites(start, end);
+  }
+
+  Future<List<Map<String, dynamic>>> getMachineryReport(
+    DateTime start,
+    DateTime end,
+  ) async {
+    return await _db.getMachineryReport(start, end);
+  }
+
+  // ==========================================================================
+  // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+  // ==========================================================================
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}
