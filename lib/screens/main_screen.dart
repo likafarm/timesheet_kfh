@@ -4,6 +4,7 @@ import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
+import 'directories_screen.dart'; // новый импорт
 
 /// Главный экран приложения с боковой навигацией
 class MainScreen extends StatefulWidget {
@@ -40,6 +41,13 @@ class _MainScreenState extends State<MainScreen> {
       selectedIcon: Icons.bar_chart,
       label: 'Отчёты',
       screen: const ReportsScreen(),
+    ),
+    // Справочники теперь один пункт, ведущий на экран со списком справочников
+    NavigationItem(
+      icon: Icons.folder_outlined,
+      selectedIcon: Icons.folder,
+      label: 'Справочники',
+      screen: const DirectoriesScreen(),
     ),
     NavigationItem(
       icon: Icons.settings_outlined,

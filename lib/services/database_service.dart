@@ -3,8 +3,24 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/models.dart';
 
+// ==========================================================================
+// ENUMS
+// ==========================================================================
+
+/// Статусы работы сотрудника для учёта графиков
+enum WorkStatus {
+  regularWork, // работа по графику
+  regularRest, // отдых по графику
+  exceptionWork, // работа вне графика (замена)
+  exceptionRest, // отдых вне графика (замена)
+  unknown, // обычный сотрудник без графика или ошибка
+}
+
+// ==========================================================================
+// DATABASE SERVICE
+// ==========================================================================
+
 /// Сервис для работы с локальной базой данных SQLite
-/// Содержит все таблицы для учёта рабочего времени в КФХ
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
@@ -26,7 +42,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -63,7 +79,7 @@ class DatabaseService {
       'night_shift_multiplier': 1.2,
     });
 
-    // --- Таблица сотрудников (добавлены поля dismissal_date и dismissal_reason) ---
+    // --- Таблица сотрудников ---
     await db.execute('''
       CREATE TABLE employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,11 +99,65 @@ class DatabaseService {
         notes TEXT,
         created_at TEXT NOT NULL,
         dismissal_date TEXT,
-        dismissal_reason TEXT
+        dismissal_reason TEXT,
+        schedule_type_id INTEGER,
+        schedule_start_date TEXT,
+        is_shift_worker INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
-    // --- Таблица участков/полей ---
+    // --- Таблица типов графиков работы ---
+    await db.execute('''
+      CREATE TABLE work_schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        work_days INTEGER NOT NULL,
+        rest_days INTEGER NOT NULL,
+        shift_duration REAL NOT NULL DEFAULT 24.0
+      )
+    ''');
+    await db.insert('work_schedules', {
+      'name': 'Сутки-трое',
+      'description': '1 день работы, 3 дня отдыха',
+      'work_days': 1,
+      'rest_days': 3,
+      'shift_duration': 24.0,
+    });
+    await db.insert('work_schedules', {
+      'name': 'Сутки-двое',
+      'description': '1 день работы, 2 дня отдыха',
+      'work_days': 1,
+      'rest_days': 2,
+      'shift_duration': 24.0,
+    });
+
+    // --- Таблица истории графиков ---
+    await db.execute('''
+      CREATE TABLE employee_schedule (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL,
+        schedule_type_id INTEGER NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+        FOREIGN KEY (schedule_type_id) REFERENCES work_schedules (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // --- Таблица исключений ---
+    await db.execute('''
+      CREATE TABLE schedule_exceptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        exception_type TEXT NOT NULL, -- 'work' или 'rest'
+        note TEXT,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // --- Участки ---
     await db.execute('''
       CREATE TABLE work_sites (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +168,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица видов работ ---
+    // --- Виды работ ---
     await db.execute('''
       CREATE TABLE work_types (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,7 +179,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица техники ---
+    // --- Техника ---
     await db.execute('''
       CREATE TABLE machinery (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,7 +192,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица табеля (основная) ---
+    // --- Табель ---
     await db.execute('''
       CREATE TABLE timesheet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,7 +219,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица выплат ---
+    // --- Выплаты ---
     await db.execute('''
       CREATE TABLE payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,7 +237,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица отпусков ---
+    // --- Отпуска ---
     await db.execute('''
       CREATE TABLE vacations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,7 +252,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица больничных ---
+    // --- Больничные ---
     await db.execute('''
       CREATE TABLE sick_leaves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -198,7 +268,18 @@ class DatabaseService {
       )
     ''');
 
-    // --- Индексы для ускорения запросов ---
+    // --- Производственный календарь ---
+    await db.execute('''
+      CREATE TABLE production_calendar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL UNIQUE,
+        is_holiday INTEGER NOT NULL DEFAULT 0,
+        is_shortened INTEGER NOT NULL DEFAULT 0,
+        description TEXT
+      )
+    ''');
+
+    // --- Индексы ---
     await db.execute('CREATE INDEX idx_timesheet_date ON timesheet(date)');
     await db.execute(
       'CREATE INDEX idx_timesheet_employee ON timesheet(employee_id)',
@@ -218,6 +299,18 @@ class DatabaseService {
     await db.execute(
       'CREATE INDEX idx_sick_leaves_employee ON sick_leaves(employee_id)',
     );
+    await db.execute(
+      'CREATE INDEX idx_calendar_date ON production_calendar(date)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_employee_schedule_employee ON employee_schedule(employee_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_schedule_exceptions_employee ON schedule_exceptions(employee_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_schedule_exceptions_date ON schedule_exceptions(date)',
+    );
   }
 
   /// Обновление базы данных (миграции)
@@ -231,11 +324,97 @@ class DatabaseService {
           'ALTER TABLE employees ADD COLUMN dismissal_reason TEXT',
         );
       } catch (e) {
-        // Если столбцы уже существуют (например, при повторной миграции), игнорируем ошибку
-        // Предупреждение анализатора не критично, просто убираем print для чистоты.
+        // ignore: empty_catches
+        // Столбцы уже существуют
       }
     }
-    // Будущие миграции добавлять здесь
+    if (oldVersion < 3) {
+      try {
+        await db.execute(
+          'ALTER TABLE employees ADD COLUMN schedule_type_id INTEGER',
+        );
+        await db.execute(
+          'ALTER TABLE employees ADD COLUMN schedule_start_date TEXT',
+        );
+        await db.execute(
+          'ALTER TABLE employees ADD COLUMN is_shift_worker INTEGER NOT NULL DEFAULT 0',
+        );
+
+        await db.execute('''
+          CREATE TABLE work_schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            work_days INTEGER NOT NULL,
+            rest_days INTEGER NOT NULL,
+            shift_duration REAL NOT NULL DEFAULT 24.0
+          )
+        ''');
+        await db.insert('work_schedules', {
+          'name': 'Сутки-трое',
+          'description': '1 день работы, 3 дня отдыха',
+          'work_days': 1,
+          'rest_days': 3,
+          'shift_duration': 24.0,
+        });
+        await db.insert('work_schedules', {
+          'name': 'Сутки-двое',
+          'description': '1 день работы, 2 дня отдыха',
+          'work_days': 1,
+          'rest_days': 2,
+          'shift_duration': 24.0,
+        });
+
+        await db.execute('''
+          CREATE TABLE employee_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            schedule_type_id INTEGER NOT NULL,
+            start_date TEXT NOT NULL,
+            end_date TEXT,
+            FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+            FOREIGN KEY (schedule_type_id) REFERENCES work_schedules (id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE schedule_exceptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            exception_type TEXT NOT NULL,
+            note TEXT,
+            FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE production_calendar (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL UNIQUE,
+            is_holiday INTEGER NOT NULL DEFAULT 0,
+            is_shortened INTEGER NOT NULL DEFAULT 0,
+            description TEXT
+          )
+        ''');
+
+        await db.execute(
+          'CREATE INDEX idx_calendar_date ON production_calendar(date)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_employee_schedule_employee ON employee_schedule(employee_id)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_schedule_exceptions_employee ON schedule_exceptions(employee_id)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_schedule_exceptions_date ON schedule_exceptions(date)',
+        );
+      } catch (e) {
+        // ignore: empty_catches
+        // Таблицы или столбцы уже существуют
+      }
+    }
   }
 
   // ==========================================================================
@@ -260,7 +439,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // EMPLOYEES (СОТРУДНИКИ)
+  // EMPLOYEES
   // ==========================================================================
 
   Future<int> insertEmployee(Employee employee) async {
@@ -274,12 +453,14 @@ class DatabaseService {
   Future<List<Employee>> getAllEmployees({bool activeOnly = false}) async {
     final db = await database;
     String where = '';
+    List<dynamic> whereArgs = [];
     if (activeOnly) {
       where = 'WHERE is_active = ?';
+      whereArgs = [1];
     }
     final maps = await db.rawQuery(
       'SELECT * FROM employees $where ORDER BY full_name',
-      activeOnly ? [1] : [],
+      whereArgs,
     );
     return maps.map((m) => Employee.fromMap(m)).toList();
   }
@@ -307,7 +488,161 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // WORK SITES (УЧАСТКИ)
+  // WORK SCHEDULES
+  // ==========================================================================
+
+  Future<List<Map<String, dynamic>>> getWorkScheduleTypes() async {
+    final db = await database;
+    return await db.query('work_schedules', orderBy: 'name');
+  }
+
+  /// Получить текущий график сотрудника (активный или последний)
+  Future<Map<String, dynamic>?> getEmployeeCurrentSchedule(
+    int employeeId,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'employee_schedule',
+      where:
+          'employee_id = ? AND (end_date IS NULL OR end_date >= date(\'now\'))', // исправлено кавычки
+      whereArgs: [employeeId],
+      orderBy: 'start_date DESC',
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
+
+  Future<int> assignEmployeeSchedule(
+    int employeeId,
+    int scheduleTypeId,
+    DateTime startDate,
+  ) async {
+    final db = await database;
+    final map = {
+      'employee_id': employeeId,
+      'schedule_type_id': scheduleTypeId,
+      'start_date': startDate.toIso8601String(),
+    };
+    return await db.insert('employee_schedule', map);
+  }
+
+  Future<int> closeEmployeeSchedule(int scheduleId, DateTime endDate) async {
+    final db = await database;
+    return await db.update(
+      'employee_schedule',
+      {'end_date': endDate.toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [scheduleId],
+    );
+  }
+
+  // ==========================================================================
+  // SCHEDULE EXCEPTIONS
+  // ==========================================================================
+
+  Future<int> addScheduleException(
+    int employeeId,
+    DateTime date,
+    String exceptionType, {
+    String? note,
+  }) async {
+    final db = await database;
+    final map = {
+      'employee_id': employeeId,
+      'date': date.toIso8601String(),
+      'exception_type': exceptionType,
+      'note': note,
+    };
+    return await db.insert('schedule_exceptions', map);
+  }
+
+  Future<int> deleteScheduleException(int id) async {
+    final db = await database;
+    return await db.delete(
+      'schedule_exceptions',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getScheduleExceptionsForEmployee(
+    int employeeId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final db = await database;
+    String where = 'employee_id = ?';
+    List<dynamic> whereArgs = [employeeId];
+    if (startDate != null && endDate != null) {
+      where += ' AND date >= ? AND date <= ?';
+      whereArgs.add(startDate.toIso8601String());
+      whereArgs.add(endDate.toIso8601String());
+    }
+    return await db.query(
+      'schedule_exceptions',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'date',
+    );
+  }
+
+  // ==========================================================================
+  // ОПРЕДЕЛЕНИЕ СТАТУСА СОТРУДНИКА
+  // ==========================================================================
+
+  Future<WorkStatus> getEmployeeStatusOnDate(
+    int employeeId,
+    DateTime date,
+  ) async {
+    final db = await database;
+    final dateStr = date.toIso8601String();
+
+    final exception = await db.query(
+      'schedule_exceptions',
+      where: 'employee_id = ? AND date = ?',
+      whereArgs: [employeeId, dateStr],
+      limit: 1,
+    );
+    if (exception.isNotEmpty) {
+      return exception.first['exception_type'] == 'work'
+          ? WorkStatus.exceptionWork
+          : WorkStatus.exceptionRest;
+    }
+
+    final employee = await getEmployeeById(employeeId);
+    if (employee == null || !employee.isShiftWorker) {
+      return WorkStatus.unknown;
+    }
+
+    final schedule = await getEmployeeCurrentSchedule(employeeId);
+    if (schedule == null) {
+      return WorkStatus.unknown;
+    }
+
+    final scheduleTypeId = schedule['schedule_type_id'] as int;
+    final startDate = DateTime.parse(schedule['start_date'] as String);
+
+    final type = await db.query(
+      'work_schedules',
+      where: 'id = ?',
+      whereArgs: [scheduleTypeId],
+    );
+    if (type.isEmpty) return WorkStatus.unknown;
+    final workDays = type.first['work_days'] as int;
+    final restDays = type.first['rest_days'] as int;
+    final cycleDays = workDays + restDays;
+
+    final daysSinceStart = date.difference(startDate).inDays;
+    final positionInCycle = daysSinceStart % cycleDays;
+
+    return positionInCycle < workDays
+        ? WorkStatus.regularWork
+        : WorkStatus.regularRest;
+  }
+
+  // ==========================================================================
+  // WORK SITES
   // ==========================================================================
 
   Future<int> insertWorkSite(WorkSite site) async {
@@ -346,7 +681,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // WORK TYPES (ВИДЫ РАБОТ)
+  // WORK TYPES
   // ==========================================================================
 
   Future<int> insertWorkType(WorkType workType) async {
@@ -385,7 +720,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // MACHINERY (ТЕХНИКА)
+  // MACHINERY
   // ==========================================================================
 
   Future<int> insertMachinery(Machinery machinery) async {
@@ -431,7 +766,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // TIMESHEET (ТАБЕЛЬ)
+  // TIMESHEET
   // ==========================================================================
 
   Future<int> insertTimesheetRecord(TimesheetRecord record) async {
@@ -473,7 +808,6 @@ class DatabaseService {
     return getTimesheetByPeriod(start, end, employeeId: employeeId);
   }
 
-  /// Получение записей всех сотрудников за конкретную дату
   Future<List<Map<String, dynamic>>> getDailyTimesheet(DateTime date) async {
     final db = await database;
     final dateStr = date.toIso8601String().split('T')[0];
@@ -525,7 +859,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // PAYMENTS (ВЫПЛАТЫ)
+  // PAYMENTS
   // ==========================================================================
 
   Future<int> insertPayment(Payment payment) async {
@@ -574,7 +908,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // VACATIONS (ОТПУСКА)
+  // VACATIONS
   // ==========================================================================
 
   Future<int> insertVacation(Vacation vacation) async {
@@ -627,7 +961,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // SICK LEAVES (БОЛЬНИЧНЫЕ)
+  // SICK LEAVES
   // ==========================================================================
 
   Future<int> insertSickLeave(SickLeave sickLeave) async {
@@ -664,10 +998,57 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // ОТЧЁТЫ И РАСЧЁТ ЗАРПЛАТЫ
+  // PRODUCTION CALENDAR
   // ==========================================================================
 
-  /// Расчёт зарплаты сотрудника за месяц
+  Future<void> saveCalendarDay(
+    DateTime date,
+    bool isHoliday,
+    bool isShortened, {
+    String? description,
+  }) async {
+    final db = await database;
+    final map = {
+      'date': date.toIso8601String(),
+      'is_holiday': isHoliday ? 1 : 0,
+      'is_shortened': isShortened ? 1 : 0,
+      'description': description,
+    };
+    await db.insert(
+      'production_calendar',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getCalendarDay(DateTime date) async {
+    final db = await database;
+    final maps = await db.query(
+      'production_calendar',
+      where: 'date = ?',
+      whereArgs: [date.toIso8601String()],
+    );
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
+
+  Future<List<Map<String, dynamic>>> getCalendarForPeriod(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'production_calendar',
+      where: 'date >= ? AND date <= ?',
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'date',
+    );
+  }
+
+  // ==========================================================================
+  // ОТЧЁТЫ
+  // ==========================================================================
+
   Future<Map<String, dynamic>> calculateMonthlySalary(
     int employeeId,
     int year,
@@ -740,7 +1121,6 @@ class DatabaseService {
     };
   }
 
-  /// Отчёт по выполненным работам по участкам
   Future<List<Map<String, dynamic>>> getWorkReportBySites(
     DateTime start,
     DateTime end,
@@ -766,7 +1146,6 @@ class DatabaseService {
     );
   }
 
-  /// Отчёт по использованию техники
   Future<List<Map<String, dynamic>>> getMachineryReport(
     DateTime start,
     DateTime end,
@@ -791,48 +1170,8 @@ class DatabaseService {
     );
   }
 
-  /// Проверка, находится ли сотрудник в отпуске/на больничном
-  Future<Map<String, dynamic>?> getEmployeeStatusOnDate(
-    int employeeId,
-    DateTime date,
-  ) async {
-    final db = await database;
-    final dateStr = date.toIso8601String();
-
-    final vacation = await db.rawQuery(
-      '''
-      SELECT * FROM vacations
-      WHERE employee_id = ? AND start_date <= ? AND end_date >= ?
-      LIMIT 1
-    ''',
-      [employeeId, dateStr, dateStr],
-    );
-
-    if (vacation.isNotEmpty) {
-      return {'status': 'vacation', 'data': Vacation.fromMap(vacation.first)};
-    }
-
-    final sickLeave = await db.rawQuery(
-      '''
-      SELECT * FROM sick_leaves
-      WHERE employee_id = ? AND start_date <= ? AND end_date >= ?
-      LIMIT 1
-    ''',
-      [employeeId, dateStr, dateStr],
-    );
-
-    if (sickLeave.isNotEmpty) {
-      return {
-        'status': 'sick_leave',
-        'data': SickLeave.fromMap(sickLeave.first),
-      };
-    }
-
-    return null;
-  }
-
   // ==========================================================================
-  // ЗАКРЫТИЕ СОЕДИНЕНИЯ
+  // ЗАКРЫТИЕ
   // ==========================================================================
 
   Future<void> close() async {

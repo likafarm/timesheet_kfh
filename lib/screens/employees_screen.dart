@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/employee_form_dialog.dart';
+import '../widgets/employee_schedule_dialog.dart';
 
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
@@ -13,13 +14,15 @@ class EmployeesScreen extends StatefulWidget {
 }
 
 class _EmployeesScreenState extends State<EmployeesScreen> {
-  bool _showAll = false; // true - показывать всех, false - только активных
+  bool _showAll = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppProvider>().loadEmployees(activeOnly: !_showAll);
+      final provider = context.read<AppProvider>();
+      provider.loadEmployees(activeOnly: !_showAll);
+      provider.loadWorkScheduleTypes();
     });
   }
 
@@ -37,7 +40,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         title: const Text('Сотрудники'),
         centerTitle: false,
         actions: [
-          // Переключатель фильтра
           Row(
             children: [
               const Text('Только активные'),
@@ -110,6 +112,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                 onDelete: () => _confirmDelete(context, employee),
                 onDismiss: () => _showDismissDialog(context, employee),
                 onReinstate: () => _confirmReinstate(context, employee),
+                onSchedule: () => _showScheduleDialog(context, employee),
               );
             },
           );
@@ -122,6 +125,13 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     showDialog(
       context: context,
       builder: (context) => EmployeeFormDialog(employee: employee),
+    );
+  }
+
+  void _showScheduleDialog(BuildContext context, Employee employee) {
+    showDialog(
+      context: context,
+      builder: (context) => EmployeeScheduleDialog(employee: employee),
     );
   }
 
@@ -246,13 +256,13 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 }
 
-/// Карточка сотрудника
 class _EmployeeCard extends StatelessWidget {
   final Employee employee;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onDismiss;
   final VoidCallback onReinstate;
+  final VoidCallback onSchedule;
 
   const _EmployeeCard({
     required this.employee,
@@ -260,6 +270,7 @@ class _EmployeeCard extends StatelessWidget {
     required this.onDelete,
     required this.onDismiss,
     required this.onReinstate,
+    required this.onSchedule,
   });
 
   @override
@@ -273,9 +284,32 @@ class _EmployeeCard extends StatelessWidget {
         ? '${formatter.format(employee.fixedSalary!)} ₽ (оклад)'
         : 'Ставка не указана';
 
-    // Статус
     String statusText = employee.isActive ? 'Активен' : 'Уволен';
     Color statusColor = employee.isActive ? Colors.green : Colors.red;
+
+    // Получаем информацию о графике
+    String scheduleInfo = 'Без графика';
+    Color scheduleColor = Colors.grey;
+    if (employee.isShiftWorker) {
+      scheduleInfo = 'Сменный';
+      scheduleColor = Colors.blue;
+      // Попробуем получить название типа графика
+      final provider = context.read<AppProvider>();
+      final schedule = provider.employeeSchedules[employee.id];
+      if (schedule != null) {
+        final scheduleTypeId = schedule['schedule_type_id'] as int?;
+        if (scheduleTypeId != null) {
+          final types = provider.workScheduleTypes;
+          final type = types.firstWhere(
+            (t) => t['id'] == scheduleTypeId,
+            orElse: () => const <String, dynamic>{},
+          );
+          if (type.isNotEmpty) {
+            scheduleInfo = type['name'] as String? ?? 'Сменный';
+          }
+        }
+      }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -349,6 +383,23 @@ class _EmployeeCard extends StatelessWidget {
                 'Причина: ${employee.dismissalReason}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
+            // Отображение информации о графике
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: scheduleColor.withAlpha(30),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                scheduleInfo,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheduleColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -357,6 +408,7 @@ class _EmployeeCard extends StatelessWidget {
             if (value == 'delete') onDelete();
             if (value == 'dismiss') onDismiss();
             if (value == 'reinstate') onReinstate();
+            if (value == 'schedule') onSchedule();
           },
           itemBuilder: (context) {
             final items = <PopupMenuItem<String>>[];
@@ -365,6 +417,12 @@ class _EmployeeCard extends StatelessWidget {
                 const PopupMenuItem(
                   value: 'edit',
                   child: Text('Редактировать'),
+                ),
+              );
+              items.add(
+                const PopupMenuItem(
+                  value: 'schedule',
+                  child: Text('График работы'),
                 ),
               );
               items.add(

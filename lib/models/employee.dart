@@ -16,10 +16,13 @@ class Employee {
   final bool isActive;
   final String? notes;
   final DateTime createdAt;
-
-  // Новые поля для увольнения
   final DateTime? dismissalDate;
   final String? dismissalReason;
+
+  // Новые поля для учёта графиков работы
+  final int? scheduleTypeId; // id типа графика из таблицы work_schedules
+  final DateTime? scheduleStartDate; // дата начала действия графика
+  final bool isShiftWorker; // флаг, что сотрудник работает по сменному графику
 
   Employee({
     this.id,
@@ -40,6 +43,9 @@ class Employee {
     DateTime? createdAt,
     this.dismissalDate,
     this.dismissalReason,
+    this.scheduleTypeId,
+    this.scheduleStartDate,
+    this.isShiftWorker = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory Employee.fromMap(Map<String, dynamic> map) {
@@ -68,6 +74,11 @@ class Employee {
           ? DateTime.parse(map['dismissal_date'] as String)
           : null,
       dismissalReason: map['dismissal_reason'] as String?,
+      scheduleTypeId: map['schedule_type_id'] as int?,
+      scheduleStartDate: map['schedule_start_date'] != null
+          ? DateTime.parse(map['schedule_start_date'] as String)
+          : null,
+      isShiftWorker: (map['is_shift_worker'] as int? ?? 0) == 1,
     );
   }
 
@@ -91,6 +102,9 @@ class Employee {
       'created_at': createdAt.toIso8601String(),
       'dismissal_date': dismissalDate?.toIso8601String(),
       'dismissal_reason': dismissalReason,
+      'schedule_type_id': scheduleTypeId,
+      'schedule_start_date': scheduleStartDate?.toIso8601String(),
+      'is_shift_worker': isShiftWorker ? 1 : 0,
     };
   }
 
@@ -113,6 +127,9 @@ class Employee {
     DateTime? createdAt,
     DateTime? dismissalDate,
     String? dismissalReason,
+    int? scheduleTypeId,
+    DateTime? scheduleStartDate,
+    bool? isShiftWorker,
   }) {
     return Employee(
       id: id ?? this.id,
@@ -133,6 +150,9 @@ class Employee {
       createdAt: createdAt ?? this.createdAt,
       dismissalDate: dismissalDate ?? this.dismissalDate,
       dismissalReason: dismissalReason ?? this.dismissalReason,
+      scheduleTypeId: scheduleTypeId ?? this.scheduleTypeId,
+      scheduleStartDate: scheduleStartDate ?? this.scheduleStartDate,
+      isShiftWorker: isShiftWorker ?? this.isShiftWorker,
     );
   }
 

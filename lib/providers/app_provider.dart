@@ -1,9 +1,10 @@
+// ignore_for_file: prefer_final_fields
+
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 
 /// Главный провайдер состояния приложения
-/// Связывает UI с базой данных SQLite
 class AppProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
 
@@ -18,11 +19,18 @@ class AppProvider extends ChangeNotifier {
   List<SickLeave> _sickLeaves = [];
   CompanySettings? _companySettings;
 
+  // Графики работы
+  List<Map<String, dynamic>> _workScheduleTypes = [];
+  Map<int, Map<String, dynamic>> _employeeSchedules =
+      {}; // employeeId -> текущий график
+  Map<int, List<Map<String, dynamic>>> _scheduleExceptions =
+      {}; // employeeId -> список исключений
+
   // Состояние загрузки
   bool _isLoading = false;
   String? _error;
 
-  // Для перезагрузки табеля после изменений
+  // Для перезагрузки табеля
   DateTime? _currentPeriodStart;
   DateTime? _currentPeriodEnd;
 
@@ -36,6 +44,10 @@ class AppProvider extends ChangeNotifier {
   List<Vacation> get vacations => _vacations;
   List<SickLeave> get sickLeaves => _sickLeaves;
   CompanySettings? get companySettings => _companySettings;
+  List<Map<String, dynamic>> get workScheduleTypes => _workScheduleTypes;
+  Map<int, Map<String, dynamic>> get employeeSchedules => _employeeSchedules;
+  Map<int, List<Map<String, dynamic>>> get scheduleExceptions =>
+      _scheduleExceptions;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -43,7 +55,6 @@ class AppProvider extends ChangeNotifier {
   // ЗАГРУЗКА ДАННЫХ
   // ==========================================================================
 
-  /// Загрузка всех справочников
   Future<void> loadAllData() async {
     _setLoading(true);
     try {
@@ -53,7 +64,9 @@ class AppProvider extends ChangeNotifier {
         loadWorkTypes(),
         loadMachinery(),
         loadCompanySettings(),
+        loadWorkScheduleTypes(),
       ]);
+      await loadAllEmployeeSchedules();
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки данных: $e';
@@ -63,7 +76,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // COMPANY SETTINGS (НАСТРОЙКИ КФХ)
+  // COMPANY SETTINGS
   // ==========================================================================
 
   Future<void> loadCompanySettings() async {
@@ -82,10 +95,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // EMPLOYEES (СОТРУДНИКИ)
+  // EMPLOYEES
   // ==========================================================================
 
-  /// Загружает список сотрудников. По умолчанию загружаются все (activeOnly = false).
   Future<void> loadEmployees({bool activeOnly = false}) async {
     _employees = await _db.getAllEmployees(activeOnly: activeOnly);
     notifyListeners();
@@ -105,6 +117,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.updateEmployee(employee);
       await loadEmployees();
+      await loadEmployeeSchedule(employee.id!);
     } catch (e) {
       _error = 'Ошибка обновления сотрудника: $e';
       notifyListeners();
@@ -115,13 +128,14 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.deleteEmployee(id);
       await loadEmployees();
+      _employeeSchedules.remove(id);
+      _scheduleExceptions.remove(id);
     } catch (e) {
       _error = 'Ошибка удаления сотрудника: $e';
       notifyListeners();
     }
   }
 
-  /// Увольнение сотрудника
   Future<void> dismissEmployee(
     int id,
     DateTime dismissalDate,
@@ -143,7 +157,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// Восстановление сотрудника
   Future<void> reinstateEmployee(int id) async {
     try {
       final employee = getEmployeeById(id);
@@ -175,7 +188,137 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // WORK SITES (УЧАСТКИ)
+  // WORK SCHEDULES
+  // ==========================================================================
+
+  Future<void> loadWorkScheduleTypes() async {
+    _workScheduleTypes = await _db.getWorkScheduleTypes();
+    notifyListeners();
+  }
+
+  Future<void> loadEmployeeSchedule(int employeeId) async {
+    final schedule = await _db.getEmployeeCurrentSchedule(employeeId);
+    if (schedule != null) {
+      _employeeSchedules[employeeId] = schedule;
+    } else {
+      _employeeSchedules.remove(employeeId);
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadAllEmployeeSchedules() async {
+    _employeeSchedules.clear();
+    for (var employee in _employees) {
+      if (employee.id != null) {
+        await loadEmployeeSchedule(employee.id!);
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> assignEmployeeSchedule(
+    int employeeId,
+    int scheduleTypeId,
+    DateTime startDate,
+  ) async {
+    try {
+      final current = _employeeSchedules[employeeId];
+      if (current != null) {
+        await _db.closeEmployeeSchedule(
+          current['id'] as int,
+          startDate.subtract(const Duration(days: 1)),
+        );
+      }
+      await _db.assignEmployeeSchedule(employeeId, scheduleTypeId, startDate);
+      final employee = getEmployeeById(employeeId);
+      if (employee != null && !employee.isShiftWorker) {
+        final updated = employee.copyWith(isShiftWorker: true);
+        await _db.updateEmployee(updated);
+        await loadEmployees();
+      }
+      await loadEmployeeSchedule(employeeId);
+    } catch (e) {
+      _error = 'Ошибка назначения графика: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> closeEmployeeSchedule(int employeeId) async {
+    try {
+      final current = _employeeSchedules[employeeId];
+      if (current != null) {
+        await _db.closeEmployeeSchedule(current['id'] as int, DateTime.now());
+        final employee = getEmployeeById(employeeId);
+        if (employee != null && employee.isShiftWorker) {
+          final updated = employee.copyWith(isShiftWorker: false);
+          await _db.updateEmployee(updated);
+          await loadEmployees();
+        }
+        await loadEmployeeSchedule(employeeId);
+      }
+    } catch (e) {
+      _error = 'Ошибка завершения графика: $e';
+      notifyListeners();
+    }
+  }
+
+  // ==========================================================================
+  // SCHEDULE EXCEPTIONS
+  // ==========================================================================
+
+  Future<void> loadScheduleExceptions(int employeeId) async {
+    final exceptions = await _db.getScheduleExceptionsForEmployee(employeeId);
+    _scheduleExceptions[employeeId] = exceptions;
+    notifyListeners();
+  }
+
+  Future<void> addScheduleException(
+    int employeeId,
+    DateTime date,
+    String exceptionType, {
+    String? note,
+  }) async {
+    try {
+      await _db.addScheduleException(
+        employeeId,
+        date,
+        exceptionType,
+        note: note,
+      );
+      await loadScheduleExceptions(employeeId);
+    } catch (e) {
+      _error = 'Ошибка добавления исключения: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteScheduleException(int exceptionId, int employeeId) async {
+    try {
+      await _db.deleteScheduleException(exceptionId);
+      await loadScheduleExceptions(employeeId);
+    } catch (e) {
+      _error = 'Ошибка удаления исключения: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Получить статус сотрудника на конкретную дату
+  Future<WorkStatus> getEmployeeStatusOnDate(
+    int employeeId,
+    DateTime date,
+  ) async {
+    return await _db.getEmployeeStatusOnDate(employeeId, date);
+  }
+
+  /// Проверить, является ли дата рабочим днём для сотрудника (учитывая график)
+  Future<bool> isWorkingDay(int employeeId, DateTime date) async {
+    final status = await _db.getEmployeeStatusOnDate(employeeId, date);
+    return status == WorkStatus.regularWork ||
+        status == WorkStatus.exceptionWork;
+  }
+
+  // ==========================================================================
+  // WORK SITES
   // ==========================================================================
 
   Future<void> loadWorkSites() async {
@@ -214,7 +357,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // WORK TYPES (ВИДЫ РАБОТ)
+  // WORK TYPES
   // ==========================================================================
 
   Future<void> loadWorkTypes() async {
@@ -253,7 +396,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // MACHINERY (ТЕХНИКА)
+  // MACHINERY
   // ==========================================================================
 
   Future<void> loadMachinery() async {
@@ -292,7 +435,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // TIMESHEET (ТАБЕЛЬ)
+  // TIMESHEET
   // ==========================================================================
 
   Future<void> loadTimesheet(
@@ -317,7 +460,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// Получение записей за конкретную дату (без изменения состояния)
   Future<List<TimesheetRecord>> getTimesheetForDate(DateTime date) async {
     return await _db.getTimesheetByPeriod(date, date);
   }
@@ -364,7 +506,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// Сохранение записей за день (быстрый ввод)
   Future<void> saveDailyTimesheet(
     List<TimesheetRecord> records,
     DateTime date,
@@ -390,7 +531,6 @@ class AppProvider extends ChangeNotifier {
           await _db.insertTimesheetRecord(record);
         }
       }
-      // Перезагружаем табель, если есть текущий период
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
       } else {
@@ -403,7 +543,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // PAYMENTS (ВЫПЛАТЫ)
+  // PAYMENTS
   // ==========================================================================
 
   Future<void> loadPayments(
@@ -447,7 +587,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // VACATIONS (ОТПУСКА)
+  // VACATIONS
   // ==========================================================================
 
   Future<void> loadVacations(int employeeId) async {
@@ -476,7 +616,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // SICK LEAVES (БОЛЬНИЧНЫЕ)
+  // SICK LEAVES
   // ==========================================================================
 
   Future<void> loadSickLeaves(int employeeId) async {
@@ -528,6 +668,17 @@ class AppProvider extends ChangeNotifier {
     DateTime end,
   ) async {
     return await _db.getMachineryReport(start, end);
+  }
+
+  Future<void> updatePayment(Payment payment) async {
+    try {
+      await _db.updatePayment(payment);
+      // Перезагружаем выплаты для этого сотрудника
+      await loadPayments(payment.employeeId);
+    } catch (e) {
+      _error = 'Ошибка обновления выплаты: $e';
+      notifyListeners();
+    }
   }
 
   // ==========================================================================

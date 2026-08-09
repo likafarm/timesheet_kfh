@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/database_service.dart';
 import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/daily_timesheet_dialog.dart';
 
@@ -24,6 +25,8 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
       provider.loadEmployees();
       provider.loadWorkTypes();
       provider.loadWorkSites();
+      provider.loadWorkScheduleTypes();
+      provider.loadAllEmployeeSchedules();
       _loadTimesheet();
     });
   }
@@ -226,13 +229,11 @@ class _TimesheetGrid extends StatefulWidget {
 }
 
 class _TimesheetGridState extends State<_TimesheetGrid> {
-  // Функция для преобразования ФИО в фамилию + инициалы
   String _getShortName(String fullName) {
     final parts = fullName.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return fullName;
     if (parts.length == 1) return parts[0];
     final surname = parts[0];
-    // Изменено: между инициалами вставляем пробел
     final initials = parts
         .skip(1)
         .map((p) => p.isNotEmpty ? '${p[0]}.' : '')
@@ -363,7 +364,6 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
       }
     }
 
-    // Сокращаем ФИО
     final shortName = _getShortName(employee.fullName);
 
     return Container(
@@ -424,6 +424,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
               dayWidth: dayWidth,
               cellHeight: cellHeight,
               isWeekend: isWeekend,
+              employeeId: employee.id!,
               workTypes: widget.workTypes,
               workSites: widget.workSites,
               machinery: widget.machinery,
@@ -465,6 +466,7 @@ class _TimesheetCell extends StatelessWidget {
   final double dayWidth;
   final double cellHeight;
   final bool isWeekend;
+  final int employeeId;
   final List<WorkType> workTypes;
   final List<WorkSite> workSites;
   final List<Machinery> machinery;
@@ -476,6 +478,7 @@ class _TimesheetCell extends StatelessWidget {
     required this.dayWidth,
     required this.cellHeight,
     required this.isWeekend,
+    required this.employeeId,
     required this.workTypes,
     required this.workSites,
     required this.machinery,
@@ -557,84 +560,161 @@ class _TimesheetCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasRecord = record.id != null;
     final hours = record.hoursWorked;
-    final overtime = record.overtimeHours ?? 0;
 
-    return GestureDetector(
-      onDoubleTap: onDoubleTap,
-      child: Tooltip(
-        message: hasRecord && hours > 0 ? tooltipText : '',
-        preferBelow: false,
-        verticalOffset: 20,
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(4),
-        ),
-        textStyle: const TextStyle(color: Colors.white, fontSize: 11),
-        child: Container(
-          width: dayWidth,
-          height: cellHeight,
-          padding: const EdgeInsets.all(1),
-          decoration: BoxDecoration(
-            color: hasRecord
-                ? (hours > 0 ? Colors.green[50] : Colors.orange[50])
-                : (isWeekend ? Colors.grey[100] : null),
-            border: Border(left: BorderSide(color: Colors.grey[300]!)),
-          ),
-          child: Stack(
-            children: [
-              if (hasRecord && hours > 0)
-                Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+    return Consumer<AppProvider>(
+      builder: (context, provider, child) {
+        final future = provider.getEmployeeStatusOnDate(
+          employeeId,
+          record.date,
+        );
+
+        return FutureBuilder<WorkStatus>(
+          future: future,
+          builder: (context, snapshot) {
+            Color? backgroundColor;
+            Widget? content;
+            String? statusText;
+
+            // Проверяем статус
+            WorkStatus? status;
+            if (snapshot.hasData) {
+              status = snapshot.data!;
+            }
+
+            // Если есть запись с часами > 0
+            if (hasRecord && hours > 0) {
+              // Показываем часы и переработку, фон зелёный
+              backgroundColor = Colors.green[50];
+              content = Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        hours.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (record.overtimeHours != null &&
+                          record.overtimeHours! > 0)
                         Text(
-                          hours.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                          '+${record.overtimeHours!.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange[700],
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
-                        if (overtime > 0)
-                          Text(
-                            '+${overtime.toStringAsFixed(1)}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.orange[700],
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
-                )
-              else if (hasRecord)
-                Icon(
+                ),
+              );
+              statusText = 'Отработано: ${hours.toStringAsFixed(1)} ч';
+            } else if (hasRecord && hours == 0) {
+              // Запись есть, но часы равны 0 (редкий случай) – оранжевый фон и иконка "минус"
+              backgroundColor = Colors.orange[50];
+              content = Center(
+                child: Icon(
                   Icons.remove_circle_outline,
                   size: 15,
                   color: Colors.orange[400],
                 ),
-              if (hasRecord && hours > 0 && hasExtraData)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(2),
-                      ),
+              );
+              statusText = 'Запись без часов';
+            } else {
+              // Нет записи (hasRecord == false)
+              // Определяем фон и содержимое на основе статуса
+              if (status == WorkStatus.regularWork ||
+                  status == WorkStatus.exceptionWork) {
+                // Рабочая смена по графику – тёмно-синий фон и буква "Г"
+                backgroundColor = Colors.blue[900];
+                content = Center(
+                  child: Text(
+                    'Г',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                );
+                statusText = 'Смена по графику';
+              } else {
+                // Выходной по графику или неизвестно – без фона и без содержимого
+                backgroundColor = null;
+                content = null;
+                statusText = null;
+              }
+            }
+
+            // Если фон не определён и это выходной (weekend) – можно установить серый фон,
+            // но по заданию мы убираем серый для выходных по графику. Однако для обычных выходных (без графика) оставляем?
+            // Обычные выходные (isWeekend) мы ранее выделяли серым фоном, но это для всех сотрудников.
+            // Теперь мы убираем серый для rest по графику, но для обычных выходных (isWeekend) можно оставить лёгкий фон.
+            // Но так как мы переопределили фон для всех случаев, для unknown и isWeekend оставляем стандартный фон.
+            if (backgroundColor == null && isWeekend) {
+              backgroundColor = Colors.grey[100];
+            }
+
+            // Формируем tooltip
+            String tooltipMessage = '';
+            if (hasRecord && hours > 0) {
+              tooltipMessage = tooltipText;
+            } else if (statusText != null) {
+              tooltipMessage =
+                  '$employeeName, ${DateFormat('dd.MM.yyyy').format(record.date)}\n$statusText';
+            }
+
+            return GestureDetector(
+              onDoubleTap: onDoubleTap,
+              child: Tooltip(
+                message: tooltipMessage,
+                preferBelow: false,
+                verticalOffset: 20,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(4),
                 ),
-            ],
-          ),
-        ),
-      ),
+                textStyle: const TextStyle(color: Colors.white, fontSize: 11),
+                child: Container(
+                  width: dayWidth,
+                  height: cellHeight,
+                  padding: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    border: Border(left: BorderSide(color: Colors.grey[300]!)),
+                  ),
+                  child: Stack(
+                    children: [
+                      ?content,
+                      // Красный уголок, если есть дополнительные данные
+                      if (hasRecord && hours > 0 && hasExtraData)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
