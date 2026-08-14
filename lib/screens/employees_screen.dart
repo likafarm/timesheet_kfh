@@ -3,9 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
-import '../widgets/employee_form_dialog.dart';
-import '../widgets/employee_schedule_dialog.dart';
+import '../widgets/common_widgets.dart';
+import '../models/employee_rate.dart';
 
+/// Экран управления сотрудниками (табличный вид)
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
 
@@ -16,13 +17,14 @@ class EmployeesScreen extends StatefulWidget {
 class _EmployeesScreenState extends State<EmployeesScreen> {
   bool _showAll = false;
 
+  // Фиксированная ширина таблицы
+  final double _tableWidth = 960.0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AppProvider>();
-      provider.loadEmployees(activeOnly: !_showAll);
-      provider.loadWorkScheduleTypes();
+      context.read<AppProvider>().loadEmployees(activeOnly: !_showAll);
     });
   }
 
@@ -71,10 +73,11 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                     style: TextStyle(color: Colors.red[700]),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
+                  AppButton(
+                    label: 'Повторить',
                     onPressed: () =>
                         provider.loadEmployees(activeOnly: !_showAll),
-                    child: const Text('Повторить'),
+                    isFilled: true,
                   ),
                 ],
               ),
@@ -92,29 +95,299 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                     style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton.icon(
+                  AppButton(
+                    label: 'Добавить сотрудника',
+                    icon: Icons.add,
                     onPressed: () => _showEmployeeDialog(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Добавить сотрудника'),
                   ),
                 ],
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.employees.length,
-            itemBuilder: (context, index) {
-              final employee = provider.employees[index];
-              return _EmployeeCard(
-                employee: employee,
-                onEdit: () => _showEmployeeDialog(context, employee: employee),
-                onDelete: () => _confirmDelete(context, employee),
-                onDismiss: () => _showDismissDialog(context, employee),
-                onReinstate: () => _confirmReinstate(context, employee),
-                onSchedule: () => _showScheduleDialog(context, employee),
-              );
-            },
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: _tableWidth,
+              child: Column(
+                children: [
+                  // Заголовок таблицы (без фона)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: const [
+                        SizedBox(
+                          width: 40,
+                          child: Text(
+                            '№',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 200,
+                          child: Text(
+                            'ФИО',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 120,
+                          child: Text(
+                            'Должность',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 120,
+                          child: Text(
+                            'Дата приёма',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 100,
+                          child: Text(
+                            'Ставка (база)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 100,
+                          child: Text(
+                            'Ставка (поле)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            'Статус',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            '',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Тело таблицы с вертикальной прокруткой
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: provider.employees.asMap().entries.map((
+                            entry,
+                          ) {
+                            final index = entry.key + 1;
+                            final employee = entry.value;
+                            final isActive =
+                                employee.dismissalDate == null ||
+                                employee.dismissalDate!.isAfter(DateTime.now());
+                            final formatter = NumberFormat('#,##0.00', 'ru');
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                color: isActive ? null : Colors.grey[50],
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 40,
+                                    child: Text(
+                                      '$index',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 200,
+                                    child: Text(
+                                      employee.fullName,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        decoration: isActive
+                                            ? null
+                                            : TextDecoration.lineThrough,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 120,
+                                    child: Text(
+                                      employee.position,
+                                      style: const TextStyle(fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 120,
+                                    child: Text(
+                                      DateFormat(
+                                        'dd.MM.yyyy',
+                                      ).format(employee.hireDate),
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 100,
+                                    child: Text(
+                                      '${formatter.format(employee.baseRate)} ₽',
+                                      style: const TextStyle(fontSize: 12),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 100,
+                                    child: Text(
+                                      '${formatter.format(employee.fieldRate)} ₽',
+                                      style: const TextStyle(fontSize: 12),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 80,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? Colors.green[100]
+                                            : Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        isActive ? 'Активен' : 'Уволен',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isActive
+                                              ? Colors.green[800]
+                                              : Colors.grey[700],
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 48,
+                                    child: PopupMenuButton<String>(
+                                      onSelected: (value) {
+                                        if (value == 'edit') {
+                                          _showEmployeeDialog(
+                                            context,
+                                            employee: employee,
+                                          );
+                                        } else if (value == 'dismiss') {
+                                          _showDismissDialog(context, employee);
+                                        } else if (value == 'reinstate') {
+                                          _confirmReinstate(context, employee);
+                                        } else if (value == 'delete') {
+                                          _confirmDelete(context, employee);
+                                        }
+                                      },
+                                      itemBuilder: (context) {
+                                        final items = <PopupMenuItem<String>>[];
+                                        items.add(
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Text('Редактировать'),
+                                          ),
+                                        );
+                                        if (isActive) {
+                                          items.add(
+                                            const PopupMenuItem(
+                                              value: 'dismiss',
+                                              child: Text('Уволить'),
+                                            ),
+                                          );
+                                        } else {
+                                          items.add(
+                                            const PopupMenuItem(
+                                              value: 'reinstate',
+                                              child: Text('Восстановить'),
+                                            ),
+                                          );
+                                        }
+                                        items.add(
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text(
+                                              'Удалить',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                        return items;
+                                      },
+                                      icon: const Icon(Icons.more_vert),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -124,41 +397,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   void _showEmployeeDialog(BuildContext context, {Employee? employee}) {
     showDialog(
       context: context,
-      builder: (context) => EmployeeFormDialog(employee: employee),
-    );
-  }
-
-  void _showScheduleDialog(BuildContext context, Employee employee) {
-    showDialog(
-      context: context,
-      builder: (context) => EmployeeScheduleDialog(employee: employee),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, Employee employee) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удаление сотрудника'),
-        content: Text(
-          'Удалить ${employee.fullName}?\n\n'
-          'Все записи табеля и выплаты этого сотрудника также будут удалены.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () {
-              context.read<AppProvider>().deleteEmployee(employee.id!);
-              Navigator.pop(context);
-            },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
+      builder: (context) => _EmployeeFormDialog(employee: employee),
     );
   }
 
@@ -193,22 +432,24 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                 }
               },
             ),
-            TextField(
+            AppTextField(
               controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Причина увольнения',
-                prefixIcon: Icon(Icons.description),
-              ),
+              labelText: 'Причина увольнения',
+              prefixIcon: Icons.description,
               maxLines: 2,
             ),
           ],
         ),
         actions: [
-          TextButton(
+          AppButton(
+            label: 'Отмена',
+            isText: true,
+            width: 100,
             onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
           ),
-          FilledButton(
+          AppButton(
+            label: 'Уволить',
+            width: 100,
             onPressed: () {
               if (reasonController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -216,14 +457,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                 );
                 return;
               }
-              context.read<AppProvider>().dismissEmployee(
-                employee.id!,
-                selectedDate,
-                reasonController.text.trim(),
-              );
+              final updated = employee.copyWith(dismissalDate: selectedDate);
+              context.read<AppProvider>().updateEmployee(updated);
               Navigator.pop(context);
             },
-            child: const Text('Уволить'),
           ),
         ],
       ),
@@ -239,16 +476,50 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           'Восстановить сотрудника? Он снова станет активным.',
         ),
         actions: [
-          TextButton(
+          AppButton(
+            label: 'Отмена',
+            isText: true,
+            width: 100,
             onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
           ),
-          FilledButton(
+          AppButton(
+            label: 'Восстановить',
+            width: 100,
             onPressed: () {
-              context.read<AppProvider>().reinstateEmployee(employee.id!);
+              final updated = employee.copyWith(dismissalDate: null);
+              context.read<AppProvider>().updateEmployee(updated);
               Navigator.pop(context);
             },
-            child: const Text('Восстановить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, Employee employee) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удаление сотрудника'),
+        content: Text(
+          'Удалить ${employee.fullName}?\n\n'
+          'Все записи табеля и выплаты этого сотрудника также будут удалены.',
+        ),
+        actions: [
+          AppButton(
+            label: 'Отмена',
+            isText: true,
+            width: 100,
+            onPressed: () => Navigator.pop(context),
+          ),
+          AppButton(
+            label: 'Удалить',
+            width: 100,
+            onPressed: () {
+              context.read<AppProvider>().deleteEmployee(employee.id!);
+              Navigator.pop(context);
+            },
+            color: Colors.red,
           ),
         ],
       ),
@@ -256,203 +527,205 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 }
 
-class _EmployeeCard extends StatelessWidget {
-  final Employee employee;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onDismiss;
-  final VoidCallback onReinstate;
-  final VoidCallback onSchedule;
+// ==========================================================================
+// ДИАЛОГ ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ СОТРУДНИКА (с вертикальной прокруткой)
+// ==========================================================================
 
-  const _EmployeeCard({
-    required this.employee,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onDismiss,
-    required this.onReinstate,
-    required this.onSchedule,
-  });
+class _EmployeeFormDialog extends StatefulWidget {
+  final Employee? employee;
+
+  const _EmployeeFormDialog({this.employee});
+
+  @override
+  State<_EmployeeFormDialog> createState() => _EmployeeFormDialogState();
+}
+
+class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _positionController = TextEditingController();
+  final _hireDateController = TextEditingController();
+  final _baseRateController = TextEditingController();
+  final _fieldRateController = TextEditingController();
+
+  DateTime _hireDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.employee != null) {
+      final e = widget.employee!;
+      _nameController.text = e.fullName;
+      _positionController.text = e.position;
+      _hireDate = e.hireDate;
+      _hireDateController.text = DateFormat('dd.MM.yyyy').format(e.hireDate);
+      _baseRateController.text = e.baseRate.toString();
+      _fieldRateController.text = e.fieldRate.toString();
+    } else {
+      _hireDateController.text = DateFormat(
+        'dd.MM.yyyy',
+      ).format(DateTime.now());
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _positionController.dispose();
+    _hireDateController.dispose();
+    _baseRateController.dispose();
+    _fieldRateController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final initials = _getInitials(employee.fullName);
-    final isHourly = employee.paymentType == 'hourly';
-    final formatter = NumberFormat('#,##0.00', 'ru');
-    final rateText = isHourly
-        ? '${formatter.format(employee.hourlyRate)} ₽/час'
-        : employee.fixedSalary != null
-        ? '${formatter.format(employee.fixedSalary!)} ₽ (оклад)'
-        : 'Ставка не указана';
+    final isEditing = widget.employee != null;
 
-    String statusText = employee.isActive ? 'Активен' : 'Уволен';
-    Color statusColor = employee.isActive ? Colors.green : Colors.red;
-
-    // Получаем информацию о графике
-    String scheduleInfo = 'Без графика';
-    Color scheduleColor = Colors.grey;
-    if (employee.isShiftWorker) {
-      scheduleInfo = 'Сменный';
-      scheduleColor = Colors.blue;
-      // Попробуем получить название типа графика
-      final provider = context.read<AppProvider>();
-      final schedule = provider.employeeSchedules[employee.id];
-      if (schedule != null) {
-        final scheduleTypeId = schedule['schedule_type_id'] as int?;
-        if (scheduleTypeId != null) {
-          final types = provider.workScheduleTypes;
-          final type = types.firstWhere(
-            (t) => t['id'] == scheduleTypeId,
-            orElse: () => const <String, dynamic>{},
-          );
-          if (type.isNotEmpty) {
-            scheduleInfo = type['name'] as String? ?? 'Сменный';
-          }
-        }
-      }
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: employee.isActive
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Colors.grey[300],
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: employee.isActive
-                  ? Theme.of(context).colorScheme.onPrimaryContainer
-                  : Colors.grey[600],
-              fontWeight: FontWeight.bold,
+    return AlertDialog(
+      title: Text(isEditing ? 'Редактирование сотрудника' : 'Новый сотрудник'),
+      content: Container(
+        width: 400,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTextField(
+                  controller: _nameController,
+                  labelText: 'ФИО *',
+                  prefixIcon: Icons.person,
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _positionController,
+                  labelText: 'Должность *',
+                  prefixIcon: Icons.work,
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _hireDateController,
+                  labelText: 'Дата приёма *',
+                  prefixIcon: Icons.calendar_today,
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _hireDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _hireDate = date;
+                        _hireDateController.text = DateFormat(
+                          'dd.MM.yyyy',
+                        ).format(date);
+                      });
+                    }
+                  },
+                  validator: (v) =>
+                      v?.isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _baseRateController,
+                  labelText: 'Ставка (база, ₽/день) *',
+                  prefixIcon: Icons.attach_money,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Обязательное поле';
+                    }
+                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
+                      return 'Введите число';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _fieldRateController,
+                  labelText: 'Ставка (поле, ₽/день) *',
+                  prefixIcon: Icons.attach_money,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Обязательное поле';
+                    }
+                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
+                      return 'Введите число';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
           ),
         ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                employee.fullName,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  decoration: employee.isActive
-                      ? null
-                      : TextDecoration.lineThrough,
-                  color: employee.isActive ? null : Colors.grey,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: statusColor.withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                statusText,
-                style: TextStyle(fontSize: 12, color: statusColor),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(employee.position),
-            const SizedBox(height: 4),
-            Text(
-              rateText,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (employee.phone != null && employee.phone!.isNotEmpty)
-              Text(
-                'Тел: ${employee.phone}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            if (!employee.isActive && employee.dismissalDate != null)
-              Text(
-                'Уволен: ${DateFormat('dd.MM.yyyy').format(employee.dismissalDate!)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            if (!employee.isActive && employee.dismissalReason != null)
-              Text(
-                'Причина: ${employee.dismissalReason}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            // Отображение информации о графике
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: scheduleColor.withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                scheduleInfo,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: scheduleColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') onEdit();
-            if (value == 'delete') onDelete();
-            if (value == 'dismiss') onDismiss();
-            if (value == 'reinstate') onReinstate();
-            if (value == 'schedule') onSchedule();
-          },
-          itemBuilder: (context) {
-            final items = <PopupMenuItem<String>>[];
-            if (employee.isActive) {
-              items.add(
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Редактировать'),
-                ),
-              );
-              items.add(
-                const PopupMenuItem(
-                  value: 'schedule',
-                  child: Text('График работы'),
-                ),
-              );
-              items.add(
-                const PopupMenuItem(value: 'dismiss', child: Text('Уволить')),
-              );
-            } else {
-              items.add(
-                const PopupMenuItem(
-                  value: 'reinstate',
-                  child: Text('Восстановить'),
-                ),
-              );
-            }
-            items.add(
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Удалить', style: TextStyle(color: Colors.red)),
-              ),
-            );
-            return items;
-          },
-        ),
       ),
+      actions: [
+        AppButton(
+          label: 'Отмена',
+          isText: true,
+          width: 100,
+          onPressed: () => Navigator.pop(context),
+        ),
+        AppButton(
+          label: isEditing ? 'Сохранить' : 'Добавить',
+          width: 100,
+          onPressed: _save,
+        ),
+      ],
     );
   }
 
-  String _getInitials(String fullName) {
-    final parts = fullName.trim().split(' ');
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final baseRate = double.parse(
+      _baseRateController.text.replaceAll(',', '.'),
+    );
+    final fieldRate = double.parse(
+      _fieldRateController.text.replaceAll(',', '.'),
+    );
+
+    final employee = Employee(
+      id: widget.employee?.id,
+      fullName: _nameController.text.trim(),
+      position: _positionController.text.trim(),
+      hireDate: _hireDate,
+      dismissalDate: widget.employee?.dismissalDate,
+      baseRate: baseRate,
+      fieldRate: fieldRate,
+    );
+
+    final provider = context.read<AppProvider>();
+
+    if (widget.employee != null) {
+      provider.updateEmployee(employee);
+      final old = widget.employee!;
+      if (old.baseRate != baseRate || old.fieldRate != fieldRate) {
+        final rate = EmployeeRate(
+          employeeId: employee.id!,
+          baseRate: baseRate,
+          fieldRate: fieldRate,
+          startDate: DateTime.now(),
+        );
+        provider.addEmployeeRate(rate);
+      }
+    } else {
+      provider.addEmployee(employee);
+    }
+
+    Navigator.pop(context);
   }
 }

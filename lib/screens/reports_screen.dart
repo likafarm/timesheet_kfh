@@ -3,9 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
-import '../services/database_service.dart';
+import '../widgets/common_widgets.dart';
+import '../utils/string_utils.dart'; // <-- импорт
 
-/// Экран отчётов и расчёта зарплаты
+/// Экран отчётов и расчёта зарплаты (дни)
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -18,7 +19,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _selectedMonth = DateTime.now().month;
   int? _selectedEmployeeId;
   Map<String, dynamic>? _reportData;
-  bool _isLoading = false;
 
   final List<int> _years = List.generate(
     10,
@@ -51,18 +51,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _generateReport() async {
     if (_selectedEmployeeId == null) return;
 
-    setState(() => _isLoading = true);
     try {
-      final db = DatabaseService();
-      final data = await db.calculateMonthlySalary(
+      final provider = context.read<AppProvider>();
+      final data = await provider.calculateMonthlySalary(
         _selectedEmployeeId!,
         _selectedYear,
         _selectedMonth,
       );
       setState(() => _reportData = data);
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    } finally {}
   }
 
   @override
@@ -77,133 +74,96 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Панель фильтров
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    // Выбор сотрудника
-                    SizedBox(
-                      width: 250,
-                      child: Consumer<AppProvider>(
-                        builder: (context, provider, child) {
-                          return InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Сотрудник',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
-                                value: _selectedEmployeeId,
-                                isDense: true,
-                                isExpanded: true,
-                                hint: const Text('Выберите...'),
-                                items: provider.employees.map((e) {
-                                  return DropdownMenuItem(
-                                    value: e.id,
-                                    child: Text(e.fullName),
-                                  );
-                                }).toList(),
-                                onChanged: (v) => setState(() {
-                                  _selectedEmployeeId = v;
-                                  _reportData = null;
-                                }),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // Выбор месяца
-                    SizedBox(
-                      width: 150,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Месяц',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+            AppCard(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 280,
+                    child: Consumer<AppProvider>(
+                      builder: (context, provider, child) {
+                        final items = <DropdownMenuItem<int>>[
+                          const DropdownMenuItem<int>(
+                            value: null,
+                            child: Text('Выберите...'),
                           ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedMonth,
-                            isDense: true,
-                            isExpanded: true,
-                            items: _months.map((m) {
-                              return DropdownMenuItem(
-                                value: m['value'] as int,
-                                child: Text(m['name'] as String),
-                              );
-                            }).toList(),
-                            onChanged: (v) => setState(() {
-                              _selectedMonth = v!;
+                          ...provider.employees.map((e) {
+                            return DropdownMenuItem<int>(
+                              value: e.id,
+                              child: Text(StringUtils.getShortName(e.fullName)),
+                            );
+                          }),
+                        ];
+                        return AppDropdown<int>(
+                          value: _selectedEmployeeId,
+                          items: items,
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedEmployeeId = value;
                               _reportData = null;
-                            }),
-                          ),
-                        ),
-                      ),
+                            });
+                          },
+                          labelText: 'Сотрудник',
+                          prefixIcon: Icons.person,
+                        );
+                      },
                     ),
-                    // Выбор года
-                    SizedBox(
-                      width: 120,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Год',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedYear,
-                            isDense: true,
-                            isExpanded: true,
-                            items: _years.map((y) {
-                              return DropdownMenuItem(
-                                value: y,
-                                child: Text(y.toString()),
-                              );
-                            }).toList(),
-                            onChanged: (v) => setState(() {
-                              _selectedYear = v!;
-                              _reportData = null;
-                            }),
-                          ),
-                        ),
-                      ),
+                  ),
+                  SizedBox(
+                    width: 160,
+                    child: AppDropdown<int>(
+                      value: _selectedMonth,
+                      items: _months.map((m) {
+                        return DropdownMenuItem<int>(
+                          value: m['value'] as int,
+                          child: Text(m['name'] as String),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedMonth = value!;
+                          _reportData = null;
+                        });
+                      },
+                      labelText: 'Месяц',
+                      prefixIcon: Icons.calendar_today,
                     ),
-                    // Кнопка расчёта
-                    ElevatedButton.icon(
-                      onPressed: _selectedEmployeeId != null
-                          ? _generateReport
-                          : null,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.calculate),
-                      label: const Text('Рассчитать'),
+                  ),
+                  SizedBox(
+                    width: 140,
+                    child: AppDropdown<int>(
+                      value: _selectedYear,
+                      items: _years.map((y) {
+                        return DropdownMenuItem<int>(
+                          value: y,
+                          child: Text(y.toString()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedYear = value!;
+                          _reportData = null;
+                        });
+                      },
+                      labelText: 'Год',
+                      prefixIcon: Icons.date_range,
                     ),
-                  ],
-                ),
+                  ),
+                  AppButton(
+                    label: 'Рассчитать',
+                    icon: Icons.calculate,
+                    onPressed: _selectedEmployeeId != null
+                        ? _generateReport
+                        : null,
+                    width: 160,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
-            // Результаты
             if (_reportData != null) _ReportCard(data: _reportData!),
           ],
         ),
@@ -212,7 +172,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 }
 
-/// Карточка отчёта по зарплате
+/// Карточка отчёта по зарплате (дни)
 class _ReportCard extends StatelessWidget {
   final Map<String, dynamic> data;
 
@@ -221,119 +181,116 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final employee = data['employee'] as Employee;
-    final totalHours = data['totalHours'] as double;
-    final totalOvertime = data['totalOvertime'] as double;
-    final totalQuantity = data['totalQuantity'] as double;
-    final totalPiecework = data['totalPiecework'] as double;
+    final totalBaseDays = data['totalBaseDays'] as double;
+    final totalFieldDays = data['totalFieldDays'] as double;
+    final sickDays = data['sickDays'] as double;
+    final vacationDays = data['vacationDays'] as double;
+    final baseRate = data['baseRate'] as double;
+    final fieldRate = data['fieldRate'] as double;
     final totalSalary = data['totalSalary'] as double;
     final totalPaid = data['totalPaid'] as double;
     final balance = data['balance'] as double;
 
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
-    final hoursFormat = NumberFormat('#,##0.0', 'ru');
+    final daysFormat = NumberFormat('#,##0.0', 'ru');
 
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Заголовок
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    child: Text(
-                      employee.fullName.substring(0, 1),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
+      child: AppCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  child: Text(
+                    employee.fullName.substring(0, 1),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        employee.fullName,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
+                      Text(
+                        employee.position,
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          employee.fullName,
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        Text(
-                          employee.position,
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 32),
-
-              // Детализация
-              _ReportRow('Всего часов:', hoursFormat.format(totalHours)),
-              _ReportRow('Переработка:', hoursFormat.format(totalOvertime)),
-              if (totalQuantity > 0)
-                _ReportRow(
-                  'Сдельный объём:',
-                  hoursFormat.format(totalQuantity),
                 ),
-              if (totalPiecework > 0)
-                _ReportRow(
-                  'Сдельная оплата:',
-                  '${currencyFormat.format(totalPiecework)} ₽',
+              ],
+            ),
+            const Divider(height: 32),
+            _ReportRow('Дней на базе:', daysFormat.format(totalBaseDays)),
+            _ReportRow('Дней в поле:', daysFormat.format(totalFieldDays)),
+            _ReportRow('Больничные дни:', daysFormat.format(sickDays)),
+            _ReportRow('Отпускные дни:', daysFormat.format(vacationDays)),
+            _ReportRow(
+              'Ставка (база):',
+              '${currencyFormat.format(baseRate)} ₽/день',
+            ),
+            _ReportRow(
+              'Ставка (поле):',
+              '${currencyFormat.format(fieldRate)} ₽/день',
+            ),
+            const Divider(height: 24),
+            _ReportRow(
+              'Начислено:',
+              '${currencyFormat.format(totalSalary)} ₽',
+              valueColor: Colors.green,
+            ),
+            _ReportRow(
+              'Выплачено:',
+              '${currencyFormat.format(totalPaid)} ₽',
+              valueColor: Colors.blue,
+            ),
+            const Divider(height: 24),
+            _ReportRow(
+              'Остаток к выплате:',
+              '${currencyFormat.format(balance)} ₽',
+              valueColor: balance > 0 ? Colors.orange : Colors.green,
+              isBold: true,
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton(
+                  label: 'Печать',
+                  icon: Icons.print,
+                  isOutlined: true,
+                  onPressed: () {},
+                  width: 120,
                 ),
-              const Divider(height: 24),
-              _ReportRow(
-                'Начислено:',
-                '${currencyFormat.format(totalSalary)} ₽',
-                valueColor: Colors.green,
-              ),
-              _ReportRow(
-                'Выплачено:',
-                '${currencyFormat.format(totalPaid)} ₽',
-                valueColor: Colors.blue,
-              ),
-              const Divider(height: 24),
-              _ReportRow(
-                'Остаток к выплате:',
-                '${currencyFormat.format(balance)} ₽',
-                valueColor: balance > 0 ? Colors.orange : Colors.green,
-                isBold: true,
-              ),
-
-              const Spacer(),
-
-              // Кнопки экспорта
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.print),
-                    label: const Text('Печать'),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text('PDF'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                AppButton(
+                  label: 'PDF',
+                  icon: Icons.picture_as_pdf,
+                  isOutlined: true,
+                  onPressed: () {},
+                  width: 120,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Строка отчёта
 class _ReportRow extends StatelessWidget {
   final String label;
   final String value;

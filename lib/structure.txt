@@ -1,0 +1,34 @@
+lib/
+├── models
+│   ├── company_settings.dart
+│   ├── employee_rate.dart
+│   ├── employee.dart
+│   ├── models.dart
+│   ├── payment.dart
+│   ├── sick_leave.dart
+│   ├── timesheet_record.dart
+│   └── vacation.dart
+├── providers
+│   └── app_provider.dart
+├── screens
+│   ├── database_viewer_screen.dart
+│   ├── employees_screen.dart
+│   ├── main_screen.dart
+│   ├── payments_screen.dart
+│   ├── reports_screen.dart
+│   ├── settings_screen.dart
+│   └── timesheet_screen.dart
+├── services
+│   ├── Список препаратов.docx
+│   └── database_service.dart
+├── theme
+│   └── app_theme.dart
+├── utils
+│   ├── constants.dart
+│   └── string_utils.dart
+├── widgets
+│   ├── common_widgets.dart
+│   ├── daily_timesheet_dialog.dart
+│   ├── employee_form_dialog.dart
+│   └── timesheet_record_dialog.dart
+└── main.dart

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../widgets/common_widgets.dart';
+import '../utils/string_utils.dart';
 
-/// Экран управления выплатами сотрудникам
+/// Экран управления выплатами (табличный вид с фильтрацией по периоду и сотруднику)
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
 
@@ -14,159 +15,507 @@ class PaymentsScreen extends StatefulWidget {
 }
 
 class _PaymentsScreenState extends State<PaymentsScreen> {
+  DateTime _selectedMonth = DateTime.now();
   int? _selectedEmployeeId;
+
+  // Фиксированная ширина таблицы (гарантирует горизонтальную прокрутку)
+  final double _tableWidth = 1020.0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppProvider>().loadEmployees();
+      final provider = context.read<AppProvider>();
+      provider.loadEmployees();
+      _loadPayments();
     });
+  }
+
+  void _loadPayments() {
+    final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final provider = context.read<AppProvider>();
+    if (_selectedEmployeeId == null) {
+      provider.loadAllPayments(startDate: start, endDate: end);
+    } else {
+      provider.loadPaymentsByEmployee(
+        _selectedEmployeeId!,
+        startDate: start,
+        endDate: end,
+      );
+    }
+  }
+
+  void _goToToday() {
+    setState(() {
+      _selectedMonth = DateTime.now();
+    });
+    _loadPayments();
+  }
+
+  Future<void> _selectMonth() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      helpText: 'Выберите месяц и год',
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedMonth = DateTime(picked.year, picked.month, 1);
+      });
+      _loadPayments();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
+    final capitalizedMonth =
+        monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Выплаты'),
         centerTitle: false,
         actions: [
           IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () {
+              setState(() {
+                _selectedMonth = DateTime(
+                  _selectedMonth.year,
+                  _selectedMonth.month - 1,
+                );
+              });
+              _loadPayments();
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Center(
+              child: GestureDetector(
+                onTap: _selectMonth,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Text(
+                    capitalizedMonth,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () {
+              setState(() {
+                _selectedMonth = DateTime(
+                  _selectedMonth.year,
+                  _selectedMonth.month + 1,
+                );
+              });
+              _loadPayments();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.today),
+            onPressed: _goToToday,
+            tooltip: 'Текущий месяц',
+          ),
+          IconButton(
             icon: const Icon(Icons.group_add),
             onPressed: () => _showGroupPaymentDialog(context),
             tooltip: 'Групповая выплата',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {
-          if (provider.employees.isEmpty) {
-            return const Center(child: Text('Нет сотрудников'));
-          }
-
-          return Row(
+          return Column(
             children: [
-              // Список сотрудников слева
-              SizedBox(
-                width: 260,
-                child: Card(
-                  margin: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          'Сотрудники',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: Colors.grey[100],
+                child: Row(
+                  children: [
+                    Expanded(child: _buildEmployeeFilter(provider)),
+                    const SizedBox(width: 16),
+                    if (provider.payments.isNotEmpty)
+                      Text(
+                        'Всего: ${NumberFormat('#,##0.00', 'ru').format(provider.payments.fold(0.0, (sum, p) => sum + p.amount))} ₽',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: provider.employees.length,
-                          itemBuilder: (context, index) {
-                            final emp = provider.employees[index];
-                            final isSelected = emp.id == _selectedEmployeeId;
-
-                            return ListTile(
-                              selected: isSelected,
-                              dense: true,
-                              leading: CircleAvatar(
-                                radius: 16,
-                                backgroundColor: isSelected
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey[300],
-                                child: Text(
-                                  emp.fullName.substring(0, 1),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.black54,
+                    const SizedBox(width: 8),
+                    AppButton(
+                      label: 'Добавить',
+                      icon: Icons.add,
+                      onPressed: () => _showAddPaymentDialog(context),
+                      width: 120,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: provider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : provider.payments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Нет выплат за этот период',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        // ОБЩАЯ ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА для заголовка и тела
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: _tableWidth,
+                          child: Column(
+                            children: [
+                              // Заголовок (фиксированная ширина, без фона)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: const [
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        'Дата',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 200,
+                                      child: Text(
+                                        'Сотрудник',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        'Тип',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        'Сумма',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 90,
+                                      child: Text(
+                                        'Способ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        'Документ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 150,
+                                      child: Text(
+                                        'Примечания',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 48,
+                                      child: Text(
+                                        '',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Тело таблицы с вертикальной прокруткой
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Column(
+                                      children: provider.payments.map((
+                                        payment,
+                                      ) {
+                                        final employee = provider
+                                            .getEmployeeById(
+                                              payment.employeeId,
+                                            );
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: Colors.grey[300]!,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(
+                                                width: 100,
+                                                child: Text(
+                                                  DateFormat(
+                                                    'dd.MM.yyyy',
+                                                  ).format(payment.paymentDate),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 200,
+                                                child: Text(
+                                                  employee?.fullName ??
+                                                      'Неизвестно',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 80,
+                                                child: Text(
+                                                  payment.paymentTypeName,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 100,
+                                                child: Text(
+                                                  '${NumberFormat('#,##0.00', 'ru').format(payment.amount)} ₽',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 90,
+                                                child: Text(
+                                                  payment.paymentMethodName,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 100,
+                                                child: Text(
+                                                  payment.documentNumber ?? '—',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 150,
+                                                child: Text(
+                                                  payment.notes ?? '—',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              SizedBox(
+                                                width: 48,
+                                                child: PopupMenuButton<String>(
+                                                  onSelected: (value) {
+                                                    if (value == 'edit') {
+                                                      _showEditPaymentDialog(
+                                                        context,
+                                                        payment,
+                                                      );
+                                                    } else if (value ==
+                                                        'delete') {
+                                                      _confirmDelete(
+                                                        context,
+                                                        payment,
+                                                      );
+                                                    }
+                                                  },
+                                                  itemBuilder: (context) => [
+                                                    const PopupMenuItem(
+                                                      value: 'edit',
+                                                      child: Text(
+                                                        'Редактировать',
+                                                      ),
+                                                    ),
+                                                    const PopupMenuItem(
+                                                      value: 'delete',
+                                                      child: Text(
+                                                        'Удалить',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                  icon: const Icon(
+                                                    Icons.more_vert,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
                                 ),
                               ),
-                              title: Text(
-                                emp.fullName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : null,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              subtitle: Text(
-                                emp.position,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              onTap: () {
-                                setState(() => _selectedEmployeeId = emp.id);
-                                provider.loadPayments(emp.id!);
-                              },
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              // Список выплат справа
-              Expanded(
-                child: _selectedEmployeeId == null
-                    ? const Center(
-                        child: Text(
-                          'Выберите сотрудника\nдля просмотра выплат',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : _PaymentsList(employeeId: _selectedEmployeeId!),
               ),
             ],
           );
         },
       ),
-      floatingActionButton: _selectedEmployeeId != null
-          ? FloatingActionButton.extended(
-              onPressed: () => _showAddPaymentDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Выплата'),
-            )
-          : null,
+    );
+  }
+
+  Widget _buildEmployeeFilter(AppProvider provider) {
+    final items = <DropdownMenuItem<int?>>[
+      const DropdownMenuItem<int?>(value: null, child: Text('Все сотрудники')),
+      ...provider.employees.map((e) {
+        return DropdownMenuItem<int?>(
+          value: e.id,
+          child: Text(StringUtils.getShortName(e.fullName)),
+        );
+      }),
+    ];
+
+    return AppDropdown<int?>(
+      value: _selectedEmployeeId,
+      items: items,
+      onChanged: (value) {
+        setState(() {
+          _selectedEmployeeId = value;
+        });
+        _loadPayments();
+      },
+      labelText: 'Сотрудник',
+      prefixIcon: Icons.person,
     );
   }
 
   void _showAddPaymentDialog(BuildContext context) {
-    final provider = context.read<AppProvider>();
-    final employee = provider.getEmployeeById(_selectedEmployeeId!);
-    if (employee == null) return;
-
     showDialog(
       context: context,
       builder: (context) => _PaymentFormDialog(
-        employee: employee,
-        onSave: (payment) => provider.addPayment(payment),
+        employeeId: _selectedEmployeeId,
+        onSave: (payment) async {
+          final provider = context.read<AppProvider>();
+          await provider.addPayment(payment);
+          _loadPayments();
+        },
       ),
     );
   }
 
   void _showEditPaymentDialog(BuildContext context, Payment payment) {
-    final provider = context.read<AppProvider>();
-    final employee = provider.getEmployeeById(payment.employeeId);
-    if (employee == null) return;
-
     showDialog(
       context: context,
       builder: (context) => _PaymentFormDialog(
-        employee: employee,
+        employeeId: payment.employeeId,
         payment: payment,
-        onSave: (updatedPayment) => provider.updatePayment(updatedPayment),
+        onSave: (updatedPayment) async {
+          final provider = context.read<AppProvider>();
+          await provider.updatePayment(updatedPayment);
+          _loadPayments();
+        },
       ),
     );
   }
@@ -175,232 +524,62 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     showDialog(
       context: context,
       builder: (context) => _GroupPaymentFormDialog(
-        onSave: (payments) {
+        onSave: (payments) async {
           final provider = context.read<AppProvider>();
           for (var payment in payments) {
-            provider.addPayment(payment);
+            await provider.addPayment(payment);
           }
-          if (_selectedEmployeeId != null) {
-            provider.loadPayments(_selectedEmployeeId!);
-          }
+          _loadPayments();
         },
       ),
     );
   }
-}
 
-/// Список выплат сотрудника
-class _PaymentsList extends StatelessWidget {
-  final int employeeId;
-
-  const _PaymentsList({required this.employeeId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (provider.payments.isEmpty) {
-          return const Center(
-            child: Text('Нет выплат', style: TextStyle(color: Colors.grey)),
-          );
-        }
-
-        final total = provider.payments.fold(0.0, (sum, p) => sum + p.amount);
-        final formatter = NumberFormat('#,##0.00', 'ru');
-
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.grey[100],
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Всего выплачено:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${formatter.format(total)} ₽',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: provider.payments.length,
-                itemBuilder: (context, index) {
-                  final payment = provider.payments[index];
-                  return _PaymentCard(
-                    payment: payment,
-                    employeeId: employeeId,
-                    onEdit: () {
-                      final screen = context
-                          .findAncestorStateOfType<_PaymentsScreenState>();
-                      screen?._showEditPaymentDialog(context, payment);
-                    },
-                    onDelete: () =>
-                        provider.deletePayment(payment.id!, employeeId),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Карточка выплаты
-class _PaymentCard extends StatelessWidget {
-  final Payment payment;
-  final int employeeId;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _PaymentCard({
-    required this.payment,
-    required this.employeeId,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final formatter = NumberFormat('#,##0.00', 'ru');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getPaymentColor(payment.paymentType),
-          child: Icon(
-            _getPaymentIcon(payment.paymentType),
-            color: Colors.white,
-            size: 20,
+  void _confirmDelete(BuildContext context, Payment payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удаление выплаты'),
+        content: Text(
+          'Удалить выплату ${payment.paymentTypeName} на ${NumberFormat('#,##0.00', 'ru').format(payment.amount)} ₽?',
+        ),
+        actions: [
+          AppButton(
+            label: 'Отмена',
+            isText: true,
+            width: 100,
+            onPressed: () => Navigator.pop(context),
           ),
-        ),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                '${formatter.format(payment.amount)} ₽',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _getPaymentColor(payment.paymentType).withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                payment.paymentTypeName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _getPaymentColor(payment.paymentType),
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              DateFormat('dd.MM.yyyy').format(payment.paymentDate),
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            if (payment.periodStart != null && payment.periodEnd != null)
-              Text(
-                'Период: ${payment.periodStart} — ${payment.periodEnd}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            if (payment.paymentMethod != null)
-              Text(
-                'Способ: ${payment.paymentMethodName}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            if (payment.documentNumber != null)
-              Text(
-                'Документ: ${payment.documentNumber}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') onEdit();
-            if (value == 'delete') onDelete();
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Редактировать')),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Text('Удалить', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        ),
+          AppButton(
+            label: 'Удалить',
+            width: 100,
+            onPressed: () async {
+              final provider = context.read<AppProvider>();
+              await provider.deletePayment(payment.id!, payment.employeeId);
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              Navigator.pop(context);
+              _loadPayments();
+            },
+            color: Colors.red,
+          ),
+        ],
       ),
     );
   }
-
-  Color _getPaymentColor(String type) {
-    switch (type) {
-      case 'salary':
-        return Colors.green;
-      case 'advance':
-        return Colors.orange;
-      case 'bonus':
-        return Colors.blue;
-      case 'vacation':
-        return Colors.purple;
-      case 'sick_leave':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getPaymentIcon(String type) {
-    switch (type) {
-      case 'salary':
-        return Icons.payments;
-      case 'advance':
-        return Icons.money_off;
-      case 'bonus':
-        return Icons.card_giftcard;
-      case 'vacation':
-        return Icons.beach_access;
-      case 'sick_leave':
-        return Icons.local_hospital;
-      default:
-        return Icons.money;
-    }
-  }
 }
 
-/// Диалог добавления/редактирования выплаты
+// ==========================================================================
+// ДИАЛОГ ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ВЫПЛАТЫ
+// ==========================================================================
+
 class _PaymentFormDialog extends StatefulWidget {
-  final Employee employee;
+  final int? employeeId;
   final Payment? payment;
   final Function(Payment) onSave;
 
   const _PaymentFormDialog({
-    required this.employee,
+    this.employeeId,
     this.payment,
     required this.onSave,
   });
@@ -410,31 +589,32 @@ class _PaymentFormDialog extends StatefulWidget {
 }
 
 class _PaymentFormDialogState extends State<_PaymentFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  int? _selectedEmployeeId;
   final _amountController = TextEditingController();
   final _amountFocusNode = FocusNode();
 
-  late String _paymentType;
+  String _paymentType = 'salary';
   String? _paymentMethod;
-  late DateTime _date;
+  DateTime _date = DateTime.now();
   final _documentController = TextEditingController();
   final _notesController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _selectedEmployeeId = widget.employeeId;
     if (widget.payment != null) {
       final p = widget.payment!;
+      _selectedEmployeeId = p.employeeId;
       _amountController.text = p.amount.toString();
       _paymentType = p.paymentType;
       _paymentMethod = p.paymentMethod;
       _date = p.paymentDate;
       _documentController.text = p.documentNumber ?? '';
       _notesController.text = p.notes ?? '';
-    } else {
-      _paymentType = 'salary';
-      _date = DateTime.now();
     }
-
     _formatControllerText(_amountController);
     _setupNumberField(_amountController, _amountFocusNode);
   }
@@ -520,190 +700,192 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
       title: Text(title),
       content: SizedBox(
         width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.person,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.employee.fullName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_selectedEmployeeId == null)
+                  Consumer<AppProvider>(
+                    builder: (context, provider, child) {
+                      final items = provider.employees.map((e) {
+                        return DropdownMenuItem<int>(
+                          value: e.id,
+                          child: Text(StringUtils.getShortName(e.fullName)),
+                        );
+                      }).toList();
+
+                      return AppDropdown<int>(
+                        value: _selectedEmployeeId,
+                        items: items,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedEmployeeId = value;
+                          });
+                        },
+                        labelText: 'Сотрудник *',
+                        prefixIcon: Icons.person,
+                      );
+                    },
+                  ),
+                if (_selectedEmployeeId != null)
+                  Consumer<AppProvider>(
+                    builder: (context, provider, child) {
+                      final employee = provider.getEmployeeById(
+                        _selectedEmployeeId!,
+                      );
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
                               color: Theme.of(
                                 context,
                               ).colorScheme.onPrimaryContainer,
                             ),
-                          ),
-                          Text(
-                            widget.employee.position,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer.withAlpha(180),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    employee?.fullName ?? 'Неизвестно',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  Text(
+                                    employee?.position ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer
+                                          .withAlpha(180),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _amountController,
+                  focusNode: _amountFocusNode,
+                  labelText: 'Сумма (₽) *',
+                  prefixIcon: Icons.attach_money,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Введите сумму';
+                    final raw = v
+                        .replaceAll(RegExp(r'\s'), '')
+                        .replaceAll(',', '.');
+                    if (double.tryParse(raw) == null) return 'Введите число';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                AppDropdown<String>(
+                  value: _paymentType,
+                  items: const [
+                    DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
+                    DropdownMenuItem(value: 'advance', child: Text('Аванс')),
+                    DropdownMenuItem(value: 'bonus', child: Text('Премия')),
+                    DropdownMenuItem(
+                      value: 'vacation',
+                      child: Text('Отпускные'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'sick_leave',
+                      child: Text('Больничные'),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _amountController,
-                focusNode: _amountFocusNode,
-                decoration: const InputDecoration(
-                  labelText: 'Сумма (₽) *',
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d*$')),
-                ],
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Введите сумму';
-                  final raw = v
-                      .replaceAll(RegExp(r'\s'), '')
-                      .replaceAll(',', '.');
-                  if (double.tryParse(raw) == null) return 'Введите число';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              InputDecorator(
-                decoration: const InputDecoration(
+                  onChanged: (v) => setState(() => _paymentType = v!),
                   labelText: 'Тип выплаты',
-                  prefixIcon: Icon(Icons.category),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
+                  prefixIcon: Icons.category,
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _paymentType,
-                    isDense: true,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'salary',
-                        child: Text('Зарплата'),
-                      ),
-                      DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-                      DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-                      DropdownMenuItem(
-                        value: 'vacation',
-                        child: Text('Отпускные'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'sick_leave',
-                        child: Text('Больничные'),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _paymentType = v!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              InputDecorator(
-                decoration: const InputDecoration(
+                const SizedBox(height: 12),
+                AppDropdown<String?>(
+                  value: _paymentMethod,
+                  items: const [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text('— Не указано —'),
+                    ),
+                    DropdownMenuItem(value: 'cash', child: Text('Наличные')),
+                    DropdownMenuItem(value: 'card', child: Text('На карту')),
+                    DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
+                  ],
+                  onChanged: (v) => setState(() => _paymentMethod = v),
                   labelText: 'Способ оплаты',
-                  prefixIcon: Icon(Icons.payment),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
+                  prefixIcon: Icons.payment,
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: _paymentMethod,
-                    isDense: true,
-                    isExpanded: true,
-                    hint: const Text('Не указано'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text('— Не указано —'),
-                      ),
-                      DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                      DropdownMenuItem(value: 'card', child: Text('На карту')),
-                      DropdownMenuItem(
-                        value: 'transfer',
-                        child: Text('Перевод'),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _paymentMethod = v),
-                  ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today),
+                  title: const Text('Дата выплаты'),
+                  subtitle: Text(DateFormat('dd.MM.yyyy').format(_date)),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _date,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) setState(() => _date = date);
+                  },
                 ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Дата выплаты'),
-                subtitle: Text(
-                  DateFormat('dd.MM.yyyy').format(_date),
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _date,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) setState(() => _date = date);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _documentController,
-                decoration: const InputDecoration(
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _documentController,
                   labelText: 'Номер документа',
-                  prefixIcon: Icon(Icons.description),
+                  prefixIcon: Icons.description,
                   hintText: '№ расходного ордера',
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _notesController,
                   labelText: 'Примечания',
-                  prefixIcon: Icon(Icons.notes),
+                  prefixIcon: Icons.notes,
+                  maxLines: 2,
                 ),
-                maxLines: 2,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
       actions: [
-        TextButton(
+        AppButton(
+          label: 'Отмена',
+          isText: true,
+          width: 100,
           onPressed: () => Navigator.pop(context),
-          child: const Text('Отмена'),
         ),
-        FilledButton(
+        AppButton(
+          label: isEditing ? 'Сохранить' : 'Добавить',
+          width: 100,
           onPressed: () {
+            if (_selectedEmployeeId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Выберите сотрудника')),
+              );
+              return;
+            }
             final rawAmount = _amountController.text
                 .replaceAll(RegExp(r'\s'), '')
                 .replaceAll(',', '.');
@@ -713,7 +895,7 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
 
             final payment = Payment(
               id: widget.payment?.id,
-              employeeId: widget.employee.id!,
+              employeeId: _selectedEmployeeId!,
               paymentDate: _date,
               amount: amount,
               paymentType: _paymentType,
@@ -728,14 +910,16 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
             widget.onSave(payment);
             Navigator.pop(context);
           },
-          child: Text(isEditing ? 'Сохранить' : 'Добавить'),
         ),
       ],
     );
   }
 }
 
-/// Диалог группового добавления выплат
+// ==========================================================================
+// ГРУППОВОЙ ДИАЛОГ ДОБАВЛЕНИЯ ВЫПЛАТ
+// ==========================================================================
+
 class _GroupPaymentFormDialog extends StatefulWidget {
   final Function(List<Payment>) onSave;
 
@@ -751,8 +935,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   String _paymentType = 'salary';
   String? _paymentMethod;
   final _documentController = TextEditingController();
-  final _periodStartController = TextEditingController();
-  final _periodEndController = TextEditingController();
 
   // ignore: prefer_final_fields
   List<Employee> _employees = [];
@@ -775,6 +957,7 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
     try {
       final provider = context.read<AppProvider>();
       await provider.loadEmployees(activeOnly: true);
+      if (!mounted) return;
       setState(() {
         _employees = provider.employees;
         for (var emp in _employees) {
@@ -801,8 +984,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
       controller.dispose();
     }
     _documentController.dispose();
-    _periodStartController.dispose();
-    _periodEndController.dispose();
     super.dispose();
   }
 
@@ -820,15 +1001,10 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Заполнить сумму'),
-        content: TextFormField(
-          decoration: const InputDecoration(
-            labelText: 'Сумма для всех (₽)',
-            prefixIcon: Icon(Icons.attach_money),
-          ),
+        content: AppTextField(
+          labelText: 'Сумма для всех (₽)',
+          prefixIcon: Icons.attach_money,
           keyboardType: TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d*$')),
-          ],
           onChanged: (value) {
             final amount = double.tryParse(value.replaceAll(',', '.'));
             if (amount != null && amount > 0) {
@@ -843,9 +1019,11 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
           },
         ),
         actions: [
-          TextButton(
+          AppButton(
+            label: 'Закрыть',
+            isText: true,
+            width: 100,
             onPressed: () => Navigator.pop(context),
-            child: const Text('Закрыть'),
           ),
         ],
       ),
@@ -880,12 +1058,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
           paymentDate: _date,
           amount: amount,
           paymentType: _paymentType,
-          periodStart: _periodStartController.text.trim().isEmpty
-              ? null
-              : _periodStartController.text.trim(),
-          periodEnd: _periodEndController.text.trim().isEmpty
-              ? null
-              : _periodEndController.text.trim(),
           paymentMethod: _paymentMethod,
           documentNumber: _documentController.text.trim().isEmpty
               ? null
@@ -931,11 +1103,13 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
               ),
       ),
       actions: [
-        TextButton(
+        AppButton(
+          label: 'Отмена',
+          isText: true,
+          width: 100,
           onPressed: () => Navigator.pop(context),
-          child: const Text('Отмена'),
         ),
-        FilledButton(onPressed: _save, child: const Text('Сохранить')),
+        AppButton(label: 'Сохранить', width: 100, onPressed: _save),
       ],
     );
   }
@@ -946,73 +1120,36 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
         Row(
           children: [
             Expanded(
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Тип выплаты',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+              child: AppDropdown<String>(
+                value: _paymentType,
+                items: const [
+                  DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
+                  DropdownMenuItem(value: 'advance', child: Text('Аванс')),
+                  DropdownMenuItem(value: 'bonus', child: Text('Премия')),
+                  DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
+                  DropdownMenuItem(
+                    value: 'sick_leave',
+                    child: Text('Больничные'),
                   ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _paymentType,
-                    isDense: true,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'salary',
-                        child: Text('Зарплата'),
-                      ),
-                      DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-                      DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-                      DropdownMenuItem(
-                        value: 'vacation',
-                        child: Text('Отпускные'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'sick_leave',
-                        child: Text('Больничные'),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _paymentType = v!),
-                  ),
-                ),
+                ],
+                onChanged: (v) => setState(() => _paymentType = v!),
+                labelText: 'Тип выплаты',
+                prefixIcon: Icons.category,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Способ оплаты',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: _paymentMethod,
-                    isDense: true,
-                    isExpanded: true,
-                    hint: const Text('Не указано'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text('— Не указано —'),
-                      ),
-                      DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                      DropdownMenuItem(value: 'card', child: Text('На карту')),
-                      DropdownMenuItem(
-                        value: 'transfer',
-                        child: Text('Перевод'),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _paymentMethod = v),
-                  ),
-                ),
+              child: AppDropdown<String?>(
+                value: _paymentMethod,
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('— Не указано —')),
+                  DropdownMenuItem(value: 'cash', child: Text('Наличные')),
+                  DropdownMenuItem(value: 'card', child: Text('На карту')),
+                  DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
+                ],
+                onChanged: (v) => setState(() => _paymentMethod = v),
+                labelText: 'Способ оплаты',
+                prefixIcon: Icons.payment,
               ),
             ),
           ],
@@ -1039,67 +1176,11 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _documentController,
-                decoration: const InputDecoration(
-                  labelText: 'Номер документа',
-                  prefixIcon: Icon(Icons.description),
-                  hintText: '№ расходного ордера',
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _periodStartController,
-                decoration: const InputDecoration(
-                  labelText: 'Период с',
-                  prefixIcon: Icon(Icons.date_range),
-                  hintText: '01.01.2025',
-                ),
-                readOnly: true,
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2030),
-                  );
-                  if (date != null) {
-                    _periodStartController.text = DateFormat(
-                      'dd.MM.yyyy',
-                    ).format(date);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _periodEndController,
-                decoration: const InputDecoration(
-                  labelText: 'Период по',
-                  prefixIcon: Icon(Icons.date_range),
-                  hintText: '31.01.2025',
-                ),
-                readOnly: true,
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2030),
-                  );
-                  if (date != null) {
-                    _periodEndController.text = DateFormat(
-                      'dd.MM.yyyy',
-                    ).format(date);
-                  }
-                },
+                labelText: 'Номер документа',
+                prefixIcon: Icons.description,
+                hintText: '№ расходного ордера',
               ),
             ),
           ],
@@ -1155,32 +1236,20 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
                   ),
                   Expanded(
                     child: Text(
-                      emp.fullName,
+                      StringUtils.getShortName(emp.fullName),
                       style: const TextStyle(fontSize: 13),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   SizedBox(
                     width: 100,
-                    child: TextField(
+                    child: AppTextField(
                       controller: _amountControllers[id],
                       enabled: _selected[id] ?? false,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: '0.00',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                      ),
+                      labelText: 'Сумма',
                       keyboardType: TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d*[,.]?\d*$'),
-                        ),
-                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
