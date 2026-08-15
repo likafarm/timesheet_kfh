@@ -5,29 +5,23 @@ import '../models/models.dart';
 import '../models/employee_rate.dart';
 import '../services/database_service.dart';
 
-/// Главный провайдер состояния приложения (упрощённая версия)
 class AppProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
 
-  // Геттер для доступа к базе данных (для отладки)
   DatabaseService get db => _db;
 
-  // Списки данных
   List<Employee> _employees = [];
   List<TimesheetRecord> _timesheetRecords = [];
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
   Map<String, dynamic>? _companySettings;
 
-  // Состояние загрузки
   bool _isLoading = false;
   String? _error;
 
-  // Для перезагрузки табеля
   DateTime? _currentPeriodStart;
   DateTime? _currentPeriodEnd;
 
-  // Геттеры
   List<Employee> get employees => _employees;
   List<TimesheetRecord> get timesheetRecords => _timesheetRecords;
   List<Payment> get payments => _payments;
@@ -43,11 +37,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> loadAllData() async {
     _setLoading(true);
     try {
-      await Future.wait([
-        loadEmployees(),
-        loadEmployeeRates(),
-        loadCompanySettings(),
-      ]);
+      await Future.wait([loadEmployees(), loadCompanySettings()]);
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки данных: $e';
@@ -84,9 +74,19 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addEmployee(Employee employee) async {
+  /// Добавление сотрудника с указанием даты начала действия ставки
+  Future<void> addEmployee(Employee employee, {DateTime? rateStartDate}) async {
     try {
-      await _db.insertEmployee(employee);
+      final id = await _db.insertEmployee(employee);
+      // Создаём ставку с указанной датой начала (по умолчанию – дата приёма)
+      final start = rateStartDate ?? employee.hireDate;
+      final rate = EmployeeRate(
+        employeeId: id,
+        baseRate: employee.baseRate,
+        fieldRate: employee.fieldRate,
+        startDate: start,
+      );
+      await _db.insertEmployeeRate(rate);
       await loadEmployees();
     } catch (e) {
       _error = 'Ошибка добавления сотрудника: $e';
@@ -183,16 +183,13 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// Сохранение записей за день (быстрый ввод)
   Future<void> saveDailyTimesheet(
     List<TimesheetRecord> records,
     DateTime date,
   ) async {
     try {
-      // Получаем существующие записи за этот день
       final existing = await _db.getTimesheetByPeriod(date, date);
       for (var record in records) {
-        // Ищем существующую запись для этого сотрудника
         TimesheetRecord? existingRecord;
         for (var r in existing) {
           if (r.employeeId == record.employeeId) {
@@ -201,7 +198,6 @@ class AppProvider extends ChangeNotifier {
           }
         }
         if (existingRecord != null) {
-          // Обновляем
           final updated = existingRecord.copyWith(
             dayType: record.dayType,
             days: record.days,
@@ -210,11 +206,9 @@ class AppProvider extends ChangeNotifier {
           );
           await _db.updateTimesheetRecord(updated);
         } else {
-          // Вставляем новую запись
           await _db.insertTimesheetRecord(record);
         }
       }
-      // Перезагружаем табель, если есть текущий период
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
       } else {
@@ -222,6 +216,34 @@ class AppProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = 'Ошибка сохранения за день: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveTimesheetRecord(TimesheetRecord record) async {
+    try {
+      final existing = await _db.getTimesheetRecord(
+        record.employeeId,
+        record.date,
+      );
+      if (existing != null) {
+        final updated = existing.copyWith(
+          dayType: record.dayType,
+          days: record.days,
+          workPlace: record.workPlace,
+          notes: record.notes,
+        );
+        await _db.updateTimesheetRecord(updated);
+      } else {
+        await _db.insertTimesheetRecord(record);
+      }
+      if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+        await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
+      } else {
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = 'Ошибка сохранения записи: $e';
       notifyListeners();
     }
   }
@@ -314,7 +336,6 @@ class AppProvider extends ChangeNotifier {
   Future<void> addPayment(Payment payment) async {
     try {
       await _db.insertPayment(payment);
-      // Не перезагружаем список, только уведомляем об изменении
       notifyListeners();
     } catch (e) {
       _error = 'Ошибка добавления выплаты: $e';
@@ -335,7 +356,6 @@ class AppProvider extends ChangeNotifier {
   Future<void> deletePayment(int id, int employeeId) async {
     try {
       await _db.deletePayment(id);
-      // Не перезагружаем список, только уведомляем
       notifyListeners();
     } catch (e) {
       _error = 'Ошибка удаления выплаты: $e';

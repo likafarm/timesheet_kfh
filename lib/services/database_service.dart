@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5, // увеличена версия
+      version: 6, // увеличена версия для добавления уникального индекса
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -124,6 +124,37 @@ class DatabaseService {
       )
     ''');
 
+    // --- Таблица больничных (задел на будущее) ---
+    await db.execute('''
+      CREATE TABLE sick_leave (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        document_number TEXT,
+        days_count INTEGER NOT NULL,
+        paid_by_employer REAL,
+        paid_by_fss REAL,
+        notes TEXT,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // --- Таблица отпусков (задел на будущее) ---
+    await db.execute('''
+      CREATE TABLE vacation (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        vacation_type TEXT NOT NULL DEFAULT 'annual',
+        days_count INTEGER NOT NULL,
+        is_approved INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+      )
+    ''');
+
     // --- Индексы ---
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_timesheet_employee_date ON timesheet(employee_id, date)',
@@ -140,47 +171,43 @@ class DatabaseService {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_employee_rates_active ON employee_rates(employee_id, start_date, end_date)',
     );
+
+    // --- УНИКАЛЬНЫЙ ИНДЕКС ДЛЯ ТАБЕЛЯ (предотвращает дубли) ---
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_timesheet_unique ON timesheet(employee_id, date)',
+    );
   }
 
   // ==========================================================================
-  // МИГРАЦИЯ с версии 4 на 5 (добавление company_settings)
+  // МИГРАЦИЯ с версии 5 на 6 (уникальный индекс, удаление дублей)
   // ==========================================================================
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
-      // Миграция с 3 на 4 (уже была)
-      // ...
-    }
-    if (oldVersion < 5) {
-      // Создаём таблицу настроек
-      await db.execute('''
-        CREATE TABLE company_settings (
-          id INTEGER PRIMARY KEY CHECK (id = 1),
-          company_name TEXT NOT NULL DEFAULT 'КФХ',
-          director_name TEXT,
-          inn TEXT,
-          ogrn TEXT,
-          bank_account TEXT,
-          bank_name TEXT,
-          legal_address TEXT,
-          phone TEXT,
-          default_work_day_hours REAL NOT NULL DEFAULT 8.0,
-          overtime_multiplier REAL NOT NULL DEFAULT 1.5,
-          night_shift_multiplier REAL NOT NULL DEFAULT 1.2
+    if (oldVersion < 6) {
+      // 1. Создаём уникальный индекс
+      try {
+        await db.execute(
+          'CREATE UNIQUE INDEX idx_timesheet_unique ON timesheet(employee_id, date)',
+        );
+      } catch (_) {
+        // Если индекс уже существует (например, создан вручную) – игнорируем
+      }
+
+      // 2. Удаляем дублирующиеся записи, оставляя только самую новую (по id)
+      //    для каждой пары (employee_id, date)
+      await db.rawDelete('''
+        DELETE FROM timesheet
+        WHERE id NOT IN (
+          SELECT MAX(id)
+          FROM timesheet
+          GROUP BY employee_id, date
         )
       ''');
-      await db.insert('company_settings', {
-        'id': 1,
-        'company_name': 'КФХ',
-        'default_work_day_hours': 8.0,
-        'overtime_multiplier': 1.5,
-        'night_shift_multiplier': 1.2,
-      });
     }
   }
 
   // ==========================================================================
-  // EMPLOYEES (без изменений)
+  // EMPLOYEES
   // ==========================================================================
 
   Future<int> insertEmployee(Employee employee) async {
@@ -188,14 +215,6 @@ class DatabaseService {
     final map = employee.toMap();
     map.remove('id');
     final id = await db.insert('employees', map);
-    await _insertEmployeeRate(
-      EmployeeRate(
-        employeeId: id,
-        baseRate: employee.baseRate,
-        fieldRate: employee.fieldRate,
-        startDate: employee.hireDate,
-      ),
-    );
     return id;
   }
 
@@ -438,7 +457,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // COMPANY SETTINGS (новые методы)
+  // COMPANY SETTINGS
   // ==========================================================================
 
   Future<Map<String, dynamic>?> getCompanySettings() async {

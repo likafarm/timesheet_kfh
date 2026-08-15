@@ -9,14 +9,11 @@ import 'screens/main_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ===== ИНИЦИАЛИЗАЦИЯ SQLITE ДЛЯ ДЕСКТОПА =====
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-  // ==============================================
 
-  // Инициализация русской локали для DateFormat
   await initializeDateFormatting('ru', null);
 
   runApp(const MyApp());
@@ -30,7 +27,6 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) {
         final provider = AppProvider();
-        // Загружаем все данные при старте
         provider.loadAllData();
         return provider;
       },
@@ -56,6 +52,12 @@ class MyApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
           useMaterial3: true,
+          cardTheme: CardThemeData(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
         home: const MainScreen(),
       ),

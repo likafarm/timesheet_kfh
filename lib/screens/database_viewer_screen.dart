@@ -33,11 +33,13 @@ class _DatabaseViewerScreenState extends State<DatabaseViewerScreen> {
     try {
       final db = context.read<AppProvider>().db;
       final tables = await db.getTableNames();
+      if (!mounted) return;
       setState(() {
         _tableNames = tables;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -137,6 +139,7 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
     try {
       final db = context.read<AppProvider>().db;
       final data = await db.getTableData(widget.tableName, limit: _limit);
+      if (!mounted) return;
       setState(() {
         if (data.isNotEmpty) {
           _columns = data.first.keys.toList();
@@ -147,6 +150,7 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -187,23 +191,24 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
     if (confirm != true) return;
 
     setState(() => _isLoading = true);
+    if (!mounted) return;
     try {
-      // ignore: use_build_context_synchronously
       final db = context.read<AppProvider>().db;
       final id = row['id'];
       if (id == null) {
         throw Exception('Таблица не содержит поля "id" для удаления');
       }
       await db.deleteRow(widget.tableName, id);
+      if (!mounted) return;
       setState(() {
         _rows.removeAt(index);
         _isLoading = false;
       });
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Строка удалена')));
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -289,14 +294,15 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
     }
 
     setState(() => _isLoading = true);
+    if (!mounted) return;
     try {
-      // ignore: use_build_context_synchronously
       final db = context.read<AppProvider>().db;
       final id = row['id'];
       if (id == null) {
         throw Exception('Таблица не содержит поля "id" для обновления');
       }
       await db.updateRow(widget.tableName, id, updatedRow);
+      if (!mounted) return;
       final newRow = Map<String, dynamic>.from(row);
       for (var col in _columns) {
         if (col != 'id') {
@@ -307,11 +313,11 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
         _rows[index] = newRow;
         _isLoading = false;
       });
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Строка обновлена')));
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;

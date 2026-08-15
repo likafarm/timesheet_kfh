@@ -45,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _bankAccountController.text = settings['bank_account'] ?? '';
     _bankNameController.text = settings['bank_name'] ?? '';
     _legalAddressController.text = settings['legal_address'] ?? '';
-    setState(() => _initialized = true);
+    _initialized = true; // без setState, мы внутри билда
   }
 
   Future<void> _saveSettings() async {
@@ -90,18 +90,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading ||
-            (!_initialized && provider.companySettings == null)) {
-          return const Scaffold(
+        // Пока данные не загружены – показываем индикатор
+        if (provider.isLoading || provider.companySettings == null) {
+          return Scaffold(
             appBar: AppBar(title: Text('Настройки')),
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (!_initialized && provider.companySettings != null) {
+        // При первой загрузке данных заполняем контроллеры (без setState)
+        if (!_initialized) {
           _updateControllers(provider.companySettings);
         }
 
+        // Основная форма
         return Scaffold(
           appBar: AppBar(
             title: const Text('Настройки'),
@@ -167,9 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _buildSectionTitle(context, 'Банковские реквизиты'),
                   _SettingsCard(
                     child: Column(
@@ -189,9 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _buildSectionTitle(context, 'Юридический адрес'),
                   _SettingsCard(
                     child: _buildTextField(
@@ -202,9 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: _onFieldChanged,
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   _buildSectionTitle(context, 'Система'),
                   _SettingsCard(
                     child: Column(
@@ -248,8 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    DatabaseViewerScreen(), // <-- убрал const
+                                builder: (context) => DatabaseViewerScreen(),
                               ),
                             );
                           },
@@ -288,7 +283,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
                 ],
               ),

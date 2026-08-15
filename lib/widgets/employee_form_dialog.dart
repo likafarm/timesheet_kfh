@@ -8,7 +8,6 @@ import '../models/employee_rate.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 
-/// Диалог добавления/редактирования сотрудника (упрощённый)
 class EmployeeFormDialog extends StatefulWidget {
   final Employee? employee;
 
@@ -25,8 +24,10 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   final _hireDateController = TextEditingController();
   final _baseRateController = TextEditingController();
   final _fieldRateController = TextEditingController();
+  final _rateStartDateController = TextEditingController();
 
   DateTime _hireDate = DateTime.now();
+  DateTime _rateStartDate = DateTime.now();
 
   @override
   void initState() {
@@ -39,10 +40,17 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       _hireDateController.text = DateFormat('dd.MM.yyyy').format(e.hireDate);
       _baseRateController.text = e.baseRate.toString();
       _fieldRateController.text = e.fieldRate.toString();
-    } else {
-      _hireDateController.text = DateFormat(
+      _rateStartDate = DateTime.now();
+      _rateStartDateController.text = DateFormat(
         'dd.MM.yyyy',
-      ).format(DateTime.now());
+      ).format(_rateStartDate);
+    } else {
+      _hireDate = DateTime.now();
+      _hireDateController.text = DateFormat('dd.MM.yyyy').format(_hireDate);
+      _rateStartDate = _hireDate;
+      _rateStartDateController.text = DateFormat(
+        'dd.MM.yyyy',
+      ).format(_rateStartDate);
     }
   }
 
@@ -53,6 +61,7 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     _hireDateController.dispose();
     _baseRateController.dispose();
     _fieldRateController.dispose();
+    _rateStartDateController.dispose();
     super.dispose();
   }
 
@@ -66,82 +75,133 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
         width: 400,
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(
-                controller: _nameController,
-                labelText: 'ФИО *',
-                prefixIcon: Icons.person,
-                validator: (v) =>
-                    v?.trim().isEmpty == true ? 'Обязательное поле' : null,
-              ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _positionController,
-                labelText: 'Должность *',
-                prefixIcon: Icons.work,
-                validator: (v) =>
-                    v?.trim().isEmpty == true ? 'Обязательное поле' : null,
-              ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _hireDateController,
-                labelText: 'Дата приёма *',
-                prefixIcon: Icons.calendar_today,
-                readOnly: true,
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _hireDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    setState(() {
-                      _hireDate = date;
-                      _hireDateController.text = DateFormat(
-                        'dd.MM.yyyy',
-                      ).format(date);
-                    });
-                  }
-                },
-                validator: (v) =>
-                    v?.isEmpty == true ? 'Обязательное поле' : null,
-              ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _baseRateController,
-                labelText: 'Ставка (база, ₽/день) *',
-                prefixIcon: Icons.attach_money,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Обязательное поле';
-                  }
-                  if (double.tryParse(v.replaceAll(',', '.')) == null) {
-                    return 'Введите число';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _fieldRateController,
-                labelText: 'Ставка (поле, ₽/день) *',
-                prefixIcon: Icons.attach_money,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Обязательное поле';
-                  }
-                  if (double.tryParse(v.replaceAll(',', '.')) == null) {
-                    return 'Введите число';
-                  }
-                  return null;
-                },
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTextField(
+                  controller: _nameController,
+                  labelText: 'ФИО *',
+                  prefixIcon: Icons.person,
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _positionController,
+                  labelText: 'Должность *',
+                  prefixIcon: Icons.work,
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _hireDateController,
+                  labelText: 'Дата приёма *',
+                  prefixIcon: Icons.calendar_today,
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _hireDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _hireDate = date;
+                        _hireDateController.text = DateFormat(
+                          'dd.MM.yyyy',
+                        ).format(date);
+                        if (_rateStartDate.isBefore(date)) {
+                          _rateStartDate = date;
+                          _rateStartDateController.text = DateFormat(
+                            'dd.MM.yyyy',
+                          ).format(date);
+                        }
+                      });
+                    }
+                  },
+                  validator: (v) =>
+                      v?.isEmpty == true ? 'Обязательное поле' : null,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _baseRateController,
+                  labelText: 'Ставка (база, ₽/день) *',
+                  prefixIcon: Icons.attach_money,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Обязательное поле';
+                    }
+                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
+                      return 'Введите число';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: _fieldRateController,
+                  labelText: 'Ставка (поле, ₽/день) *',
+                  prefixIcon: Icons.attach_money,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Обязательное поле';
+                    }
+                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
+                      return 'Введите число';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // --- ПОЛЕ ДАТЫ НАЧАЛА СТАВКИ ---
+                AppTextField(
+                  controller: _rateStartDateController,
+                  labelText: 'Дата начала действия ставки',
+                  prefixIcon: Icons.date_range,
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _rateStartDate,
+                      firstDate: _hireDate,
+                      lastDate: DateTime(2100),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _rateStartDate = date;
+                        _rateStartDateController.text = DateFormat(
+                          'dd.MM.yyyy',
+                        ).format(date);
+                      });
+                    }
+                  },
+                  validator: (v) {
+                    if (_rateStartDate.isBefore(_hireDate)) {
+                      return 'Дата начала не может быть раньше даты приёма';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Новая ставка будет действовать с указанной даты.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+                if (isEditing) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Если ставки не изменились, новая запись не создаётся.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -162,7 +222,9 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   }
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final baseRate = double.parse(
       _baseRateController.text.replaceAll(',', '.'),
@@ -184,19 +246,34 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     final provider = context.read<AppProvider>();
 
     if (widget.employee != null) {
-      provider.updateEmployee(employee);
+      // --- Редактирование ---
       final old = widget.employee!;
-      if (old.baseRate != baseRate || old.fieldRate != fieldRate) {
+      final ratesChanged =
+          old.baseRate != baseRate || old.fieldRate != fieldRate;
+
+      provider.updateEmployee(employee);
+
+      if (ratesChanged) {
         final rate = EmployeeRate(
           employeeId: employee.id!,
           baseRate: baseRate,
           fieldRate: fieldRate,
-          startDate: DateTime.now(),
+          startDate: _rateStartDate,
         );
         provider.addEmployeeRate(rate);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ставки не изменены, новая запись не создана'),
+          ),
+        );
       }
     } else {
-      provider.addEmployee(employee);
+      // --- Новый сотрудник ---
+      final startDate = _rateStartDate.isAfter(_hireDate)
+          ? _rateStartDate
+          : _hireDate;
+      provider.addEmployee(employee, rateStartDate: startDate);
     }
 
     Navigator.pop(context);

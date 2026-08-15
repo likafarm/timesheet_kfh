@@ -1,12 +1,13 @@
+// lib/screens/reports_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
-import '../utils/string_utils.dart'; // <-- импорт
+import '../utils/string_utils.dart';
 
-/// Экран отчётов и расчёта зарплаты (дни)
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -19,6 +20,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _selectedMonth = DateTime.now().month;
   int? _selectedEmployeeId;
   Map<String, dynamic>? _reportData;
+  bool _isCalculating = false;
 
   final List<int> _years = List.generate(
     10,
@@ -51,6 +53,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _generateReport() async {
     if (_selectedEmployeeId == null) return;
 
+    setState(() => _isCalculating = true);
     try {
       final provider = context.read<AppProvider>();
       final data = await provider.calculateMonthlySalary(
@@ -59,7 +62,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _selectedMonth,
       );
       setState(() => _reportData = data);
-    } finally {}
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка расчёта: $e')));
+    } finally {
+      if (mounted) setState(() => _isCalculating = false);
+    }
   }
 
   @override
@@ -153,9 +163,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   AppButton(
-                    label: 'Рассчитать',
-                    icon: Icons.calculate,
-                    onPressed: _selectedEmployeeId != null
+                    label: _isCalculating ? 'Расчёт...' : 'Рассчитать',
+                    icon: _isCalculating ? null : Icons.calculate,
+                    onPressed: (_selectedEmployeeId != null && !_isCalculating)
                         ? _generateReport
                         : null,
                     width: 160,
@@ -164,7 +174,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            if (_reportData != null) _ReportCard(data: _reportData!),
+            if (_reportData != null)
+              Expanded(child: _ReportCard(data: _reportData!)),
           ],
         ),
       ),
@@ -172,7 +183,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 }
 
-/// Карточка отчёта по зарплате (дни)
+/// Карточка отчёта по зарплате (дни) – с прокруткой
 class _ReportCard extends StatelessWidget {
   final Map<String, dynamic> data;
 
@@ -194,98 +205,109 @@ class _ReportCard extends StatelessWidget {
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
     final daysFormat = NumberFormat('#,##0.0', 'ru');
 
-    return Expanded(
-      child: AppCard(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer,
-                  child: Text(
-                    employee.fullName.substring(0, 1),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.bold,
+    return AppCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Верхняя часть – фиксированная (аватар, имя, должность)
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  employee.fullName.substring(0, 1),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      employee.fullName,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    Text(
+                      employee.position,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Прокручиваемая часть с данными
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 16),
+                  _ReportRow('Дней на базе:', daysFormat.format(totalBaseDays)),
+                  _ReportRow('Дней в поле:', daysFormat.format(totalFieldDays)),
+                  _ReportRow('Больничные дни:', daysFormat.format(sickDays)),
+                  _ReportRow('Отпускные дни:', daysFormat.format(vacationDays)),
+                  _ReportRow(
+                    'Ставка (база):',
+                    '${currencyFormat.format(baseRate)} ₽/день',
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        employee.fullName,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      Text(
-                        employee.position,
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
+                  _ReportRow(
+                    'Ставка (поле):',
+                    '${currencyFormat.format(fieldRate)} ₽/день',
                   ),
-                ),
-              ],
+                  const Divider(height: 16),
+                  _ReportRow(
+                    'Начислено:',
+                    '${currencyFormat.format(totalSalary)} ₽',
+                    valueColor: Colors.green,
+                  ),
+                  _ReportRow(
+                    'Выплачено:',
+                    '${currencyFormat.format(totalPaid)} ₽',
+                    valueColor: Colors.blue,
+                  ),
+                  const Divider(height: 16),
+                  _ReportRow(
+                    'Остаток к выплате:',
+                    '${currencyFormat.format(balance)} ₽',
+                    valueColor: balance > 0 ? Colors.orange : Colors.green,
+                    isBold: true,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-            const Divider(height: 32),
-            _ReportRow('Дней на базе:', daysFormat.format(totalBaseDays)),
-            _ReportRow('Дней в поле:', daysFormat.format(totalFieldDays)),
-            _ReportRow('Больничные дни:', daysFormat.format(sickDays)),
-            _ReportRow('Отпускные дни:', daysFormat.format(vacationDays)),
-            _ReportRow(
-              'Ставка (база):',
-              '${currencyFormat.format(baseRate)} ₽/день',
-            ),
-            _ReportRow(
-              'Ставка (поле):',
-              '${currencyFormat.format(fieldRate)} ₽/день',
-            ),
-            const Divider(height: 24),
-            _ReportRow(
-              'Начислено:',
-              '${currencyFormat.format(totalSalary)} ₽',
-              valueColor: Colors.green,
-            ),
-            _ReportRow(
-              'Выплачено:',
-              '${currencyFormat.format(totalPaid)} ₽',
-              valueColor: Colors.blue,
-            ),
-            const Divider(height: 24),
-            _ReportRow(
-              'Остаток к выплате:',
-              '${currencyFormat.format(balance)} ₽',
-              valueColor: balance > 0 ? Colors.orange : Colors.green,
-              isBold: true,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AppButton(
-                  label: 'Печать',
-                  icon: Icons.print,
-                  isOutlined: true,
-                  onPressed: () {},
-                  width: 120,
-                ),
-                const SizedBox(width: 12),
-                AppButton(
-                  label: 'PDF',
-                  icon: Icons.picture_as_pdf,
-                  isOutlined: true,
-                  onPressed: () {},
-                  width: 120,
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+
+          // Кнопки внизу – всегда видны
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AppButton(
+                label: 'Печать',
+                icon: Icons.print,
+                isOutlined: true,
+                onPressed: () {},
+                width: 120,
+              ),
+              const SizedBox(width: 12),
+              AppButton(
+                label: 'PDF',
+                icon: Icons.picture_as_pdf,
+                isOutlined: true,
+                onPressed: () {},
+                width: 120,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -307,7 +329,7 @@ class _ReportRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

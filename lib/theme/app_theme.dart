@@ -27,7 +27,7 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: backgroundColor,
     cardTheme: CardThemeData(
-      // <-- исправлено: CardThemeData вместо CardTheme
+      // ✅ исправлено: CardThemeData вместо CardTheme
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(defaultRadius),

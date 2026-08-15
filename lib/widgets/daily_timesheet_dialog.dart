@@ -1,3 +1,5 @@
+// lib/widgets/daily_timesheet_dialog.dart
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +8,6 @@ import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import '../widgets/common_widgets.dart';
 
-/// Диалог быстрого ввода табеля за день (с выбором сотрудников и проверкой существующих записей)
 class DailyTimesheetDialog extends StatefulWidget {
   final DateTime initialDate;
   final VoidCallback onSaved;
@@ -25,14 +26,9 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   late DateTime _selectedDate;
   List<Employee> _employees = [];
 
-  // Для каждого сотрудника храним: выбран ли, тип дня, количество дней, место работы
-  // ignore: prefer_final_fields
   Map<int, bool> _selected = {};
-  // ignore: prefer_final_fields
   Map<int, String> _dayTypes = {};
-  // ignore: prefer_final_fields
   Map<int, double> _dayCounts = {};
-  // ignore: prefer_final_fields
   Map<int, String?> _workPlaces = {};
 
   bool _isLoading = false;
@@ -45,7 +41,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
     'Отпуск',
     'Выходной',
   ];
-  // Исправлено: добавлен 0.0, чтобы корректно отображать дни для выходных
   final List<double> _dayCountOptions = [0.0, 0.5, 1.0];
   final List<String> _workPlaceOptions = ['base', 'field'];
   final List<String> _workPlaceLabels = ['База', 'Поле'];
@@ -88,14 +83,14 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
       if (_selected.containsKey(id)) {
         _selected[id] = true;
         _dayTypes[id] = record.dayType;
-        // Приводим дни к допустимому значению: если это выходной, ставим 0.0
-        // Если значение не входит в список опций, заменяем на ближайшее допустимое
+        // Для всех типов дней, кроме work, ставим 1 день, для work оставляем как есть
         double days = record.days;
-        if (record.dayType == 'dayoff') {
-          days = 0.0;
-        } else if (!_dayCountOptions.contains(days)) {
-          // Если дни не 0, 0.5 или 1, то приводим к 1.0
-          days = 1.0;
+        if (record.dayType == 'work') {
+          if (!_dayCountOptions.contains(days)) {
+            days = 1.0;
+          }
+        } else {
+          days = 1.0; // все нерабочие дни считаем как 1
         }
         _dayCounts[id] = days;
         _workPlaces[id] = record.workPlace;
@@ -131,7 +126,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Выбор даты (как в выплатах)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.calendar_today),
@@ -155,7 +149,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                     },
                   ),
                   const Divider(),
-                  // Таблица с фиксированной шириной и горизонтальной прокруткой
                   Expanded(
                     child: _employees.isEmpty
                         ? const Center(child: Text('Нет активных сотрудников'))
@@ -164,11 +157,9 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: SizedBox(
-                                // Фиксированная ширина таблицы
                                 width: 630,
                                 child: Column(
                                   children: [
-                                    // Шапка таблицы (фиксированная)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 4,
@@ -177,7 +168,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                       color: Colors.grey[200],
                                       child: Row(
                                         children: [
-                                          // Чекбокс "Выбрать всех"
                                           Checkbox(
                                             value: _allSelected,
                                             onChanged: _toggleSelectAll,
@@ -185,7 +175,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                 VisualDensity.compact,
                                           ),
                                           const SizedBox(width: 20),
-                                          // №
                                           const SizedBox(
                                             width: 30,
                                             child: Text(
@@ -197,7 +186,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // ФИО (фиксированная ширина)
                                           const SizedBox(
                                             width: 150,
                                             child: Text(
@@ -209,7 +197,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // Тип дня
                                           const SizedBox(
                                             width: 110,
                                             child: Text(
@@ -222,7 +209,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // Дней
                                           const SizedBox(
                                             width: 70,
                                             child: Text(
@@ -235,7 +221,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // Место
                                           const SizedBox(
                                             width: 100,
                                             child: Text(
@@ -251,7 +236,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                       ),
                                     ),
                                     const Divider(height: 1),
-                                    // Строки сотрудников
                                     ..._employees.asMap().entries.map((entry) {
                                       final index = entry.key + 1;
                                       final employee = entry.value;
@@ -275,7 +259,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                         ),
                                         child: Row(
                                           children: [
-                                            // Чекбокс
                                             Checkbox(
                                               value: isSelected,
                                               onChanged: (value) {
@@ -291,7 +274,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                   VisualDensity.compact,
                                             ),
                                             const SizedBox(width: 20),
-                                            // №
                                             SizedBox(
                                               width: 30,
                                               child: Text(
@@ -302,7 +284,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            // ФИО
                                             SizedBox(
                                               width: 150,
                                               child: Text(
@@ -316,7 +297,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            // Тип дня
                                             SizedBox(
                                               width: 110,
                                               child: DropdownButton<String>(
@@ -343,15 +323,24 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                         setState(() {
                                                           _dayTypes[id] =
                                                               value!;
-                                                          // Если тип изменился на выходной, устанавливаем дни=0
+                                                          // При смене типа корректируем дни
                                                           if (value ==
                                                               'dayoff') {
                                                             _dayCounts[id] =
-                                                                0.0;
-                                                          } else if (_dayCounts[id] ==
-                                                              0.0) {
+                                                                1.0;
+                                                          } else if (value ==
+                                                                  'sick' ||
+                                                              value ==
+                                                                  'vacation') {
                                                             _dayCounts[id] =
                                                                 1.0;
+                                                          } else {
+                                                            _dayCounts[id] =
+                                                                1.0; // work
+                                                          }
+                                                          if (value != 'work') {
+                                                            _workPlaces[id] =
+                                                                null;
                                                           }
                                                         });
                                                       }
@@ -359,7 +348,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            // Дней
                                             SizedBox(
                                               width: 70,
                                               child: DropdownButton<double>(
@@ -369,7 +357,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                 items: _dayCountOptions.map((
                                                   d,
                                                 ) {
-                                                  // Для отображения 0.0 показываем "0"
                                                   String label = d == 0.0
                                                       ? '0'
                                                       : d.toStringAsFixed(1);
@@ -387,7 +374,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                 }).toList(),
                                                 onChanged:
                                                     isSelected &&
-                                                        dayType != 'dayoff'
+                                                        dayType == 'work'
                                                     ? (value) {
                                                         setState(() {
                                                           _dayCounts[id] =
@@ -398,7 +385,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            // Место
                                             SizedBox(
                                               width: 100,
                                               child: DropdownButton<String?>(
@@ -479,7 +465,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
 
   Future<void> _save() async {
     final provider = context.read<AppProvider>();
-
     final existingRecords = await provider.getTimesheetForDate(_selectedDate);
 
     List<Map<String, dynamic>> newEntries = [];
@@ -492,6 +477,14 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         final days = _dayCounts[id]!;
         final workPlace = _workPlaces[id];
 
+        // Определяем итоговое количество дней для сохранения
+        double finalDays;
+        if (dayType == 'work') {
+          finalDays = days; // 0.5 или 1
+        } else {
+          finalDays = 1.0; // для всех нерабочих дней – 1 целый день
+        }
+
         TimesheetRecord? existing;
         for (var r in existingRecords) {
           if (r.employeeId == id) {
@@ -503,7 +496,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         newEntries.add({
           'employee': emp,
           'dayType': dayType,
-          'days': (dayType == 'dayoff') ? 0.0 : days,
+          'days': finalDays,
           'workPlace': (dayType == 'work') ? workPlace : null,
           'existing': existing,
         });

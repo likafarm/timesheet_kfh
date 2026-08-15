@@ -1,10 +1,11 @@
+// lib/widgets/timesheet_record_dialog.dart
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 
-/// Диалог добавления/редактирования записи табеля (дни)
 class TimesheetRecordDialog extends StatefulWidget {
   final Employee employee;
   final TimesheetRecord? record;
@@ -25,9 +26,9 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   final _formKey = GlobalKey<FormState>();
 
   DateTime _date = DateTime.now();
-  String _dayType = 'work'; // work, sick, vacation, dayoff
-  double _days = 1.0; // 0.5 или 1
-  String? _workPlace; // 'base' или 'field'
+  String _dayType = 'work';
+  double _days = 1.0;
+  String? _workPlace;
   final _notesController = TextEditingController();
 
   @override
@@ -64,11 +65,9 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Сотрудник и дата
               _buildEmployeeHeader(),
               const Divider(height: 24),
 
-              // Тип дня
               InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Тип дня',
@@ -107,7 +106,6 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
               ),
               const SizedBox(height: 12),
 
-              // Количество дней (только для рабочего дня)
               if (_dayType == 'work') ...[
                 InputDecorator(
                   decoration: const InputDecoration(
@@ -133,7 +131,6 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // Место работы
                 InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Место работы',
@@ -160,7 +157,6 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                 const SizedBox(height: 12),
               ],
 
-              // Примечания
               TextField(
                 controller: _notesController,
                 decoration: const InputDecoration(
@@ -240,7 +236,6 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    // Валидация для рабочего дня
     if (_dayType == 'work' && _workPlace == null) {
       ScaffoldMessenger.of(
         context,
@@ -248,23 +243,20 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
       return;
     }
 
+    // Для нерабочих дней всегда ставим 1 день (целый день)
+    final daysValue = _dayType == 'work' ? _days : 1.0;
+
     final record = TimesheetRecord(
       id: widget.record?.id,
       employeeId: widget.employee.id!,
       date: _date,
       dayType: _dayType,
-      days: _dayType == 'work' ? _days : 0,
+      days: daysValue,
       workPlace: _dayType == 'work' ? _workPlace : null,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
-    final provider = context.read<AppProvider>();
-    if (widget.record?.id != null) {
-      provider.updateTimesheetRecord(record);
-    } else {
-      provider.addTimesheetRecord(record);
-    }
-
+    context.read<AppProvider>().saveTimesheetRecord(record);
     Navigator.pop(context);
   }
 }
