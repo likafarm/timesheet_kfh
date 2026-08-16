@@ -370,7 +370,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
               border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
             ),
             child: const Text(
-              'Сотрудник',
+              'ФИО',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ),
@@ -460,6 +460,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                               : null,
                           border: Border(
                             left: BorderSide(color: Colors.grey[300]!),
+                            bottom: BorderSide(color: Colors.grey[300]!),
                           ),
                         ),
                         child: Column(
@@ -492,10 +493,11 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         color: Colors.grey[100],
                         border: Border(
                           left: BorderSide(color: Colors.grey[300]!),
+                          bottom: BorderSide(color: Colors.grey[300]!),
                         ),
                       ),
                       child: const Text(
-                        'Работа',
+                        'Раб.',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 9,
@@ -510,6 +512,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         color: Colors.grey[50],
                         border: Border(
                           left: BorderSide(color: Colors.grey[300]!),
+                          bottom: BorderSide(color: Colors.grey[300]!),
                         ),
                       ),
                       child: const Text(
@@ -528,6 +531,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         color: Colors.blue[50],
                         border: Border(
                           left: BorderSide(color: Colors.grey[300]!),
+                          bottom: BorderSide(color: Colors.grey[300]!),
                         ),
                       ),
                       child: const Text(
@@ -546,6 +550,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         color: Colors.purple[50],
                         border: Border(
                           left: BorderSide(color: Colors.grey[300]!),
+                          bottom: BorderSide(color: Colors.grey[300]!),
                         ),
                       ),
                       child: const Text(

@@ -7,7 +7,7 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/employee_form_dialog.dart';
-import 'employee_rate_history_screen.dart'; // новый импорт
+import 'employee_rate_history_screen.dart';
 
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
@@ -111,10 +111,14 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
               width: _tableWidth,
               child: Column(
                 children: [
-                  Padding(
+                  // ===== ШАПКА ТАБЛИЦЫ (С ЧЕРТОЙ) =====
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.grey)),
                     ),
                     child: Row(
                       children: const [
@@ -208,6 +212,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       ],
                     ),
                   ),
+                  // ===== ТЕЛО ТАБЛИЦЫ =====
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,

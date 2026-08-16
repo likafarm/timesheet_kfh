@@ -5,13 +5,13 @@ lib/
 │   ├── employee.dart
 │   ├── models.dart
 │   ├── payment.dart
-│   ├── sick_leave.dart
-│   ├── timesheet_record.dart
-│   └── vacation.dart
+│   ├── payroll_result.dart
+│   └── timesheet_record.dart
 ├── providers
 │   └── app_provider.dart
 ├── screens
 │   ├── database_viewer_screen.dart
+│   ├── employee_rate_history_screen.dart
 │   ├── employees_screen.dart
 │   ├── main_screen.dart
 │   ├── payments_screen.dart
