@@ -98,7 +98,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           final provider = context.read<AppProvider>();
           await provider.addPayment(payment);
           if (!mounted) return;
-          // ignore: use_build_context_synchronously
           _loadPayments();
         },
       ),
@@ -106,12 +105,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   void _showGroupPaymentDialog(BuildContext context) {
-    // Если выбран конкретный сотрудник – открываем диалог добавления для него
     if (_selectedEmployeeId != null) {
       _showAddPaymentDialog(context);
       return;
     }
-    // Иначе – групповой диалог
     showDialog(
       context: context,
       builder: (context) => _GroupPaymentFormDialog(
@@ -121,7 +118,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             await provider.addPayment(payment);
           }
           if (!mounted) return;
-          // ignore: use_build_context_synchronously
           _loadPayments();
         },
       ),
@@ -138,7 +134,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           final provider = context.read<AppProvider>();
           await provider.updatePayment(updatedPayment);
           if (!mounted) return;
-          // ignore: use_build_context_synchronously
           _loadPayments();
         },
       ),
@@ -169,7 +164,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               if (!mounted) return;
               // ignore: use_build_context_synchronously
               Navigator.pop(context);
-              // ignore: use_build_context_synchronously
               _loadPayments();
             },
             color: Colors.red,
@@ -191,14 +185,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         centerTitle: false,
         toolbarHeight: 70,
         actions: [
-          // === ФИЛЬТР ПО СОТРУДНИКАМ (перенесён в начало) ===
           Consumer<AppProvider>(
             builder: (context, provider, child) {
               final items = <DropdownMenuItem<int?>>[
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('Все'),
-                ), // изменено
+                const DropdownMenuItem<int?>(value: null, child: Text('Все')),
                 ...provider.employees.map((e) {
                   return DropdownMenuItem<int?>(
                     value: e.id,
@@ -224,7 +214,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             },
           ),
 
-          // === НАВИГАЦИЯ ПО МЕСЯЦАМ ===
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () {
@@ -273,7 +262,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             tooltip: 'Текущий месяц',
           ),
 
-          // === КНОПКА ДЕЙСТВИЯ ===
           Consumer<AppProvider>(
             builder: (context, provider, child) {
               final isFiltered = _selectedEmployeeId != null;
@@ -285,7 +273,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             },
           ),
 
-          // === ИТОГОВАЯ СУММА ===
           Consumer<AppProvider>(
             builder: (context, provider, child) {
               final total = provider.payments.fold(
@@ -389,9 +376,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               textAlign: TextAlign.right,
             ),
           ),
-          SizedBox(
-            width: _colMethod,
-            child: Text('Способ', style: headerStyle()),
+          // Колонка "Способ" с отступом слева 10px
+          Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: SizedBox(
+              width: _colMethod,
+              child: Text('Способ', style: headerStyle()),
+            ),
           ),
           SizedBox(
             width: _colDocument,
@@ -453,11 +444,15 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               textAlign: TextAlign.right,
             ),
           ),
-          SizedBox(
-            width: _colMethod,
-            child: Text(
-              payment.paymentMethodName,
-              style: const TextStyle(fontSize: 12),
+          // Колонка "Способ" с отступом слева 10px
+          Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: SizedBox(
+              width: _colMethod,
+              child: Text(
+                payment.paymentMethodName,
+                style: const TextStyle(fontSize: 12),
+              ),
             ),
           ),
           SizedBox(
@@ -507,7 +502,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 }
 
 // ==========================================================================
-// ДИАЛОГ ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ВЫПЛАТЫ (без изменений)
+// ДИАЛОГ ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ВЫПЛАТЫ
 // ==========================================================================
 
 class _PaymentFormDialog extends StatefulWidget {
@@ -854,7 +849,7 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
 }
 
 // ==========================================================================
-// ГРУППОВОЙ ДИАЛОГ ДОБАВЛЕНИЯ ВЫПЛАТ (без изменений)
+// ГРУППОВОЙ ДИАЛОГ ДОБАВЛЕНИЯ ВЫПЛАТ
 // ==========================================================================
 
 class _GroupPaymentFormDialog extends StatefulWidget {

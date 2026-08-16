@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'employees_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
+import '../providers/app_provider.dart';
 
 /// Главный экран приложения с нижней навигацией
 class MainScreen extends StatefulWidget {
@@ -13,7 +15,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
 
   final List<NavigationItem> _navigationItems = [
@@ -48,6 +50,36 @@ class _MainScreenState extends State<MainScreen> {
       screen: const SettingsScreen(),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _createBackup();
+    }
+  }
+
+  Future<void> _createBackup() async {
+    try {
+      final provider = context.read<AppProvider>();
+      await provider.createBackup();
+      debugPrint('Автоматический бэкап создан');
+    } catch (e) {
+      debugPrint('Автоматический бэкап не удался: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

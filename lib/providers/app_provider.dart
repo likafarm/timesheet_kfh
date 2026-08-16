@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
 import '../services/database_service.dart';
+import '../services/backup_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
+  final BackupService _backupService = BackupService();
 
   DatabaseService get db => _db;
+  BackupService get backupService => _backupService;
 
   // Списки данных
   List<Employee> _employees = [];
@@ -403,7 +406,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // НОВЫЕ МЕТОДЫ ДЛЯ PAYROLL
+  // PAYROLL
   // ==========================================================================
 
   Future<void> loadPayrollResultsForMonth(int year, int month) async {
@@ -506,6 +509,90 @@ class AppProvider extends ChangeNotifier {
     );
     await _db.savePayrollResult(result);
     setNeedRefreshReports(true);
+  }
+
+  // ==========================================================================
+  // РЕЗЕРВНОЕ КОПИРОВАНИЕ
+  // ==========================================================================
+
+  Future<String?> createBackup() async {
+    try {
+      final db = await _db.database;
+      return await _backupService.createBackup(db);
+    } catch (e) {
+      _error = 'Ошибка создания бэкапа: $e';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<List<BackupInfo>> getBackups() async {
+    return await _backupService.getBackups();
+  }
+
+  Future<bool> restoreFullBackup(String backupPath) async {
+    try {
+      final db = await _db.database;
+      final success = await _backupService.restoreFullBackup(backupPath, db);
+      if (success) {
+        await _db.close();
+        await loadAllData();
+      }
+      return success;
+    } catch (e) {
+      _error = 'Ошибка восстановления: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<int> restoreTables(String backupPath, List<String> tableNames) async {
+    try {
+      final db = await _db.database;
+      final count = await _backupService.restoreTables(
+        backupPath,
+        db,
+        tableNames,
+      );
+      await loadAllData();
+      return count;
+    } catch (e) {
+      _error = 'Ошибка восстановления таблиц: $e';
+      notifyListeners();
+      return 0;
+    }
+  }
+
+  Future<void> deleteBackup(String path) async {
+    try {
+      await _backupService.deleteBackup(path);
+    } catch (e) {
+      _error = 'Ошибка удаления бэкапа: $e';
+      notifyListeners();
+    }
+  }
+
+  // Новый метод для восстановления выбранных записей
+  Future<int> restoreSelectedRows(
+    String backupPath,
+    String tableName,
+    List<int> rowIds,
+  ) async {
+    try {
+      final db = await _db.database;
+      final count = await _backupService.restoreSelectedRows(
+        backupPath,
+        db,
+        tableName,
+        rowIds,
+      );
+      await loadAllData();
+      return count;
+    } catch (e) {
+      _error = 'Ошибка восстановления записей: $e';
+      notifyListeners();
+      return 0;
+    }
   }
 
   // ==========================================================================

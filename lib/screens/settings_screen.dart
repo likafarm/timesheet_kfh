@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'database_viewer_screen.dart';
+import 'backup_list_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -45,7 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _bankAccountController.text = settings['bank_account'] ?? '';
     _bankNameController.text = settings['bank_name'] ?? '';
     _legalAddressController.text = settings['legal_address'] ?? '';
-    _initialized = true; // без setState, мы внутри билда
+    _initialized = true;
   }
 
   Future<void> _saveSettings() async {
@@ -63,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     };
     await context.read<AppProvider>().updateCompanySettings(settings);
     setState(() => _hasChanges = false);
-    if (!mounted) return;
+    if (!mounted) return; // Используем State.mounted, а не context.mounted
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Настройки сохранены')));
@@ -90,20 +91,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
-        // Пока данные не загружены – показываем индикатор
         if (provider.isLoading || provider.companySettings == null) {
           return Scaffold(
-            appBar: AppBar(title: Text('Настройки')),
-            body: Center(child: CircularProgressIndicator()),
+            appBar: AppBar(title: const Text('Настройки')),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        // При первой загрузке данных заполняем контроллеры (без setState)
         if (!_initialized) {
           _updateControllers(provider.companySettings);
         }
 
-        // Основная форма
         return Scaffold(
           appBar: AppBar(
             title: const Text('Настройки'),
@@ -205,34 +203,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsCard(
                     child: Column(
                       children: [
+                        // Резервное копирование
                         ListTile(
                           leading: const Icon(Icons.backup),
                           title: const Text('Резервное копирование'),
-                          subtitle: const Text('Сохранить базу данных в файл'),
+                          subtitle: const Text(
+                            'Создать копию базы данных сейчас',
+                          ),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Функция в разработке'),
-                              ),
-                            );
+                          onTap: () async {
+                            final provider = context.read<AppProvider>();
+                            final path = await provider.createBackup();
+                            if (!context.mounted) return;
+                            if (path != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Резервная копия создана'),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Ошибка создания копии'),
+                                ),
+                              );
+                            }
                           },
                         ),
                         const Divider(height: 1),
+
+                        // Восстановление
                         ListTile(
                           leading: const Icon(Icons.restore),
                           title: const Text('Восстановление'),
-                          subtitle: const Text('Загрузить базу из файла'),
+                          subtitle: const Text('Восстановить данные из копии'),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Функция в разработке'),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BackupListScreen(),
                               ),
                             );
                           },
                         ),
                         const Divider(height: 1),
+
+                        // Просмотр базы данных
                         ListTile(
                           leading: const Icon(Icons.storage),
                           title: const Text('Просмотр базы данных'),
@@ -244,12 +261,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => DatabaseViewerScreen(),
+                                builder: (context) =>
+                                    const DatabaseViewerScreen(),
                               ),
                             );
                           },
                         ),
                         const Divider(height: 1),
+
+                        // Синхронизация с облаком (заглушка)
                         ListTile(
                           leading: const Icon(Icons.cloud_upload),
                           title: const Text('Синхронизация с облаком'),
@@ -258,6 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           enabled: false,
                         ),
                         const Divider(height: 1),
+
+                        // О программе
                         ListTile(
                           leading: const Icon(Icons.info_outline),
                           title: const Text('О программе'),
