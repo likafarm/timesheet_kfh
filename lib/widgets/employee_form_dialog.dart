@@ -28,6 +28,7 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
 
   DateTime _hireDate = DateTime.now();
   DateTime _rateStartDate = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -159,7 +160,6 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // --- ПОЛЕ ДАТЫ НАЧАЛА СТАВКИ ---
                 AppTextField(
                   controller: _rateStartDateController,
                   labelText: 'Дата начала действия ставки',
@@ -215,13 +215,14 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
         AppButton(
           label: isEditing ? 'Сохранить' : 'Добавить',
           width: 100,
-          onPressed: _save,
+          onPressed: _isSaving ? null : _save,
         ),
       ],
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -244,38 +245,64 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     );
 
     final provider = context.read<AppProvider>();
+    setState(() => _isSaving = true);
 
-    if (widget.employee != null) {
-      // --- Редактирование ---
-      final old = widget.employee!;
-      final ratesChanged =
-          old.baseRate != baseRate || old.fieldRate != fieldRate;
+    try {
+      if (widget.employee != null) {
+        // Редактирование
+        final old = widget.employee!;
+        final ratesChanged =
+            old.baseRate != baseRate || old.fieldRate != fieldRate;
 
-      provider.updateEmployee(employee);
+        await provider.updateEmployee(employee);
 
-      if (ratesChanged) {
-        final rate = EmployeeRate(
-          employeeId: employee.id!,
-          baseRate: baseRate,
-          fieldRate: fieldRate,
-          startDate: _rateStartDate,
-        );
-        provider.addEmployeeRate(rate);
+        if (ratesChanged) {
+          final rate = EmployeeRate(
+            employeeId: employee.id!,
+            baseRate: baseRate,
+            fieldRate: fieldRate,
+            startDate: _rateStartDate,
+          );
+          await provider.addEmployeeRate(rate);
+        } else {
+          // Показываем уведомление, что ставки не изменились
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ставки не изменены, новая запись не создана'),
+            ),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ставки не изменены, новая запись не создана'),
-          ),
-        );
+        // Новый сотрудник
+        final startDate = _rateStartDate.isAfter(_hireDate)
+            ? _rateStartDate
+            : _hireDate;
+        await provider.addEmployee(employee, rateStartDate: startDate);
       }
-    } else {
-      // --- Новый сотрудник ---
-      final startDate = _rateStartDate.isAfter(_hireDate)
-          ? _rateStartDate
-          : _hireDate;
-      provider.addEmployee(employee, rateStartDate: startDate);
-    }
 
-    Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) {
+        setState(() => _isSaving = false);
+        return;
+      }
+      setState(() => _isSaving = false);
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка сохранения'),
+          content: Text('Не удалось сохранить данные:\n$e'),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

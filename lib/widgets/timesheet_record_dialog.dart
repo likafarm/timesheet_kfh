@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import 'common_widgets.dart';
 
 class TimesheetRecordDialog extends StatefulWidget {
   final Employee employee;
@@ -31,6 +32,10 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   String? _workPlace;
   final _notesController = TextEditingController();
 
+  // Для ошибок
+  String? _workPlaceError;
+  bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +47,12 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
       _days = r.days;
       _workPlace = r.workPlace;
       _notesController.text = r.notes ?? '';
+      if (_dayType != 'work' && _days == 0) {
+        _days = 1.0;
+      }
+      if (_dayType == 'work' && _days != 0.5 && _days != 1.0) {
+        _days = 1.0;
+      }
     }
   }
 
@@ -68,6 +79,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
               _buildEmployeeHeader(),
               const Divider(height: 24),
 
+              // Тип дня
               InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Тип дня',
@@ -100,12 +112,26 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                         child: Text('Выходной'),
                       ),
                     ],
-                    onChanged: (v) => setState(() => _dayType = v!),
+                    onChanged: (v) {
+                      setState(() {
+                        _dayType = v!;
+                        _workPlaceError = null;
+                        if (_dayType == 'work') {
+                          if (_days != 0.5 && _days != 1.0) {
+                            _days = 1.0;
+                          }
+                        } else {
+                          _days = 1.0;
+                          _workPlace = null;
+                        }
+                      });
+                    },
                   ),
                 ),
               ),
               const SizedBox(height: 12),
 
+              // Количество дней (только для рабочего дня)
               if (_dayType == 'work') ...[
                 InputDecorator(
                   decoration: const InputDecoration(
@@ -131,14 +157,16 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                 ),
                 const SizedBox(height: 12),
 
+                // Место работы с подсветкой ошибки
                 InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Место работы',
+                  decoration: InputDecoration(
+                    labelText: 'Место работы *',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 4,
                     ),
+                    errorText: _workPlaceError,
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String?>(
@@ -150,13 +178,19 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                         DropdownMenuItem(value: 'base', child: Text('База')),
                         DropdownMenuItem(value: 'field', child: Text('Поле')),
                       ],
-                      onChanged: (v) => setState(() => _workPlace = v),
+                      onChanged: (v) {
+                        setState(() {
+                          _workPlace = v;
+                          _workPlaceError = null;
+                        });
+                      },
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
               ],
 
+              // Примечания
               TextField(
                 controller: _notesController,
                 decoration: const InputDecoration(
@@ -186,8 +220,14 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
           child: const Text('Отмена'),
         ),
         FilledButton(
-          onPressed: _save,
-          child: Text(isEditing ? 'Сохранить' : 'Добавить'),
+          onPressed: _isSaving ? null : _save,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(isEditing ? 'Сохранить' : 'Добавить'),
         ),
       ],
     );
@@ -233,30 +273,88 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
     );
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    // Сброс ошибки
+    setState(() => _workPlaceError = null);
 
+    // Валидация места работы
     if (_dayType == 'work' && _workPlace == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Укажите место работы')));
+      setState(() {
+        _workPlaceError = 'Обязательное поле';
+      });
+      // Показываем предупреждение поверх диалога
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка'),
+          content: const Text(
+            'Для рабочего дня укажите место работы (база или поле).',
+          ),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
       return;
     }
 
-    // Для нерабочих дней всегда ставим 1 день (целый день)
-    final daysValue = _dayType == 'work' ? _days : 1.0;
+    // Дополнительная проверка на существование employeeId
+    if (widget.employee.id == null) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка'),
+          content: const Text(
+            'Неизвестный сотрудник. Попробуйте обновить список.',
+          ),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     final record = TimesheetRecord(
       id: widget.record?.id,
       employeeId: widget.employee.id!,
       date: _date,
       dayType: _dayType,
-      days: daysValue,
+      days: _dayType == 'work' ? _days : 1.0,
       workPlace: _dayType == 'work' ? _workPlace : null,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
-    context.read<AppProvider>().saveTimesheetRecord(record);
-    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      await context.read<AppProvider>().saveTimesheetRecord(record);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка сохранения'),
+          content: Text('Не удалось сохранить запись:\n$e'),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

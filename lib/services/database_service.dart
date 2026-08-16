@@ -6,10 +6,6 @@ import 'package:sqflite/sqflite.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
 
-// ==========================================================================
-// DATABASE SERVICE
-// ==========================================================================
-
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
@@ -26,21 +22,16 @@ class DatabaseService {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'kfx_time_tracking.db');
-
     return await openDatabase(
       path,
-      version: 6, // увеличена версия для добавления уникального индекса
+      version: 7, // увеличена для таблицы payroll_results
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
-  // ==========================================================================
-  // СОЗДАНИЕ ТАБЛИЦ
-  // ==========================================================================
-
   Future<void> _onCreate(Database db, int version) async {
-    // --- Таблица настроек КФХ ---
+    // --- company_settings ---
     await db.execute('''
       CREATE TABLE company_settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -65,7 +56,7 @@ class DatabaseService {
       'night_shift_multiplier': 1.2,
     });
 
-    // --- Таблица сотрудников ---
+    // --- employees ---
     await db.execute('''
       CREATE TABLE employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +69,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица истории изменения окладов ---
+    // --- employee_rates ---
     await db.execute('''
       CREATE TABLE employee_rates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,7 +82,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица табеля ---
+    // --- timesheet ---
     await db.execute('''
       CREATE TABLE timesheet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,7 +97,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица выплат ---
+    // --- payments ---
     await db.execute('''
       CREATE TABLE payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +115,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица больничных (задел на будущее) ---
+    // --- sick_leave ---
     await db.execute('''
       CREATE TABLE sick_leave (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,7 +131,7 @@ class DatabaseService {
       )
     ''');
 
-    // --- Таблица отпусков (задел на будущее) ---
+    // --- vacation ---
     await db.execute('''
       CREATE TABLE vacation (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,46 +146,60 @@ class DatabaseService {
       )
     ''');
 
-    // --- Индексы ---
+    // --- payroll_results (НОВАЯ ТАБЛИЦА) ---
+    await db.execute('''
+      CREATE TABLE payroll_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        base_days REAL NOT NULL DEFAULT 0,
+        field_days REAL NOT NULL DEFAULT 0,
+        sick_days REAL NOT NULL DEFAULT 0,
+        vacation_days REAL NOT NULL DEFAULT 0,
+        total_salary REAL NOT NULL DEFAULT 0,
+        base_rate_used REAL,
+        field_rate_used REAL,
+        calculated_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'calculated',
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+      )
+    ''');
     await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_timesheet_employee_date ON timesheet(employee_id, date)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_timesheet_date ON timesheet(date)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_payments_employee_date ON payments(employee_id, payment_date)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_employee_rates_employee ON employee_rates(employee_id)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_employee_rates_active ON employee_rates(employee_id, start_date, end_date)',
+      'CREATE UNIQUE INDEX idx_payroll_unique ON payroll_results(employee_id, year, month)',
     );
 
-    // --- УНИКАЛЬНЫЙ ИНДЕКС ДЛЯ ТАБЕЛЯ (предотвращает дубли) ---
+    // --- Индексы для существующих таблиц ---
+    await db.execute(
+      'CREATE INDEX idx_timesheet_employee_date ON timesheet(employee_id, date)',
+    );
+    await db.execute('CREATE INDEX idx_timesheet_date ON timesheet(date)');
+    await db.execute(
+      'CREATE INDEX idx_payments_employee_date ON payments(employee_id, payment_date)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_employee_rates_employee ON employee_rates(employee_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_employee_rates_active ON employee_rates(employee_id, start_date, end_date)',
+    );
     await db.execute(
       'CREATE UNIQUE INDEX idx_timesheet_unique ON timesheet(employee_id, date)',
     );
   }
 
   // ==========================================================================
-  // МИГРАЦИЯ с версии 5 на 6 (уникальный индекс, удаление дублей)
+  // МИГРАЦИЯ: версия 6 -> 7 (добавление payroll_results)
   // ==========================================================================
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 6) {
-      // 1. Создаём уникальный индекс
+      // Миграция 5->6 (уникальный индекс табеля)
       try {
         await db.execute(
           'CREATE UNIQUE INDEX idx_timesheet_unique ON timesheet(employee_id, date)',
         );
-      } catch (_) {
-        // Если индекс уже существует (например, создан вручную) – игнорируем
-      }
-
-      // 2. Удаляем дублирующиеся записи, оставляя только самую новую (по id)
-      //    для каждой пары (employee_id, date)
+      } catch (_) {}
       await db.rawDelete('''
         DELETE FROM timesheet
         WHERE id NOT IN (
@@ -204,18 +209,41 @@ class DatabaseService {
         )
       ''');
     }
+    if (oldVersion < 7) {
+      // Создаём таблицу payroll_results
+      await db.execute('''
+        CREATE TABLE payroll_results (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employee_id INTEGER NOT NULL,
+          year INTEGER NOT NULL,
+          month INTEGER NOT NULL,
+          base_days REAL NOT NULL DEFAULT 0,
+          field_days REAL NOT NULL DEFAULT 0,
+          sick_days REAL NOT NULL DEFAULT 0,
+          vacation_days REAL NOT NULL DEFAULT 0,
+          total_salary REAL NOT NULL DEFAULT 0,
+          base_rate_used REAL,
+          field_rate_used REAL,
+          calculated_at TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'calculated',
+          FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute(
+        'CREATE UNIQUE INDEX idx_payroll_unique ON payroll_results(employee_id, year, month)',
+      );
+    }
   }
 
   // ==========================================================================
-  // EMPLOYEES
+  // EMPLOYEES (без изменений)
   // ==========================================================================
 
   Future<int> insertEmployee(Employee employee) async {
     final db = await database;
     final map = employee.toMap();
     map.remove('id');
-    final id = await db.insert('employees', map);
-    return id;
+    return await db.insert('employees', map);
   }
 
   Future<List<Employee>> getAllEmployees({bool activeOnly = false}) async {
@@ -258,7 +286,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // EMPLOYEE RATES
+  // EMPLOYEE RATES (без изменений)
   // ==========================================================================
 
   Future<int> _insertEmployeeRate(EmployeeRate rate) async {
@@ -320,7 +348,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // TIMESHEET
+  // TIMESHEET (без изменений)
   // ==========================================================================
 
   Future<int> insertTimesheetRecord(TimesheetRecord record) async {
@@ -385,7 +413,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // PAYMENTS
+  // PAYMENTS (без изменений)
   // ==========================================================================
 
   Future<int> insertPayment(Payment payment) async {
@@ -457,7 +485,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // COMPANY SETTINGS
+  // COMPANY SETTINGS (без изменений)
   // ==========================================================================
 
   Future<Map<String, dynamic>?> getCompanySettings() async {
@@ -469,7 +497,7 @@ class DatabaseService {
 
   Future<int> updateCompanySettings(Map<String, dynamic> settings) async {
     final db = await database;
-    settings.remove('id'); // защита от изменения id
+    settings.remove('id');
     return await db.update(
       'company_settings',
       settings,
@@ -479,7 +507,7 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ДЛЯ ПРОСМОТРА БАЗЫ ДАННЫХ
+  // ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ДЛЯ ПРОСМОТРА БАЗЫ
   // ==========================================================================
 
   Future<List<String>> getTableNames() async {
@@ -518,12 +546,12 @@ class DatabaseService {
       sets.add('${entry.key} = ?');
       values.add(entry.value);
     }
-    if (sets.isEmpty) {
-      throw Exception('Нет данных для обновления');
-    }
+    if (sets.isEmpty) throw Exception('Нет данных для обновления');
     values.add(id);
-    final query = 'UPDATE $tableName SET ${sets.join(', ')} WHERE id = ?';
-    await db.rawUpdate(query, values);
+    await db.rawUpdate(
+      'UPDATE $tableName SET ${sets.join(', ')} WHERE id = ?',
+      values,
+    );
   }
 
   Future<void> deleteRow(String tableName, int id) async {
@@ -535,10 +563,11 @@ class DatabaseService {
   }
 
   // ==========================================================================
-  // РАСЧЁТ ЗАРПЛАТЫ
+  // PAYROLL RESULTS (НОВЫЕ МЕТОДЫ)
   // ==========================================================================
 
-  Future<Map<String, dynamic>> calculateMonthlySalary(
+  /// Детальный расчёт зарплаты за месяц с учётом ставок на каждый день
+  Future<Map<String, dynamic>> calculateMonthlySalaryDetailed(
     int employeeId,
     int year,
     int month,
@@ -559,50 +588,132 @@ class DatabaseService {
     double totalFieldDays = 0.0;
     double sickDays = 0.0;
     double vacationDays = 0.0;
+    double totalSalary = 0.0;
+    double? lastBaseRate;
+    double? lastFieldRate;
 
-    for (var r in records) {
-      if (r.dayType == 'work') {
-        if (r.workPlace == 'base') {
-          totalBaseDays += r.days;
-        } else if (r.workPlace == 'field') {
-          totalFieldDays += r.days;
+    for (var record in records) {
+      if (record.dayType == 'work') {
+        final rate = await getEmployeeRateAtDate(employeeId, record.date);
+        if (rate == null) continue;
+        lastBaseRate = rate.baseRate;
+        lastFieldRate = rate.fieldRate;
+        final dayRate = record.workPlace == 'base'
+            ? rate.baseRate
+            : rate.fieldRate;
+        totalSalary += record.days * dayRate;
+        if (record.workPlace == 'base') {
+          totalBaseDays += record.days;
+        } else if (record.workPlace == 'field') {
+          totalFieldDays += record.days;
         }
-      } else if (r.dayType == 'sick') {
-        sickDays += r.days;
-      } else if (r.dayType == 'vacation') {
-        vacationDays += r.days;
+      } else if (record.dayType == 'sick') {
+        sickDays += record.days;
+      } else if (record.dayType == 'vacation') {
+        vacationDays += record.days;
       }
     }
 
-    final rate = await getEmployeeRateAtDate(employeeId, end);
-    if (rate == null) throw Exception('Ставка не найдена');
-
-    final baseRate = rate.baseRate;
-    final fieldRate = rate.fieldRate;
-
-    final totalSalary =
-        (totalBaseDays * baseRate) + (totalFieldDays * fieldRate);
-
-    final payments = await getPaymentsByEmployee(
-      employeeId,
-      startDate: start,
-      endDate: end,
-    );
-    final totalPaid = payments.fold(0.0, (sum, p) => sum + p.amount);
-
     return {
-      'employee': employee,
-      'records': records,
-      'totalBaseDays': totalBaseDays,
-      'totalFieldDays': totalFieldDays,
+      'employeeId': employeeId,
+      'year': year,
+      'month': month,
+      'baseDays': totalBaseDays,
+      'fieldDays': totalFieldDays,
       'sickDays': sickDays,
       'vacationDays': vacationDays,
-      'baseRate': baseRate,
-      'fieldRate': fieldRate,
       'totalSalary': totalSalary,
-      'totalPaid': totalPaid,
-      'balance': totalSalary - totalPaid,
+      'baseRateUsed': lastBaseRate,
+      'fieldRateUsed': lastFieldRate,
     };
+  }
+
+  /// Сохраняет или обновляет результат расчёта
+  Future<int> savePayrollResult(PayrollResult result) async {
+    final db = await database;
+    final map = result.toMap();
+    map.remove('id');
+
+    final existing = await db.query(
+      'payroll_results',
+      where: 'employee_id = ? AND year = ? AND month = ?',
+      whereArgs: [result.employeeId, result.year, result.month],
+    );
+    if (existing.isNotEmpty) {
+      await db.update(
+        'payroll_results',
+        map,
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+      return existing.first['id'] as int;
+    } else {
+      return await db.insert('payroll_results', map);
+    }
+  }
+
+  /// Получение сохранённого результата для сотрудника за месяц
+  Future<PayrollResult?> getPayrollResult(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'payroll_results',
+      where: 'employee_id = ? AND year = ? AND month = ?',
+      whereArgs: [employeeId, year, month],
+    );
+    if (maps.isEmpty) return null;
+    return PayrollResult.fromMap(maps.first);
+  }
+
+  /// Получение всех результатов за месяц (для сводки)
+  Future<List<PayrollResult>> getPayrollResultsForMonth(
+    int year,
+    int month,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'payroll_results',
+      where: 'year = ? AND month = ?',
+      whereArgs: [year, month],
+      orderBy: 'employee_id',
+    );
+    return maps.map((m) => PayrollResult.fromMap(m)).toList();
+  }
+
+  /// Возвращает дату последнего изменения табеля для сотрудника за месяц (максимальный created_at)
+  Future<DateTime?> getLastTimesheetChange(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    final db = await database;
+    final start = DateTime(year, month, 1);
+    final end = DateTime(year, month + 1, 0);
+    final maps = await db.query(
+      'timesheet',
+      where: 'employee_id = ? AND date >= ? AND date <= ?',
+      whereArgs: [employeeId, start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'created_at DESC',
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return DateTime.parse(maps.first['created_at'] as String);
+  }
+
+  // ==========================================================================
+  // РАСЧЁТ ЗАРПЛАТЫ (старый, оставлен для совместимости, но не рекомендуется)
+  // ==========================================================================
+
+  Future<Map<String, dynamic>> calculateMonthlySalary(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    // Можно удалить или оставить для обратной совместимости
+    return await calculateMonthlySalaryDetailed(employeeId, year, month);
   }
 
   // ==========================================================================

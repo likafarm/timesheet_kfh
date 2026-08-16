@@ -19,6 +19,7 @@ class TimesheetScreen extends StatefulWidget {
 
 class _TimesheetScreenState extends State<TimesheetScreen> {
   DateTime _selectedMonth = DateTime.now();
+  bool _isCalculating = false;
 
   @override
   void initState() {
@@ -70,6 +71,54 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     );
   }
 
+  Future<void> _calculatePayroll() async {
+    if (_isCalculating) return;
+    final year = _selectedMonth.year;
+    final month = _selectedMonth.month;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Расчёт зарплаты'),
+        content: Text(
+          'Рассчитать зарплату для всех сотрудников за ${DateFormat('LLLL yyyy', 'ru').format(_selectedMonth)}?',
+        ),
+        actions: [
+          AppButton(
+            label: 'Отмена',
+            isText: true,
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          AppButton(
+            label: 'Рассчитать',
+            onPressed: () => Navigator.pop(context, true),
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isCalculating = true);
+    if (!mounted) return;
+    try {
+      final provider = context.read<AppProvider>();
+      await provider.calculatePayrollForMonth(year, month);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Зарплата рассчитана и сохранена')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка расчёта: $e')));
+    } finally {
+      if (mounted) setState(() => _isCalculating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
@@ -86,6 +135,11 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         title: const Text('Табель учёта времени'),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate),
+            onPressed: _isCalculating ? null : _calculatePayroll,
+            tooltip: 'Рассчитать зарплату за месяц',
+          ),
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () {
@@ -141,41 +195,47 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Consumer<AppProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: _isCalculating
+          ? const Center(child: CircularProgressIndicator())
+          : Consumer<AppProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (provider.employees.isEmpty) {
-            return const Center(
-              child: Text(
-                'Нет сотрудников.\nДобавьте сотрудников в разделе "Сотрудники".',
-                textAlign: TextAlign.center,
-              ),
-            );
-          }
+                if (provider.employees.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Нет сотрудников.\nДобавьте сотрудников в разделе "Сотрудники".',
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
 
-          return Column(
-            children: [
-              Expanded(
-                child: _TimesheetGrid(
-                  employees: provider.employees,
-                  records: provider.timesheetRecords,
-                  selectedMonth: _selectedMonth,
-                  daysInMonth: daysInMonth,
-                  onCellTap: (employee, day) => _showRecordDialog(
-                    context,
-                    employee,
-                    DateTime(_selectedMonth.year, _selectedMonth.month, day),
-                  ),
-                ),
-              ),
-              _buildLegend(),
-            ],
-          );
-        },
-      ),
+                return Column(
+                  children: [
+                    Expanded(
+                      child: _TimesheetGrid(
+                        employees: provider.employees,
+                        records: provider.timesheetRecords,
+                        selectedMonth: _selectedMonth,
+                        daysInMonth: daysInMonth,
+                        onCellTap: (employee, day) => _showRecordDialog(
+                          context,
+                          employee,
+                          DateTime(
+                            _selectedMonth.year,
+                            _selectedMonth.month,
+                            day,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildLegend(),
+                  ],
+                );
+              },
+            ),
     );
   }
 
@@ -435,7 +495,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         ),
                       ),
                       child: const Text(
-                        'Раб.',
+                        'Работа',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 9,
@@ -511,7 +571,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                     double totalWorkDays = 0;
                     double totalSickDays = 0;
                     double totalVacationDays = 0;
-                    double totalDayoffDays = 0; // изменено на double
+                    double totalDayoffDays = 0;
 
                     for (final record in widget.records) {
                       if (record.employeeId == employee.id) {
@@ -522,8 +582,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                         } else if (record.dayType == 'vacation') {
                           totalVacationDays += record.days;
                         } else if (record.dayType == 'dayoff') {
-                          totalDayoffDays +=
-                              record.days; // теперь суммируем days
+                          totalDayoffDays += record.days;
                         }
                       }
                     }
@@ -683,6 +742,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
   }
 }
 
+/// Ячейка табеля с отображением места работы для рабочих дней
 class _TimesheetCell extends StatelessWidget {
   final TimesheetRecord record;
   final double dayWidth;
@@ -707,7 +767,15 @@ class _TimesheetCell extends StatelessWidget {
     if (hasRecord) {
       if (record.dayType == 'work') {
         if (record.days > 0) {
-          displayText = record.days == 0.5 ? '0.5' : '1';
+          // Формируем текст: дни + место работы
+          String daysStr = record.days == 0.5 ? '0.5' : '1';
+          String placeStr = '';
+          if (record.workPlace == 'base') {
+            placeStr = '\nбаза';
+          } else if (record.workPlace == 'field') {
+            placeStr = '\nполе';
+          }
+          displayText = daysStr + placeStr;
           backgroundColor = Colors.green[50]!;
         }
       } else if (record.dayType == 'sick') {

@@ -10,22 +10,39 @@ class AppProvider extends ChangeNotifier {
 
   DatabaseService get db => _db;
 
+  // Списки данных
   List<Employee> _employees = [];
   List<TimesheetRecord> _timesheetRecords = [];
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
+  List<PayrollResult> _payrollResults = [];
   Map<String, dynamic>? _companySettings;
 
+  // Состояние загрузки
   bool _isLoading = false;
   String? _error;
 
+  // Для перезагрузки табеля
   DateTime? _currentPeriodStart;
   DateTime? _currentPeriodEnd;
 
+  // Флаг для обновления отчётов
+  bool _needRefreshReports = false;
+  bool get needRefreshReports => _needRefreshReports;
+
+  void setNeedRefreshReports(bool value) {
+    if (_needRefreshReports != value) {
+      _needRefreshReports = value;
+      notifyListeners();
+    }
+  }
+
+  // Геттеры
   List<Employee> get employees => _employees;
   List<TimesheetRecord> get timesheetRecords => _timesheetRecords;
   List<Payment> get payments => _payments;
   List<EmployeeRate> get employeeRates => _employeeRates;
+  List<PayrollResult> get payrollResults => _payrollResults;
   Map<String, dynamic>? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -74,11 +91,9 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Добавление сотрудника с указанием даты начала действия ставки
   Future<void> addEmployee(Employee employee, {DateTime? rateStartDate}) async {
     try {
       final id = await _db.insertEmployee(employee);
-      // Создаём ставку с указанной датой начала (по умолчанию – дата приёма)
       final start = rateStartDate ?? employee.hireDate;
       final rate = EmployeeRate(
         employeeId: id,
@@ -88,6 +103,7 @@ class AppProvider extends ChangeNotifier {
       );
       await _db.insertEmployeeRate(rate);
       await loadEmployees();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка добавления сотрудника: $e';
       notifyListeners();
@@ -98,6 +114,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.updateEmployee(employee);
       await loadEmployees();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка обновления сотрудника: $e';
       notifyListeners();
@@ -108,6 +125,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.deleteEmployee(id);
       await loadEmployees();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка удаления сотрудника: $e';
       notifyListeners();
@@ -128,7 +146,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // EMPLOYEE RATES (история ставок)
+  // EMPLOYEE RATES
   // ==========================================================================
 
   Future<void> loadEmployeeRates({int? employeeId}) async {
@@ -144,6 +162,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.insertEmployeeRate(rate);
       await loadEmployeeRates(employeeId: rate.employeeId);
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка добавления ставки: $e';
       notifyListeners();
@@ -214,6 +233,7 @@ class AppProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка сохранения за день: $e';
       notifyListeners();
@@ -242,6 +262,7 @@ class AppProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка сохранения записи: $e';
       notifyListeners();
@@ -256,6 +277,7 @@ class AppProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка добавления записи: $e';
       notifyListeners();
@@ -270,6 +292,7 @@ class AppProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка обновления записи: $e';
       notifyListeners();
@@ -284,6 +307,7 @@ class AppProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка удаления записи: $e';
       notifyListeners();
@@ -337,6 +361,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.insertPayment(payment);
       notifyListeners();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка добавления выплаты: $e';
       notifyListeners();
@@ -347,6 +372,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.updatePayment(payment);
       notifyListeners();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка обновления выплаты: $e';
       notifyListeners();
@@ -357,6 +383,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _db.deletePayment(id);
       notifyListeners();
+      setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка удаления выплаты: $e';
       notifyListeners();
@@ -373,6 +400,112 @@ class AppProvider extends ChangeNotifier {
     int month,
   ) async {
     return await _db.calculateMonthlySalary(employeeId, year, month);
+  }
+
+  // ==========================================================================
+  // НОВЫЕ МЕТОДЫ ДЛЯ PAYROLL
+  // ==========================================================================
+
+  Future<void> loadPayrollResultsForMonth(int year, int month) async {
+    _setLoading(true);
+    try {
+      _payrollResults = await _db.getPayrollResultsForMonth(year, month);
+      _error = null;
+    } catch (e) {
+      _error = 'Ошибка загрузки результатов расчёта: $e';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> calculatePayrollForMonth(int year, int month) async {
+    _setLoading(true);
+    try {
+      final employees = await _db.getAllEmployees(activeOnly: false);
+      for (var emp in employees) {
+        if (emp.id == null) continue;
+        final data = await _db.calculateMonthlySalaryDetailed(
+          emp.id!,
+          year,
+          month,
+        );
+        final result = PayrollResult(
+          employeeId: emp.id!,
+          year: year,
+          month: month,
+          baseDays: data['baseDays'],
+          fieldDays: data['fieldDays'],
+          sickDays: data['sickDays'],
+          vacationDays: data['vacationDays'],
+          totalSalary: data['totalSalary'],
+          baseRateUsed: data['baseRateUsed'],
+          fieldRateUsed: data['fieldRateUsed'],
+          calculatedAt: DateTime.now(),
+          status: 'calculated',
+        );
+        await _db.savePayrollResult(result);
+      }
+      await loadPayrollResultsForMonth(year, month);
+      _error = null;
+      setNeedRefreshReports(true);
+    } catch (e) {
+      _error = 'Ошибка массового расчёта зарплаты: $e';
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> isPayrollUpToDate(int employeeId, int year, int month) async {
+    final result = await _db.getPayrollResult(employeeId, year, month);
+    if (result == null) return false;
+    final currentData = await _db.calculateMonthlySalaryDetailed(
+      employeeId,
+      year,
+      month,
+    );
+    const epsilon = 0.001;
+    return (result.baseDays - currentData['baseDays']).abs() < epsilon &&
+        (result.fieldDays - currentData['fieldDays']).abs() < epsilon &&
+        (result.sickDays - currentData['sickDays']).abs() < epsilon &&
+        (result.vacationDays - currentData['vacationDays']).abs() < epsilon &&
+        (result.totalSalary - currentData['totalSalary']).abs() < epsilon;
+  }
+
+  Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    return await _db.calculateMonthlySalaryDetailed(employeeId, year, month);
+  }
+
+  Future<void> recalculateSingleEmployee(
+    int employeeId,
+    int year,
+    int month,
+  ) async {
+    final data = await _db.calculateMonthlySalaryDetailed(
+      employeeId,
+      year,
+      month,
+    );
+    final result = PayrollResult(
+      employeeId: employeeId,
+      year: year,
+      month: month,
+      baseDays: data['baseDays'],
+      fieldDays: data['fieldDays'],
+      sickDays: data['sickDays'],
+      vacationDays: data['vacationDays'],
+      totalSalary: data['totalSalary'],
+      baseRateUsed: data['baseRateUsed'],
+      fieldRateUsed: data['fieldRateUsed'],
+      calculatedAt: DateTime.now(),
+      status: 'calculated',
+    );
+    await _db.savePayrollResult(result);
+    setNeedRefreshReports(true);
   }
 
   // ==========================================================================

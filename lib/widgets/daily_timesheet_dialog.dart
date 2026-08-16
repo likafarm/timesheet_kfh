@@ -26,13 +26,15 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   late DateTime _selectedDate;
   List<Employee> _employees = [];
 
-  Map<int, bool> _selected = {};
-  Map<int, String> _dayTypes = {};
-  Map<int, double> _dayCounts = {};
-  Map<int, String?> _workPlaces = {};
+  late final Map<int, bool> _selected;
+  late final Map<int, String> _dayTypes;
+  late final Map<int, double> _dayCounts;
+  late final Map<int, String?> _workPlaces;
+  final Map<int, String> _workPlaceErrors = {};
 
   bool _isLoading = false;
   bool _allSelected = false;
+  bool _isSaving = false;
 
   final List<String> _dayTypeOptions = ['work', 'sick', 'vacation', 'dayoff'];
   final List<String> _dayTypeLabels = [
@@ -41,7 +43,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
     'Отпуск',
     'Выходной',
   ];
-  final List<double> _dayCountOptions = [0.0, 0.5, 1.0];
+  final List<double> _dayCountOptions = [0.5, 1.0];
   final List<String> _workPlaceOptions = ['base', 'field'];
   final List<String> _workPlaceLabels = ['База', 'Поле'];
 
@@ -49,6 +51,10 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate;
+    _selected = {};
+    _dayTypes = {};
+    _dayCounts = {};
+    _workPlaces = {};
     _loadData();
   }
 
@@ -83,14 +89,13 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
       if (_selected.containsKey(id)) {
         _selected[id] = true;
         _dayTypes[id] = record.dayType;
-        // Для всех типов дней, кроме work, ставим 1 день, для work оставляем как есть
         double days = record.days;
         if (record.dayType == 'work') {
           if (!_dayCountOptions.contains(days)) {
             days = 1.0;
           }
         } else {
-          days = 1.0; // все нерабочие дни считаем как 1
+          days = 1.0;
         }
         _dayCounts[id] = days;
         _workPlaces[id] = record.workPlace;
@@ -143,6 +148,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                       if (date != null) {
                         setState(() {
                           _selectedDate = date;
+                          _workPlaceErrors.clear();
                         });
                         _loadExistingRecords();
                       }
@@ -244,6 +250,8 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                       final dayType = _dayTypes[id]!;
                                       final dayCount = _dayCounts[id]!;
                                       final workPlace = _workPlaces[id];
+                                      final hasError = _workPlaceErrors
+                                          .containsKey(id);
 
                                       return Container(
                                         padding: const EdgeInsets.symmetric(
@@ -256,6 +264,9 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               color: Colors.grey[300]!,
                                             ),
                                           ),
+                                          color: hasError
+                                              ? Colors.red[50]
+                                              : null,
                                         ),
                                         child: Row(
                                           children: [
@@ -268,6 +279,9 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                   _allSelected = _selected
                                                       .values
                                                       .every((v) => v);
+                                                  if (value == true) {
+                                                    _workPlaceErrors.remove(id);
+                                                  }
                                                 });
                                               },
                                               visualDensity:
@@ -297,6 +311,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
+                                            // Тип дня
                                             SizedBox(
                                               width: 110,
                                               child: DropdownButton<String>(
@@ -304,14 +319,14 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                 isExpanded: true,
                                                 underline: const SizedBox(),
                                                 items: _dayTypeOptions.map((e) {
-                                                  final index = _dayTypeOptions
+                                                  final idx = _dayTypeOptions
                                                       .indexOf(e);
                                                   return DropdownMenuItem<
                                                     String
                                                   >(
                                                     value: e,
                                                     child: Text(
-                                                      _dayTypeLabels[index],
+                                                      _dayTypeLabels[idx],
                                                       style: const TextStyle(
                                                         fontSize: 12,
                                                       ),
@@ -323,22 +338,19 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                         setState(() {
                                                           _dayTypes[id] =
                                                               value!;
-                                                          // При смене типа корректируем дни
-                                                          if (value ==
-                                                              'dayoff') {
-                                                            _dayCounts[id] =
-                                                                1.0;
-                                                          } else if (value ==
-                                                                  'sick' ||
-                                                              value ==
-                                                                  'vacation') {
-                                                            _dayCounts[id] =
-                                                                1.0;
+                                                          _workPlaceErrors
+                                                              .remove(id);
+                                                          if (value == 'work') {
+                                                            if (!_dayCountOptions
+                                                                .contains(
+                                                                  _dayCounts[id],
+                                                                )) {
+                                                              _dayCounts[id] =
+                                                                  1.0;
+                                                            }
                                                           } else {
                                                             _dayCounts[id] =
-                                                                1.0; // work
-                                                          }
-                                                          if (value != 'work') {
+                                                                1.0;
                                                             _workPlaces[id] =
                                                                 null;
                                                           }
@@ -348,95 +360,120 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
+                                            // Дней
                                             SizedBox(
                                               width: 70,
-                                              child: DropdownButton<double>(
-                                                value: dayCount,
-                                                isExpanded: true,
-                                                underline: const SizedBox(),
-                                                items: _dayCountOptions.map((
-                                                  d,
-                                                ) {
-                                                  String label = d == 0.0
-                                                      ? '0'
-                                                      : d.toStringAsFixed(1);
-                                                  return DropdownMenuItem<
-                                                    double
-                                                  >(
-                                                    value: d,
-                                                    child: Text(
-                                                      label,
-                                                      style: const TextStyle(
+                                              child: dayType == 'work'
+                                                  ? DropdownButton<double>(
+                                                      value: dayCount,
+                                                      isExpanded: true,
+                                                      underline:
+                                                          const SizedBox(),
+                                                      items: _dayCountOptions.map((
+                                                        d,
+                                                      ) {
+                                                        return DropdownMenuItem<
+                                                          double
+                                                        >(
+                                                          value: d,
+                                                          child: Text(
+                                                            d == 0.5
+                                                                ? '0.5'
+                                                                : '1',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 12,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                      onChanged: isSelected
+                                                          ? (value) {
+                                                              setState(() {
+                                                                _dayCounts[id] =
+                                                                    value!;
+                                                              });
+                                                            }
+                                                          : null,
+                                                    )
+                                                  : const Text(
+                                                      '1',
+                                                      style: TextStyle(
                                                         fontSize: 12,
                                                       ),
                                                     ),
-                                                  );
-                                                }).toList(),
-                                                onChanged:
-                                                    isSelected &&
-                                                        dayType == 'work'
-                                                    ? (value) {
-                                                        setState(() {
-                                                          _dayCounts[id] =
-                                                              value!;
-                                                        });
-                                                      }
-                                                    : null,
-                                              ),
                                             ),
                                             const SizedBox(width: 8),
+                                            // Место
                                             SizedBox(
                                               width: 100,
-                                              child: DropdownButton<String?>(
-                                                value: workPlace,
-                                                isExpanded: true,
-                                                underline: const SizedBox(),
-                                                hint: const Text(
-                                                  '—',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                items: [
-                                                  const DropdownMenuItem<
-                                                    String?
-                                                  >(
-                                                    value: null,
-                                                    child: Text(
+                                              child: dayType == 'work'
+                                                  ? DropdownButton<String?>(
+                                                      value: workPlace,
+                                                      isExpanded: true,
+                                                      underline:
+                                                          const SizedBox(),
+                                                      hint: const Text(
+                                                        '—',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                      items: [
+                                                        const DropdownMenuItem<
+                                                          String?
+                                                        >(
+                                                          value: null,
+                                                          child: Text(
+                                                            '—',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        ..._workPlaceOptions.map((
+                                                          e,
+                                                        ) {
+                                                          final idx =
+                                                              _workPlaceOptions
+                                                                  .indexOf(e);
+                                                          return DropdownMenuItem<
+                                                            String?
+                                                          >(
+                                                            value: e,
+                                                            child: Text(
+                                                              _workPlaceLabels[idx],
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                  ),
+                                                            ),
+                                                          );
+                                                        }),
+                                                      ],
+                                                      onChanged: isSelected
+                                                          ? (value) {
+                                                              setState(() {
+                                                                _workPlaces[id] =
+                                                                    value;
+                                                                if (value !=
+                                                                    null) {
+                                                                  _workPlaceErrors
+                                                                      .remove(
+                                                                        id,
+                                                                      );
+                                                                }
+                                                              });
+                                                            }
+                                                          : null,
+                                                    )
+                                                  : const Text(
                                                       '—',
                                                       style: TextStyle(
                                                         fontSize: 12,
                                                       ),
                                                     ),
-                                                  ),
-                                                  ..._workPlaceOptions.map((e) {
-                                                    final index =
-                                                        _workPlaceOptions
-                                                            .indexOf(e);
-                                                    return DropdownMenuItem<
-                                                      String?
-                                                    >(
-                                                      value: e,
-                                                      child: Text(
-                                                        _workPlaceLabels[index],
-                                                        style: const TextStyle(
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }),
-                                                ],
-                                                onChanged:
-                                                    isSelected &&
-                                                        dayType == 'work'
-                                                    ? (value) {
-                                                        setState(() {
-                                                          _workPlaces[id] =
-                                                              value;
-                                                        });
-                                                      }
-                                                    : null,
-                                              ),
                                             ),
                                           ],
                                         ),
@@ -458,17 +495,27 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
           width: 100,
           onPressed: () => Navigator.pop(context),
         ),
-        AppButton(label: 'Сохранить', width: 100, onPressed: _save),
+        AppButton(
+          label: _isSaving ? 'Сохранение...' : 'Сохранить',
+          width: 100,
+          onPressed: _isSaving ? null : _save,
+        ),
       ],
     );
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() {
+      _workPlaceErrors.clear();
+    });
+
     final provider = context.read<AppProvider>();
     final existingRecords = await provider.getTimesheetForDate(_selectedDate);
 
     List<Map<String, dynamic>> newEntries = [];
     List<Employee> selectedEmployees = [];
+    bool hasError = false;
 
     for (var emp in _employees) {
       final id = emp.id!;
@@ -477,13 +524,15 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         final days = _dayCounts[id]!;
         final workPlace = _workPlaces[id];
 
-        // Определяем итоговое количество дней для сохранения
-        double finalDays;
-        if (dayType == 'work') {
-          finalDays = days; // 0.5 или 1
-        } else {
-          finalDays = 1.0; // для всех нерабочих дней – 1 целый день
+        if (dayType == 'work' && workPlace == null) {
+          hasError = true;
+          setState(() {
+            _workPlaceErrors[id] = 'Укажите место';
+          });
+          continue;
         }
+
+        double finalDays = (dayType == 'work') ? days : 1.0;
 
         TimesheetRecord? existing;
         for (var r in existingRecords) {
@@ -504,16 +553,47 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
       }
     }
 
+    if (hasError) {
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка'),
+          content: const Text(
+            'Для сотрудников с рабочим днём необходимо указать место работы. Ошибочные строки выделены.',
+          ),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     if (selectedEmployees.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите хотя бы одного сотрудника')),
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка'),
+          content: const Text('Выберите хотя бы одного сотрудника.'),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       );
       return;
     }
 
     final conflicts = newEntries.where((e) => e['existing'] != null).toList();
-
     if (conflicts.isNotEmpty) {
       final buffer = StringBuffer();
       buffer.writeln('У следующих сотрудников уже есть записи за этот день:');
@@ -548,21 +628,16 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
             AppButton(
               label: 'Отмена',
               isText: true,
-              width: 100,
               onPressed: () => Navigator.pop(context, false),
             ),
             AppButton(
               label: 'Перезаписать',
-              width: 100,
               onPressed: () => Navigator.pop(context, true),
             ),
           ],
         ),
       );
-
-      if (confirm != true) {
-        return;
-      }
+      if (confirm != true) return;
     }
 
     List<TimesheetRecord> recordsToSave = [];
@@ -571,21 +646,44 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
       final dayType = entry['dayType'] as String;
       final days = entry['days'] as double;
       final workPlace = entry['workPlace'] as String?;
-
-      final record = TimesheetRecord(
-        employeeId: emp.id!,
-        date: _selectedDate,
-        dayType: dayType,
-        days: days,
-        workPlace: workPlace,
+      recordsToSave.add(
+        TimesheetRecord(
+          employeeId: emp.id!,
+          date: _selectedDate,
+          dayType: dayType,
+          days: days,
+          workPlace: workPlace,
+        ),
       );
-      recordsToSave.add(record);
     }
 
-    await provider.saveDailyTimesheet(recordsToSave, _selectedDate);
-    if (!mounted) return;
-    widget.onSaved();
-    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      await provider.saveDailyTimesheet(recordsToSave, _selectedDate);
+      if (!mounted) return;
+      widget.onSaved();
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) {
+        setState(() => _isSaving = false);
+        return;
+      }
+      setState(() => _isSaving = false);
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ошибка сохранения'),
+          content: Text('Не удалось сохранить записи:\n$e'),
+          actions: [
+            AppButton(
+              label: 'OK',
+              isText: true,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   String _getDayTypeName(String type) {
