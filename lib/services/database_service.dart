@@ -716,6 +716,47 @@ class DatabaseService {
     return await calculateMonthlySalaryDetailed(employeeId, year, month);
   }
 
+  /// Получает начальные балансы для всех сотрудников на начало указанной даты.
+  /// (Сумма начислений за все месяцы ДО месяца даты) - (Сумма выплат за все время ДО 1-го числа даты)
+  Future<Map<int, double>> getStartingBalances(DateTime date) async {
+    final db = await database;
+    final year = date.year;
+    final month = date.month;
+
+    // 1. Получаем начисления (Сумма за месяцы до текущего)
+    final accruedRows = await db.rawQuery('''
+      SELECT employee_id, SUM(total_salary) as sum_accrued
+      FROM payroll_results
+      WHERE year < ? OR (year = ? AND month < ?)
+      GROUP BY employee_id
+    ''', [year, year, month]);
+
+    // 2. Получаем выплаты (Сумма до 1-го числа текущего месяца)
+    final startOfMonth = DateTime(year, month, 1).toIso8601String();
+    final paidRows = await db.rawQuery('''
+      SELECT employee_id, SUM(amount) as sum_paid
+      FROM payments
+      WHERE payment_date < ?
+      GROUP BY employee_id
+    ''', [startOfMonth]);
+
+    final Map<int, double> balances = {};
+
+    for (final row in accruedRows) {
+      final empId = row['employee_id'] as int;
+      final sum = (row['sum_accrued'] as num).toDouble();
+      balances[empId] = sum;
+    }
+
+    for (final row in paidRows) {
+      final empId = row['employee_id'] as int;
+      final sum = (row['sum_paid'] as num).toDouble();
+      balances[empId] = (balances[empId] ?? 0.0) - sum;
+    }
+
+    return balances;
+  }
+
   // ==========================================================================
   // ЗАКРЫТИЕ
   // ==========================================================================

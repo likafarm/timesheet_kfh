@@ -1,6 +1,4 @@
-# Сценарий Inno Setup для создания установщика приложения «Учёт рабочего времени КФХ»
-# Требуется Inno Setup 6 (https://jrsoftware.org/isinfo.php)
-# Сборка: iscc installer.iss
+
 
 [Setup]
 AppName=Учёт рабочего времени КФХ

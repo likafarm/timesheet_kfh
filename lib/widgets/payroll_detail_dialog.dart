@@ -6,24 +6,26 @@ import '../models/payment.dart';
 import '../models/payroll_result.dart';
 import '../models/employee.dart';
 
-/// Детальная расшифровка начислений/удержаний/выплат сотрудника за месяц.
 class PayrollDetailDialog extends StatelessWidget {
   final Employee employee;
   final PayrollResult result;
   final List<Payment> payments;
+  final double startingBalance;
 
   const PayrollDetailDialog({
     super.key,
     required this.employee,
     required this.result,
     required this.payments,
+    required this.startingBalance,
   });
 
   @override
   Widget build(BuildContext context) {
-    final monthName = DateFormat('LLLL yyyy', 'ru').format(
-      DateTime(result.year, result.month),
-    );
+    final monthName = DateFormat(
+      'LLLL yyyy',
+      'ru',
+    ).format(DateTime(result.year, result.month));
     final capitalizedMonth =
         monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
 
@@ -34,8 +36,11 @@ class PayrollDetailDialog extends StatelessWidget {
       ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
 
     final totalAccrued = result.totalSalary;
-    final totalPaid = sortedPayments.fold<double>(0, (sum, p) => sum + p.amount);
-    final balance = totalAccrued - totalPaid;
+    final totalPaid = sortedPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
+    final balance = startingBalance + totalAccrued - totalPaid;
 
     return AlertDialog(
       title: Column(
@@ -56,18 +61,14 @@ class PayrollDetailDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('Начисления'),
-              _buildAccrualTable(currencyFormat, daysFormat),
+              const SizedBox(height: 0),
+              _buildStartTotals(currencyFormat, startingBalance),
               const SizedBox(height: 16),
-              _sectionTitle('Выплаты'),
-              _buildPaymentsTable(sortedPayments, currencyFormat),
+              _buildAccrualSection(currencyFormat, daysFormat),
+              const SizedBox(height: 16),
+              _buildPaymentsSection(sortedPayments, currencyFormat),
               const SizedBox(height: 20),
-              _buildTotals(
-                currencyFormat,
-                totalAccrued,
-                totalPaid,
-                balance,
-              ),
+              _buildTotals(currencyFormat, balance),
             ],
           ),
         ),
@@ -81,17 +82,18 @@ class PayrollDetailDialog extends StatelessWidget {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
+  Widget _buildSection(String title, Widget content) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        content,
+      ],
     );
   }
 
-  Widget _buildAccrualTable(NumberFormat currency, NumberFormat days) {
+  Widget _buildAccrualSection(NumberFormat currency, NumberFormat days) {
     final rows = [
       _AccrualRow(
         'Работа на базе',
@@ -105,71 +107,55 @@ class PayrollDetailDialog extends StatelessWidget {
         result.fieldRateUsed,
         result.fieldDays * (result.fieldRateUsed ?? 0),
       ),
-      _AccrualRow(
-        'Больничный',
-        result.sickDays,
-        null,
-        0,
-      ),
-      _AccrualRow(
-        'Отпуск',
-        result.vacationDays,
-        null,
-        0,
-      ),
+      _AccrualRow('Больничный', result.sickDays, null, 0),
+      _AccrualRow('Отпуск', result.vacationDays, null, 0),
     ];
 
-    return Table(
-      defaultColumnWidth: const IntrinsicColumnWidth(),
-      children: [
-        _headerRow(['Вид', 'Дни', 'Ставка, ₽', 'Сумма, ₽']),
-        ...rows.map((r) {
-          return TableRow(
-            children: [
-              _cell(r.name),
-              _cell(days.format(r.days), align: TextAlign.right),
-              _cell(
-                r.rate != null ? currency.format(r.rate) : '—',
-                align: TextAlign.right,
-              ),
-              _cell(currency.format(r.amount), align: TextAlign.right),
-            ],
-          );
-        }),
-      ],
+    return _buildSection(
+      'Начисления',
+      Table(
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        children: [
+          _headerRow(['Вид', 'Дни', 'Ставка', 'Сумма']),
+          ...rows.map(
+            (r) => _row([
+              r.name,
+              days.format(double.tryParse(r.days) ?? 0),
+              r.rate != null
+                  ? currency.format(double.tryParse(r.rate!) ?? 0)
+                  : '—',
+              currency.format(double.tryParse(r.amount) ?? 0),
+            ]),
+          ),
+          _footerRow(['ИТОГО', '', '', currency.format(result.totalSalary)]),
+        ],
+      ),
     );
   }
 
-  Widget _buildPaymentsTable(List<Payment> items, NumberFormat currency) {
-    if (items.isEmpty) {
-      return Text(
-        'Выплат нет',
-        style: TextStyle(color: Colors.grey[600]),
-      );
-    }
-
-    return Table(
-      defaultColumnWidth: const IntrinsicColumnWidth(),
-      children: [
-        _headerRow(['Дата', 'Вид', 'Способ', 'Сумма, ₽']),
-        ...items.map((p) {
-          final date = DateFormat('dd.MM.yyyy').format(p.paymentDate);
-          final method = p.paymentMethodName != 'Не указано'
-              ? p.paymentMethodName
-              : '—';
-          return TableRow(
-            children: [
-              _cell(date),
-              _cell(p.paymentTypeName),
-              _cell(method),
-              _cell(
-                '${currency.format(p.amount)} ₽',
-                align: TextAlign.right,
-              ),
-            ],
-          );
-        }),
-      ],
+  Widget _buildPaymentsSection(List<Payment> items, NumberFormat currency) {
+    return _buildSection(
+      'Выплаты',
+      Table(
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        children: [
+          _headerRow(['Дата', 'Вид', 'Способ', 'Сумма']),
+          ...items.map(
+            (p) => _row([
+              DateFormat('dd.MM.yyyy').format(p.paymentDate),
+              p.paymentTypeName,
+              p.paymentMethodName,
+              currency.format(p.amount),
+            ]),
+          ),
+          _footerRow([
+            'ИТОГО',
+            '',
+            '',
+            currency.format(items.fold<double>(0, (s, i) => s + i.amount)),
+          ]),
+        ],
+      ),
     );
   }
 
@@ -180,11 +166,14 @@ class PayrollDetailDialog extends StatelessWidget {
       ),
       children: cells
           .map(
-            (text) => Padding(
+            (t) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Text(
-                text,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                t,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
             ),
           )
@@ -192,71 +181,80 @@ class PayrollDetailDialog extends StatelessWidget {
     );
   }
 
-  Widget _cell(
-    String text, {
-    TextAlign align = TextAlign.left,
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Text(
-        text,
-        textAlign: align,
-        style: TextStyle(fontSize: 13, color: color),
-      ),
+  TableRow _row(List<String> cells) {
+    return TableRow(
+      children: cells
+          .map(
+            (t) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(t, style: const TextStyle(fontSize: 13)),
+            ),
+          )
+          .toList(),
     );
   }
 
-  Widget _buildTotals(
-    NumberFormat currency,
-    double totalAccrued,
-    double totalPaid,
-    double balance,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+  TableRow _footerRow(List<String> cells) {
+    return TableRow(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      children: cells
+          .map(
+            (t) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                t,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildTotals(NumberFormat currency, double balance) {
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildSummaryRow('Начислено', totalAccrued, currency),
-          _buildSummaryRow('Выплачено', totalPaid, currency),
-          const Divider(),
-          _buildSummaryRow('Остаток', balance, currency, isBold: true),
+          const Text(
+            'К выплате на конец месяца:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Text(
+            '${currency.format(balance)} ₽',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: balance < 0 ? Colors.red : Colors.green[800],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    double value,
-    NumberFormat currency, {
-    bool isBold = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+  Widget _buildStartTotals(NumberFormat currency, double startingBalance) {
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
+          const Text(
+            'К выплате на начало месяца:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           Text(
-            '${currency.format(value)} ₽',
+            '${currency.format(startingBalance)} ₽',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: value < 0
-                  ? Colors.red
-                  : (value > 0 ? Colors.green[800] : null),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: startingBalance < 0 ? Colors.red : Colors.green[800],
             ),
           ),
         ],
@@ -267,9 +265,12 @@ class PayrollDetailDialog extends StatelessWidget {
 
 class _AccrualRow {
   final String name;
-  final double days;
-  final double? rate;
-  final double amount;
+  final String days;
+  final String? rate;
+  final String amount;
 
-  _AccrualRow(this.name, this.days, this.rate, this.amount);
+  _AccrualRow(this.name, double d, double? r, double a)
+    : days = d.toString(),
+      rate = r?.toString(),
+      amount = a.toString();
 }

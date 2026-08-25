@@ -19,6 +19,7 @@ class AppProvider extends ChangeNotifier {
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
   List<PayrollResult> _payrollResults = [];
+  Map<int, double> _startingBalances = {};
   Map<String, dynamic>? _companySettings;
 
   // Состояние загрузки
@@ -46,6 +47,7 @@ class AppProvider extends ChangeNotifier {
   List<Payment> get payments => _payments;
   List<EmployeeRate> get employeeRates => _employeeRates;
   List<PayrollResult> get payrollResults => _payrollResults;
+  Map<int, double> get startingBalances => _startingBalances;
   Map<String, dynamic>? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -391,6 +393,12 @@ class AppProvider extends ChangeNotifier {
       _error = 'Ошибка удаления выплаты: $e';
       notifyListeners();
     }
+  }
+
+  Future<void> loadStartingBalances(int year, int month) async {
+    final date = DateTime(year, month, 1);
+    _startingBalances = await _db.getStartingBalances(date);
+    notifyListeners();
   }
 
   // ==========================================================================

@@ -28,12 +28,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   static const double _colNum = 40;
   static const double _colEmployee = 220;
-  static const double _colDays = 120;
-  static const double _colSalary = 130;
+  static const double _colStart = 110;
+  static const double _colDays = 100;
+  static const double _colSalary = 110;
   static const double _colBonus = 110;
   static const double _colPayments = 130;
   static const double _colBalance = 130;
-  static const double _colActions = 70;
+  static const double _colActions = 50;
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         await provider.loadEmployees(activeOnly: false);
       }
       await provider.loadPayrollResultsForMonth(_selectedYear, _selectedMonth);
+      await provider.loadStartingBalances(_selectedYear, _selectedMonth);
       setState(() {
         _results = provider.payrollResults;
       });
@@ -227,12 +229,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final employeePayments = provider.payments
         .where((p) => p.employeeId == employee.id)
         .toList();
+    final startingBalance = provider.startingBalances[employee.id] ?? 0.0;
     showDialog(
       context: context,
       builder: (context) => PayrollDetailDialog(
         employee: employee,
         result: result,
         payments: employeePayments,
+        startingBalance: startingBalance,
       ),
     );
   }
@@ -350,6 +354,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 width:
                     _colNum +
                     _colEmployee +
+                    _colStart +
                     _colDays +
                     _colSalary +
                     _colBonus +
@@ -404,8 +409,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: Text('Сотрудник', style: headerStyle()),
           ),
           SizedBox(
-            width: _colDays,
-            child: Text('Отработано', style: headerStyle()),
+            width: _colStart,
+            child: Text(
+              'На начало',
+              style: headerStyle(),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 0),
+            child: SizedBox(
+              width: _colDays,
+              child: Text('Отработано', style: headerStyle()),
+            ),
           ),
           SizedBox(
             width: _colSalary,
@@ -452,11 +468,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       const TextStyle(fontWeight: FontWeight.bold, fontSize: 12);
 
   Widget _buildRow(int index, PayrollResult result, Employee employee) {
+    final provider = context.read<AppProvider>();
     final isUpToDate = _upToDateStatus[result.employeeId] ?? false;
     final totalPaid = _paymentsByEmployee[result.employeeId] ?? 0.0;
     final bonus = _bonusByEmployee[result.employeeId] ?? 0.0;
     final totalDays = result.baseDays + result.fieldDays;
-    final balance = result.totalSalary + bonus - totalPaid;
+    final starting = provider.startingBalances[result.employeeId] ?? 0.0;
+    final balance = starting + result.totalSalary + bonus - totalPaid;
 
     final daysFormat = NumberFormat('#,##0.0', 'ru');
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
@@ -471,120 +489,137 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: isUpToDate ? null : Colors.orange[50],
         ),
         child: Row(
-        children: [
-          SizedBox(
-            width: _colNum,
-            child: Text('$index', style: const TextStyle(fontSize: 12)),
-          ),
-          SizedBox(
-            width: _colEmployee,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  employee.fullName,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+          children: [
+            SizedBox(
+              width: _colNum,
+              child: Text('$index', style: const TextStyle(fontSize: 12)),
+            ),
+            SizedBox(
+              width: _colEmployee,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    employee.fullName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  employee.position,
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: _colDays,
-            child: Text(
-              '${daysFormat.format(totalDays)} дн.',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: _colSalary,
-            child: Text(
-              '${currencyFormat.format(result.totalSalary)} ₽',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          SizedBox(
-            width: _colBonus,
-            child: Text(
-              bonus > 0 ? '${currencyFormat.format(bonus)} ₽' : '—',
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          SizedBox(
-            width: _colPayments,
-            child: Text(
-              '${currencyFormat.format(totalPaid)} ₽',
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          SizedBox(
-            width: _colBalance,
-            child: Text(
-              '${currencyFormat.format(balance)} ₽',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: balance > 0 ? Colors.green : Colors.red,
+                  Text(
+                    employee.position,
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              textAlign: TextAlign.right,
             ),
-          ),
-          SizedBox(
-            width: _colActions,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (!isUpToDate)
-                  IconButton(
-                    icon: _calculatingSingle.contains(result.employeeId)
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(
-                            Icons.refresh,
-                            size: 18,
-                            color: Colors.orange,
-                          ),
-                    onPressed: _calculatingSingle.contains(result.employeeId)
-                        ? null
-                        : () => _recalculateSingle(result.employeeId),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Пересчитать',
-                  ),
-                Container(
-                  width: 12,
-                  height: 12,
-                  margin: const EdgeInsets.only(left: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: !_upToDateStatus.containsKey(result.employeeId)
-                        ? Colors.grey
-                        : isUpToDate
-                        ? Colors.green
-                        : Colors.orange,
-                  ),
+            SizedBox(
+              width: _colStart,
+              child: Text(
+                '${currencyFormat.format(provider.startingBalances[result.employeeId] ?? 0.0)} ₽',
+                style: TextStyle(
+                  fontSize: 12,
+                  color:
+                      (provider.startingBalances[result.employeeId] ?? 0.0) < 0
+                      ? Colors.red
+                      : Colors.green[800],
                 ),
-              ],
+                textAlign: TextAlign.right,
+              ),
             ),
-          ),
+            SizedBox(
+              width: _colDays,
+              child: Text(
+                '${daysFormat.format(totalDays)} дн.',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+
+            SizedBox(
+              width: _colSalary,
+              child: Text(
+                '${currencyFormat.format(result.totalSalary)} ₽',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            SizedBox(
+              width: _colBonus,
+              child: Text(
+                bonus > 0 ? '${currencyFormat.format(bonus)} ₽' : '—',
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            SizedBox(
+              width: _colPayments,
+              child: Text(
+                '${currencyFormat.format(totalPaid)} ₽',
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            SizedBox(
+              width: _colBalance,
+              child: Text(
+                '${currencyFormat.format(balance)} ₽',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: balance > 0 ? Colors.green : Colors.red,
+                ),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            SizedBox(
+              width: _colActions,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (!isUpToDate)
+                    IconButton(
+                      icon: _calculatingSingle.contains(result.employeeId)
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.refresh,
+                              size: 18,
+                              color: Colors.orange,
+                            ),
+                      onPressed: _calculatingSingle.contains(result.employeeId)
+                          ? null
+                          : () => _recalculateSingle(result.employeeId),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Пересчитать',
+                    ),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: !_upToDateStatus.containsKey(result.employeeId)
+                          ? Colors.grey
+                          : isUpToDate
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
