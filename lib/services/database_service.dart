@@ -2,7 +2,7 @@
 
 import 'dart:async';
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
 

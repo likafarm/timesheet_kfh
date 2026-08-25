@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/payroll_detail_dialog.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -45,15 +46,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Подписываемся на изменения провайдера
     final provider = context.watch<AppProvider>();
-    // Если нужен рефреш – планируем загрузку данных
-    if (provider.needRefreshReports) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadData();
-      });
-    } else if (_results.isEmpty) {
-      // Если данных нет, тоже загружаем (первое открытие)
+    // Reload only if provider signals stale data AND we are not already loading.
+    if (provider.needRefreshReports && !_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadData();
       });
@@ -225,6 +220,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
     } finally {
       if (mounted) setState(() => _calculatingSingle.remove(employeeId));
     }
+  }
+
+  void _showDetail(PayrollResult result, Employee employee) {
+    final provider = context.read<AppProvider>();
+    final employeePayments = provider.payments
+        .where((p) => p.employeeId == employee.id)
+        .toList();
+    showDialog(
+      context: context,
+      builder: (context) => PayrollDetailDialog(
+        employee: employee,
+        result: result,
+        payments: employeePayments,
+      ),
+    );
   }
 
   @override
@@ -451,13 +461,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final daysFormat = NumberFormat('#,##0.0', 'ru');
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-        color: isUpToDate ? null : Colors.orange[50],
-      ),
-      child: Row(
+    return GestureDetector(
+      onDoubleTap: () => _showDetail(result, employee),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+          color: isUpToDate ? null : Colors.orange[50],
+        ),
+        child: Row(
         children: [
           SizedBox(
             width: _colNum,
@@ -568,8 +581,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+

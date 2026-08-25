@@ -8,10 +8,7 @@
 .atom/
 
 # Dependencies
-installer_output/
-Output/
 .dart_tool/
-.kilo/
 .build/
 .buildlog/
 .history

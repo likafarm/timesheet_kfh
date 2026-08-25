@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) {
         final provider = AppProvider();
-        provider.loadAllData();
+        provider.loadAllData().then((_) => provider.autoBackup());
         return provider;
       },
       child: MaterialApp(

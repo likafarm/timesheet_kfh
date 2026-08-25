@@ -213,7 +213,6 @@ class _BackupListScreenState extends State<BackupListScreen> {
                   secondary: IconButton(
                     icon: const Icon(Icons.visibility),
                     onPressed: () {
-                      // Закрываем диалог и открываем просмотр записей
                       Navigator.pop(context);
                       Navigator.push(
                         context,
@@ -283,7 +282,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
     final confirm = await _showConfirmDialog(
       title: 'Удаление бэкапа',
       content:
-          'Удалить бэкап от ${DateFormat('dd.MM.yyyy HH:mm').format(backup.created)}?',
+          'Удалить бэкап от ${_formatBackupTitle(backup)}?',
     );
     if (!confirm) return;
 
@@ -299,6 +298,20 @@ class _BackupListScreenState extends State<BackupListScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Ошибка удаления: $e')));
+    }
+  }
+
+  /// Человекочитаемый заголовок копии в зависимости от типа.
+  String _formatBackupTitle(BackupInfo backup) {
+    switch (backup.type) {
+      case BackupType.daily:
+        return DateFormat('dd.MM.yyyy').format(backup.created);
+      case BackupType.monthly:
+        final monthName = DateFormat('LLLL yyyy', 'ru').format(backup.created);
+        return monthName.substring(0, 1).toUpperCase() +
+            monthName.substring(1);
+      case BackupType.legacy:
+        return DateFormat('dd.MM.yyyy HH:mm').format(backup.created);
     }
   }
 
@@ -323,49 +336,135 @@ class _BackupListScreenState extends State<BackupListScreen> {
                   Text('Нет резервных копий'),
                   SizedBox(height: 8),
                   Text(
-                    'Бэкапы создаются автоматически при закрытии приложения',
+                    'Бэкапы создаются автоматически при запуске приложения',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
               ),
             )
-          : ListView.builder(
-              itemCount: _backups.length,
-              itemBuilder: (context, index) {
-                final backup = _backups[index];
-                final formatter = DateFormat('dd.MM.yyyy HH:mm');
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.backup),
-                    title: Text('Бэкап от ${formatter.format(backup.created)}'),
-                    subtitle: Text('Размер: ${_formatFileSize(backup.path)}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.restore, color: Colors.green),
-                          onPressed: _isRestoring
-                              ? null
-                              : () => _restoreBackup(backup),
-                          tooltip: 'Восстановить',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: _isRestoring
-                              ? null
-                              : () => _deleteBackup(backup),
-                          tooltip: 'Удалить',
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          : _buildBackupList(),
+    );
+  }
+
+  Widget _buildBackupList() {
+    final daily = _backups
+        .where((b) => b.type == BackupType.daily)
+        .toList();
+    final monthly = _backups
+        .where((b) => b.type == BackupType.monthly)
+        .toList();
+    final legacy = _backups
+        .where((b) => b.type == BackupType.legacy)
+        .toList();
+
+    return ListView(
+      children: [
+        // ── Ежедневные ──────────────────────────────────────────
+        _buildSectionHeader(
+          Icons.today,
+          'Ежедневные копии',
+          'Последние ${daily.length} из 5',
+        ),
+        if (daily.isEmpty)
+          const _EmptySection(text: 'Нет ежедневных копий')
+        else
+          ...daily.map((b) => _buildBackupTile(b)),
+
+        const SizedBox(height: 8),
+
+        // ── Ежемесячные ─────────────────────────────────────────
+        _buildSectionHeader(
+          Icons.calendar_month,
+          'Ежемесячные копии',
+          'Хранятся без ограничений',
+        ),
+        if (monthly.isEmpty)
+          const _EmptySection(
+            text: 'Нет ежемесячных копий.\nСоздаются автоматически 1-го числа каждого месяца.',
+          )
+        else
+          ...monthly.map((b) => _buildBackupTile(b)),
+
+        // ── Прочие (legacy) ─────────────────────────────────────
+        if (legacy.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildSectionHeader(
+            Icons.archive,
+            'Прочие копии',
+            'Созданы вручную ранее',
+          ),
+          ...legacy.map((b) => _buildBackupTile(b)),
+        ],
+
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(IconData icon, String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackupTile(BackupInfo backup) {
+    final title = _formatBackupTitle(backup);
+    final subtitle = 'Размер: ${_formatFileSize(backup.path)}';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      child: ListTile(
+        leading: Icon(
+          backup.type == BackupType.monthly
+              ? Icons.calendar_month
+              : backup.type == BackupType.daily
+              ? Icons.today
+              : Icons.backup,
+          color: backup.type == BackupType.monthly
+              ? Colors.blue
+              : Colors.green,
+        ),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.restore, color: Colors.green),
+              onPressed: _isRestoring ? null : () => _restoreBackup(backup),
+              tooltip: 'Восстановить',
             ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: _isRestoring ? null : () => _deleteBackup(backup),
+              tooltip: 'Удалить',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -379,5 +478,22 @@ class _BackupListScreenState extends State<BackupListScreen> {
     } catch (_) {
       return '—';
     }
+  }
+}
+
+class _EmptySection extends StatelessWidget {
+  final String text;
+
+  const _EmptySection({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.grey, fontSize: 13),
+      ),
+    );
   }
 }

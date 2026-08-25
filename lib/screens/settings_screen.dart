@@ -206,9 +206,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         // Резервное копирование
                         ListTile(
                           leading: const Icon(Icons.backup),
-                          title: const Text('Резервное копирование'),
+                           title: const Text('Резервное копирование'),
                           subtitle: const Text(
-                            'Создать копию базы данных сейчас',
+                            'Создать ежедневную резервную копию сейчас',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () async {

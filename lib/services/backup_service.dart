@@ -3,18 +3,32 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart';
+
+/// Тип резервной копии.
+enum BackupType {
+  /// Ежедневная копия — имя файла `daily_YYYY-MM-DD.db`
+  daily,
+
+  /// Ежемесячная копия — имя файла `monthly_YYYY-MM.db`
+  monthly,
+
+  /// Устаревший формат `backup_<timestamp>.db`
+  legacy,
+}
 
 class BackupInfo {
   final String path;
   final String fileName;
   final DateTime created;
+  final BackupType type;
 
   BackupInfo({
     required this.path,
     required this.fileName,
     required this.created,
+    required this.type,
   });
 
   @override
@@ -22,7 +36,7 @@ class BackupInfo {
 }
 
 class BackupService {
-  static const _maxBackups = 10;
+  static const _maxDailyBackups = 5;
   static const _backupDirName = 'backups';
 
   Future<Directory> _getBackupDirectory() async {
@@ -34,21 +48,55 @@ class BackupService {
     return backupDir;
   }
 
-  Future<String?> createBackup(Database db) async {
+  /// Создаёт резервную копию заданного типа.
+  ///
+  /// - [BackupType.daily]: имя `daily_YYYY-MM-DD.db`.
+  ///   Если файл за сегодня уже есть — перезаписывает (актуальнее).
+  /// - [BackupType.monthly]: имя `monthly_YYYY-MM.db`.
+  ///   Если файл за этот месяц уже есть — пропускает (первая копия месяца важнее).
+  Future<String?> createBackup(
+    Database db, {
+    BackupType type = BackupType.daily,
+  }) async {
     try {
       final dbPath = db.path;
-      final backupDir = await _getBackupDirectory();
-      final timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .replaceAll('.', '-');
-      final backupFileName = 'backup_$timestamp.db';
-      final backupPath = p.join(backupDir.path, backupFileName);
-
       final sourceFile = File(dbPath);
       if (!await sourceFile.exists()) {
         throw Exception('Файл базы данных не найден');
       }
+
+      final backupDir = await _getBackupDirectory();
+      final now = DateTime.now();
+
+      String backupFileName;
+      bool skipIfExists = false;
+
+      if (type == BackupType.monthly) {
+        final yearMonth =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        backupFileName = 'monthly_$yearMonth.db';
+        skipIfExists = true; // первая копия месяца сохраняется
+      } else {
+        final date =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        backupFileName = 'daily_$date.db';
+        skipIfExists = false; // перезаписываем: актуальнее
+      }
+
+      final backupPath = p.join(backupDir.path, backupFileName);
+
+      if (skipIfExists && await File(backupPath).exists()) {
+        debugPrint('Ежемесячная копия за этот месяц уже существует: $backupPath');
+        return backupPath;
+      }
+
+      // Сбрасываем WAL в основной файл БД, чтобы копия была согласованной.
+      try {
+        await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch (e) {
+        debugPrint('WAL checkpoint failed (non-fatal): $e');
+      }
+
       await sourceFile.copy(backupPath);
       await _cleanupOldBackups(backupDir);
       return backupPath;
@@ -58,15 +106,22 @@ class BackupService {
     }
   }
 
+  /// Очищает старые ежедневные копии, оставляя только последние [_maxDailyBackups].
+  /// Ежемесячные и legacy-копии не трогает.
   Future<void> _cleanupOldBackups(Directory backupDir) async {
-    final files = await _listBackupFiles(backupDir);
-    if (files.length <= _maxBackups) return;
-    files.sort((a, b) => b.created.compareTo(a.created));
-    final toDelete = files.skip(_maxBackups);
-    for (var info in toDelete) {
+    final all = await _listBackupFiles(backupDir);
+
+    final dailies = all.where((b) => b.type == BackupType.daily).toList();
+    if (dailies.length <= _maxDailyBackups) return;
+
+    // Сортируем по дате (новые вперёд), удаляем лишние
+    dailies.sort((a, b) => b.created.compareTo(a.created));
+    final toDelete = dailies.skip(_maxDailyBackups);
+    for (final info in toDelete) {
       try {
         final file = File(info.path);
         if (await file.exists()) await file.delete();
+        debugPrint('Удалена старая ежедневная копия: ${info.fileName}');
       } catch (e) {
         debugPrint('Ошибка удаления старого бэкапа: $e');
       }
@@ -79,30 +134,65 @@ class BackupService {
   }
 
   Future<List<BackupInfo>> _listBackupFiles(Directory backupDir) async {
-    final files = await backupDir
+    final entities = await backupDir
         .list()
-        .where((entity) => entity is File)
+        .where((e) => e is File)
         .toList();
+
     final backups = <BackupInfo>[];
-    for (var entity in files) {
+
+    for (final entity in entities) {
       final file = entity as File;
       final fileName = p.basename(file.path);
-      if (!fileName.startsWith('backup_') || !fileName.endsWith('.db')) {
-        continue;
-      }
-      final datePart = fileName.substring(7, fileName.length - 3);
+
+      BackupType type;
       DateTime created;
-      try {
-        final normalized = datePart.replaceAll('-', ':');
-        created = DateTime.parse(normalized);
-      } catch (_) {
-        final stat = await file.stat();
-        created = stat.modified;
+
+      if (fileName.startsWith('daily_') && fileName.endsWith('.db')) {
+        // daily_YYYY-MM-DD.db
+        type = BackupType.daily;
+        final datePart = fileName.substring(6, fileName.length - 3);
+        try {
+          created = DateTime.parse(datePart);
+        } catch (_) {
+          final stat = await file.stat();
+          created = stat.modified;
+        }
+      } else if (fileName.startsWith('monthly_') && fileName.endsWith('.db')) {
+        // monthly_YYYY-MM.db
+        type = BackupType.monthly;
+        final datePart = fileName.substring(8, fileName.length - 3);
+        try {
+          created = DateTime.parse('$datePart-01');
+        } catch (_) {
+          final stat = await file.stat();
+          created = stat.modified;
+        }
+      } else if (fileName.startsWith('backup_') && fileName.endsWith('.db')) {
+        // legacy: backup_<timestamp>.db
+        type = BackupType.legacy;
+        final datePart = fileName.substring(7, fileName.length - 3);
+        try {
+          final normalized = datePart.replaceAll('-', ':');
+          created = DateTime.parse(normalized);
+        } catch (_) {
+          final stat = await file.stat();
+          created = stat.modified;
+        }
+      } else {
+        continue; // не наш файл
       }
+
       backups.add(
-        BackupInfo(path: file.path, fileName: fileName, created: created),
+        BackupInfo(
+          path: file.path,
+          fileName: fileName,
+          created: created,
+          type: type,
+        ),
       );
     }
+
     backups.sort((a, b) => b.created.compareTo(a.created));
     return backups;
   }
@@ -112,9 +202,11 @@ class BackupService {
     if (await file.exists()) await file.delete();
   }
 
+  /// Восстанавливает БД из бэкапа.
+  /// Не закрывает [currentDb] — это обязанность вызывающего кода (провайдера).
+  /// Вызывающий должен закрыть БД ДО вызова этого метода и переоткрыть ПОСЛЕ.
   Future<bool> restoreFullBackup(String backupPath, Database currentDb) async {
     try {
-      await currentDb.close();
       final currentDbPath = currentDb.path;
       final backupFile = File(backupPath);
       if (!await backupFile.exists()) throw Exception('Файл бэкапа не найден');
@@ -126,7 +218,9 @@ class BackupService {
     }
   }
 
-  /// Замена таблицы целиком (как было)
+  /// Замена таблицы целиком.
+  /// Каждая таблица восстанавливается в отдельной транзакции,
+  /// чтобы crash не оставлял таблицу пустой.
   Future<int> restoreTables(
     String backupPath,
     Database currentDb,
@@ -135,23 +229,24 @@ class BackupService {
     final backupDb = await openDatabase(backupPath);
     try {
       int totalInserted = 0;
-      for (var table in tableNames) {
+      for (final table in tableNames) {
         final rows = await backupDb.query(table);
         if (rows.isEmpty) continue;
-        await currentDb.delete(table);
-        for (var row in rows) {
-          row.remove('id');
-          final id = await currentDb.insert(table, row);
-          if (id > 0) totalInserted++;
-        }
+        await currentDb.transaction((txn) async {
+          await txn.delete(table);
+          for (final row in rows) {
+            final mutableRow = Map<String, Object?>.from(row);
+            mutableRow.remove('id');
+            final id = await txn.insert(table, mutableRow);
+            if (id > 0) totalInserted++;
+          }
+        });
       }
       return totalInserted;
     } finally {
       await backupDb.close();
     }
   }
-
-  // ---- НОВЫЕ МЕТОДЫ ДЛЯ ВЫБОРОЧНОГО ВОССТАНОВЛЕНИЯ ЗАПИСЕЙ ----
 
   /// Получить список всех таблиц (кроме системных)
   Future<List<String>> getTableNames(Database currentDb) async {
@@ -174,26 +269,23 @@ class BackupService {
     }
   }
 
-  /// Восстановить выбранные записи из бэкапа в текущую таблицу
-  /// Если запись с таким же id существует, она обновляется, иначе вставляется
-  /// Возвращает количество обработанных записей
+  /// Восстановить выбранные записи из бэкапа в текущую таблицу.
+  /// Если запись с таким же id существует — обновляется, иначе вставляется.
   Future<int> restoreSelectedRows(
     String backupPath,
     Database currentDb,
     String tableName,
-    List<int> rowIds, // список id записей, которые нужно восстановить
+    List<int> rowIds,
   ) async {
     if (rowIds.isEmpty) return 0;
 
     final backupDb = await openDatabase(backupPath);
     try {
-      // Получаем структуру таблицы, чтобы понять, есть ли поле id
       final tableInfo = await currentDb.rawQuery(
-        "PRAGMA table_info($tableName)",
+        'PRAGMA table_info($tableName)',
       );
       final hasIdColumn = tableInfo.any((col) => col['name'] == 'id');
 
-      // Загружаем записи из бэкапа с указанными id
       final placeholders = rowIds.map((_) => '?').join(',');
       final rows = await backupDb.query(
         tableName,
@@ -204,35 +296,29 @@ class BackupService {
       if (rows.isEmpty) return 0;
 
       int processed = 0;
-      for (var row in rows) {
-        final id = row['id'];
+      for (final row in rows) {
+        final mutableRow = Map<String, Object?>.from(row);
+        final id = mutableRow['id'];
         if (hasIdColumn && id != null) {
-          // Проверяем, существует ли запись с таким id в текущей БД
           final existing = await currentDb.query(
             tableName,
             where: 'id = ?',
             whereArgs: [id],
           );
+          mutableRow.remove('id');
           if (existing.isNotEmpty) {
-            // Обновляем
-            row.remove('id');
             await currentDb.update(
               tableName,
-              row,
+              mutableRow,
               where: 'id = ?',
               whereArgs: [id],
             );
           } else {
-            // Вставляем с сохранением id (если разрешено автоинкремент, то id будет проигнорирован)
-            // В SQLite при вставке с указанным id автоинкремент не сработает, если явно задать
-            // Поэтому мы просто вставляем, удалив id, чтобы генерировался новый
-            row.remove('id');
-            await currentDb.insert(tableName, row);
+            await currentDb.insert(tableName, mutableRow);
           }
         } else {
-          // Таблица без id – вставляем как есть
-          row.remove('id');
-          await currentDb.insert(tableName, row);
+          mutableRow.remove('id');
+          await currentDb.insert(tableName, mutableRow);
         }
         processed++;
       }
@@ -242,7 +328,7 @@ class BackupService {
     }
   }
 
-  /// Получить список id для всех записей в таблице бэкапа (для выбора)
+  /// Получить список id для всех записей в таблице бэкапа
   Future<List<int>> getBackupRowIds(String backupPath, String tableName) async {
     final backupDb = await openDatabase(backupPath);
     try {

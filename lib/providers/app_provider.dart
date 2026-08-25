@@ -518,11 +518,26 @@ class AppProvider extends ChangeNotifier {
   Future<String?> createBackup() async {
     try {
       final db = await _db.database;
-      return await _backupService.createBackup(db);
+      return await _backupService.createBackup(db, type: BackupType.daily);
     } catch (e) {
       _error = 'Ошибка создания бэкапа: $e';
       notifyListeners();
       return null;
+    }
+  }
+
+  /// Автоматическое резервное копирование при запуске приложения.
+  /// - Всегда создаёт (или обновляет) ежедневную копию.
+  /// - Всегда пытается создать ежемесячную копию; сервис сам пропустит,
+  ///   если за текущий месяц копия уже существует.
+  Future<void> autoBackup() async {
+    try {
+      final db = await _db.database;
+      await _backupService.createBackup(db, type: BackupType.daily);
+      await _backupService.createBackup(db, type: BackupType.monthly);
+    } catch (e) {
+      // Автобэкап не должен нарушать работу приложения
+      debugPrint('autoBackup error: $e');
     }
   }
 
@@ -533,9 +548,10 @@ class AppProvider extends ChangeNotifier {
   Future<bool> restoreFullBackup(String backupPath) async {
     try {
       final db = await _db.database;
+      // Закрываем БД здесь (единственный раз) — BackupService только копирует файл.
+      await _db.close();
       final success = await _backupService.restoreFullBackup(backupPath, db);
       if (success) {
-        await _db.close();
         await loadAllData();
       }
       return success;

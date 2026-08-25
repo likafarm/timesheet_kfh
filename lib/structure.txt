@@ -10,6 +10,8 @@ lib/
 ├── providers
 │   └── app_provider.dart
 ├── screens
+│   ├── backup_list_screen.dart
+│   ├── backup_table_viewer.dart
 │   ├── database_viewer_screen.dart
 │   ├── employee_rate_history_screen.dart
 │   ├── employees_screen.dart
@@ -20,6 +22,7 @@ lib/
 │   └── timesheet_screen.dart
 ├── services
 │   ├── Список препаратов.docx
+│   ├── backup_service.dart
 │   └── database_service.dart
 ├── theme
 │   └── app_theme.dart
