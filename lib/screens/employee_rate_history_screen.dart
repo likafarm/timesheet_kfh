@@ -8,7 +8,7 @@ import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 
 class EmployeeRateHistoryScreen extends StatefulWidget {
-  final int employeeId;
+  final String employeeId;
   final String employeeName;
 
   const EmployeeRateHistoryScreen({

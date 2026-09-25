@@ -2,8 +2,8 @@ import '../utils/date_utils.dart';
 
 /// Модель выплаты сотруднику
 class Payment {
-  final int? id;
-  final int employeeId;
+  final String? id;
+  final String employeeId;
   final DateTime paymentDate;
   final double amount;
   final String
@@ -31,8 +31,8 @@ class Payment {
 
   factory Payment.fromMap(Map<String, dynamic> map) {
     return Payment(
-      id: map['id'] as int?,
-      employeeId: map['employee_id'] as int,
+      id: map['id']?.toString(),
+      employeeId: map['employee_id'].toString(),
       paymentDate: parseDateIso(map['payment_date'] as String),
       amount: (map['amount'] as num).toDouble(),
       paymentType: map['payment_type'] as String? ?? 'salary',
@@ -94,8 +94,8 @@ class Payment {
   }
 
   Payment copyWith({
-    int? id,
-    int? employeeId,
+    String? id,
+    String? employeeId,
     DateTime? paymentDate,
     double? amount,
     String? paymentType,

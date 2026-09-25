@@ -134,8 +134,11 @@ Future<void> logDbLocation(String message) async {
   debugPrint(message);
   try {
     final file = File(p.join(appDataDirectory(), 'db_location.log'));
-    await file.writeAsString('${DateTime.now().toIso8601String()} $message\n',
-        mode: FileMode.append, flush: true);
+    await file.writeAsString(
+      '${DateTime.now().toIso8601String()} $message\n',
+      mode: FileMode.append,
+      flush: true,
+    );
   } catch (_) {}
 }
 

@@ -446,12 +446,32 @@ class _PayrollInput {
 
   _PayrollInput(Map<String, List<Map<String, Object?>>> rows) {
     for (final r in rows['timesheet']!) {
-      final record = TimesheetRecord.fromMap(r);
-      _records.putIfAbsent(record.employeeId, () => []).add(record);
+      final employeeId = r['employee_id'] as int;
+      _records
+          .putIfAbsent(employeeId, () => [])
+          .add(
+            TimesheetRecord(
+              employeeId: '$employeeId',
+              date: parseDateIso(r['date'] as String),
+              dayType: r['day_type'] as String,
+              days: (r['days'] as num).toDouble(),
+              workPlace: r['work_place'] as String?,
+            ),
+          );
     }
     for (final r in rows['employee_rates']!) {
-      final rate = EmployeeRate.fromMap(r);
-      _rates.putIfAbsent(rate.employeeId, () => []).add(rate);
+      final employeeId = r['employee_id'] as int;
+      _rates
+          .putIfAbsent(employeeId, () => [])
+          .add(
+            EmployeeRate(
+              employeeId: '$employeeId',
+              baseRate: (r['base_rate'] as num).toDouble(),
+              fieldRate: (r['field_rate'] as num).toDouble(),
+              startDate: parseDateIso(r['start_date'] as String),
+              endDate: parseDateIsoOrNull(r['end_date'] as String?),
+            ),
+          );
     }
     for (final r in rows['payroll_results']!) {
       _saved[(r['employee_id'] as int, r['year'] as int, r['month'] as int)] =
@@ -476,7 +496,7 @@ class _PayrollInput {
 
   PayrollCalculation calculate(int employeeId, int year, int month) =>
       calculateMonthlySalary(
-        employeeId: employeeId,
+        employeeId: '$employeeId',
         year: year,
         month: month,
         records: _records[employeeId] ?? const [],

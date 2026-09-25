@@ -194,7 +194,8 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'base',
-                              baseRate: _rateAtDate?.baseRate ??
+                              baseRate:
+                                  _rateAtDate?.baseRate ??
                                   widget.employee.baseRate,
                             ),
                           ),
@@ -204,7 +205,8 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'field',
-                              fieldRate: _rateAtDate?.fieldRate ??
+                              fieldRate:
+                                  _rateAtDate?.fieldRate ??
                                   widget.employee.fieldRate,
                             ),
                           ),

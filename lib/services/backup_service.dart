@@ -72,8 +72,7 @@ class BackupService {
       bool skipIfExists = false;
 
       if (type == BackupType.monthly) {
-        final yearMonth =
-            '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        final yearMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
         backupFileName = 'monthly_$yearMonth.db';
         skipIfExists = true; // первая копия месяца сохраняется
       } else {
@@ -86,7 +85,9 @@ class BackupService {
       final backupPath = p.join(backupDir.path, backupFileName);
 
       if (skipIfExists && await File(backupPath).exists()) {
-        debugPrint('Ежемесячная копия за этот месяц уже существует: $backupPath');
+        debugPrint(
+          'Ежемесячная копия за этот месяц уже существует: $backupPath',
+        );
         return backupPath;
       }
 
@@ -134,10 +135,7 @@ class BackupService {
   }
 
   Future<List<BackupInfo>> _listBackupFiles(Directory backupDir) async {
-    final entities = await backupDir
-        .list()
-        .where((e) => e is File)
-        .toList();
+    final entities = await backupDir.list().where((e) => e is File).toList();
 
     final backups = <BackupInfo>[];
 
@@ -204,7 +202,10 @@ class BackupService {
 
   /// Восстанавливает файл БД из бэкапа. [currentDbPath] — путь к основной БД
   /// (снимать до закрытия соединения). Соседние `-wal`/`-shm` удаляются.
-  Future<bool> restoreFullBackup(String backupPath, String currentDbPath) async {
+  Future<bool> restoreFullBackup(
+    String backupPath,
+    String currentDbPath,
+  ) async {
     try {
       final backupFile = File(backupPath);
       if (!await backupFile.exists()) {

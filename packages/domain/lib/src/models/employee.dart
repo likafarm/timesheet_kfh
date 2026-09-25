@@ -2,7 +2,7 @@ import '../utils/date_utils.dart';
 
 /// Модель сотрудника КФХ (упрощённая)
 class Employee {
-  final int? id;
+  final String? id;
   final String fullName;
   final String position;
   final DateTime hireDate;
@@ -25,7 +25,7 @@ class Employee {
 
   factory Employee.fromMap(Map<String, dynamic> map) {
     return Employee(
-      id: map['id'] as int?,
+      id: map['id']?.toString(),
       fullName: map['full_name'] as String,
       position: map['position'] as String,
       hireDate: parseDateIso(map['hire_date'] as String),
@@ -48,7 +48,7 @@ class Employee {
   }
 
   Employee copyWith({
-    int? id,
+    String? id,
     String? fullName,
     String? position,
     DateTime? hireDate,

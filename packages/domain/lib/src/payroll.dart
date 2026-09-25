@@ -8,7 +8,7 @@ import 'models/timesheet_record.dart';
 
 /// Итог расчёта зарплаты сотрудника за месяц.
 class PayrollCalculation {
-  final int employeeId;
+  final String employeeId;
   final int year;
   final int month;
   final double baseDays;
@@ -82,7 +82,7 @@ EmployeeRate? findRateAtDate(List<EmployeeRate> rates, DateTime date) {
 /// Рабочий день оплачивается по ставке базы (`workPlace == 'base'`),
 /// иначе — по ставке поля. Больничные и отпуск только подсчитываются.
 PayrollCalculation calculateMonthlySalary({
-  required int employeeId,
+  required String employeeId,
   required int year,
   required int month,
   required List<TimesheetRecord> records,
@@ -142,11 +142,11 @@ PayrollCalculation calculateMonthlySalary({
 
 /// Входящий остаток по сотрудникам: начислено − выплачено.
 /// Положительное значение — долг хозяйства перед сотрудником.
-Map<int, double> combineBalances({
-  required Map<int, double> accrued,
-  required Map<int, double> paid,
+Map<String, double> combineBalances({
+  required Map<String, double> accrued,
+  required Map<String, double> paid,
 }) {
-  final balances = <int, double>{...accrued};
+  final balances = <String, double>{...accrued};
   paid.forEach((empId, sum) {
     balances[empId] = (balances[empId] ?? 0.0) - sum;
   });

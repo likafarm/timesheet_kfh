@@ -2,8 +2,8 @@ import '../utils/date_utils.dart';
 
 /// Модель записи табеля (упрощённая)
 class TimesheetRecord {
-  final int? id;
-  final int employeeId;
+  final String? id;
+  final String employeeId;
   final DateTime date;
   final String dayType; // 'work', 'sick', 'vacation', 'dayoff'
   final double days; // количество дней (для work: 1 или 0.5, для остальных 0)
@@ -24,8 +24,8 @@ class TimesheetRecord {
 
   factory TimesheetRecord.fromMap(Map<String, dynamic> map) {
     return TimesheetRecord(
-      id: map['id'] as int?,
-      employeeId: map['employee_id'] as int,
+      id: map['id']?.toString(),
+      employeeId: map['employee_id'].toString(),
       date: parseDateIso(map['date'] as String),
       dayType: map['day_type'] as String? ?? 'work',
       days: (map['days'] as num?)?.toDouble() ?? 0.0,
@@ -49,8 +49,8 @@ class TimesheetRecord {
   }
 
   TimesheetRecord copyWith({
-    int? id,
-    int? employeeId,
+    String? id,
+    String? employeeId,
     DateTime? date,
     String? dayType,
     double? days,

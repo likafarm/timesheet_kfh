@@ -212,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         // Резервное копирование
                         ListTile(
                           leading: const Icon(Icons.backup),
-                           title: const Text('Резервное копирование'),
+                          title: const Text('Резервное копирование'),
                           subtitle: const Text(
                             'Создать ежедневную резервную копию сейчас',
                           ),
@@ -292,8 +292,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: const Text('О программе'),
                           subtitle: Text('Версия $_version'),
                           onTap: () {
-                            final dbPath =
-                                context.read<AppProvider>().db.databasePath;
+                            final dbPath = context
+                                .read<AppProvider>()
+                                .db
+                                .databasePath;
                             showAboutDialog(
                               context: context,
                               applicationName: 'Учёт рабочего времени КФХ',

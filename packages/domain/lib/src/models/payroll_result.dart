@@ -2,8 +2,8 @@
 
 /// Результат расчёта зарплаты за месяц для сотрудника
 class PayrollResult {
-  final int? id;
-  final int employeeId;
+  final String? id;
+  final String employeeId;
   final int year;
   final int month;
   final double baseDays;
@@ -37,8 +37,8 @@ class PayrollResult {
 
   factory PayrollResult.fromMap(Map<String, dynamic> map) {
     return PayrollResult(
-      id: map['id'] as int?,
-      employeeId: map['employee_id'] as int,
+      id: map['id']?.toString(),
+      employeeId: map['employee_id'].toString(),
       year: map['year'] as int,
       month: map['month'] as int,
       baseDays: (map['base_days'] as num).toDouble(),
@@ -78,8 +78,8 @@ class PayrollResult {
   }
 
   PayrollResult copyWith({
-    int? id,
-    int? employeeId,
+    String? id,
+    String? employeeId,
     int? year,
     int? month,
     double? baseDays,

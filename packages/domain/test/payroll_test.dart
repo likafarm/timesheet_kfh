@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 
-const _emp = 1;
+const _emp = 'emp-1';
 
 EmployeeRate rate(
   double base,
@@ -187,10 +187,10 @@ void main() {
   group('combineBalances', () {
     test('начислено минус выплачено, в т.ч. отрицательный остаток', () {
       final b = combineBalances(
-        accrued: {1: 10000, 2: 5000},
-        paid: {1: 4000, 2: 7000, 3: 1000},
+        accrued: {'a': 10000, 'b': 5000},
+        paid: {'a': 4000, 'b': 7000, 'c': 1000},
       );
-      expect(b, {1: 6000, 2: -2000, 3: -1000});
+      expect(b, {'a': 6000, 'b': -2000, 'c': -1000});
     });
   });
 }

@@ -18,7 +18,7 @@ class AppProvider extends ChangeNotifier {
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
   List<PayrollResult> _payrollResults = [];
-  Map<int, double> _startingBalances = {};
+  Map<String, double> _startingBalances = {};
   Map<String, dynamic>? _companySettings;
 
   // Состояние загрузки
@@ -46,7 +46,7 @@ class AppProvider extends ChangeNotifier {
   List<Payment> get payments => _payments;
   List<EmployeeRate> get employeeRates => _employeeRates;
   List<PayrollResult> get payrollResults => _payrollResults;
-  Map<int, double> get startingBalances => _startingBalances;
+  Map<String, double> get startingBalances => _startingBalances;
   Map<String, dynamic>? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -125,7 +125,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteEmployee(int id) async {
+  Future<void> deleteEmployee(String id) async {
     try {
       await _db.deleteEmployee(id);
       await loadEmployees();
@@ -136,7 +136,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Employee? getEmployeeById(int id) {
+  Employee? getEmployeeById(String id) {
     try {
       return _employees.firstWhere((e) => e.id == id);
     } catch (_) {
@@ -144,7 +144,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  String getEmployeeName(int id) {
+  String getEmployeeName(String id) {
     final emp = getEmployeeById(id);
     return emp?.fullName ?? 'Неизвестно';
   }
@@ -153,7 +153,7 @@ class AppProvider extends ChangeNotifier {
   // EMPLOYEE RATES
   // ==========================================================================
 
-  Future<void> loadEmployeeRates({int? employeeId}) async {
+  Future<void> loadEmployeeRates({String? employeeId}) async {
     if (employeeId != null) {
       _employeeRates = await _db.getEmployeeRateHistory(employeeId);
     } else {
@@ -174,7 +174,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<EmployeeRate?> getEmployeeRateAtDate(
-    int employeeId,
+    String employeeId,
     DateTime date,
   ) async {
     return await _db.getEmployeeRateAtDate(employeeId, date);
@@ -187,7 +187,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> loadTimesheet(
     DateTime start,
     DateTime end, {
-    int? employeeId,
+    String? employeeId,
   }) async {
     _setLoading(true);
     try {
@@ -312,7 +312,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteTimesheetRecord(int id) async {
+  Future<void> deleteTimesheetRecord(String id) async {
     try {
       await _db.deleteTimesheetRecord(id);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
@@ -351,7 +351,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> loadPaymentsByEmployee(
-    int employeeId, {
+    String employeeId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -392,7 +392,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> deletePayment(int id, int employeeId) async {
+  Future<void> deletePayment(String id, String employeeId) async {
     try {
       await _db.deletePayment(id);
       notifyListeners();
@@ -414,7 +414,7 @@ class AppProvider extends ChangeNotifier {
   // ==========================================================================
 
   Future<Map<String, dynamic>> calculateMonthlySalary(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -462,7 +462,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> isPayrollUpToDate(int employeeId, int year, int month) async {
+  Future<bool> isPayrollUpToDate(String employeeId, int year, int month) async {
     final result = await _db.getPayrollResult(employeeId, year, month);
     if (result == null) return false;
     final currentData = await _db.calculateMonthlySalaryDetailed(
@@ -481,7 +481,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -489,7 +489,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> recalculateSingleEmployee(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -504,7 +504,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   PayrollResult _payrollFromCalc(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
     Map<String, dynamic> data,

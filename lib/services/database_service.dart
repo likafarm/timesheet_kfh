@@ -40,7 +40,8 @@ class DatabaseService {
     );
     if (location.migratedFrom != null) {
       await logDbLocation(
-          'База перенесена: ${location.migratedFrom} -> ${location.path}');
+        'База перенесена: ${location.migratedFrom} -> ${location.path}',
+      );
     }
     if (location.error != null) await logDbLocation(location.error!);
     final path = location.path;
@@ -306,11 +307,12 @@ class DatabaseService {
   // EMPLOYEES (без изменений)
   // ==========================================================================
 
-  Future<int> insertEmployee(Employee employee) async {
+  Future<String> insertEmployee(Employee employee) async {
     final db = await database;
     final map = employee.toMap();
     map.remove('id');
-    return await db.insert('employees', map);
+    _toLegacyIds(map);
+    return (await db.insert('employees', map)).toString();
   }
 
   Future<List<Employee>> getAllEmployees({bool activeOnly = false}) async {
@@ -328,9 +330,13 @@ class DatabaseService {
     return maps.map((m) => Employee.fromMap(m)).toList();
   }
 
-  Future<Employee?> getEmployeeById(int id) async {
+  Future<Employee?> getEmployeeById(String id) async {
     final db = await database;
-    final maps = await db.query('employees', where: 'id = ?', whereArgs: [id]);
+    final maps = await db.query(
+      'employees',
+      where: 'id = ?',
+      whereArgs: [int.parse(id)],
+    );
     if (maps.isEmpty) return null;
     return Employee.fromMap(maps.first);
   }
@@ -339,17 +345,22 @@ class DatabaseService {
     final db = await database;
     final map = employee.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     return await db.update(
       'employees',
       map,
       where: 'id = ?',
-      whereArgs: [employee.id],
+      whereArgs: [int.parse(employee.id!)],
     );
   }
 
-  Future<int> deleteEmployee(int id) async {
+  Future<int> deleteEmployee(String id) async {
     final db = await database;
-    return await db.delete('employees', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(
+      'employees',
+      where: 'id = ?',
+      whereArgs: [int.parse(id)],
+    );
   }
 
   // ==========================================================================
@@ -360,6 +371,7 @@ class DatabaseService {
     final db = await database;
     final map = rate.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     return await db.insert('employee_rates', map);
   }
 
@@ -368,7 +380,7 @@ class DatabaseService {
     final current = await db.query(
       'employee_rates',
       where: 'employee_id = ? AND end_date IS NULL',
-      whereArgs: [rate.employeeId],
+      whereArgs: [int.parse(rate.employeeId)],
     );
     if (current.isNotEmpty) {
       await db.update(
@@ -385,19 +397,19 @@ class DatabaseService {
     return await _insertEmployeeRate(rate);
   }
 
-  Future<List<EmployeeRate>> getEmployeeRateHistory(int employeeId) async {
+  Future<List<EmployeeRate>> getEmployeeRateHistory(String employeeId) async {
     final db = await database;
     final maps = await db.query(
       'employee_rates',
       where: 'employee_id = ?',
-      whereArgs: [employeeId],
+      whereArgs: [int.parse(employeeId)],
       orderBy: 'start_date ASC',
     );
     return maps.map((m) => EmployeeRate.fromMap(m)).toList();
   }
 
   Future<EmployeeRate?> getEmployeeRateAtDate(
-    int employeeId,
+    String employeeId,
     DateTime date,
   ) async {
     final db = await database;
@@ -406,7 +418,7 @@ class DatabaseService {
       'employee_rates',
       where:
           'employee_id = ? AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)',
-      whereArgs: [employeeId, dateStr, dateStr],
+      whereArgs: [int.parse(employeeId), dateStr, dateStr],
       orderBy: 'start_date DESC',
       limit: 1,
     );
@@ -422,6 +434,7 @@ class DatabaseService {
     final db = await database;
     final map = record.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     map['created_at'] = DateTime.now().toIso8601String();
     try {
       return await db.insert(
@@ -440,7 +453,7 @@ class DatabaseService {
   Future<List<TimesheetRecord>> getTimesheetByPeriod(
     DateTime start,
     DateTime end, {
-    int? employeeId,
+    String? employeeId,
   }) async {
     final db = await database;
     final range = dateRangeExclusiveEnd(start, end);
@@ -448,7 +461,7 @@ class DatabaseService {
     List<dynamic> whereArgs = [range.$1, range.$2];
     if (employeeId != null) {
       where += ' AND employee_id = ?';
-      whereArgs.add(employeeId);
+      whereArgs.add(int.parse(employeeId));
     }
     final maps = await db.query(
       'timesheet',
@@ -460,7 +473,7 @@ class DatabaseService {
   }
 
   Future<TimesheetRecord?> getTimesheetRecord(
-    int employeeId,
+    String employeeId,
     DateTime date,
   ) async {
     final db = await database;
@@ -468,7 +481,7 @@ class DatabaseService {
     final maps = await db.query(
       'timesheet',
       where: "employee_id = ? AND substr(date, 1, 10) = ?",
-      whereArgs: [employeeId, dateStr],
+      whereArgs: [int.parse(employeeId), dateStr],
     );
     if (maps.isEmpty) return null;
     return TimesheetRecord.fromMap(maps.first);
@@ -478,17 +491,22 @@ class DatabaseService {
     final db = await database;
     final map = record.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     return await db.update(
       'timesheet',
       map,
       where: 'id = ?',
-      whereArgs: [record.id],
+      whereArgs: [int.parse(record.id!)],
     );
   }
 
-  Future<int> deleteTimesheetRecord(int id) async {
+  Future<int> deleteTimesheetRecord(String id) async {
     final db = await database;
-    return await db.delete('timesheet', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(
+      'timesheet',
+      where: 'id = ?',
+      whereArgs: [int.parse(id)],
+    );
   }
 
   // ==========================================================================
@@ -499,18 +517,19 @@ class DatabaseService {
     final db = await database;
     final map = payment.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     map['created_at'] = DateTime.now().toIso8601String();
     return await db.insert('payments', map);
   }
 
   Future<List<Payment>> getPaymentsByEmployee(
-    int employeeId, {
+    String employeeId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final db = await database;
     String where = 'employee_id = ?';
-    List<dynamic> whereArgs = [employeeId];
+    List<dynamic> whereArgs = [int.parse(employeeId)];
     if (startDate != null && endDate != null) {
       final range = dateRangeExclusiveEnd(startDate, endDate);
       where += ' AND payment_date >= ? AND payment_date < ?';
@@ -552,17 +571,22 @@ class DatabaseService {
     final db = await database;
     final map = payment.toMap();
     map.remove('id');
+    _toLegacyIds(map);
     return await db.update(
       'payments',
       map,
       where: 'id = ?',
-      whereArgs: [payment.id],
+      whereArgs: [int.parse(payment.id!)],
     );
   }
 
-  Future<int> deletePayment(int id) async {
+  Future<int> deletePayment(String id) async {
     final db = await database;
-    return await db.delete('payments', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(
+      'payments',
+      where: 'id = ?',
+      whereArgs: [int.parse(id)],
+    );
   }
 
   // ==========================================================================
@@ -649,7 +673,7 @@ class DatabaseService {
 
   /// Детальный расчёт зарплаты за месяц с учётом ставок на каждый день
   Future<Map<String, dynamic>> calculateMonthlySalaryDetailed(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -679,11 +703,12 @@ class DatabaseService {
     final db = await database;
     final map = result.toMap();
     map.remove('id');
+    _toLegacyIds(map);
 
     final existing = await db.query(
       'payroll_results',
       where: 'employee_id = ? AND year = ? AND month = ?',
-      whereArgs: [result.employeeId, result.year, result.month],
+      whereArgs: [int.parse(result.employeeId), result.year, result.month],
     );
     if (existing.isNotEmpty) {
       await db.update(
@@ -700,7 +725,7 @@ class DatabaseService {
 
   /// Получение сохранённого результата для сотрудника за месяц
   Future<PayrollResult?> getPayrollResult(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -708,7 +733,7 @@ class DatabaseService {
     final maps = await db.query(
       'payroll_results',
       where: 'employee_id = ? AND year = ? AND month = ?',
-      whereArgs: [employeeId, year, month],
+      whereArgs: [int.parse(employeeId), year, month],
     );
     if (maps.isEmpty) return null;
     return PayrollResult.fromMap(maps.first);
@@ -731,7 +756,7 @@ class DatabaseService {
 
   /// Возвращает дату последнего изменения табеля для сотрудника за месяц (максимальный created_at)
   Future<DateTime?> getLastTimesheetChange(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -742,7 +767,7 @@ class DatabaseService {
     final maps = await db.query(
       'timesheet',
       where: 'employee_id = ? AND date >= ? AND date < ?',
-      whereArgs: [employeeId, range.$1, range.$2],
+      whereArgs: [int.parse(employeeId), range.$1, range.$2],
       orderBy: 'created_at DESC',
       limit: 1,
     );
@@ -755,7 +780,7 @@ class DatabaseService {
   // ==========================================================================
 
   Future<Map<String, dynamic>> calculateMonthlySalary(
-    int employeeId,
+    String employeeId,
     int year,
     int month,
   ) async {
@@ -765,36 +790,42 @@ class DatabaseService {
 
   /// Получает начальные балансы для всех сотрудников на начало указанной даты.
   /// (Сумма начислений за все месяцы ДО месяца даты) - (Сумма выплат за все время ДО 1-го числа даты)
-  Future<Map<int, double>> getStartingBalances(DateTime date) async {
+  Future<Map<String, double>> getStartingBalances(DateTime date) async {
     final db = await database;
     final year = date.year;
     final month = date.month;
 
     // 1. Получаем начисления (Сумма за месяцы до текущего)
-    final accruedRows = await db.rawQuery('''
+    final accruedRows = await db.rawQuery(
+      '''
       SELECT employee_id, SUM(total_salary) as sum_accrued
       FROM payroll_results
       WHERE year < ? OR (year = ? AND month < ?)
       GROUP BY employee_id
-    ''', [year, year, month]);
+    ''',
+      [year, year, month],
+    );
 
     // 2. Получаем выплаты (Сумма до 1-го числа текущего месяца)
     final startOfMonth = formatDateIso(DateTime(year, month, 1));
-    final paidRows = await db.rawQuery('''
+    final paidRows = await db.rawQuery(
+      '''
       SELECT employee_id, SUM(amount) as sum_paid
       FROM payments
       WHERE payment_date < ?
       GROUP BY employee_id
-    ''', [startOfMonth]);
+    ''',
+      [startOfMonth],
+    );
 
     return payroll.combineBalances(
       accrued: {
         for (final row in accruedRows)
-          row['employee_id'] as int: (row['sum_accrued'] as num).toDouble(),
+          '${row['employee_id']}': (row['sum_accrued'] as num).toDouble(),
       },
       paid: {
         for (final row in paidRows)
-          row['employee_id'] as int: (row['sum_paid'] as num).toDouble(),
+          '${row['employee_id']}': (row['sum_paid'] as num).toDouble(),
       },
     );
   }
@@ -802,6 +833,13 @@ class DatabaseService {
   // ==========================================================================
   // ЗАКРЫТИЕ
   // ==========================================================================
+
+  /// Модели хранят id строкой (uuid в схеме v2); старая база ждёт INTEGER.
+  /// Временный переходник до переключения на drift (шаг 1.5).
+  static void _toLegacyIds(Map<String, dynamic> map) {
+    final employeeId = map['employee_id'];
+    if (employeeId is String) map['employee_id'] = int.parse(employeeId);
+  }
 
   Future<void> close() async {
     if (_database != null) {

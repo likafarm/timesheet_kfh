@@ -1,6 +1,6 @@
 /// Модель настроек КФХ
 class CompanySettings {
-  final int? id;
+  final String? id;
   final String companyName;
   final String? directorName;
   final String? inn;
@@ -30,7 +30,7 @@ class CompanySettings {
 
   factory CompanySettings.fromMap(Map<String, dynamic> map) {
     return CompanySettings(
-      id: map['id'] as int?,
+      id: map['id']?.toString(),
       companyName: map['company_name'] as String,
       directorName: map['director_name'] as String?,
       inn: map['inn'] as String?,
@@ -66,7 +66,7 @@ class CompanySettings {
   }
 
   CompanySettings copyWith({
-    int? id,
+    String? id,
     String? companyName,
     String? directorName,
     String? inn,

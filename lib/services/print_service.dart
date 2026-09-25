@@ -96,7 +96,7 @@ class PrintService {
 
   static TimesheetRecord _recordForDay(
     List<TimesheetRecord> records,
-    int employeeId,
+    String employeeId,
     DateTime date,
   ) {
     return records.firstWhere(
@@ -116,7 +116,7 @@ class PrintService {
 
   static ({double work, double dayoff, double sick, double vacation}) _totals(
     List<TimesheetRecord> records,
-    int employeeId,
+    String employeeId,
   ) {
     var work = 0.0;
     var dayoff = 0.0;

@@ -100,9 +100,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'База данных восстановлена. Данные перезагружены.',
-              ),
+              content: Text('База данных восстановлена. Данные перезагружены.'),
             ),
           );
         } else {
@@ -281,8 +279,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
 
     final confirm = await _showConfirmDialog(
       title: 'Удаление бэкапа',
-      content:
-          'Удалить бэкап от ${_formatBackupTitle(backup)}?',
+      content: 'Удалить бэкап от ${_formatBackupTitle(backup)}?',
     );
     if (!confirm) return;
 
@@ -308,8 +305,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
         return DateFormat('dd.MM.yyyy').format(backup.created);
       case BackupType.monthly:
         final monthName = DateFormat('LLLL yyyy', 'ru').format(backup.created);
-        return monthName.substring(0, 1).toUpperCase() +
-            monthName.substring(1);
+        return monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
       case BackupType.legacy:
         return DateFormat('dd.MM.yyyy HH:mm').format(backup.created);
     }
@@ -347,15 +343,11 @@ class _BackupListScreenState extends State<BackupListScreen> {
   }
 
   Widget _buildBackupList() {
-    final daily = _backups
-        .where((b) => b.type == BackupType.daily)
-        .toList();
+    final daily = _backups.where((b) => b.type == BackupType.daily).toList();
     final monthly = _backups
         .where((b) => b.type == BackupType.monthly)
         .toList();
-    final legacy = _backups
-        .where((b) => b.type == BackupType.legacy)
-        .toList();
+    final legacy = _backups.where((b) => b.type == BackupType.legacy).toList();
 
     return ListView(
       children: [
@@ -380,7 +372,8 @@ class _BackupListScreenState extends State<BackupListScreen> {
         ),
         if (monthly.isEmpty)
           const _EmptySection(
-            text: 'Нет ежемесячных копий.\nСоздаются автоматически 1-го числа каждого месяца.',
+            text:
+                'Нет ежемесячных копий.\nСоздаются автоматически 1-го числа каждого месяца.',
           )
         else
           ...monthly.map((b) => _buildBackupTile(b)),
@@ -443,9 +436,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
               : backup.type == BackupType.daily
               ? Icons.today
               : Icons.backup,
-          color: backup.type == BackupType.monthly
-              ? Colors.blue
-              : Colors.green,
+          color: backup.type == BackupType.monthly ? Colors.blue : Colors.green,
         ),
         title: Text(title),
         subtitle: Text(subtitle),
