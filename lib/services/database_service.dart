@@ -1,12 +1,12 @@
 // lib/services/database_service.dart
 
 import 'dart:async';
-import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
 import '../domain/payroll.dart' as payroll;
 import '../utils/date_utils.dart';
+import 'db_location.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -14,16 +14,39 @@ class DatabaseService {
   DatabaseService._internal();
 
   Database? _database;
+  String? _databasePath;
+
+  /// Путь к открытой базе (null — база ещё не открыта).
+  String? get databasePath => _databasePath;
+
+  /// Открытие базы идёт один раз: параллельные запросы при старте
+  /// (например, `Future.wait` в `AppProvider`) ждут один и тот же Future,
+  /// иначе они одновременно запускают перенос базы и мешают друг другу.
+  Future<Database>? _opening;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    _opening ??= _initDatabase();
+    try {
+      _database = await _opening!;
+    } finally {
+      _opening = null;
+    }
     return _database!;
   }
 
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'kfx_time_tracking.db');
+    final location = await resolveDatabasePath(
+      dataDir: appDataDirectory(),
+      legacyDirs: legacyDatabaseDirectories(),
+    );
+    if (location.migratedFrom != null) {
+      await logDbLocation(
+          'База перенесена: ${location.migratedFrom} -> ${location.path}');
+    }
+    if (location.error != null) await logDbLocation(location.error!);
+    final path = location.path;
+    _databasePath = path;
     return await openDatabase(
       path,
       version: 8,

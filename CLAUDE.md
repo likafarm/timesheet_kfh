@@ -6,7 +6,7 @@
 ## Статус
 
 - Этап 0 (гигиена, тесты, вынос расчёта ЗП) — **завершён** 2026-09-25, влит в `main`.
-- Следующий шаг: перенос базы в AppData (см. «Известные проблемы»), затем этап 1 (drift, UUID, схема v2).
+- База перенесена в AppData (ветка `fix/db-appdata`). Следующий шаг — этап 1 (drift, UUID, схема v2).
 
 ## Команды
 
@@ -22,7 +22,8 @@ flutter build windows --release     # ~2 мин
 ## Архитектура
 
 - `lib/domain/` — чистая логика без БД/Flutter (расчёт ЗП: `calculateMonthlySalary`, `findRateAtDate`, `combineBalances`). Новую бизнес-логику класть сюда и покрывать тестами.
-- `lib/services/database_service.dart` — синглтон, схема БД (версия 8, миграции в `_onUpgrade`), CRUD. Загружает данные и передаёт их в `domain`.
+- `lib/services/database_service.dart` — синглтон, схема БД (версия 8, миграции в `_onUpgrade`), CRUD. Загружает данные и передаёт их в `domain`. Открытие базы однократное (`_opening`), параллельные запросы ждут его.
+- `lib/services/db_location.dart` — путь к базе `%LOCALAPPDATA%\KFH Time Tracking\kfx_time_tracking.db` (debug-сборка — `KFH Time Tracking (debug)`) и одноразовый перенос старой базы из `.dart_tool\sqflite_common_ffi\databases` (папка exe, затем рабочая папка): копия → `integrity_check` → переименование, оригинал не трогается, при ошибке открывается старая база. Журнал — `db_location.log` рядом с базой.
 - `lib/providers/app_provider.dart` — единый `ChangeNotifier`, через него ходит UI.
 - `lib/services/print_service.dart` — печать PDF (шрифты Roboto из `assets/fonts/` нужны для кириллицы).
 - `lib/services/backup_service.dart` — копии в `Документы\backups`, авто-копия при запуске, хранится 5 ежедневных.
@@ -48,5 +49,4 @@ flutter build windows --release     # ~2 мин
 
 ## Известные проблемы (ждут решения владельца)
 
-- База лежит **в папке программы**: `%LOCALAPPDATA%\Programs\KFH Time Tracking\.dart_tool\sqflite_common_ffi\databases\kfx_time_tracking.db`. `sqflite_common_ffi` строит путь от рабочей папки процесса, поэтому запуск с другой рабочей папкой откроет пустую базу. План: перенести базу в AppData с переносом старого файла.
 - Рабочий день без `workPlace` оплачивается по ставке поля, но не попадает в счётчики дней. Поведение сохранено сознательно, пока нет решения.
