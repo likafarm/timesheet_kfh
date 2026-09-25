@@ -1,8 +1,7 @@
 // lib/providers/app_provider.dart
 
 import 'package:flutter/material.dart';
-import '../models/models.dart';
-import '../models/employee_rate.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../services/database_service.dart';
 import '../services/backup_service.dart';
 

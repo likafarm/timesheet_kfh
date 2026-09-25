@@ -2,10 +2,8 @@
 
 import 'dart:async';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import '../models/models.dart';
-import '../models/employee_rate.dart';
-import '../domain/payroll.dart' as payroll;
-import '../utils/date_utils.dart';
+import 'package:kfh_domain/kfh_domain.dart';
+import 'package:kfh_domain/kfh_domain.dart' as payroll;
 import 'db_location.dart';
 
 class DatabaseService {

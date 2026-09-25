@@ -1,0 +1,13 @@
+name: kfh_domain
+description: "Доменная логика КФХ: модели и расчёт ЗП (чистый Dart)"
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+resolution: workspace
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0

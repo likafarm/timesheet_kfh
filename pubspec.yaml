@@ -6,11 +6,19 @@ version: 1.0.0+1
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Dart workspace: пакеты в packages/ разрешаются вместе с приложением
+workspace:
+  - packages/domain
+
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+
+  # Доменная логика (модели, расчёт ЗП)
+  kfh_domain:
+    path: packages/domain
 
   # Управление состоянием
   provider: ^6.1.5

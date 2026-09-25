@@ -31,7 +31,8 @@ test/         модульные тесты
 ```bash
 flutter pub get
 flutter analyze
-flutter test
+flutter test                      # тесты приложения
+cd packages/domain; dart test     # тесты доменного пакета
 flutter run -d windows
 ```
 

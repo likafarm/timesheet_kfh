@@ -6,7 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/models.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../utils/string_utils.dart';
 
 /// Формирование и вывод на печать табеля и детального отчёта по сотруднику.

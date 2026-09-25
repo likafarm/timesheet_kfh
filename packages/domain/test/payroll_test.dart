@@ -1,7 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kfx_time_tracking/domain/payroll.dart';
-import 'package:kfx_time_tracking/models/employee_rate.dart';
-import 'package:kfx_time_tracking/models/timesheet_record.dart';
+import 'package:test/test.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 
 const _emp = 1;
 

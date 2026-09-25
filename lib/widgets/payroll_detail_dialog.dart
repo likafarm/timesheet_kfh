@@ -3,9 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/payment.dart';
-import '../models/payroll_result.dart';
-import '../models/employee.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../services/print_service.dart';
 

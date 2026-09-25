@@ -1,4 +1,4 @@
-// lib/models/payroll_result.dart
+// packages/domain/lib/src/models/payroll_result.dart
 
 /// Результат расчёта зарплаты за месяц для сотрудника
 class PayrollResult {

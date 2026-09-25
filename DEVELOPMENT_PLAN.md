@@ -80,7 +80,7 @@ timesheet_kfh/
 
 **Задачи**
 
-- [ ] Развернуть workspace: `packages/domain` (перенос моделей и расчётов из этапа 0), приложение подключает его по path-зависимости.
+- [x] Развернуть workspace: `packages/domain` (перенос моделей и расчётов из этапа 0), приложение подключает его по path-зависимости.
 - [ ] **Миграция sqflite → drift** в приложении (Windows).
 - [ ] **Схема v2 (локальная):**
   - все бизнес-таблицы (`employees`, `employee_rates`, `timesheet`, `payments`, `payroll_results`, будущие `sick_leave`, `vacation`): PK → `uuid TEXT`, + `updated_at`, `deleted INTEGER`, `edited_by TEXT`, `remote_updated_at`;

@@ -1,10 +1,10 @@
-// lib/domain/payroll.dart
+// packages/domain/lib/src/payroll.dart
 //
 // Чистая логика расчёта зарплаты: без БД, файлов и Flutter.
-// DatabaseService загружает данные и передаёт их сюда.
+// Хранилище загружает данные и передаёт их сюда.
 
-import '../models/employee_rate.dart';
-import '../models/timesheet_record.dart';
+import 'models/employee_rate.dart';
+import 'models/timesheet_record.dart';
 
 /// Итог расчёта зарплаты сотрудника за месяц.
 class PayrollCalculation {
