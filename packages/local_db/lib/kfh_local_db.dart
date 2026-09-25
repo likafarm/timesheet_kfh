@@ -11,3 +11,4 @@ export 'src/daos/sync_state_dao.dart';
 export 'src/daos/timesheet_dao.dart';
 export 'src/database.dart';
 export 'src/exceptions.dart';
+export 'src/migration/v8_converter.dart';
