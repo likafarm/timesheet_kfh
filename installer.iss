@@ -1,9 +1,14 @@
 
 
+; Версия передаётся из build_installer.ps1 (берётся из pubspec.yaml)
+#ifndef AppVer
+  #define AppVer "0.0.0"
+#endif
+
 [Setup]
 AppId={{8F3A1B62-9C47-4D0E-B2A1-6E5C8D90F3A1}
 AppName=Учёт рабочего времени КФХ
-AppVersion=1.0.0
+AppVersion={#AppVer}
 AppPublisher=Иван Лопатин
 AppPublisherURL=mailto:iilopatin@ya.ru
 AppSupportURL=mailto:iilopatin@ya.ru
@@ -12,7 +17,7 @@ LicenseFile=LICENSE.txt
 DefaultDirName={autopf}\KFH Time Tracking
 DefaultGroupName=Учёт рабочего времени КФХ
 OutputDir=installer_output
-OutputBaseFilename=KFH_TimeTracking_Setup_1.0.0
+OutputBaseFilename=KFH_TimeTracking_Setup_{#AppVer}
 SetupIconFile=windows\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\timesheet_kfh.exe
 Compression=lzma2/ultra64

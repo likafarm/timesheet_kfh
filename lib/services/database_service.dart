@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
+import '../domain/payroll.dart' as payroll;
 import '../utils/date_utils.dart';
 
 class DatabaseService {
@@ -634,62 +635,22 @@ class DatabaseService {
     final employee = await getEmployeeById(employeeId);
     if (employee == null) throw Exception('Сотрудник не найден');
 
-    final start = DateTime(year, month, 1);
-    final end = DateTime(year, month + 1, 0);
-
     final records = await getTimesheetByPeriod(
-      start,
-      end,
+      DateTime(year, month, 1),
+      DateTime(year, month + 1, 0),
       employeeId: employeeId,
     );
+    final rates = await getEmployeeRateHistory(employeeId);
 
-    double totalBaseDays = 0.0;
-    double totalFieldDays = 0.0;
-    double sickDays = 0.0;
-    double vacationDays = 0.0;
-    double totalSalary = 0.0;
-    double? lastBaseRate;
-    double? lastFieldRate;
-    int skippedWorkDays = 0;
-
-    for (var record in records) {
-      if (record.dayType == 'work') {
-        final rate = await getEmployeeRateAtDate(employeeId, record.date);
-        if (rate == null) {
-          skippedWorkDays++;
-          continue;
-        }
-        lastBaseRate = rate.baseRate;
-        lastFieldRate = rate.fieldRate;
-        final dayRate = record.workPlace == 'base'
-            ? rate.baseRate
-            : rate.fieldRate;
-        totalSalary += record.days * dayRate;
-        if (record.workPlace == 'base') {
-          totalBaseDays += record.days;
-        } else if (record.workPlace == 'field') {
-          totalFieldDays += record.days;
-        }
-      } else if (record.dayType == 'sick') {
-        sickDays += record.days;
-      } else if (record.dayType == 'vacation') {
-        vacationDays += record.days;
-      }
-    }
-
-    return {
-      'employeeId': employeeId,
-      'year': year,
-      'month': month,
-      'baseDays': totalBaseDays,
-      'fieldDays': totalFieldDays,
-      'sickDays': sickDays,
-      'vacationDays': vacationDays,
-      'totalSalary': totalSalary,
-      'baseRateUsed': lastBaseRate,
-      'fieldRateUsed': lastFieldRate,
-      'skippedWorkDays': skippedWorkDays,
-    };
+    return payroll
+        .calculateMonthlySalary(
+          employeeId: employeeId,
+          year: year,
+          month: month,
+          records: records,
+          rates: rates,
+        )
+        .toMap();
   }
 
   /// Сохраняет или обновляет результат расчёта
@@ -805,21 +766,16 @@ class DatabaseService {
       GROUP BY employee_id
     ''', [startOfMonth]);
 
-    final Map<int, double> balances = {};
-
-    for (final row in accruedRows) {
-      final empId = row['employee_id'] as int;
-      final sum = (row['sum_accrued'] as num).toDouble();
-      balances[empId] = sum;
-    }
-
-    for (final row in paidRows) {
-      final empId = row['employee_id'] as int;
-      final sum = (row['sum_paid'] as num).toDouble();
-      balances[empId] = (balances[empId] ?? 0.0) - sum;
-    }
-
-    return balances;
+    return payroll.combineBalances(
+      accrued: {
+        for (final row in accruedRows)
+          row['employee_id'] as int: (row['sum_accrued'] as num).toDouble(),
+      },
+      paid: {
+        for (final row in paidRows)
+          row['employee_id'] as int: (row['sum_paid'] as num).toDouble(),
+      },
+    );
   }
 
   // ==========================================================================

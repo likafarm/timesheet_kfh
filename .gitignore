@@ -1,4 +1,3 @@
-```
 # Miscellaneous
 *.class
 *.log
@@ -64,4 +63,9 @@ app.*.map.json
 
 # Coverage
 coverage/
-```
+
+# Архивы, документы и логи сборки — не хранятся в репозитории
+*.zip
+*.docx
+build_log.txt
+structure.txt
