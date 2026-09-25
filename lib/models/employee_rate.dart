@@ -1,3 +1,5 @@
+import '../utils/date_utils.dart';
+
 /// Модель истории изменения ставок сотрудника
 class EmployeeRate {
   final int? id;
@@ -22,10 +24,8 @@ class EmployeeRate {
       employeeId: map['employee_id'] as int,
       baseRate: (map['base_rate'] as num).toDouble(),
       fieldRate: (map['field_rate'] as num).toDouble(),
-      startDate: DateTime.parse(map['start_date'] as String),
-      endDate: map['end_date'] != null
-          ? DateTime.parse(map['end_date'] as String)
-          : null,
+      startDate: parseDateIso(map['start_date'] as String),
+      endDate: parseDateIsoOrNull(map['end_date'] as String?),
     );
   }
 
@@ -35,8 +35,8 @@ class EmployeeRate {
       'employee_id': employeeId,
       'base_rate': baseRate,
       'field_rate': fieldRate,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
+      'start_date': formatDateIso(startDate),
+      'end_date': formatDateIsoOrNull(endDate),
     };
   }
 

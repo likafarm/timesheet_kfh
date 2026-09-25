@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -33,6 +34,13 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Учёт рабочего времени КФХ',
         debugShowCheckedModeBanner: false,
+        locale: const Locale('ru', 'RU'),
+        supportedLocales: const [Locale('ru', 'RU')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF2E7D32),

@@ -2,9 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/payment.dart';
 import '../models/payroll_result.dart';
 import '../models/employee.dart';
+import '../providers/app_provider.dart';
+import '../services/print_service.dart';
 
 class PayrollDetailDialog extends StatelessWidget {
   final Employee employee;
@@ -61,7 +64,21 @@ class PayrollDetailDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 0),
+              if (result.skippedWorkDays > 0) ...[
+                Material(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'В расчёт не вошли рабочие дни без ставки: ${result.skippedWorkDays}. '
+                      'Проверьте историю ставок сотрудника.',
+                      style: TextStyle(color: Colors.orange[900], fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               _buildStartTotals(currencyFormat, startingBalance),
               const SizedBox(height: 16),
               _buildAccrualSection(currencyFormat, daysFormat),
@@ -74,6 +91,30 @@ class PayrollDetailDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        TextButton.icon(
+          onPressed: () async {
+            final provider = context.read<AppProvider>();
+            if (provider.companySettings == null) {
+              await provider.loadCompanySettings();
+            }
+            try {
+              await PrintService.printEmployeeReport(
+                employee: employee,
+                result: result,
+                payments: sortedPayments,
+                startingBalance: startingBalance,
+                companySettings: provider.companySettings,
+              );
+            } catch (e) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Ошибка печати: $e')));
+            }
+          },
+          icon: const Icon(Icons.print, size: 18),
+          label: const Text('Печать'),
+        ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Закрыть'),

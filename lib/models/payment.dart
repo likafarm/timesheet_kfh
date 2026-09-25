@@ -1,3 +1,5 @@
+import '../utils/date_utils.dart';
+
 /// Модель выплаты сотруднику
 class Payment {
   final int? id;
@@ -31,11 +33,11 @@ class Payment {
     return Payment(
       id: map['id'] as int?,
       employeeId: map['employee_id'] as int,
-      paymentDate: DateTime.parse(map['payment_date'] as String),
+      paymentDate: parseDateIso(map['payment_date'] as String),
       amount: (map['amount'] as num).toDouble(),
       paymentType: map['payment_type'] as String? ?? 'salary',
-      periodStart: map['period_start'] as String?,
-      periodEnd: map['period_end'] as String?,
+      periodStart: dateOnlyString(map['period_start'] as String?),
+      periodEnd: dateOnlyString(map['period_end'] as String?),
       paymentMethod: map['payment_method'] as String?,
       documentNumber: map['document_number'] as String?,
       notes: map['notes'] as String?,
@@ -47,7 +49,7 @@ class Payment {
     return {
       'id': id,
       'employee_id': employeeId,
-      'payment_date': paymentDate.toIso8601String(),
+      'payment_date': formatDateIso(paymentDate),
       'amount': amount,
       'payment_type': paymentType,
       'period_start': periodStart,

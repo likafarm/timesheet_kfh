@@ -202,15 +202,21 @@ class BackupService {
     if (await file.exists()) await file.delete();
   }
 
-  /// Восстанавливает БД из бэкапа.
-  /// Не закрывает [currentDb] — это обязанность вызывающего кода (провайдера).
-  /// Вызывающий должен закрыть БД ДО вызова этого метода и переоткрыть ПОСЛЕ.
-  Future<bool> restoreFullBackup(String backupPath, Database currentDb) async {
+  /// Восстанавливает файл БД из бэкапа. [currentDbPath] — путь к основной БД
+  /// (снимать до закрытия соединения). Соседние `-wal`/`-shm` удаляются.
+  Future<bool> restoreFullBackup(String backupPath, String currentDbPath) async {
     try {
-      final currentDbPath = currentDb.path;
       final backupFile = File(backupPath);
-      if (!await backupFile.exists()) throw Exception('Файл бэкапа не найден');
+      if (!await backupFile.exists()) {
+        throw Exception('Файл бэкапа не найден');
+      }
       await backupFile.copy(currentDbPath);
+      for (final suffix in ['-wal', '-shm']) {
+        final sidecar = File('$currentDbPath$suffix');
+        if (await sidecar.exists()) {
+          await sidecar.delete();
+        }
+      }
       return true;
     } catch (e) {
       debugPrint('Ошибка восстановления БД: $e');
@@ -218,9 +224,7 @@ class BackupService {
     }
   }
 
-  /// Замена таблицы целиком.
-  /// Каждая таблица восстанавливается в отдельной транзакции,
-  /// чтобы crash не оставлял таблицу пустой.
+  /// Замена таблицы целиком с сохранением первичных ключей.
   Future<int> restoreTables(
     String backupPath,
     Database currentDb,
@@ -228,24 +232,54 @@ class BackupService {
   ) async {
     final backupDb = await openDatabase(backupPath);
     try {
+      await currentDb.execute('PRAGMA foreign_keys = OFF');
+      final ordered = _orderTablesForRestore(tableNames);
       int totalInserted = 0;
-      for (final table in tableNames) {
+      for (final table in ordered) {
         final rows = await backupDb.query(table);
-        if (rows.isEmpty) continue;
         await currentDb.transaction((txn) async {
           await txn.delete(table);
           for (final row in rows) {
             final mutableRow = Map<String, Object?>.from(row);
-            mutableRow.remove('id');
-            final id = await txn.insert(table, mutableRow);
-            if (id > 0) totalInserted++;
+            await txn.insert(
+              table,
+              mutableRow,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+            totalInserted++;
           }
         });
       }
       return totalInserted;
     } finally {
+      try {
+        await currentDb.execute('PRAGMA foreign_keys = ON');
+      } catch (_) {}
       await backupDb.close();
     }
+  }
+
+  static const _restoreTableOrder = [
+    'company_settings',
+    'employees',
+    'employee_rates',
+    'timesheet',
+    'payments',
+    'payroll_results',
+    'sick_leave',
+    'vacation',
+  ];
+
+  List<String> _orderTablesForRestore(List<String> tableNames) {
+    final remaining = List<String>.from(tableNames);
+    final ordered = <String>[];
+    for (final name in _restoreTableOrder) {
+      if (remaining.remove(name)) {
+        ordered.add(name);
+      }
+    }
+    ordered.addAll(remaining);
+    return ordered;
   }
 
   /// Получить список всех таблиц (кроме системных)
@@ -281,11 +315,6 @@ class BackupService {
 
     final backupDb = await openDatabase(backupPath);
     try {
-      final tableInfo = await currentDb.rawQuery(
-        'PRAGMA table_info($tableName)',
-      );
-      final hasIdColumn = tableInfo.any((col) => col['name'] == 'id');
-
       final placeholders = rowIds.map((_) => '?').join(',');
       final rows = await backupDb.query(
         tableName,
@@ -298,28 +327,11 @@ class BackupService {
       int processed = 0;
       for (final row in rows) {
         final mutableRow = Map<String, Object?>.from(row);
-        final id = mutableRow['id'];
-        if (hasIdColumn && id != null) {
-          final existing = await currentDb.query(
-            tableName,
-            where: 'id = ?',
-            whereArgs: [id],
-          );
-          mutableRow.remove('id');
-          if (existing.isNotEmpty) {
-            await currentDb.update(
-              tableName,
-              mutableRow,
-              where: 'id = ?',
-              whereArgs: [id],
-            );
-          } else {
-            await currentDb.insert(tableName, mutableRow);
-          }
-        } else {
-          mutableRow.remove('id');
-          await currentDb.insert(tableName, mutableRow);
-        }
+        await currentDb.insert(
+          tableName,
+          mutableRow,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
         processed++;
       }
       return processed;

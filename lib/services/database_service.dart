@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/models.dart';
 import '../models/employee_rate.dart';
+import '../utils/date_utils.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -24,7 +25,10 @@ class DatabaseService {
     final path = join(dbPath, 'kfx_time_tracking.db');
     return await openDatabase(
       path,
-      version: 7, // увеличена для таблицы payroll_results
+      version: 8,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -162,6 +166,7 @@ class DatabaseService {
         field_rate_used REAL,
         calculated_at TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'calculated',
+        skipped_work_days INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
       )
     ''');
@@ -233,6 +238,46 @@ class DatabaseService {
         'CREATE UNIQUE INDEX idx_payroll_unique ON payroll_results(employee_id, year, month)',
       );
     }
+    if (oldVersion < 8) {
+      await _normalizeCalendarDates(db);
+      await db.execute('DROP INDEX IF EXISTS idx_timesheet_unique');
+      await db.rawDelete('''
+        DELETE FROM timesheet
+        WHERE id NOT IN (
+          SELECT MAX(id) FROM timesheet GROUP BY employee_id, date
+        )
+      ''');
+      await db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_timesheet_unique ON timesheet(employee_id, date)',
+      );
+      try {
+        await db.execute(
+          'ALTER TABLE payroll_results ADD COLUMN skipped_work_days INTEGER NOT NULL DEFAULT 0',
+        );
+      } catch (_) {
+        // колонка уже есть
+      }
+    }
+  }
+
+  Future<void> _normalizeCalendarDates(Database db) async {
+    const updates = [
+      "UPDATE timesheet SET date = substr(date, 1, 10) WHERE date IS NOT NULL AND length(date) > 10",
+      "UPDATE employees SET hire_date = substr(hire_date, 1, 10) WHERE hire_date IS NOT NULL AND length(hire_date) > 10",
+      "UPDATE employees SET dismissal_date = substr(dismissal_date, 1, 10) WHERE dismissal_date IS NOT NULL AND length(dismissal_date) > 10",
+      "UPDATE payments SET payment_date = substr(payment_date, 1, 10) WHERE payment_date IS NOT NULL AND length(payment_date) > 10",
+      "UPDATE payments SET period_start = substr(period_start, 1, 10) WHERE period_start IS NOT NULL AND length(period_start) > 10",
+      "UPDATE payments SET period_end = substr(period_end, 1, 10) WHERE period_end IS NOT NULL AND length(period_end) > 10",
+      "UPDATE employee_rates SET start_date = substr(start_date, 1, 10) WHERE start_date IS NOT NULL AND length(start_date) > 10",
+      "UPDATE employee_rates SET end_date = substr(end_date, 1, 10) WHERE end_date IS NOT NULL AND length(end_date) > 10",
+    ];
+    for (final sql in updates) {
+      try {
+        await db.execute(sql);
+      } on DatabaseException {
+        // таблица может отсутствовать на очень старых копиях
+      }
+    }
   }
 
   // ==========================================================================
@@ -252,7 +297,7 @@ class DatabaseService {
     List<dynamic> whereArgs = [];
     if (activeOnly) {
       where = 'WHERE dismissal_date IS NULL OR dismissal_date > ?';
-      whereArgs = [DateTime.now().toIso8601String()];
+      whereArgs = [formatDateIso(DateTime.now())];
     }
     final maps = await db.rawQuery(
       'SELECT * FROM employees $where ORDER BY full_name',
@@ -307,9 +352,9 @@ class DatabaseService {
       await db.update(
         'employee_rates',
         {
-          'end_date': rate.startDate
-              .subtract(const Duration(days: 1))
-              .toIso8601String(),
+          'end_date': formatDateIso(
+            rate.startDate.subtract(const Duration(days: 1)),
+          ),
         },
         where: 'id = ?',
         whereArgs: [current.first['id']],
@@ -334,7 +379,7 @@ class DatabaseService {
     DateTime date,
   ) async {
     final db = await database;
-    final dateStr = date.toIso8601String();
+    final dateStr = formatDateIso(date);
     final maps = await db.query(
       'employee_rates',
       where:
@@ -356,7 +401,18 @@ class DatabaseService {
     final map = record.toMap();
     map.remove('id');
     map['created_at'] = DateTime.now().toIso8601String();
-    return await db.insert('timesheet', map);
+    try {
+      return await db.insert(
+        'timesheet',
+        map,
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    } on DatabaseException catch (e) {
+      if (e.isUniqueConstraintError()) {
+        throw Exception('Запись на эту дату уже есть');
+      }
+      rethrow;
+    }
   }
 
   Future<List<TimesheetRecord>> getTimesheetByPeriod(
@@ -365,8 +421,9 @@ class DatabaseService {
     int? employeeId,
   }) async {
     final db = await database;
-    String where = 'date >= ? AND date <= ?';
-    List<dynamic> whereArgs = [start.toIso8601String(), end.toIso8601String()];
+    final range = dateRangeExclusiveEnd(start, end);
+    String where = 'date >= ? AND date < ?';
+    List<dynamic> whereArgs = [range.$1, range.$2];
     if (employeeId != null) {
       where += ' AND employee_id = ?';
       whereArgs.add(employeeId);
@@ -385,10 +442,10 @@ class DatabaseService {
     DateTime date,
   ) async {
     final db = await database;
-    final dateStr = date.toIso8601String();
+    final dateStr = formatDateIso(date);
     final maps = await db.query(
       'timesheet',
-      where: 'employee_id = ? AND date = ?',
+      where: "employee_id = ? AND substr(date, 1, 10) = ?",
       whereArgs: [employeeId, dateStr],
     );
     if (maps.isEmpty) return null;
@@ -433,9 +490,10 @@ class DatabaseService {
     String where = 'employee_id = ?';
     List<dynamic> whereArgs = [employeeId];
     if (startDate != null && endDate != null) {
-      where += ' AND payment_date >= ? AND payment_date <= ?';
-      whereArgs.add(startDate.toIso8601String());
-      whereArgs.add(endDate.toIso8601String());
+      final range = dateRangeExclusiveEnd(startDate, endDate);
+      where += ' AND payment_date >= ? AND payment_date < ?';
+      whereArgs.add(range.$1);
+      whereArgs.add(range.$2);
     }
     final maps = await db.query(
       'payments',
@@ -454,9 +512,10 @@ class DatabaseService {
     String where = '1=1';
     List<dynamic> whereArgs = [];
     if (startDate != null && endDate != null) {
-      where += ' AND payment_date >= ? AND payment_date <= ?';
-      whereArgs.add(startDate.toIso8601String());
-      whereArgs.add(endDate.toIso8601String());
+      final range = dateRangeExclusiveEnd(startDate, endDate);
+      where += ' AND payment_date >= ? AND payment_date < ?';
+      whereArgs.add(range.$1);
+      whereArgs.add(range.$2);
     }
     final maps = await db.query(
       'payments',
@@ -591,11 +650,15 @@ class DatabaseService {
     double totalSalary = 0.0;
     double? lastBaseRate;
     double? lastFieldRate;
+    int skippedWorkDays = 0;
 
     for (var record in records) {
       if (record.dayType == 'work') {
         final rate = await getEmployeeRateAtDate(employeeId, record.date);
-        if (rate == null) continue;
+        if (rate == null) {
+          skippedWorkDays++;
+          continue;
+        }
         lastBaseRate = rate.baseRate;
         lastFieldRate = rate.fieldRate;
         final dayRate = record.workPlace == 'base'
@@ -625,6 +688,7 @@ class DatabaseService {
       'totalSalary': totalSalary,
       'baseRateUsed': lastBaseRate,
       'fieldRateUsed': lastFieldRate,
+      'skippedWorkDays': skippedWorkDays,
     };
   }
 
@@ -692,10 +756,11 @@ class DatabaseService {
     final db = await database;
     final start = DateTime(year, month, 1);
     final end = DateTime(year, month + 1, 0);
+    final range = dateRangeExclusiveEnd(start, end);
     final maps = await db.query(
       'timesheet',
-      where: 'employee_id = ? AND date >= ? AND date <= ?',
-      whereArgs: [employeeId, start.toIso8601String(), end.toIso8601String()],
+      where: 'employee_id = ? AND date >= ? AND date < ?',
+      whereArgs: [employeeId, range.$1, range.$2],
       orderBy: 'created_at DESC',
       limit: 1,
     );
@@ -732,7 +797,7 @@ class DatabaseService {
     ''', [year, year, month]);
 
     // 2. Получаем выплаты (Сумма до 1-го числа текущего месяца)
-    final startOfMonth = DateTime(year, month, 1).toIso8601String();
+    final startOfMonth = formatDateIso(DateTime(year, month, 1));
     final paidRows = await db.rawQuery('''
       SELECT employee_id, SUM(amount) as sum_paid
       FROM payments

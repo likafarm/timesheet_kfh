@@ -1,9 +1,14 @@
 
 
 [Setup]
+AppId={{8F3A1B62-9C47-4D0E-B2A1-6E5C8D90F3A1}
 AppName=Учёт рабочего времени КФХ
 AppVersion=1.0.0
-AppPublisher=КФХ
+AppPublisher=Иван Лопатин
+AppPublisherURL=mailto:iilopatin@ya.ru
+AppSupportURL=mailto:iilopatin@ya.ru
+AppContact=iilopatin@ya.ru
+LicenseFile=LICENSE.txt
 DefaultDirName={autopf}\KFH Time Tracking
 DefaultGroupName=Учёт рабочего времени КФХ
 OutputDir=installer_output
@@ -21,6 +26,7 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Files]
 Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Учёт рабочего времени КФХ"; Filename: "{app}\timesheet_kfh.exe"

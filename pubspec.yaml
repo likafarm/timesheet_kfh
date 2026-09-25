@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Управление состоянием
   provider: ^6.1.5
@@ -22,12 +24,16 @@ dependencies:
   cupertino_icons: ^1.0.9
 
   # Форматирование дат и чисел
-  intl: ^0.20.3
+  intl: ^0.20.2
 
   # Локальное хранилище настроек
   shared_preferences: ^2.5.5
 
   path_provider: ^2.1.0
+
+  # Печать PDF (табель и детальный отчёт)
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +42,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/

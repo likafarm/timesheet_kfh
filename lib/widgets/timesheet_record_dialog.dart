@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
+import '../models/employee_rate.dart';
 import '../providers/app_provider.dart';
+import '../utils/string_utils.dart';
 import 'common_widgets.dart';
 
 class TimesheetRecordDialog extends StatefulWidget {
@@ -35,6 +37,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   // Для ошибок
   String? _workPlaceError;
   bool _isSaving = false;
+  EmployeeRate? _rateAtDate;
 
   @override
   void initState() {
@@ -54,6 +57,18 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
         _days = 1.0;
       }
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRateAtDate());
+  }
+
+  Future<void> _loadRateAtDate() async {
+    final id = widget.employee.id;
+    if (id == null) return;
+    final rate = await context.read<AppProvider>().db.getEmployeeRateAtDate(
+      id,
+      _date,
+    );
+    if (!mounted) return;
+    setState(() => _rateAtDate = rate);
   }
 
   @override
@@ -174,9 +189,27 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                       isDense: true,
                       isExpanded: true,
                       hint: const Text('Выберите место'),
-                      items: const [
-                        DropdownMenuItem(value: 'base', child: Text('База')),
-                        DropdownMenuItem(value: 'field', child: Text('Поле')),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'base',
+                          child: Text(
+                            StringUtils.workPlaceLabel(
+                              'base',
+                              baseRate: _rateAtDate?.baseRate ??
+                                  widget.employee.baseRate,
+                            ),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'field',
+                          child: Text(
+                            StringUtils.workPlaceLabel(
+                              'field',
+                              fieldRate: _rateAtDate?.fieldRate ??
+                                  widget.employee.fieldRate,
+                            ),
+                          ),
+                        ),
                       ],
                       onChanged: (v) {
                         setState(() {
@@ -187,6 +220,15 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                     ),
                   ),
                 ),
+                if (_dayType == 'work' && _workPlace != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _workPlace == 'base'
+                        ? 'Ставка на базе: ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
+                        : 'Ставка в поле: ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
                 const SizedBox(height: 12),
               ],
 
@@ -249,6 +291,12 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
           widget.employee.position,
           style: TextStyle(color: Colors.grey[600], fontSize: 13),
         ),
+        const SizedBox(height: 4),
+        Text(
+          'Ставки: база ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
+          ' · поле ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
+          style: TextStyle(color: Colors.grey[700], fontSize: 12),
+        ),
         const SizedBox(height: 8),
         ListTile(
           contentPadding: EdgeInsets.zero,
@@ -266,7 +314,10 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
               firstDate: DateTime(2020),
               lastDate: DateTime(2030),
             );
-            if (picked != null) setState(() => _date = picked);
+            if (picked != null) {
+              setState(() => _date = picked);
+              _loadRateAtDate();
+            }
           },
         ),
       ],

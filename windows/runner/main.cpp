@@ -26,8 +26,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
-  if (!window.Create(L"timesheet_kfh", origin, size)) {
+  Win32Window::Size size(1280, 768);
+  // Unicode escapes: MSVC otherwise misreads UTF-8 in L"..." (mojibake in title).
+  if (!window.Create(
+          L"\x0423\x0447\x0451\x0442 \x0440\x0430\x0431\x043e\x0447\x0435\x0433\x043e "
+          L"\x0432\x0440\x0435\x043c\x0435\x043d\x0438 \x041a\x0424\x0425",
+          origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

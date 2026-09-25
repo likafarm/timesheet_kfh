@@ -1,3 +1,5 @@
+import '../utils/date_utils.dart';
+
 /// Модель записи табеля (упрощённая)
 class TimesheetRecord {
   final int? id;
@@ -24,7 +26,7 @@ class TimesheetRecord {
     return TimesheetRecord(
       id: map['id'] as int?,
       employeeId: map['employee_id'] as int,
-      date: DateTime.parse(map['date'] as String),
+      date: parseDateIso(map['date'] as String),
       dayType: map['day_type'] as String? ?? 'work',
       days: (map['days'] as num?)?.toDouble() ?? 0.0,
       workPlace: map['work_place'] as String?,
@@ -37,7 +39,7 @@ class TimesheetRecord {
     return {
       'id': id,
       'employee_id': employeeId,
-      'date': date.toIso8601String(),
+      'date': formatDateIso(date),
       'day_type': dayType,
       'days': days,
       'work_place': workPlace,

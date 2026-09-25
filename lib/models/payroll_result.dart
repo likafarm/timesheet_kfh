@@ -15,6 +15,8 @@ class PayrollResult {
   final double? fieldRateUsed;
   final DateTime calculatedAt;
   final String status; // 'calculated', 'verified', 'discrepancy'
+  /// Рабочие дни без ставки — не вошли в сумму.
+  final int skippedWorkDays;
 
   PayrollResult({
     this.id,
@@ -30,6 +32,7 @@ class PayrollResult {
     this.fieldRateUsed,
     DateTime? calculatedAt,
     this.status = 'calculated',
+    this.skippedWorkDays = 0,
   }) : calculatedAt = calculatedAt ?? DateTime.now();
 
   factory PayrollResult.fromMap(Map<String, dynamic> map) {
@@ -51,6 +54,7 @@ class PayrollResult {
           : null,
       calculatedAt: DateTime.parse(map['calculated_at'] as String),
       status: map['status'] as String? ?? 'calculated',
+      skippedWorkDays: (map['skipped_work_days'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -69,6 +73,7 @@ class PayrollResult {
       'field_rate_used': fieldRateUsed,
       'calculated_at': calculatedAt.toIso8601String(),
       'status': status,
+      'skipped_work_days': skippedWorkDays,
     };
   }
 
@@ -86,6 +91,7 @@ class PayrollResult {
     double? fieldRateUsed,
     DateTime? calculatedAt,
     String? status,
+    int? skippedWorkDays,
   }) {
     return PayrollResult(
       id: id ?? this.id,
@@ -101,6 +107,7 @@ class PayrollResult {
       fieldRateUsed: fieldRateUsed ?? this.fieldRateUsed,
       calculatedAt: calculatedAt ?? this.calculatedAt,
       status: status ?? this.status,
+      skippedWorkDays: skippedWorkDays ?? this.skippedWorkDays,
     );
   }
 

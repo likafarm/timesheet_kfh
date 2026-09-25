@@ -28,8 +28,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   static const double _colNum = 40;
   static const double _colEmployee = 220;
-  static const double _colStart = 110;
-  static const double _colDays = 100;
+  static const double _colStart = 128;
+  static const double _colDays = 112;
   static const double _colSalary = 110;
   static const double _colBonus = 110;
   static const double _colPayments = 130;
@@ -184,9 +184,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       await provider.calculatePayrollForMonth(_selectedYear, _selectedMonth);
       await _loadData();
       if (!mounted) return;
+      final skipped = _results.where((r) => r.skippedWorkDays > 0).length;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Зарплата рассчитана для всех сотрудников'),
+        SnackBar(
+          content: Text(
+            skipped > 0
+                ? 'Зарплата рассчитана. У $skipped сотр. есть рабочие дни без ставки — сумма занижена.'
+                : 'Зарплата рассчитана для всех сотрудников',
+          ),
         ),
       );
     } catch (e) {
@@ -361,7 +366,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     _colPayments +
                     _colBalance +
                     _colActions +
-                    32,
+                    60,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -408,16 +413,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
             width: _colEmployee,
             child: Text('Сотрудник', style: headerStyle()),
           ),
-          SizedBox(
-            width: _colStart,
-            child: Text(
-              'На начало',
-              style: headerStyle(),
-              textAlign: TextAlign.right,
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: SizedBox(
+              width: _colStart,
+              child: Text(
+                'На начало',
+                style: headerStyle(),
+                textAlign: TextAlign.right,
+              ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 0),
+            padding: const EdgeInsets.only(left: 10, right: 8),
             child: SizedBox(
               width: _colDays,
               child: Text('Отработано', style: headerStyle()),
@@ -507,6 +515,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (result.skippedWorkDays > 0)
+                    Text(
+                      'Без ставки: ${result.skippedWorkDays} дн.',
+                      style: TextStyle(fontSize: 10, color: Colors.red[700]),
+                    ),
                   Text(
                     employee.position,
                     style: TextStyle(fontSize: 10, color: Colors.grey[600]),
@@ -515,25 +528,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               ),
             ),
-            SizedBox(
-              width: _colStart,
-              child: Text(
-                '${currencyFormat.format(provider.startingBalances[result.employeeId] ?? 0.0)} ₽',
-                style: TextStyle(
-                  fontSize: 12,
-                  color:
-                      (provider.startingBalances[result.employeeId] ?? 0.0) < 0
-                      ? Colors.red
-                      : Colors.green[800],
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: SizedBox(
+                width: _colStart,
+                child: Text(
+                  '${currencyFormat.format(provider.startingBalances[result.employeeId] ?? 0.0)} ₽',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        (provider.startingBalances[result.employeeId] ?? 0.0) < 0
+                        ? Colors.red
+                        : Colors.green[800],
+                  ),
+                  textAlign: TextAlign.right,
                 ),
-                textAlign: TextAlign.right,
               ),
             ),
-            SizedBox(
-              width: _colDays,
-              child: Text(
-                '${daysFormat.format(totalDays)} дн.',
-                style: const TextStyle(fontSize: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 10, right: 8),
+              child: SizedBox(
+                width: _colDays,
+                child: Text(
+                  '${daysFormat.format(totalDays)} дн.',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
 

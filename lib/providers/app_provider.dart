@@ -276,6 +276,15 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
     try {
+      final existing = await _db.getTimesheetRecord(
+        record.employeeId,
+        record.date,
+      );
+      if (existing != null) {
+        _error = 'Запись на эту дату уже есть';
+        notifyListeners();
+        return;
+      }
       await _db.insertTimesheetRecord(record);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
@@ -440,20 +449,7 @@ class AppProvider extends ChangeNotifier {
           year,
           month,
         );
-        final result = PayrollResult(
-          employeeId: emp.id!,
-          year: year,
-          month: month,
-          baseDays: data['baseDays'],
-          fieldDays: data['fieldDays'],
-          sickDays: data['sickDays'],
-          vacationDays: data['vacationDays'],
-          totalSalary: data['totalSalary'],
-          baseRateUsed: data['baseRateUsed'],
-          fieldRateUsed: data['fieldRateUsed'],
-          calculatedAt: DateTime.now(),
-          status: 'calculated',
-        );
+        final result = _payrollFromCalc(emp.id!, year, month, data);
         await _db.savePayrollResult(result);
       }
       await loadPayrollResultsForMonth(year, month);
@@ -480,7 +476,9 @@ class AppProvider extends ChangeNotifier {
         (result.fieldDays - currentData['fieldDays']).abs() < epsilon &&
         (result.sickDays - currentData['sickDays']).abs() < epsilon &&
         (result.vacationDays - currentData['vacationDays']).abs() < epsilon &&
-        (result.totalSalary - currentData['totalSalary']).abs() < epsilon;
+        (result.totalSalary - currentData['totalSalary']).abs() < epsilon &&
+        result.skippedWorkDays ==
+            ((currentData['skippedWorkDays'] as num?)?.toInt() ?? 0);
   }
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
@@ -501,7 +499,18 @@ class AppProvider extends ChangeNotifier {
       year,
       month,
     );
-    final result = PayrollResult(
+    final result = _payrollFromCalc(employeeId, year, month, data);
+    await _db.savePayrollResult(result);
+    setNeedRefreshReports(true);
+  }
+
+  PayrollResult _payrollFromCalc(
+    int employeeId,
+    int year,
+    int month,
+    Map<String, dynamic> data,
+  ) {
+    return PayrollResult(
       employeeId: employeeId,
       year: year,
       month: month,
@@ -514,9 +523,8 @@ class AppProvider extends ChangeNotifier {
       fieldRateUsed: data['fieldRateUsed'],
       calculatedAt: DateTime.now(),
       status: 'calculated',
+      skippedWorkDays: (data['skippedWorkDays'] as num?)?.toInt() ?? 0,
     );
-    await _db.savePayrollResult(result);
-    setNeedRefreshReports(true);
   }
 
   // ==========================================================================
@@ -556,9 +564,12 @@ class AppProvider extends ChangeNotifier {
   Future<bool> restoreFullBackup(String backupPath) async {
     try {
       final db = await _db.database;
-      // Закрываем БД здесь (единственный раз) — BackupService только копирует файл.
+      final dbPath = db.path;
       await _db.close();
-      final success = await _backupService.restoreFullBackup(backupPath, db);
+      final success = await _backupService.restoreFullBackup(
+        backupPath,
+        dbPath,
+      );
       if (success) {
         await loadAllData();
       }

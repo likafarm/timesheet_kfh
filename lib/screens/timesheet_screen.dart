@@ -9,6 +9,7 @@ import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
 import '../widgets/daily_timesheet_dialog.dart';
+import '../services/print_service.dart';
 
 class TimesheetScreen extends StatefulWidget {
   const TimesheetScreen({super.key});
@@ -69,6 +70,32 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         onSaved: _loadTimesheet,
       ),
     );
+  }
+
+  Future<void> _printTimesheet() async {
+    final provider = context.read<AppProvider>();
+    if (provider.employees.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Нет сотрудников для печати')),
+      );
+      return;
+    }
+    if (provider.companySettings == null) {
+      await provider.loadCompanySettings();
+    }
+    try {
+      await PrintService.printTimesheet(
+        month: _selectedMonth,
+        employees: provider.employees,
+        records: provider.timesheetRecords,
+        companySettings: provider.companySettings,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка печати: $e')));
+    }
   }
 
   Future<void> _calculatePayroll() async {
@@ -135,6 +162,11 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         title: const Text('Табель учёта времени'),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: _printTimesheet,
+            tooltip: 'Печать табеля',
+          ),
           IconButton(
             icon: const Icon(Icons.calculate),
             onPressed: _isCalculating ? null : _calculatePayroll,

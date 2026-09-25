@@ -101,7 +101,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'База данных успешно восстановлена. Перезапустите приложение для применения изменений.',
+                'База данных восстановлена. Данные перезагружены.',
               ),
             ),
           );

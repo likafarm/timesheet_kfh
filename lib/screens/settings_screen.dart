@@ -1,5 +1,6 @@
 // lib/screens/settings_screen.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
@@ -249,25 +250,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const Divider(height: 1),
 
-                        // Просмотр базы данных
-                        ListTile(
-                          leading: const Icon(Icons.storage),
-                          title: const Text('Просмотр базы данных'),
-                          subtitle: const Text(
-                            'Просмотр содержимого таблиц (отладка)',
+                        if (kDebugMode) ...[
+                          ListTile(
+                            leading: const Icon(Icons.storage),
+                            title: const Text('Просмотр базы данных'),
+                            subtitle: const Text(
+                              'Просмотр содержимого таблиц (отладка)',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DatabaseViewerScreen(),
+                                ),
+                              );
+                            },
                           ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const DatabaseViewerScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const Divider(height: 1),
+                          const Divider(height: 1),
+                        ],
 
                         // Синхронизация с облаком (заглушка)
                         ListTile(
@@ -297,6 +299,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 Text(
                                   'Программа для ведения табеля учёта рабочего времени, '
                                   'расчёта зарплаты и формирования отчётов в КФХ.',
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Правообладатель: Иван Лопатин.\n'
+                                  'Контакты: iilopatin@ya.ru',
                                 ),
                               ],
                             );

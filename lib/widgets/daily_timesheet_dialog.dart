@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
+import '../models/employee_rate.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import '../widgets/common_widgets.dart';
@@ -30,6 +31,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   late final Map<int, String> _dayTypes;
   late final Map<int, double> _dayCounts;
   late final Map<int, String?> _workPlaces;
+  final Map<int, EmployeeRate?> _ratesAtDate = {};
   final Map<int, String> _workPlaceErrors = {};
 
   bool _isLoading = false;
@@ -45,7 +47,6 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   ];
   final List<double> _dayCountOptions = [0.5, 1.0];
   final List<String> _workPlaceOptions = ['base', 'field'];
-  final List<String> _workPlaceLabels = ['База', 'Поле'];
 
   @override
   void initState() {
@@ -76,6 +77,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         _allSelected = true;
         _loadExistingRecords();
       });
+      await _loadRatesAtDate();
     } finally {
       setState(() => _isLoading = false);
     }
@@ -104,6 +106,22 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
     setState(() {});
   }
 
+  Future<void> _loadRatesAtDate() async {
+    final provider = context.read<AppProvider>();
+    final next = <int, EmployeeRate?>{};
+    for (final emp in _employees) {
+      final id = emp.id;
+      if (id == null) continue;
+      next[id] = await provider.db.getEmployeeRateAtDate(id, _selectedDate);
+    }
+    if (!mounted) return;
+    setState(() {
+      _ratesAtDate
+        ..clear()
+        ..addAll(next);
+    });
+  }
+
   void _toggleSelectAll(bool? value) {
     setState(() {
       _allSelected = value ?? false;
@@ -124,7 +142,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         ],
       ),
       content: SizedBox(
-        width: 700,
+        width: 780,
         height: 500,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -150,6 +168,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                           _selectedDate = date;
                           _workPlaceErrors.clear();
                         });
+                        _loadRatesAtDate();
                         _loadExistingRecords();
                       }
                     },
@@ -228,9 +247,9 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                           ),
                                           const SizedBox(width: 8),
                                           const SizedBox(
-                                            width: 100,
+                                            width: 180,
                                             child: Text(
-                                              'Место',
+                                              'Место / ставка',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 12,
@@ -406,7 +425,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                             const SizedBox(width: 8),
                                             // Место
                                             SizedBox(
-                                              width: 100,
+                                              width: 180,
                                               child: dayType == 'work'
                                                   ? DropdownButton<String?>(
                                                       value: workPlace,
@@ -434,15 +453,22 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                         ..._workPlaceOptions.map((
                                                           e,
                                                         ) {
-                                                          final idx =
-                                                              _workPlaceOptions
-                                                                  .indexOf(e);
+                                                          final rate =
+                                                              _ratesAtDate[id];
                                                           return DropdownMenuItem<
                                                             String?
                                                           >(
                                                             value: e,
                                                             child: Text(
-                                                              _workPlaceLabels[idx],
+                                                              StringUtils.workPlaceLabel(
+                                                                e,
+                                                                baseRate:
+                                                                    rate?.baseRate ??
+                                                                    employee.baseRate,
+                                                                fieldRate:
+                                                                    rate?.fieldRate ??
+                                                                    employee.fieldRate,
+                                                              ),
                                                               style:
                                                                   const TextStyle(
                                                                     fontSize:

@@ -1,3 +1,5 @@
+import '../utils/date_utils.dart';
+
 /// Модель сотрудника КФХ (упрощённая)
 class Employee {
   final int? id;
@@ -26,10 +28,8 @@ class Employee {
       id: map['id'] as int?,
       fullName: map['full_name'] as String,
       position: map['position'] as String,
-      hireDate: DateTime.parse(map['hire_date'] as String),
-      dismissalDate: map['dismissal_date'] != null
-          ? DateTime.parse(map['dismissal_date'] as String)
-          : null,
+      hireDate: parseDateIso(map['hire_date'] as String),
+      dismissalDate: parseDateIsoOrNull(map['dismissal_date'] as String?),
       baseRate: (map['base_rate'] as num).toDouble(),
       fieldRate: (map['field_rate'] as num).toDouble(),
     );
@@ -40,8 +40,8 @@ class Employee {
       'id': id,
       'full_name': fullName,
       'position': position,
-      'hire_date': hireDate.toIso8601String(),
-      'dismissal_date': dismissalDate?.toIso8601String(),
+      'hire_date': formatDateIso(hireDate),
+      'dismissal_date': formatDateIsoOrNull(dismissalDate),
       'base_rate': baseRate,
       'field_rate': fieldRate,
     };
