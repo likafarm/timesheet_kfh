@@ -1,0 +1,9 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Схема v2 хранит даты строками ISO — как в старой базе,
+          # чтобы значения читались глазами в просмотре базы.
+          store_date_time_values_as_text: true
+          named_parameters: true

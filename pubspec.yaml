@@ -9,6 +9,7 @@ environment:
 # Dart workspace: пакеты в packages/ разрешаются вместе с приложением
 workspace:
   - packages/domain
+  - packages/local_db
 
 dependencies:
   flutter:

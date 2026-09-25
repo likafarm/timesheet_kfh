@@ -33,6 +33,7 @@ flutter pub get
 flutter analyze
 flutter test                      # тесты приложения
 cd packages/domain; dart test     # тесты доменного пакета
+cd packages/local_db; dart test   # тесты локальной базы (drift)
 flutter run -d windows
 ```
 
