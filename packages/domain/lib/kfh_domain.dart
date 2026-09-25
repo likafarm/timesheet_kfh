@@ -9,4 +9,6 @@ export 'src/models/payment.dart';
 export 'src/models/payroll_result.dart';
 export 'src/models/timesheet_record.dart';
 export 'src/payroll.dart';
+export 'src/payroll_service.dart';
+export 'src/repositories.dart';
 export 'src/utils/date_utils.dart';

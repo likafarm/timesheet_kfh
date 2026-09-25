@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:kfh_domain/kfh_domain.dart' show DuplicateEntryException;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:test/test.dart';
 

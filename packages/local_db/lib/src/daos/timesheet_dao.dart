@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 
 import '../database.dart';
-import '../exceptions.dart';
 import '../tables/tables.dart';
 import 'sync_stamping.dart';
 
