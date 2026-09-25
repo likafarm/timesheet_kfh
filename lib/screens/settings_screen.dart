@@ -292,6 +292,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: const Text('О программе'),
                           subtitle: Text('Версия $_version'),
                           onTap: () {
+                            final dbPath =
+                                context.read<AppProvider>().db.databasePath;
                             showAboutDialog(
                               context: context,
                               applicationName: 'Учёт рабочего времени КФХ',
@@ -300,16 +302,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 Icons.agriculture,
                                 size: 48,
                               ),
-                              children: const [
-                                Text(
+                              children: [
+                                const Text(
                                   'Программа для ведения табеля учёта рабочего времени, '
                                   'расчёта зарплаты и формирования отчётов в КФХ.',
                                 ),
-                                SizedBox(height: 12),
-                                Text(
+                                const SizedBox(height: 12),
+                                const Text(
                                   'Правообладатель: Иван Лопатин.\n'
                                   'Контакты: iilopatin@ya.ru',
                                 ),
+                                if (dbPath != null) ...[
+                                  const SizedBox(height: 12),
+                                  SelectableText('База данных:\n$dbPath'),
+                                ],
                               ],
                             );
                           },
