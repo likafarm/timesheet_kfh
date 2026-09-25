@@ -6,7 +6,8 @@
 ## Статус
 
 - Этап 0 (гигиена, тесты, вынос расчёта ЗП) — **завершён** 2026-09-25, влит в `main`.
-- База перенесена в `%LOCALAPPDATA%\KFH Time Tracking` 2026-09-25, влито в `main`. Рабочая база — бывшая база из папки проекта. Следующий шаг — этап 1 (drift, UUID, схема v2).
+- Перенос базы в AppData — **завершён** 2026-09-25: рабочая база в `%LOCALAPPDATA%\KFH Time Tracking`, старые файлы в папке программы удалены владельцем.
+- Следующий шаг: этап 1 (drift, UUID, схема v2).
 
 ## Команды
 
@@ -16,6 +17,8 @@ flutter test                        # тесты в test/, должны быть
 flutter build windows --release     # ~2 мин
 .\build_installer.ps1               # установщик Inno Setup → installer_output\
 ```
+
+Inno Setup стоит в `C:\Program Files (x86)\Inno Setup 6\`, но не в PATH — тогда скрипт собирает только ZIP. Установщик вручную: `& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=<версия>" installer.iss`.
 
 `flutter analyze` и `flutter build` выводят много лишнего — смотреть только хвост вывода (`| tail`).
 
@@ -43,6 +46,8 @@ flutter build windows --release     # ~2 мин
 - Развитие идёт по этапам из `DEVELOPMENT_PLAN.md`. **Каждый этап — только после явного согласия владельца**, в ветке `feature/stage-N-...`.
 - Требования к интерфейсу — `UI_REQUIREMENTS.md` (читать при работе над экранами, а не целиком каждый раз).
 - Любое изменение схемы БД или миграция — только после свежей резервной копии и на копии реальной базы. Боевую базу не трогать.
+- Боевая база — `%LOCALAPPDATA%\KFH Time Tracking\kfx_time_tracking.db`. `flutter run` (debug) работает с отдельной базой в `KFH Time Tracking (debug)`.
+- Claude desktop — MSIX-приложение: записи его инструментов в `%LOCALAPPDATA%` виртуализируются в `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\`, другим программам они не видны, а при чтении виртуальная копия заслоняет настоящую. К настоящей AppData обращаться через `\\localhost\C$\Users\<пользователь>\AppData\Local\...`. `Документы` не виртуализируются.
 - Перед коммитом: `flutter analyze` и `flutter test` зелёные.
 - `build_installer.ps1` держать в ASCII (транслит): Windows PowerShell 5.1 читает UTF-8 без BOM как ANSI.
 - Рабочие файлы в LF, Git конвертирует их в CRLF — это нормально.
