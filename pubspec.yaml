@@ -34,6 +34,7 @@ dependencies:
   # Печать PDF (табель и детальный отчёт)
   pdf: ^3.11.3
   printing: ^5.14.2
+  package_info_plus: ^10.2.1
 
 dev_dependencies:
   flutter_test:

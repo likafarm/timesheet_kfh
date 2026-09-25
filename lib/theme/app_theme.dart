@@ -19,82 +19,18 @@ class AppTheme {
   static const double buttonHeight = 48.0;
   static const double inputHeight = 56.0;
 
-  static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
+  static final ThemeData lightTheme = _build(Brightness.light);
+  static final ThemeData darkTheme = _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) => ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
-      brightness: Brightness.light,
+      brightness: brightness,
     ),
-    scaffoldBackgroundColor: backgroundColor,
+    useMaterial3: true,
     cardTheme: CardThemeData(
-      // ✅ исправлено: CardThemeData вместо CardTheme
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(defaultRadius),
-      ),
-      margin: const EdgeInsets.all(8),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: surfaceColor,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(defaultRadius),
-        borderSide: BorderSide(color: Colors.grey[300]!),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(defaultRadius),
-        borderSide: BorderSide(color: Colors.grey[300]!),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(defaultRadius),
-        borderSide: BorderSide(color: primaryColor, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(defaultRadius),
-        borderSide: BorderSide(color: errorColor),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      isDense: false,
-      labelStyle: TextStyle(color: textSecondary),
-      hintStyle: TextStyle(color: textHint),
-      errorStyle: TextStyle(color: errorColor),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, buttonHeight),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(defaultRadius),
-        ),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        minimumSize: const Size(double.infinity, buttonHeight),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(defaultRadius),
-        ),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-      ),
-    ),
-    appBarTheme: const AppBarTheme(
-      elevation: 0,
-      centerTitle: false,
-      titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-    ),
-    textTheme: const TextTheme(
-      headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-      bodyLarge: TextStyle(fontSize: 16),
-      bodyMedium: TextStyle(fontSize: 14),
-      bodySmall: TextStyle(fontSize: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 }

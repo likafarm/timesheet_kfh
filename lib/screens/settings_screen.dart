@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'database_viewer_screen.dart';
@@ -28,10 +29,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _hasChanges = false;
   bool _initialized = false;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().loadCompanySettings();
     });
@@ -285,12 +290,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ListTile(
                           leading: const Icon(Icons.info_outline),
                           title: const Text('О программе'),
-                          subtitle: const Text('Версия 1.0.0'),
+                          subtitle: Text('Версия $_version'),
                           onTap: () {
                             showAboutDialog(
                               context: context,
                               applicationName: 'Учёт рабочего времени КФХ',
-                              applicationVersion: '1.0.0',
+                              applicationVersion: _version,
                               applicationIcon: const Icon(
                                 Icons.agriculture,
                                 size: 48,

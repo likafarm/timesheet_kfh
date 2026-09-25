@@ -8,7 +8,14 @@ Set-Location $PSScriptRoot
 $releaseDir = "build\windows\x64\runner\Release"
 $outputDir = "installer_output"
 $appName = "timesheet_kfh"
-$setupName = "KFH_TimeTracking_Setup_1.0.0"
+# Versiya - edinstvenny istochnik pubspec.yaml ("version: 1.2.3+4" -> "1.2.3")
+$versionLine = Select-String -Path "pubspec.yaml" -Pattern '^version:\s*([0-9.]+)' | Select-Object -First 1
+if (-not $versionLine) {
+    Write-Host "[ERROR] Ne naidena versiya v pubspec.yaml" -ForegroundColor Red
+    exit 1
+}
+$appVersion = $versionLine.Matches[0].Groups[1].Value
+$setupName = "KFH_TimeTracking_Setup_$appVersion"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -31,7 +38,7 @@ if ($iscc) {
     Write-Host "[INFO] Inno Setup naiden: $($iscc.Source)" -ForegroundColor Green
     Write-Host "[ACTION] Kompiliaciya installer.iss ..." -ForegroundColor Yellow
     Write-Host ""
-    & iscc installer.iss
+    & iscc "/DAppVer=$appVersion" installer.iss
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Oshibka sborki ustanovshika (kod $LASTEXITCODE)" -ForegroundColor Red
         exit 1
