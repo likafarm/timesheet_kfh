@@ -113,7 +113,7 @@ timesheet_kfh/
 - [x] 2.1. Каркас сервера `server/` (workspace): настройки из окружения, JSON-журнал, ошибки API, `GET /health`, Dockerfile, локальный стенд `docker-compose.dev.yml`.
 - [x] 2.2. Схема MySQL (`server/migrations/0001_initial.sql`) и раннер миграций; сверка полей со снимком drift.
 - [x] 2.3. Авторизация (JWT + refresh), пользователи, первый админ командой на сервере.
-- [ ] 2.4. `POST /sync/push`, `GET /sync/pull`: LWW, `change_log`, аудит, идемпотентность.
+- [x] 2.4. `POST /sync/push`, `GET /sync/pull`: LWW, `change_log` под очередью записи, эпоха, закрытые месяцы, аудит; формат обмена — в `kfh_domain`.
 - [ ] 2.5. Закрытие периодов, расчёт ЗП на сервере, эндпоинты чтения.
 - [ ] 2.6. Импорт текущей базы со сверкой (утилита выгрузки JSON в клиенте).
 - [ ] 2.7. Развёртывание на VPS (Caddy, firewall, `deploy.sh`) — нужен доступ.

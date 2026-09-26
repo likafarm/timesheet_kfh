@@ -11,4 +11,6 @@ export 'src/models/timesheet_record.dart';
 export 'src/payroll.dart';
 export 'src/payroll_service.dart';
 export 'src/repositories.dart';
+export 'src/sync/sync_change.dart';
+export 'src/sync/sync_tables.dart';
 export 'src/utils/date_utils.dart';

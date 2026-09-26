@@ -91,10 +91,12 @@ Future<void> main(List<String> args) async {
     accessTokens: AccessTokens(utf8.encode(config.requireJwtSecret())),
     logger: logger,
   );
+  final authApi = AuthApi(auth, trustProxy: config.trustProxy);
   final handler = buildHandler(
     db: db,
     logger: logger,
-    authApi: AuthApi(auth, trustProxy: config.trustProxy),
+    authApi: authApi,
+    syncApi: SyncApi(SyncService(db: db, logger: logger), authApi),
   );
   final server =
       await shelf_io.serve(handler, InternetAddress.anyIPv4, config.port);

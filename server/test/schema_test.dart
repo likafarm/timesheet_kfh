@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart' as local;
 import 'package:kfh_server/kfh_server.dart';
 import 'package:test/test.dart';
@@ -86,6 +87,49 @@ void main() {
         _ => false,
       };
     }
+
+    test('описание обмена (kfh_domain) совпадает с MySQL, длины влезают',
+        () async {
+      for (final table in syncTables) {
+        final r = await testDb.db.execute(
+            'SELECT CAST(column_name AS CHAR) AS name, '
+            'CAST(data_type AS CHAR) AS type, '
+            "is_nullable = 'YES' AS nullable, "
+            'character_maximum_length AS len, CAST(extra AS CHAR) AS extra '
+            'FROM information_schema.columns '
+            'WHERE table_schema = DATABASE() AND table_name = :t',
+            {'t': table.name});
+        final server = {
+          for (final row in r.rows)
+            if (!row.textOf('extra').contains('GENERATED'))
+              row.textOf('name'): row,
+        };
+        const envelope = {'uuid', 'updated_at', 'deleted', 'edited_by'};
+        expect(server.keys.toSet(), {...table.columnNames, ...envelope},
+            reason: table.name);
+        for (final column in table.columns) {
+          final row = server[column.name]!;
+          final type = row.textOf('type');
+          final where = '${table.name}.${column.name}';
+          final ok = switch (column.type) {
+            SyncType.text => const {'varchar', 'text', 'char'}.contains(type),
+            SyncType.uuid => type == 'char' && row.text('len') == '36',
+            SyncType.date => type == 'date',
+            SyncType.real => type == 'double',
+            SyncType.integer =>
+              const {'int', 'smallint', 'tinyint', 'bigint'}.contains(type),
+            SyncType.boolean => type == 'tinyint',
+          };
+          expect(ok, isTrue, reason: '$where: $type');
+          expect(row.text('nullable') == '1', column.nullable, reason: where);
+          final max = column.maxLength;
+          final len = int.tryParse(row.text('len') ?? '');
+          if (max != null && len != null) {
+            expect(max, lessThanOrEqualTo(len), reason: '$where: длина');
+          }
+        }
+      }
+    }, skip: mysqlSkip);
 
     test('все бизнес-таблицы клиента есть на сервере с теми же полями',
         () async {

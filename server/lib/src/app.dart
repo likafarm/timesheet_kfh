@@ -7,6 +7,7 @@ import 'database.dart';
 import 'http/auth_api.dart';
 import 'http/middleware.dart';
 import 'http/responses.dart';
+import 'http/sync_api.dart';
 import 'logger.dart';
 import 'version.dart';
 
@@ -19,10 +20,12 @@ Handler buildHandler({
   required Database db,
   required Logger logger,
   AuthApi? authApi,
+  SyncApi? syncApi,
 }) {
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => _health(request, db, logger));
   authApi?.addRoutes(router);
+  syncApi?.addRoutes(router);
 
   return const Pipeline()
       .addMiddleware(requestId())
