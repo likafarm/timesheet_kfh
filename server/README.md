@@ -128,13 +128,15 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   `DELETE /periods/locks/<год>/<месяц>` → 204 (не закрыт — 404) — бухгалтер и админ, оба действия в аудите
   (`period_lock`, `period_unlock` с прежним закрытием). Закрытие ждёт незавершённые push (они читают
   `period_locks` с `FOR SHARE`).
-- Расчёт — бухгалтер и админ, тем же кодом, что в приложении (`calculateMonthlySalary`, `combineBalances`), по
-  всем неудалённым сотрудникам (включая уволенных — как «Рассчитать всех»):
-  - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с сохранённым и `up_to_date`, без записи;
-  - `POST /payroll/calculate` `{year, month}` → `{saved, unchanged, employees}`: записывает только изменившиеся
-    расчёты (прежний uuid сохраняется), `edited_by = server`, `calculated_at` — UTC с `Z`, через `change_log`
-    (под очередью записи) и аудит `payroll_save`; закрытый месяц — 409 `period_locked`;
-  - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки на 1-е число.
+- Расчёт — бухгалтер и админ, тем же кодом, что в приложении (`calculateMonthlySalary`, `combineBalances`,
+  `payrollNeeded`). В расчёт входят сотрудники, у которых в месяце есть начисления или выплаты:
+  - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с сохранённым (`needed`, `up_to_date`), без
+    записи; в списке — нужные и те, у кого остался сохранённый расчёт (его уберёт пересчёт);
+  - `POST /payroll/calculate` `{year, month}` → `{saved, unchanged, removed, employees}`: записывает только
+    изменившиеся расчёты (прежний uuid сохраняется), расчёт выпавшего сотрудника мягко удаляет (аудит
+    `payroll_delete`), `edited_by = server`, `calculated_at` — UTC с `Z`, через `change_log` (под очередью записи)
+    и аудит `payroll_save`; закрытый месяц — 409 `period_locked`;
+  - `GET /payroll?year=&month=` — сохранённые расчёты (без пустых строк без выплат) и входящие остатки.
 - Чтение (права — как у pull): `GET /employees?active_on=`, `GET /timesheet?year=&month=&employee_uuid=`,
   `GET /rates?employee_uuid=`, `GET /payments?from=&to=&employee_uuid=`, `GET /settings`. Только неудалённые
   записи, поля — как в `data` синхронизации плюс `uuid`, `updated_at`, `edited_by`.

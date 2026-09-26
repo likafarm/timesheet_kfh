@@ -31,7 +31,9 @@ class RatesDao extends DatabaseAccessor<LocalDatabase>
         .write(
           EmployeeRatesCompanion(
             endDate: Value(
-              formatDateIso(startDate.subtract(const Duration(days: 1))),
+              // Календарный день, а не «−24 часа»: в день перевода часов
+              // в сутках 23 или 25 часов.
+              formatDateIso(addCalendarDays(startDate, -1)),
             ),
             updatedAt: Value(now),
             editedBy: Value(editor),

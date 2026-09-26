@@ -261,6 +261,11 @@ class DriftPayrollRepository implements PayrollRepository {
   );
 
   @override
+  Future<void> delete(String id) async {
+    await _db.payrollDao.softDeleteResult(id);
+  }
+
+  @override
   Future<String> save(PayrollResult r) => _db.payrollDao.saveResult(
     PayrollResultsCompanion(
       employeeUuid: Value(r.employeeId),

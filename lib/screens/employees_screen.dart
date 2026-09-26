@@ -224,9 +224,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                           ) {
                             final index = entry.key + 1;
                             final employee = entry.value;
-                            final isActive =
-                                employee.dismissalDate == null ||
-                                employee.dismissalDate!.isAfter(DateTime.now());
+                            final isActive = employee.isActive;
                             final formatter = NumberFormat('#,##0.00', 'ru');
 
                             return Container(

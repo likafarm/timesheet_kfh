@@ -140,6 +140,42 @@ PayrollCalculation calculateMonthlySalary({
   );
 }
 
+/// Расчёт без начислений: ни рабочих, ни больничных, ни отпускных дней,
+/// ни неоплаченных рабочих дней (без ставки), сумма — ноль. Выходные не
+/// считаются: месяц из одних выходных — пустой.
+bool isEmptyPayroll({
+  required double baseDays,
+  required double fieldDays,
+  required double sickDays,
+  required double vacationDays,
+  required double totalSalary,
+  required int skippedWorkDays,
+}) =>
+    baseDays == 0 &&
+    fieldDays == 0 &&
+    sickDays == 0 &&
+    vacationDays == 0 &&
+    totalSalary == 0 &&
+    skippedWorkDays == 0;
+
+extension PayrollCalculationEmpty on PayrollCalculation {
+  bool get isEmpty => isEmptyPayroll(
+        baseDays: baseDays,
+        fieldDays: fieldDays,
+        sickDays: sickDays,
+        vacationDays: vacationDays,
+        totalSalary: totalSalary,
+        skippedWorkDays: skippedWorkDays,
+      );
+}
+
+/// Нужен ли сотруднику расчёт за месяц (и строка в отчёте): есть начисления
+/// или выплаты в этом месяце. Сотрудник без того и другого в расчёт не
+/// входит — расчёт не сохраняется, прежний сохранённый удаляется. Входящий
+/// остаток на это не влияет (решение владельца 2026-09-26).
+bool payrollNeeded({required bool emptyPayroll, required bool paidInMonth}) =>
+    !emptyPayroll || paidInMonth;
+
 /// Входящий остаток по сотрудникам: начислено − выплачено.
 /// Положительное значение — долг хозяйства перед сотрудником.
 Map<String, double> combineBalances({

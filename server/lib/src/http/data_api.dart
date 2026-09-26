@@ -90,10 +90,17 @@ class DataApi {
         params: {'y': year, 'm': month},
         orderBy: 'employee_uuid');
     final balances = await payroll.startingBalances(db.execute, year, month);
+    final paid = await payroll.paidInMonth(db.execute, year, month);
     return jsonResponse({
       'year': year,
       'month': month,
-      'results': [for (final r in saved) _json(user, r)],
+      // Без сотрудников, у которых в месяце нет ни начислений, ни выплат.
+      'results': [
+        for (final r in saved)
+          if (savedPayrollVisible(r.data,
+              paidInMonth: paid.contains(r.data['employee_uuid'])))
+            _json(user, r),
+      ],
       'starting_balances': balances,
     });
   }
@@ -123,6 +130,7 @@ class DataApi {
       'month': month,
       'saved': done.saved,
       'unchanged': done.unchanged,
+      'removed': done.removed,
       'employees': [for (final r in done.results) r.toJson()],
     });
   }

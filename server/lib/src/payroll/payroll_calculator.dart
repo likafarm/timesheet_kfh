@@ -18,10 +18,22 @@ class EmployeePayroll {
   /// Сохранённый расчёт за месяц (null — не считали).
   final SyncChange? saved;
 
-  EmployeePayroll(this.employee, this.calculation, this.saved);
+  /// Были ли выплаты сотруднику в этом месяце.
+  final bool paidInMonth;
 
-  /// Сохранённый расчёт совпадает со свежим.
-  bool get upToDate => saved != null && sameAsSaved(calculation, saved!.data);
+  EmployeePayroll(this.employee, this.calculation, this.saved,
+      {required this.paidInMonth});
+
+  /// Входит ли сотрудник в расчёт месяца: есть начисления или выплаты
+  /// ([payrollNeeded] из kfh_domain — то же правило, что в приложении).
+  bool get needed =>
+      payrollNeeded(emptyPayroll: calculation.isEmpty, paidInMonth: paidInMonth);
+
+  /// Сохранённое совпадает с тем, что должно быть: свежий расчёт — для
+  /// нужных, отсутствие расчёта — для выпавших из расчёта.
+  bool get upToDate => needed
+      ? saved != null && sameAsSaved(calculation, saved!.data)
+      : saved == null;
 
   Map<String, Object?> toJson() => {
         'employee_uuid': employee.uuid,
@@ -30,9 +42,26 @@ class EmployeePayroll {
         'saved': saved == null
             ? null
             : {'uuid': saved!.uuid, ...saved!.data, 'updated_at': formatSyncTimestamp(saved!.updatedAt)},
+        'needed': needed,
         'up_to_date': upToDate,
       };
 }
+
+/// Сохранённый расчёт показывается в отчёте, если в нём есть начисления
+/// или сотруднику в месяце что-то выплачено (пустые строки могли остаться
+/// от расчётов до 2026-09-26).
+bool savedPayrollVisible(Map<String, Object?> saved, {required bool paidInMonth}) =>
+    payrollNeeded(
+      emptyPayroll: isEmptyPayroll(
+        baseDays: saved['base_days'] as double,
+        fieldDays: saved['field_days'] as double,
+        sickDays: saved['sick_days'] as double,
+        vacationDays: saved['vacation_days'] as double,
+        totalSalary: saved['total_salary'] as double,
+        skippedWorkDays: saved['skipped_work_days'] as int,
+      ),
+      paidInMonth: paidInMonth,
+    );
 
 Map<String, Object?> _calculationJson(PayrollCalculation c) => {
       'base_days': c.baseDays,
@@ -70,8 +99,22 @@ class PayrollCalculator {
 
   static SyncTable _t(String name) => syncTableByName(name)!;
 
-  /// Свежий расчёт по всем сотрудникам (как «Рассчитать всех» в
-  /// приложении — включая уволенных) и сохранённые результаты месяца.
+  /// Сотрудники, которым в месяце что-то выплачено.
+  Future<Set<String>> paidInMonth(SqlExecutor sql, int year, int month) async {
+    final r = await sql(
+        'SELECT DISTINCT employee_uuid FROM payments WHERE deleted = 0 '
+        'AND payment_date BETWEEN :from AND :to',
+        {
+          'from': formatDateIso(DateTime(year, month, 1)),
+          'to': formatDateIso(DateTime(year, month + 1, 0)),
+        });
+    return {for (final row in r.rows) row.textOf('employee_uuid')};
+  }
+
+  /// Свежий расчёт по всем сотрудникам (включая уволенных) рядом с
+  /// сохранёнными результатами месяца. В список входят только нужные
+  /// ([EmployeePayroll.needed]) и те, у кого остался сохранённый расчёт
+  /// (его уберёт пересчёт).
   Future<List<EmployeePayroll>> calculate(SqlExecutor sql, int year, int month) async {
     _checkMonth(year, month);
     final first = DateTime(year, month, 1), last = DateTime(year, month + 1, 0);
@@ -93,6 +136,7 @@ class PayrollCalculator {
       (ratesBy[r.data['employee_uuid'] as String] ??= []).add(_rate(r));
     }
     final savedBy = {for (final s in saved) s.data['employee_uuid'] as String: s};
+    final paid = await paidInMonth(sql, year, month);
 
     return [
       for (final e in employees)
@@ -106,8 +150,9 @@ class PayrollCalculator {
             rates: ratesBy[e.uuid] ?? const [],
           ),
           savedBy[e.uuid],
+          paidInMonth: paid.contains(e.uuid),
         ),
-    ];
+    ].where((r) => r.needed || r.saved != null).toList();
   }
 
   /// Входящий остаток на 1-е число месяца: начислено за прошлые месяцы −
@@ -133,8 +178,9 @@ class PayrollCalculator {
 
   /// Считает и сохраняет расчёт месяца. Закрытый месяц — 409
   /// `period_locked`. Совпадающие с сохранёнными расчёты не
-  /// перезаписываются. Возвращает (сохранено, без изменений).
-  Future<({int saved, int unchanged, List<EmployeePayroll> results})> save(
+  /// перезаписываются; расчёт сотрудника, выпавшего из расчёта (нет ни
+  /// начислений, ни выплат), удаляется мягко — клиенты получат удаление.
+  Future<({int saved, int unchanged, int removed, List<EmployeePayroll> results})> save(
       User actor, int year, int month, {String? requestId}) {
     _checkMonth(year, month);
     return db.transaction((conn) async {
@@ -151,12 +197,32 @@ class PayrollCalculator {
       }
       final table = _t('payroll_results');
       final results = await calculate(sql, year, month);
-      var saved = 0, unchanged = 0;
+      var saved = 0, unchanged = 0, removed = 0;
       final now = _now().toUtc();
       for (final r in results) {
         final old = r.saved;
-        if (old != null && r.upToDate) {
+        if (r.upToDate) {
           unchanged++;
+          continue;
+        }
+        if (!r.needed) {
+          // Выпал из расчёта: прежний расчёт — мягко удалить.
+          final gone = SyncChange(
+              table: table.name,
+              uuid: old!.uuid,
+              updatedAt: now,
+              deleted: true,
+              data: old.data);
+          await _rows.update(sql, table, gone, editor);
+          await _log.append(sql, table.name, gone.uuid, deleted: true);
+          await writeAudit(sql,
+              action: 'payroll_delete',
+              userUuid: actor.uuid,
+              requestId: requestId,
+              entity: table.name,
+              entityUuid: gone.uuid,
+              oldValue: old.data);
+          removed++;
           continue;
         }
         final change = SyncChange(
@@ -193,6 +259,7 @@ class PayrollCalculator {
       return (
         saved: saved,
         unchanged: unchanged,
+        removed: removed,
         results: await calculate(sql, year, month),
       );
     });
