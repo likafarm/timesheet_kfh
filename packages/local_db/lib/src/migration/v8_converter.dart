@@ -16,6 +16,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 import '../database.dart';
+import '../schema_info.dart';
 
 /// Версия старой схемы, которую понимает конвертер.
 const legacySchemaVersion = 8;
@@ -24,15 +25,7 @@ const legacySchemaVersion = 8;
 const convertedFromKey = 'converted_from_v8';
 
 /// Бизнес-таблицы в порядке вставки и их поля-даты (`гггг-мм-дд`).
-const _tables = <String, List<String>>{
-  'employees': ['hire_date', 'dismissal_date'],
-  'employee_rates': ['start_date', 'end_date'],
-  'timesheet': ['date'],
-  'payments': ['payment_date', 'period_start', 'period_end'],
-  'sick_leave': ['start_date', 'end_date'],
-  'vacation': ['start_date', 'end_date'],
-  'payroll_results': [],
-};
+const _tables = employeeTables;
 
 final _isoDay = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 

@@ -1,15 +1,20 @@
 // lib/providers/app_provider.dart
 
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
 import 'package:kfh_domain/kfh_domain.dart';
+import 'package:kfh_local_db/kfh_local_db.dart';
 import '../services/app_database.dart';
 import '../services/backup_service.dart';
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._appDb);
+  AppProvider(this._appDb, {BackupService? backupService})
+    : _backupService = backupService ?? BackupService();
 
-  final AppDatabase _appDb;
-  final BackupService _backupService = BackupService();
+  /// Меняется при полном восстановлении из копии (база переоткрывается).
+  AppDatabase _appDb;
+  final BackupService _backupService;
 
   BackupService get backupService => _backupService;
 
@@ -558,30 +563,123 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
-  // ПРОСМОТР БАЗЫ (только чтение)
+  // ВОССТАНОВЛЕНИЕ ИЗ КОПИЙ
   // ==========================================================================
 
-  Future<List<String>> getTableNames() async {
-    final rows = await _appDb.db
-        .customSelect(
-          "SELECT name FROM sqlite_master WHERE type = 'table' "
-          "AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        )
-        .get();
-    return rows.map((r) => r.read<String>('name')).toList();
+  /// Формат копии; null — файл не копия базы программы.
+  BackupFormat? backupFormat(String backupPath) {
+    try {
+      return detectBackupFormat(backupPath);
+    } on RestoreException {
+      return null;
+    }
   }
 
-  Future<List<Map<String, dynamic>>> getTableData(
-    String tableName, {
-    int limit = 100,
-  }) async {
-    if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(tableName)) {
-      throw ArgumentError('Недопустимое имя таблицы: $tableName');
+  /// Таблицы копии, которые можно восстановить по отдельности
+  /// (только копии нового формата).
+  List<String> restorableTables(String backupPath) =>
+      BackupRestorer.restorableTables(backupPath);
+
+  /// Заменяет всю базу копией (любого формата; старая переносится
+  /// конвертером). Перед этим — копия текущей базы. При ошибке текущая
+  /// база остаётся, причина — в [error].
+  Future<bool> restoreFullBackup(String backupPath) async {
+    try {
+      await _backupService.createSafetyBackup(_appDb.db);
+      final deviceId = await _appDb.db.deviceId();
+      final path = _appDb.path;
+      final prepared = '$path.restore';
+      await Isolate.run(
+        () => prepareFullRestore(
+          backupPath: backupPath,
+          targetPath: prepared,
+          deviceId: deviceId,
+        ),
+      );
+      await _appDb.close();
+      try {
+        replaceDatabaseFile(prepared, path);
+      } finally {
+        _appDb = await AppDatabase.openFile(path);
+      }
+      await loadAllData();
+      setNeedRefreshReports(true);
+      return true;
+    } catch (e) {
+      _error = 'Ошибка восстановления: $e';
+      notifyListeners();
+      return false;
     }
-    final rows = await _appDb.db
-        .customSelect('SELECT * FROM $tableName LIMIT $limit')
-        .get();
-    return rows.map((r) => r.data).toList();
+  }
+
+  /// Таблицы целиком как в копии (только копии нового формата).
+  /// Возвращает число восстановленных строк.
+  Future<int> restoreTables(String backupPath, List<String> tables) async {
+    await _backupService.createSafetyBackup(_appDb.db);
+    final restorer = BackupRestorer(_appDb.db);
+    var count = 0;
+    for (final table in businessTables.where(tables.contains)) {
+      count += await restorer.restoreTable(backupPath, table);
+    }
+    await loadAllData();
+    setNeedRefreshReports(true);
+    return count;
+  }
+
+  /// Отдельные строки таблицы из копии нового формата.
+  Future<int> restoreSelectedRows(
+    String backupPath,
+    String table,
+    List<String> uuids,
+  ) async {
+    await _backupService.createSafetyBackup(_appDb.db);
+    final count = await BackupRestorer(
+      _appDb.db,
+    ).restoreRows(backupPath, table, uuids);
+    await loadAllData();
+    setNeedRefreshReports(true);
+    return count;
+  }
+
+  /// Закрыть базу (тесты; программа закрывает её вместе с процессом).
+  @visibleForTesting
+  Future<void> closeDatabase() => _appDb.close();
+
+  // ==========================================================================
+  // ПРОСМОТР И ПРАВКА БАЗЫ
+  // ==========================================================================
+
+  RawTables get _raw => RawTables(_appDb.db);
+
+  Future<List<String>> getTableNames() => _raw.tableNames();
+
+  Future<List<ColumnInfo>> getTableColumns(String table) => _raw.columns(table);
+
+  Future<List<Map<String, Object?>>> getTableData(
+    String table, {
+    int limit = 100,
+  }) => _raw.rows(table, limit: limit);
+
+  bool isTableEditable(String table) => _raw.isEditable(table);
+
+  Future<void> updateTableRow(
+    String table,
+    String uuid,
+    Map<String, Object?> values,
+  ) async {
+    await _raw.updateRow(table, uuid, values);
+    await loadAllData();
+    setNeedRefreshReports(true);
+  }
+
+  Future<void> setTableRowDeleted(
+    String table,
+    String uuid,
+    bool deleted,
+  ) async {
+    await _raw.setDeleted(table, uuid, deleted);
+    await loadAllData();
+    setNeedRefreshReports(true);
   }
 
   // ==========================================================================

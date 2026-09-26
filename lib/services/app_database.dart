@@ -26,7 +26,38 @@ class AppDatabase {
 
   AppDatabase(this.db, this.path) : repos = DriftRepositories(db);
 
+  /// Открывает существующий (или создаёт новый) файл базы v2.
+  static Future<AppDatabase> openFile(String path) async {
+    final db = LocalDatabase.file(File(path));
+    // Открываем сразу: ошибка открытия — здесь, а не на первом экране.
+    await db.deviceId();
+    return AppDatabase(db, path);
+  }
+
   Future<void> close() => db.close();
+}
+
+/// Заменяет файл базы [path] подготовленным файлом [replacement].
+/// База должна быть закрыта. Старый файл сначала переименовывается в
+/// `.old` и удаляется только после успешной замены; при ошибке
+/// возвращается на место.
+void replaceDatabaseFile(String replacement, String path) {
+  final old = File('$path.old');
+  if (old.existsSync()) old.deleteSync();
+  for (final suffix in ['-journal', '-wal', '-shm']) {
+    final side = File('$path$suffix');
+    if (side.existsSync()) side.deleteSync();
+  }
+  final current = File(path);
+  final hadCurrent = current.existsSync();
+  if (hadCurrent) current.renameSync(old.path);
+  try {
+    File(replacement).renameSync(path);
+  } catch (_) {
+    if (hadCurrent) old.renameSync(path);
+    rethrow;
+  }
+  if (hadCurrent) old.deleteSync();
 }
 
 /// База не открыта; [message] показывается пользователю.
@@ -71,10 +102,7 @@ Future<AppDatabase> openAppDatabase({
   }
 
   try {
-    final db = LocalDatabase.file(File(v2Path));
-    // Открываем сразу: ошибка открытия — здесь, а не на первом экране.
-    await db.deviceId();
-    return AppDatabase(db, v2Path);
+    return await AppDatabase.openFile(v2Path);
   } catch (e) {
     await write('Не удалось открыть базу $v2Path: $e');
     throw DatabaseOpenException(

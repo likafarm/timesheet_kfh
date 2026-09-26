@@ -38,6 +38,7 @@ class BackupInfo {
 
 class BackupService {
   static const _maxDailyBackups = 5;
+
   /// Отладочная сборка кладёт копии отдельно: иначе `flutter run`
   /// перезаписал бы сегодняшнюю копию рабочей базы.
   static const _backupDirName = kDebugMode ? 'backups (debug)' : 'backups';
@@ -116,17 +117,32 @@ class BackupService {
     }
   }
 
+  /// Копия текущей базы перед восстановлением из другой копии:
+  /// `backup_before_restore_<дата-время>.db`, автоматически не удаляется.
+  /// Бросает исключение, если копию сделать не удалось.
+  Future<String> createSafetyBackup(LocalDatabase db) async {
+    final backupDir = await _getBackupDirectory();
+    final path = p.join(
+      backupDir.path,
+      'backup_before_restore_${_stamp(DateTime.now())}.db',
+    );
+    await db.customStatement('VACUUM INTO ?', [path]);
+    return path;
+  }
+
+  static String _stamp(DateTime now) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${now.year}-${two(now.month)}-${two(now.day)}_'
+        '${two(now.hour)}-${two(now.minute)}-${two(now.second)}';
+  }
+
   /// Копия старой базы (v8) перед переносом в формат v2.
   /// Имя `backup_v8_<дата-время>.db`; такие копии не удаляются автоматически.
   /// Бросает исключение, если копию сделать не удалось.
   Future<String> backupLegacyDatabase(String v8Path) async {
     final backupDir = await _getBackupDirectory();
     final now = DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final stamp =
-        '${now.year}-${two(now.month)}-${two(now.day)}_'
-        '${two(now.hour)}-${two(now.minute)}-${two(now.second)}';
-    final backupPath = p.join(backupDir.path, 'backup_v8_$stamp.db');
+    final backupPath = p.join(backupDir.path, 'backup_v8_${_stamp(now)}.db');
     await File(v8Path).copy(backupPath);
     // Копия сохраняет дату изменения оригинала — ставим текущую,
     // чтобы в списке копий было видно, когда она сделана.
