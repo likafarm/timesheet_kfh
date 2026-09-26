@@ -1,10 +1,15 @@
 name: kfx_time_tracking
 description: "Учёт рабочего времени в КФХ"
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+
+# Dart workspace: пакеты в packages/ разрешаются вместе с приложением
+workspace:
+  - packages/domain
+  - packages/local_db
 
 dependencies:
   flutter:
@@ -12,13 +17,19 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # Доменная логика (модели, расчёт ЗП)
+  kfh_domain:
+    path: packages/domain
+
   # Управление состоянием
   provider: ^6.1.5
 
-  # Локальная база данных SQLite
-  sqflite: ^2.4.3
+  # Локальная база (drift, схема v2) и перенос старой базы v8
+  kfh_local_db:
+    path: packages/local_db
+  drift: 2.34.0
+  sqlite3: ^3.4.0
   path: ^1.9.1
-  sqflite_common_ffi: ^2.3.5
 
   # Иконки
   cupertino_icons: ^1.0.9

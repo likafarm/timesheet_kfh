@@ -3,8 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/models.dart';
-import '../models/employee_rate.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import '../widgets/common_widgets.dart';
@@ -27,12 +26,12 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
   late DateTime _selectedDate;
   List<Employee> _employees = [];
 
-  late final Map<int, bool> _selected;
-  late final Map<int, String> _dayTypes;
-  late final Map<int, double> _dayCounts;
-  late final Map<int, String?> _workPlaces;
-  final Map<int, EmployeeRate?> _ratesAtDate = {};
-  final Map<int, String> _workPlaceErrors = {};
+  late final Map<String, bool> _selected;
+  late final Map<String, String> _dayTypes;
+  late final Map<String, double> _dayCounts;
+  late final Map<String, String?> _workPlaces;
+  final Map<String, EmployeeRate?> _ratesAtDate = {};
+  final Map<String, String> _workPlaceErrors = {};
 
   bool _isLoading = false;
   bool _allSelected = false;
@@ -108,11 +107,11 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
 
   Future<void> _loadRatesAtDate() async {
     final provider = context.read<AppProvider>();
-    final next = <int, EmployeeRate?>{};
+    final next = <String, EmployeeRate?>{};
     for (final emp in _employees) {
       final id = emp.id;
       if (id == null) continue;
-      next[id] = await provider.db.getEmployeeRateAtDate(id, _selectedDate);
+      next[id] = await provider.getEmployeeRateAtDate(id, _selectedDate);
     }
     if (!mounted) return;
     setState(() {
@@ -464,10 +463,12 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                                 e,
                                                                 baseRate:
                                                                     rate?.baseRate ??
-                                                                    employee.baseRate,
+                                                                    employee
+                                                                        .baseRate,
                                                                 fieldRate:
                                                                     rate?.fieldRate ??
-                                                                    employee.fieldRate,
+                                                                    employee
+                                                                        .fieldRate,
                                                               ),
                                                               style:
                                                                   const TextStyle(

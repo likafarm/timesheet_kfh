@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import 'database_viewer_screen.dart';
 import 'backup_list_screen.dart';
@@ -42,33 +43,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _updateControllers(Map<String, dynamic>? settings) {
+  void _updateControllers(CompanySettings? settings) {
     if (settings == null) return;
-    _companyNameController.text = settings['company_name'] ?? '';
-    _directorNameController.text = settings['director_name'] ?? '';
-    _innController.text = settings['inn'] ?? '';
-    _ogrnController.text = settings['ogrn'] ?? '';
-    _phoneController.text = settings['phone'] ?? '';
-    _bankAccountController.text = settings['bank_account'] ?? '';
-    _bankNameController.text = settings['bank_name'] ?? '';
-    _legalAddressController.text = settings['legal_address'] ?? '';
+    _companyNameController.text = settings.companyName;
+    _directorNameController.text = settings.directorName ?? '';
+    _innController.text = settings.inn ?? '';
+    _ogrnController.text = settings.ogrn ?? '';
+    _phoneController.text = settings.phone ?? '';
+    _bankAccountController.text = settings.bankAccount ?? '';
+    _bankNameController.text = settings.bankName ?? '';
+    _legalAddressController.text = settings.legalAddress ?? '';
     _initialized = true;
   }
 
   Future<void> _saveSettings() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final settings = {
-      'company_name': _companyNameController.text.trim(),
-      'director_name': _directorNameController.text.trim(),
-      'inn': _innController.text.trim(),
-      'ogrn': _ogrnController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'bank_account': _bankAccountController.text.trim(),
-      'bank_name': _bankNameController.text.trim(),
-      'legal_address': _legalAddressController.text.trim(),
-    };
-    await context.read<AppProvider>().updateCompanySettings(settings);
+    final provider = context.read<AppProvider>();
+    final current = provider.companySettings;
+    if (current == null) return;
+    // Поля присваиваются напрямую, а не через copyWith: пустая строка
+    // тоже значение (поле очищено).
+    final settings = CompanySettings(
+      id: current.id,
+      companyName: _companyNameController.text.trim(),
+      directorName: _directorNameController.text.trim(),
+      inn: _innController.text.trim(),
+      ogrn: _ogrnController.text.trim(),
+      phone: _phoneController.text.trim(),
+      bankAccount: _bankAccountController.text.trim(),
+      bankName: _bankNameController.text.trim(),
+      legalAddress: _legalAddressController.text.trim(),
+      defaultWorkDayHours: current.defaultWorkDayHours,
+      overtimeMultiplier: current.overtimeMultiplier,
+      nightShiftMultiplier: current.nightShiftMultiplier,
+    );
+    await provider.updateCompanySettings(settings);
     setState(() => _hasChanges = false);
     if (!mounted) return; // Используем State.mounted, а не context.mounted
     ScaffoldMessenger.of(
@@ -212,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         // Резервное копирование
                         ListTile(
                           leading: const Icon(Icons.backup),
-                           title: const Text('Резервное копирование'),
+                          title: const Text('Резервное копирование'),
                           subtitle: const Text(
                             'Создать ежедневную резервную копию сейчас',
                           ),
@@ -292,8 +302,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: const Text('О программе'),
                           subtitle: Text('Версия $_version'),
                           onTap: () {
-                            final dbPath =
-                                context.read<AppProvider>().db.databasePath;
+                            final dbPath = context
+                                .read<AppProvider>()
+                                .databasePath;
                             showAboutDialog(
                               context: context,
                               applicationName: 'Учёт рабочего времени КФХ',
@@ -312,10 +323,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   'Правообладатель: Иван Лопатин.\n'
                                   'Контакты: iilopatin@ya.ru',
                                 ),
-                                if (dbPath != null) ...[
-                                  const SizedBox(height: 12),
-                                  SelectableText('База данных:\n$dbPath'),
-                                ],
+                                const SizedBox(height: 12),
+                                SelectableText('База данных:\n$dbPath'),
                               ],
                             );
                           },

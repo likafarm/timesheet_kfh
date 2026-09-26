@@ -6,7 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/models.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../utils/string_utils.dart';
 
 /// Формирование и вывод на печать табеля и детального отчёта по сотруднику.
@@ -41,14 +41,14 @@ class PrintService {
     _theme = pw.ThemeData.withFont(base: regular, bold: bold);
   }
 
-  static String _companyName(Map<String, dynamic>? settings) {
-    final name = settings?['company_name'] as String?;
+  static String _companyName(CompanySettings? settings) {
+    final name = settings?.companyName;
     if (name == null || name.trim().isEmpty) return 'КФХ';
     return name.trim();
   }
 
-  static String? _directorName(Map<String, dynamic>? settings) {
-    final name = settings?['director_name'] as String?;
+  static String? _directorName(CompanySettings? settings) {
+    final name = settings?.directorName;
     if (name == null || name.trim().isEmpty) return null;
     return name.trim();
   }
@@ -96,7 +96,7 @@ class PrintService {
 
   static TimesheetRecord _recordForDay(
     List<TimesheetRecord> records,
-    int employeeId,
+    String employeeId,
     DateTime date,
   ) {
     return records.firstWhere(
@@ -116,7 +116,7 @@ class PrintService {
 
   static ({double work, double dayoff, double sick, double vacation}) _totals(
     List<TimesheetRecord> records,
-    int employeeId,
+    String employeeId,
   ) {
     var work = 0.0;
     var dayoff = 0.0;
@@ -152,7 +152,7 @@ class PrintService {
     required DateTime month,
     required List<Employee> employees,
     required List<TimesheetRecord> records,
-    Map<String, dynamic>? companySettings,
+    CompanySettings? companySettings,
   }) async {
     if (employees.isEmpty) {
       throw StateError('Нет сотрудников для печати табеля');
@@ -196,7 +196,7 @@ class PrintService {
     required PayrollResult result,
     required List<Payment> payments,
     required double startingBalance,
-    Map<String, dynamic>? companySettings,
+    CompanySettings? companySettings,
   }) async {
     await _ensureFonts();
     final company = _companyName(companySettings);

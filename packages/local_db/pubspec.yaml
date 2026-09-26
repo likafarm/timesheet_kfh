@@ -1,0 +1,26 @@
+name: kfh_local_db
+description: "Локальная база КФХ на drift: схема v2, DAO, миграции (чистый Dart)"
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+resolution: workspace
+
+dependencies:
+  # drift_dev >= 2.34.6 требует analyzer 13, а Flutter 3.44 через
+  # flutter_test фиксирует test_api 0.7.11 -> test 1.31.0 -> analyzer < 13.
+  # drift держим той же версии, что drift_dev: иначе ломается CLI
+  # (schema dump). Поднимать вместе с Flutter.
+  drift: 2.34.0
+  kfh_domain:
+    path: ../domain
+  sqlite3: ^3.4.0
+  uuid: ^4.6.0
+
+dev_dependencies:
+  build_runner: ^2.10.0
+  drift_dev: 2.34.0
+  lints: ^6.0.0
+  test: ^1.26.0

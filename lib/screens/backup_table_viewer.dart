@@ -1,12 +1,15 @@
 // lib/screens/backup_table_viewer.dart
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:kfh_local_db/kfh_local_db.dart'
+    show BackupFormat, businessTables;
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../utils/cell_format.dart';
 import '../widgets/common_widgets.dart';
 
-/// Экран для просмотра записей конкретной таблицы из бэкапа с возможностью выбора
+/// Записи таблицы из копии базы. Из копии текущего формата можно вернуть
+/// отмеченные строки (по uuid); копия старого формата — только просмотр.
 class BackupTableViewer extends StatefulWidget {
   final String backupPath;
   final String tableName;
@@ -24,7 +27,8 @@ class BackupTableViewer extends StatefulWidget {
 class _BackupTableViewerState extends State<BackupTableViewer> {
   List<Map<String, dynamic>> _rows = [];
   List<String> _columns = [];
-  final Set<int> _selectedIds = {};
+  final Set<String> _selected = {};
+  bool _canRestore = false;
   bool _isLoading = true;
   bool _isRestoring = false;
   String? _error;
@@ -46,13 +50,15 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
         widget.backupPath,
         widget.tableName,
       );
+      final canRestore =
+          provider.backupFormat(widget.backupPath) == BackupFormat.v2 &&
+          businessTables.contains(widget.tableName);
       if (!mounted) return;
       setState(() {
         _rows = data;
-        if (data.isNotEmpty) {
-          _columns = data.first.keys.toList();
-        }
-        _selectedIds.clear();
+        _columns = data.isEmpty ? [] : data.first.keys.toList();
+        _canRestore = canRestore;
+        _selected.clear();
         _isLoading = false;
       });
     } catch (e) {
@@ -64,40 +70,21 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
     }
   }
 
-  void _toggleSelectAll(bool? value) {
-    setState(() {
-      if (value == true) {
-        _selectedIds.addAll(_rows.map((row) => row['id'] as int));
-      } else {
-        _selectedIds.clear();
-      }
-    });
-  }
-
-  void _toggleRow(int id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
-    });
-  }
+  void _toggle(String uuid) => setState(() {
+    if (!_selected.remove(uuid)) _selected.add(uuid);
+  });
 
   Future<void> _restoreSelected() async {
-    if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не выбрано ни одной записи')),
-      );
-      return;
-    }
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Восстановление записей'),
         content: Text(
-          'Восстановить ${_selectedIds.length} записей из таблицы ${widget.tableName}?',
+          'Вернуть ${_selected.length} записей таблицы ${widget.tableName} '
+          'в том виде, как они сохранены в копии?\n\n'
+          'Запись текущей базы на тот же день табеля (или тот же месяц '
+          'расчёта) будет помечена удалённой. Перед восстановлением '
+          'программа сохранит копию текущей базы.',
         ),
         actions: [
           TextButton(
@@ -112,23 +99,20 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
         ],
       ),
     );
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     setState(() => _isRestoring = true);
     try {
-      // ignore: use_build_context_synchronously
-      final provider = context.read<AppProvider>();
-      final count = await provider.restoreSelectedRows(
+      final count = await context.read<AppProvider>().restoreSelectedRows(
         widget.backupPath,
         widget.tableName,
-        _selectedIds.toList(),
+        _selected.toList(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Восстановлено $count записей')));
-      // Возвращаемся к списку таблиц
-      Navigator.pop(context);
+      ).showSnackBar(SnackBar(content: Text('Восстановлено записей: $count')));
+      setState(() => _selected.clear());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -143,15 +127,9 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Таблица: ${widget.tableName}'),
+        title: Text('Копия, таблица: ${widget.tableName}'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
-          if (_selectedIds.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.restore, color: Colors.green),
-              onPressed: _isRestoring ? null : _restoreSelected,
-              tooltip: 'Восстановить выбранные',
-            ),
         ],
       ),
       body: _isLoading
@@ -178,20 +156,33 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
                   color: Colors.grey[100],
                   child: Row(
                     children: [
-                      Checkbox(
-                        value:
-                            _selectedIds.length == _rows.length &&
-                            _rows.isNotEmpty,
-                        onChanged: _toggleSelectAll,
-                      ),
-                      const Text(
-                        'Выбрать все',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      if (_canRestore) ...[
+                        Checkbox(
+                          value: _selected.length == _rows.length,
+                          onChanged: (v) => setState(() {
+                            _selected.clear();
+                            if (v == true) {
+                              _selected.addAll(
+                                _rows.map((r) => r['uuid'] as String),
+                              );
+                            }
+                          }),
+                        ),
+                        const Text(
+                          'Выбрать все',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ] else
+                        const Text(
+                          'Только просмотр: записи возвращаются из копий '
+                          'текущего формата',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       const Spacer(),
-                      if (_selectedIds.isNotEmpty)
+                      Text('Записей: ${_rows.length}'),
+                      if (_selected.isNotEmpty)
                         Text(
-                          'Выбрано: ${_selectedIds.length}',
+                          ', выбрано: ${_selected.length}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                     ],
@@ -201,70 +192,52 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
                       child: DataTable(
+                        showCheckboxColumn: _canRestore,
                         columns: [
-                          const DataColumn(
-                            label: Text(
-                              '',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          ..._columns.map((col) {
-                            return DataColumn(
+                          for (final col in _columns)
+                            DataColumn(
                               label: Text(
                                 col,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            );
-                          }),
+                            ),
                         ],
-                        rows: _rows.map((row) {
-                          final id = row['id'] as int;
-                          final isSelected = _selectedIds.contains(id);
-                          return DataRow(
-                            selected: isSelected,
-                            onSelectChanged: (_) => _toggleRow(id),
-                            cells: [
-                              DataCell(
-                                Checkbox(
-                                  value: isSelected,
-                                  onChanged: (_) => _toggleRow(id),
-                                ),
-                              ),
-                              ..._columns.map((col) {
-                                var value = row[col];
-                                String display = value?.toString() ?? 'null';
-                                if (value is DateTime) {
-                                  display = DateFormat(
-                                    'dd.MM.yyyy HH:mm',
-                                  ).format(value);
-                                }
-                                return DataCell(
-                                  Container(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 200,
-                                    ),
-                                    child: Text(
-                                      display,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
+                        rows: [
+                          for (final row in _rows)
+                            DataRow(
+                              selected:
+                                  _canRestore &&
+                                  _selected.contains(row['uuid']),
+                              onSelectChanged: _canRestore
+                                  ? (_) => _toggle(row['uuid'] as String)
+                                  : null,
+                              cells: [
+                                for (final col in _columns)
+                                  DataCell(
+                                    Container(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 200,
+                                      ),
+                                      child: Text(
+                                        formatCell(row[col]),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
                                     ),
                                   ),
-                                );
-                              }),
-                            ],
-                          );
-                        }).toList(),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-      floatingActionButton: _selectedIds.isNotEmpty
+      floatingActionButton: _selected.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _isRestoring ? null : _restoreSelected,
               icon: _isRestoring
@@ -277,7 +250,7 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
               label: Text(
                 _isRestoring
                     ? 'Восстановление...'
-                    : 'Восстановить (${_selectedIds.length})',
+                    : 'Восстановить (${_selected.length})',
               ),
             )
           : null,

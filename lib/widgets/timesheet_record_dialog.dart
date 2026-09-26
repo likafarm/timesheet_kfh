@@ -3,8 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/models.dart';
-import '../models/employee_rate.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import 'common_widgets.dart';
@@ -63,7 +62,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   Future<void> _loadRateAtDate() async {
     final id = widget.employee.id;
     if (id == null) return;
-    final rate = await context.read<AppProvider>().db.getEmployeeRateAtDate(
+    final rate = await context.read<AppProvider>().getEmployeeRateAtDate(
       id,
       _date,
     );
@@ -195,7 +194,8 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'base',
-                              baseRate: _rateAtDate?.baseRate ??
+                              baseRate:
+                                  _rateAtDate?.baseRate ??
                                   widget.employee.baseRate,
                             ),
                           ),
@@ -205,7 +205,8 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'field',
-                              fieldRate: _rateAtDate?.fieldRate ??
+                              fieldRate:
+                                  _rateAtDate?.fieldRate ??
                                   widget.employee.fieldRate,
                             ),
                           ),

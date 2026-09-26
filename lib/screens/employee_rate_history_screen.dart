@@ -3,12 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/employee_rate.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 
 class EmployeeRateHistoryScreen extends StatefulWidget {
-  final int employeeId;
+  final String employeeId;
   final String employeeName;
 
   const EmployeeRateHistoryScreen({

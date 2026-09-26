@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/models.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/payroll_detail_dialog.dart';
@@ -19,12 +19,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = DateTime.now().month;
   List<PayrollResult> _results = [];
-  Map<int, double> _paymentsByEmployee = {};
-  Map<int, double> _bonusByEmployee = {};
-  Map<int, bool> _upToDateStatus = {};
+  Map<String, double> _paymentsByEmployee = {};
+  Map<String, double> _bonusByEmployee = {};
+  Map<String, bool> _upToDateStatus = {};
   bool _isLoading = false;
   bool _isCalculatingAll = false;
-  final Set<int> _calculatingSingle = {};
+  final Set<String> _calculatingSingle = {};
 
   static const double _colNum = 40;
   static const double _colEmployee = 220;
@@ -90,8 +90,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final start = DateTime(_selectedYear, _selectedMonth, 1);
     final end = DateTime(_selectedYear, _selectedMonth + 1, 0);
     await provider.loadAllPayments(startDate: start, endDate: end);
-    final Map<int, double> total = {};
-    final Map<int, double> bonus = {};
+    final Map<String, double> total = {};
+    final Map<String, double> bonus = {};
     for (var p in provider.payments) {
       total[p.employeeId] = (total[p.employeeId] ?? 0) + p.amount;
       if (p.paymentType == 'bonus') {
@@ -107,7 +107,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _checkAllStatus() async {
     final provider = context.read<AppProvider>();
-    final Map<int, bool> status = {};
+    final Map<String, bool> status = {};
     for (var result in _results) {
       final isUpToDate = await provider.isPayrollUpToDate(
         result.employeeId,
@@ -204,7 +204,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _recalculateSingle(int employeeId) async {
+  Future<void> _recalculateSingle(String employeeId) async {
     if (_calculatingSingle.contains(employeeId)) return;
     setState(() => _calculatingSingle.add(employeeId));
     try {
@@ -537,7 +537,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     color:
-                        (provider.startingBalances[result.employeeId] ?? 0.0) < 0
+                        (provider.startingBalances[result.employeeId] ?? 0.0) <
+                            0
                         ? Colors.red
                         : Colors.green[800],
                   ),

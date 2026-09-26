@@ -3,10 +3,13 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
-/// Имя файла базы данных.
+/// Имя файла старой базы (sqflite, схема v8).
 const dbFileName = 'kfx_time_tracking.db';
+
+/// Имя файла базы схемы v2 (drift). Создаётся переносом из [dbFileName].
+const dbV2FileName = 'kfx_time_tracking_v2.db';
 
 /// Соседние файлы SQLite, которые переносятся вместе с базой.
 const _sidecarSuffixes = ['-wal', '-shm', '-journal'];
@@ -93,21 +96,20 @@ Future<DbLocation> _resolve(
 
 /// Проверяет, что файл — целая база программы. Бросает исключение, если нет.
 Future<void> validateDatabase(String path) async {
-  final db = await databaseFactoryFfi.openDatabase(path);
+  final db = sql.sqlite3.open(path, mode: sql.OpenMode.readOnly);
   try {
-    final check = await db.rawQuery('PRAGMA integrity_check');
-    final result = check.isEmpty ? null : check.first.values.first;
+    final result = db.select('PRAGMA integrity_check').first.values.first;
     if (result != 'ok') {
       throw StateError('integrity_check: $result');
     }
-    final tables = await db.rawQuery(
+    final tables = db.select(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'employees'",
     );
     if (tables.isEmpty) {
       throw StateError('в базе нет таблицы employees');
     }
   } finally {
-    await db.close();
+    db.close();
   }
 }
 
@@ -134,8 +136,11 @@ Future<void> logDbLocation(String message) async {
   debugPrint(message);
   try {
     final file = File(p.join(appDataDirectory(), 'db_location.log'));
-    await file.writeAsString('${DateTime.now().toIso8601String()} $message\n',
-        mode: FileMode.append, flush: true);
+    await file.writeAsString(
+      '${DateTime.now().toIso8601String()} $message\n',
+      mode: FileMode.append,
+      flush: true,
+    );
   } catch (_) {}
 }
 

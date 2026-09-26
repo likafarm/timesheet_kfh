@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/models.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
@@ -18,7 +18,7 @@ class PaymentsScreen extends StatefulWidget {
 
 class _PaymentsScreenState extends State<PaymentsScreen> {
   DateTime _selectedMonth = DateTime.now();
-  int? _selectedEmployeeId;
+  String? _selectedEmployeeId;
 
   // Ширины колонок
   static const double _colDate = 100;
@@ -187,10 +187,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         actions: [
           Consumer<AppProvider>(
             builder: (context, provider, child) {
-              final items = <DropdownMenuItem<int?>>[
-                const DropdownMenuItem<int?>(value: null, child: Text('Все')),
+              final items = <DropdownMenuItem<String?>>[
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Все'),
+                ),
                 ...provider.employees.map((e) {
-                  return DropdownMenuItem<int?>(
+                  return DropdownMenuItem<String?>(
                     value: e.id,
                     child: Text(StringUtils.getShortName(e.fullName)),
                   );
@@ -198,7 +201,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ];
               return SizedBox(
                 width: 250,
-                child: AppDropdown<int?>(
+                child: AppDropdown<String?>(
                   value: _selectedEmployeeId,
                   items: items,
                   onChanged: (value) {
@@ -506,7 +509,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 // ==========================================================================
 
 class _PaymentFormDialog extends StatefulWidget {
-  final int? employeeId;
+  final String? employeeId;
   final Payment? payment;
   final Function(Payment) onSave;
 
@@ -523,7 +526,7 @@ class _PaymentFormDialog extends StatefulWidget {
 class _PaymentFormDialogState extends State<_PaymentFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  int? _selectedEmployeeId;
+  String? _selectedEmployeeId;
   final _amountController = TextEditingController();
   final _amountFocusNode = FocusNode();
 
@@ -643,13 +646,13 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
                   Consumer<AppProvider>(
                     builder: (context, provider, child) {
                       final items = provider.employees.map((e) {
-                        return DropdownMenuItem<int>(
+                        return DropdownMenuItem<String>(
                           value: e.id,
                           child: Text(StringUtils.getShortName(e.fullName)),
                         );
                       }).toList();
 
-                      return AppDropdown<int>(
+                      return AppDropdown<String>(
                         value: _selectedEmployeeId,
                         items: items,
                         onChanged: (value) {
@@ -869,8 +872,8 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   final _documentController = TextEditingController();
 
   List<Employee> _employees = [];
-  late final Map<int, bool> _selected;
-  late final Map<int, TextEditingController> _amountControllers;
+  late final Map<String, bool> _selected;
+  late final Map<String, TextEditingController> _amountControllers;
 
   bool _isLoading = false;
   bool _allSelected = false;
