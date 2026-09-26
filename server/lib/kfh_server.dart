@@ -1,6 +1,7 @@
 /// Сервер КФХ: API синхронизации и отчётов поверх MySQL.
 library;
 
+export 'src/admin/import_service.dart';
 export 'src/app.dart';
 export 'src/audit.dart';
 export 'src/auth/access_token.dart';
@@ -16,6 +17,7 @@ export 'src/http/middleware.dart';
 export 'src/http/request_utils.dart';
 export 'src/http/responses.dart';
 export 'src/http/sync_api.dart';
+export 'src/http/admin_api.dart';
 export 'src/http/data_api.dart';
 export 'src/payroll/payroll_calculator.dart';
 export 'src/periods/period_service.dart';

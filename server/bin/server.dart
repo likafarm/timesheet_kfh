@@ -103,6 +103,10 @@ Future<void> main(List<String> args) async {
       periods: PeriodService(db: db),
       payroll: PayrollCalculator(db: db),
     ),
+    adminApi: AdminApi(
+      ImportService(db: db, payroll: PayrollCalculator(db: db), logger: logger),
+      authApi,
+    ),
   );
   final server =
       await shelf_io.serve(handler, InternetAddress.anyIPv4, config.port);
