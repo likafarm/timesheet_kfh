@@ -11,8 +11,10 @@
 # остаток скрипта. По той же причине у них stdin закрыт (</dev/null).
 #
 # Раскладка на VPS:
-#   /opt/kfh/kfh.env      KFH_DOMAIN=… (создаётся один раз вручную)
-#   /opt/kfh/secrets/     пароли MySQL и ключ JWT (создаются здесь при первом запуске)
+#   /opt/kfh/kfh.env      KFH_DOMAIN, KFH_BACKUP_BUCKET, KFH_BACKUP_AGE_RECIPIENT
+#                         (создаётся один раз вручную)
+#   /opt/kfh/secrets/     пароли MySQL и ключ JWT (создаются здесь при первом запуске),
+#                         s3.env — ключ Object Storage (кладёт владелец)
 #   /opt/kfh/src/         текущие исходники (src.prev — предыдущие)
 #   /opt/kfh/backups/pre-deploy/  копия базы перед каждой выкладкой (последние 10)
 #
@@ -23,21 +25,20 @@ set -euo pipefail
 ARCHIVE=${1:?укажите архив исходников}
 REV=${2:-unknown}
 ROOT=/opt/kfh
-SRC=$ROOT/src
-ENV_FILE=$ROOT/kfh.env
-SECRETS=$ROOT/secrets
 BACKUPS=$ROOT/backups/pre-deploy
-COMPOSE=(docker compose -p kfh --env-file "$ENV_FILE" -f "$SRC/server/deploy/docker-compose.prod.yml")
 
-log() { echo "[deploy $(date -u +%FT%TZ)] $*"; }
-fail() { echo "[deploy] ОШИБКА: $*" >&2; exit 1; }
+# 1. Исходники распаковываются в src.new; общие функции — из них же.
+rm -rf "$ROOT/src.new"
+mkdir -p "$ROOT/src.new"
+tar -xf "$ARCHIVE" -C "$ROOT/src.new"
+echo "$REV" > "$ROOT/src.new/REVISION"
+LOG_TAG=deploy
+# shellcheck source=lib.sh
+. "$ROOT/src.new/server/deploy/lib.sh"
+load_env
+log "исходники ревизии $REV"
 
-[ -f "$ENV_FILE" ] || fail "нет $ENV_FILE (строка KFH_DOMAIN=<домен>)"
-# shellcheck disable=SC1090
-. "$ENV_FILE"
-[ -n "${KFH_DOMAIN:-}" ] || fail "в $ENV_FILE не задан KFH_DOMAIN"
-
-# 1. Секреты — только при первом запуске. Если база уже есть, а пароля нет,
+# 2. Секреты — только при первом запуске. Если база уже есть, а пароля нет,
 #    новый пароль к ней не подойдёт: останавливаемся.
 install -d -m 700 "$SECRETS"
 install -d -m 700 "$ROOT/backups" "$BACKUPS"
@@ -56,12 +57,7 @@ for name in mysql_root_password mysql_password jwt_secret; do
   chmod 444 "$file" # папка 700: снаружи не прочитать, а контейнеру (не root) — можно
 done
 
-# 2. Исходники: src.new → src, прежние — в src.prev.
-log "исходники ревизии $REV"
-rm -rf "$ROOT/src.new"
-mkdir -p "$ROOT/src.new"
-tar -xf "$ARCHIVE" -C "$ROOT/src.new"
-echo "$REV" > "$ROOT/src.new/REVISION"
+# src.new → src, прежние — в src.prev.
 rm -rf "$ROOT/src.prev"
 [ -d "$SRC" ] && mv "$SRC" "$ROOT/src.prev"
 mv "$ROOT/src.new" "$SRC"
@@ -77,23 +73,11 @@ log "сборка образа"
 log "MySQL"
 "${COMPOSE[@]}" up -d --wait mysql
 
-mysql_root() {
-  # пароль — через MYSQL_PWD, не в командной строке
-  "${COMPOSE[@]}" exec -T mysql sh -c 'MYSQL_PWD="$(cat /run/secrets/mysql_root_password)" exec "$0" -uroot "$@"' "$@" </dev/null
-}
-
 # 5. Копия базы перед миграциями (если в ней уже есть таблицы).
-tables=$(mysql_root mysql -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'kfh'")
-if [ "$tables" -gt 0 ]; then
+if [ "$(kfh_table_count)" -gt 0 ]; then
   dump=$BACKUPS/kfh-$(date -u +%Y%m%d-%H%M%S)-$REV.sql.gz
   log "копия базы → $dump"
-  (umask 077
-   mysql_root mysqldump --single-transaction --routines --triggers --events \
-     --set-gtid-purged=OFF --hex-blob --no-tablespaces \
-     --default-character-set=utf8mb4 --databases kfh | gzip > "$dump.tmp")
-  gzip -t "$dump.tmp" || fail "копия базы повреждена"
-  zcat "$dump.tmp" | tail -n 1 | grep -q 'Dump completed' || fail "копия базы неполная"
-  mv "$dump.tmp" "$dump"
+  dump_database "$dump"
   ls -1t "$BACKUPS"/kfh-*.sql.gz | tail -n +11 | xargs -r rm -f
 else
   log "база пустая — копия не нужна"
@@ -107,7 +91,25 @@ log "миграции"
 log "запуск API и Caddy"
 "${COMPOSE[@]}" up -d --wait --remove-orphans api caddy
 
-# 8. Проверка снаружи, через HTTPS (первый раз Caddy получает сертификат).
+# 8. Таймер ежедневного бэкапа (systemd). Файлы юнитов — из исходников.
+if [ -n "${KFH_BACKUP_BUCKET:-}" ] && [ -n "${KFH_BACKUP_AGE_RECIPIENT:-}" ] && [ -s "$SECRETS/s3.env" ]; then
+  changed=false
+  for unit in kfh-backup.service kfh-backup.timer; do
+    if ! cmp -s "$SRC/server/deploy/systemd/$unit" "/etc/systemd/system/$unit"; then
+      sudo install -m 644 "$SRC/server/deploy/systemd/$unit" "/etc/systemd/system/$unit"
+      changed=true
+    fi
+  done
+  if $changed; then
+    sudo systemctl daemon-reload
+    log "таймер бэкапа обновлён"
+  fi
+  sudo systemctl enable --now kfh-backup.timer >/dev/null 2>&1
+else
+  log "ВНИМАНИЕ: бэкап вне VPS не настроен (KFH_BACKUP_BUCKET, KFH_BACKUP_AGE_RECIPIENT в kfh.env, secrets/s3.env)"
+fi
+
+# 9. Проверка снаружи, через HTTPS (первый раз Caddy получает сертификат).
 log "проверка https://$KFH_DOMAIN/health"
 for _ in $(seq 1 40); do
   if body=$(curl -fsS --max-time 5 "https://$KFH_DOMAIN/health" 2>/dev/null); then

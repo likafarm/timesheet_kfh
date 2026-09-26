@@ -1,0 +1,12 @@
+# Ежедневно в 00:30 UTC (03:30 по Москве); пропущенный запуск
+# (сервер был выключен) выполняется при включении.
+[Unit]
+Description=KFH: daily backup
+
+[Timer]
+OnCalendar=*-*-* 00:30:00 UTC
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

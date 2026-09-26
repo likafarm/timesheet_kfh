@@ -162,6 +162,31 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
 Приёмка 2026-09-27 на копии рабочей базы: 130 записей (табель 89, из них 9 удалённых), контроль 21 строка за
 07–09.2026 — сошлось; независимая сверка pull с SQLite-копией — 0 расхождений.
 
+## VPS: выкладка и бэкапы
+
+Сервер — `https://tab.korovatech.ru` (VPS TimeWeb, `ssh kfh`, пользователь `deploy`). Файлы — `server/deploy/`.
+
+- **Выкладка** с ПК: `.\server\deploy\publish.ps1` — архив нужных серверу файлов → VPS → `deploy.sh`
+  (секреты при первом запуске → образ, прежний — `kfh-api:previous` → копия базы в
+  `/opt/kfh/backups/pre-deploy` (10 последних) → `migrate` → запуск → таймер бэкапа → `https://…/health`).
+- На VPS: `/opt/kfh/kfh.env` (`KFH_DOMAIN`, `KFH_BACKUP_BUCKET`, `KFH_BACKUP_AGE_RECIPIENT`), `/opt/kfh/secrets/`
+  (пароли MySQL, ключ JWT, `s3.env` — ключ Object Storage). Команды compose:
+  `docker compose -p kfh --env-file /opt/kfh/kfh.env -f /opt/kfh/src/server/deploy/docker-compose.prod.yml …`.
+- **Бэкап вне VPS** — `backup.sh` по таймеру `kfh-backup.timer` (00:30 UTC): `mysqldump` → gzip → проверка →
+  шифрование `age` → Yandex Object Storage, бакет `kfh-backups-likafarm`: `daily/` (8 дней), `weekly/` (воскресенье,
+  57 дней), `monthly/` (1-е число, 366 дней). Ротацию делают правила жизненного цикла бакета, в бакете включено
+  версионирование; ключ сервера (`storage.uploader` + `storage.viewer`) удалять не может. Последний успех —
+  `/opt/kfh/backups/last_success`, журнал — `journalctl -u kfh-backup.service`, запуск вручную —
+  `sudo systemctl start kfh-backup.service`.
+- **Ключ шифрования**: открытый — в `kfh.env`, закрытый — только у владельца (`%USERPROFILE%\.kfh\backup_age.key`
+  + копия вне ПК). Без него копии из бакета не расшифровать.
+- **Восстановление** (проверено 2026-09-27 на пустой схеме): скачать копию (`rclone` на VPS с настройками из
+  `backup.sh`, или консоль Yandex Cloud) → на ПК `age -d -i backup_age.key -o kfh.sql.gz <копия>.age` (без age —
+  `docker run --rm -v <папка ключа>:/k:ro -v <папка копии>:/d alpine:3.22 sh -c "apk add age && age -d …"`) →
+  `zcat kfh.sql.gz | mysql -uroot -p` в чистую MySQL 8.4 (дамп сам создаёт базу `kfh`) → `server migrate`
+  (ничего не применяет) → запуск API. На VPS после восстановления — `UPDATE sync_serial SET epoch = UUID();`
+  и пароль `kfh_api` из `secrets/mysql_password` (пользователи MySQL в дамп не входят).
+
 ## Вход и пароли
 
 - Пароли — Argon2id (19 МиБ, 2 прохода, ~0,25 с), строка PHC; проверено по эталонной утилите `argon2`.

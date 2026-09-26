@@ -8,7 +8,7 @@
 - Этап 0 (гигиена, тесты, вынос расчёта ЗП) — **завершён** 2026-09-25, влит в `main`.
 - Перенос базы в AppData — **завершён** 2026-09-25: рабочая база в `%LOCALAPPDATA%\KFH Time Tracking`, старые файлы в папке программы удалены владельцем.
 - Этап 1 (домен-пакет, drift, UUID, схема v2) — **завершён** 2026-09-26, влит в `main`, версия 1.1.0. Боевая база переносится в `kfx_time_tracking_v2.db` при первом запуске 1.1.0 (владелец установил и проверил).
-- Этап 2 (сервер: API + MySQL на VPS) — **идёт** с 2026-09-26 в ветке `feature/stage-2-server`. Шаги 2.1–2.6 — локально (Docker Desktop). 2.7: VPS TimeWeb `185.185.142.152` (`ssh kfh`, пользователь deploy, только ключ `~/.ssh/kfh_vps`), API на `https://tab.korovatech.ru` поднят 2026-09-27, база пустая, админа ещё нет. 2.8 (бэкапы вне VPS) ждёт решения владельца по хранилищу.
+- Этап 2 (сервер: API + MySQL на VPS) — **идёт** с 2026-09-26 в ветке `feature/stage-2-server`. Шаги 2.1–2.6 — локально (Docker Desktop). 2.7: VPS TimeWeb `185.185.142.152` (`ssh kfh`, пользователь deploy, только ключ `~/.ssh/kfh_vps`), API на `https://tab.korovatech.ru` поднят 2026-09-27, база пустая, админа ещё нет. 2.8: ежедневный зашифрованный (age) бэкап в Yandex Object Storage, контрольное восстановление на пустой схеме пройдено 2026-09-27; после импорта боевой базы — повторить. Закрытый ключ age — только у владельца (`%USERPROFILE%\.kfh\backup_age.key`), в чат и на VPS не выносить.
 - Решения по этапу 2: сервер на `shelf` (не Dart Frog); ставку, начинающуюся в закрытом месяце, сервер отклоняет; роли — оператор: табель и просмотр сотрудников; бухгалтер: всё, кроме пользователей; админ: всё.
 - Решения по этапу 1: удаление сотрудника убрать (только увольнение + мягкое удаление без каскада); `pending_changes` создать, но наполнять с этапа 3; `edited_by` = id устройства; база v2 — новый файл `kfx_time_tracking_v2.db`, старый не трогается.
 
@@ -29,7 +29,7 @@ flutter build windows --release     # ~2 мин
 .\server\deploy\publish.ps1         # выкладка сервера на VPS (копия базы → миграции → запуск → /health); только с согласия владельца
 ```
 
-На VPS всё в `/opt/kfh` (`kfh.env`, `secrets/`, `src/`, `backups/pre-deploy/`), compose-проект `kfh` (`server/deploy/`). ssh — из PowerShell (Windows OpenSSH): ssh из Git Bash не находит `~/.ssh` из-за кириллицы в пути профиля.
+На VPS всё в `/opt/kfh` (`kfh.env`, `secrets/`, `src/`, `backups/pre-deploy/`), compose-проект `kfh` (`server/deploy/`), бэкап — `kfh-backup.timer`; подробности — раздел «VPS» в `server/README.md`. ssh — из PowerShell (Windows OpenSSH): ssh из Git Bash не находит `~/.ssh` из-за кириллицы в пути профиля.
 
 Inno Setup стоит в `C:\Program Files (x86)\Inno Setup 6\`, но не в PATH — тогда скрипт собирает только ZIP. Установщик вручную: `& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=<версия>" installer.iss`.
 

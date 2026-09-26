@@ -1,3 +1,4 @@
 # Скрипты для Linux (VPS) — всегда LF, иначе bash на сервере не прочитает их.
 *.sh text eol=lf
 server/deploy/Caddyfile text eol=lf
+server/deploy/systemd/* text eol=lf
