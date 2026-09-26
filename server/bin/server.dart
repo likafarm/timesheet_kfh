@@ -97,6 +97,12 @@ Future<void> main(List<String> args) async {
     logger: logger,
     authApi: authApi,
     syncApi: SyncApi(SyncService(db: db, logger: logger), authApi),
+    dataApi: DataApi(
+      db: db,
+      auth: authApi,
+      periods: PeriodService(db: db),
+      payroll: PayrollCalculator(db: db),
+    ),
   );
   final server =
       await shelf_io.serve(handler, InternetAddress.anyIPv4, config.port);

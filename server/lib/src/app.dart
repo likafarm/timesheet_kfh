@@ -5,6 +5,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import 'database.dart';
 import 'http/auth_api.dart';
+import 'http/data_api.dart';
 import 'http/middleware.dart';
 import 'http/responses.dart';
 import 'http/sync_api.dart';
@@ -21,11 +22,13 @@ Handler buildHandler({
   required Logger logger,
   AuthApi? authApi,
   SyncApi? syncApi,
+  DataApi? dataApi,
 }) {
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => _health(request, db, logger));
   authApi?.addRoutes(router);
   syncApi?.addRoutes(router);
+  dataApi?.addRoutes(router);
 
   return const Pipeline()
       .addMiddleware(requestId())

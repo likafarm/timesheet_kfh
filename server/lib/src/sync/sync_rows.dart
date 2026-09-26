@@ -39,6 +39,18 @@ class SyncRows {
     return [for (final row in r.rows) fromRow(table, row)];
   }
 
+  /// Живые (не удалённые) записи по условию. [where] и [orderBy] пишет
+  /// только серверный код — значения передаются параметрами.
+  Future<List<SyncChange>> live(SqlExecutor sql, SyncTable table,
+      {String where = '1 = 1',
+      Map<String, dynamic> params = const {},
+      String orderBy = 'uuid'}) async {
+    final r = await sql(
+        '${_select(table)} WHERE deleted = 0 AND ($where) ORDER BY $orderBy',
+        params);
+    return [for (final row in r.rows) fromRow(table, row)];
+  }
+
   static SyncChange fromRow(SyncTable table, ResultSetRow row) => SyncChange(
         table: table.name,
         uuid: row.textOf('uuid'),

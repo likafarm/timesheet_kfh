@@ -121,6 +121,24 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
 - Каждое применённое изменение — в `change_log` и `audit_log` (`sync_insert`/`sync_update`/`sync_delete`,
   прежнее и новое значение) в той же транзакции.
 
+## Закрытые месяцы, расчёт, чтение
+
+- `GET /periods/locks` — любой вошедший (клиенту — для отметки «месяц закрыт»);
+  `POST /periods/locks` `{year, month, note?}` → 201 (`already_locked` — 409),
+  `DELETE /periods/locks/<год>/<месяц>` → 204 (не закрыт — 404) — бухгалтер и админ, оба действия в аудите
+  (`period_lock`, `period_unlock` с прежним закрытием). Закрытие ждёт незавершённые push (они читают
+  `period_locks` с `FOR SHARE`).
+- Расчёт — бухгалтер и админ, тем же кодом, что в приложении (`calculateMonthlySalary`, `combineBalances`), по
+  всем неудалённым сотрудникам (включая уволенных — как «Рассчитать всех»):
+  - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с сохранённым и `up_to_date`, без записи;
+  - `POST /payroll/calculate` `{year, month}` → `{saved, unchanged, employees}`: записывает только изменившиеся
+    расчёты (прежний uuid сохраняется), `edited_by = server`, `calculated_at` — UTC с `Z`, через `change_log`
+    (под очередью записи) и аудит `payroll_save`; закрытый месяц — 409 `period_locked`;
+  - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки на 1-е число.
+- Чтение (права — как у pull): `GET /employees?active_on=`, `GET /timesheet?year=&month=&employee_uuid=`,
+  `GET /rates?employee_uuid=`, `GET /payments?from=&to=&employee_uuid=`, `GET /settings`. Только неудалённые
+  записи, поля — как в `data` синхронизации плюс `uuid`, `updated_at`, `edited_by`.
+
 ## Вход и пароли
 
 - Пароли — Argon2id (19 МиБ, 2 прохода, ~0,25 с), строка PHC; проверено по эталонной утилите `argon2`.
