@@ -40,6 +40,9 @@ services:
       DB_NAME: kfh
       DB_USER: kfh_api
       DB_PASSWORD: dev-api
+      # На стенде миграции применяются сами; на VPS — «server migrate»
+      # после резервной копии.
+      MIGRATE_ON_START: "true"
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

@@ -40,12 +40,23 @@ class DbConfig {
 /// - `DB_HOST`, `DB_PORT` (3306), `DB_NAME`, `DB_USER` — MySQL;
 /// - `DB_PASSWORD` или `DB_PASSWORD_FILE` (путь к файлу, для Docker secrets);
 /// - `DB_SECURE` (`true`/`false`, по умолчанию `true`);
-/// - `DB_MAX_CONNECTIONS` (по умолчанию 10).
+/// - `DB_MAX_CONNECTIONS` (по умолчанию 10);
+/// - `MIGRATIONS_DIR` — папка SQL-миграций (по умолчанию `migrations`
+///   в рабочей папке);
+/// - `MIGRATE_ON_START` — применять миграции при старте (по умолчанию
+///   `false`: на VPS их применяет `server migrate` после резервной копии).
 class ServerConfig {
   final int port;
   final DbConfig db;
+  final String migrationsDir;
+  final bool migrateOnStart;
 
-  const ServerConfig({required this.port, required this.db});
+  const ServerConfig({
+    required this.port,
+    required this.db,
+    this.migrationsDir = 'migrations',
+    this.migrateOnStart = false,
+  });
 
   factory ServerConfig.fromEnvironment(
     Map<String, String> env, {
@@ -120,6 +131,10 @@ class ServerConfig {
         secure: boolValue('DB_SECURE', true),
         maxConnections: intValue('DB_MAX_CONNECTIONS', 10, max: 100),
       ),
+      migrationsDir: (env['MIGRATIONS_DIR']?.trim() ?? '').isEmpty
+          ? 'migrations'
+          : env['MIGRATIONS_DIR']!.trim(),
+      migrateOnStart: boolValue('MIGRATE_ON_START', false),
     );
   }
 }

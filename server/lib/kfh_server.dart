@@ -7,4 +7,6 @@ export 'src/database.dart';
 export 'src/http/middleware.dart';
 export 'src/http/responses.dart';
 export 'src/logger.dart';
+export 'src/migrations/migrations.dart';
+export 'src/migrations/sql_split.dart';
 export 'src/version.dart';

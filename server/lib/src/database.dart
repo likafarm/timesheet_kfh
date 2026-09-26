@@ -33,6 +33,8 @@ class MySqlDatabase implements Database {
               collation: 'utf8mb4_0900_ai_ci',
             );
             await connection.connect(timeoutMs: 5000);
+            // Все моменты времени в базе — UTC (CURRENT_TIMESTAMP, NOW()).
+            await connection.execute("SET time_zone = '+00:00'");
             return connection;
           },
           isAlive: (connection) => connection.connected,

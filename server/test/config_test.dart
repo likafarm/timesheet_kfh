@@ -21,6 +21,8 @@ void main() {
     expect(config.db.password, 'secret');
     expect(config.db.secure, isTrue);
     expect(config.db.maxConnections, 10);
+    expect(config.migrationsDir, 'migrations');
+    expect(config.migrateOnStart, isFalse);
   });
 
   test('все настройки заданы явно', () {
@@ -30,7 +32,11 @@ void main() {
       'DB_PORT': '3307',
       'DB_SECURE': 'false',
       'DB_MAX_CONNECTIONS': '4',
+      'MIGRATIONS_DIR': '/app/migrations',
+      'MIGRATE_ON_START': 'true',
     });
+    expect(config.migrationsDir, '/app/migrations');
+    expect(config.migrateOnStart, isTrue);
     expect(config.port, 9000);
     expect(config.db.port, 3307);
     expect(config.db.secure, isFalse);

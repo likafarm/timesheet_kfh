@@ -111,7 +111,7 @@ timesheet_kfh/
 **Шаги**
 
 - [x] 2.1. Каркас сервера `server/` (workspace): настройки из окружения, JSON-журнал, ошибки API, `GET /health`, Dockerfile, локальный стенд `docker-compose.dev.yml`.
-- [ ] 2.2. Схема MySQL и раннер миграций; сверка полей с `schema_info.dart`.
+- [x] 2.2. Схема MySQL (`server/migrations/0001_initial.sql`) и раннер миграций; сверка полей со снимком drift.
 - [ ] 2.3. Авторизация (JWT + refresh), пользователи, первый админ командой на сервере.
 - [ ] 2.4. `POST /sync/push`, `GET /sync/pull`: LWW, `change_log`, аудит, идемпотентность.
 - [ ] 2.5. Закрытие периодов, расчёт ЗП на сервере, эндпоинты чтения.
