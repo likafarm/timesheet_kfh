@@ -70,7 +70,11 @@ abstract interface class PaymentRepository {
 
   /// Выплаты, новые сверху; [start] и [end] (оба сразу) — период
   /// включительно.
-  Future<List<Payment>> list({String? employeeId, DateTime? start, DateTime? end});
+  Future<List<Payment>> list({
+    String? employeeId,
+    DateTime? start,
+    DateTime? end,
+  });
 
   /// Сумма выплат по сотрудникам строго до [date].
   Future<Map<String, double>> paidBefore(DateTime date);

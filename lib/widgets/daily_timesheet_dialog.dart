@@ -111,7 +111,7 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
     for (final emp in _employees) {
       final id = emp.id;
       if (id == null) continue;
-      next[id] = await provider.db.getEmployeeRateAtDate(id, _selectedDate);
+      next[id] = await provider.getEmployeeRateAtDate(id, _selectedDate);
     }
     if (!mounted) return;
     setState(() {

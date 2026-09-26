@@ -18,7 +18,6 @@ class BackupListScreen extends StatefulWidget {
 class _BackupListScreenState extends State<BackupListScreen> {
   List<BackupInfo> _backups = [];
   bool _isLoading = true;
-  bool _isRestoring = false;
 
   @override
   void initState() {
@@ -45,206 +44,72 @@ class _BackupListScreenState extends State<BackupListScreen> {
     }
   }
 
+  /// Пока только просмотр таблиц копии: восстановление переделывается
+  /// под формат базы v2 (этап 1, шаг 1.6).
   Future<void> _restoreBackup(BackupInfo backup) async {
-    if (_isRestoring) return;
-
     final provider = context.read<AppProvider>();
+    List<String> tables;
+    try {
+      tables = await provider.backupService.getBackupTableNames(backup.path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка чтения копии: $e')));
+      return;
+    }
+    if (!mounted) return;
 
-    final choice = await showDialog<int>(
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Восстановление из бэкапа'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Выберите способ восстановления:'),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.restore_page),
-              title: const Text('Вся база данных'),
-              subtitle: const Text('Заменит все данные текущей базы'),
-              onTap: () => Navigator.pop(context, 1),
-            ),
-            ListTile(
-              leading: const Icon(Icons.table_chart),
-              title: const Text('Выборочные таблицы'),
-              subtitle: const Text('Восстановить только определённые таблицы'),
-              onTap: () => Navigator.pop(context, 2),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 0),
-            child: const Text('Отмена'),
-          ),
-        ],
-      ),
-    );
-
-    if (choice == null || choice == 0) return;
-
-    if (choice == 1) {
-      final confirm = await _showConfirmDialog(
-        title: 'Восстановление всей базы',
-        content:
-            'Вы уверены, что хотите полностью заменить текущую базу данных на версию из бэкапа?\nВсе текущие данные будут потеряны!',
-      );
-      if (!confirm) return;
-      if (!mounted) return;
-
-      setState(() => _isRestoring = true);
-      try {
-        final success = await provider.restoreFullBackup(backup.path);
-        if (!mounted) return;
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('База данных восстановлена. Данные перезагружены.'),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ошибка восстановления базы данных')),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-      } finally {
-        if (mounted) setState(() => _isRestoring = false);
-      }
-    } else if (choice == 2) {
-      try {
-        final db = await provider.db.database;
-        final backupService = provider.backupService;
-        final allTables = await backupService.getTableNames(db);
-        final filtered = allTables
-            .where((t) => t != 'company_settings')
-            .toList();
-
-        final selectedTables = await _showTableSelectionWithViewDialog(
-          filtered,
-          backup,
-        );
-        if (selectedTables == null || selectedTables.isEmpty) return;
-
-        final restoreAll = await showDialog<bool>(
-          // ignore: use_build_context_synchronously
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Восстановление таблиц'),
-            content: Text(
-              'Выбрано таблиц: ${selectedTables.length}.\n'
-              'Восстановить все таблицы целиком? (заменят текущие данные)',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Отмена'),
+        title: const Text('Копия базы'),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Восстановление из копии переделывается под новый формат '
+                'базы и появится в следующем обновлении. Копии по-прежнему '
+                'создаются автоматически. Сейчас таблицы копии можно '
+                'только просмотреть.',
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Восстановить все'),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final table in tables)
+                      ListTile(
+                        leading: const Icon(Icons.table_chart),
+                        title: Text(table),
+                        trailing: const Icon(Icons.visibility),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BackupTableViewer(
+                                backupPath: backup.path,
+                                tableName: table,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
-        );
-
-        if (restoreAll == true) {
-          setState(() => _isRestoring = true);
-          final count = await provider.restoreTables(
-            backup.path,
-            selectedTables,
-          );
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Восстановлено $count записей в ${selectedTables.length} таблицах',
-              ),
-            ),
-          );
-          await provider.loadAllData();
-          if (!mounted) return;
-          Navigator.pop(context);
-          setState(() => _isRestoring = false);
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-      } finally {
-        if (mounted) setState(() => _isRestoring = false);
-      }
-    }
-  }
-
-  /// Диалог выбора таблиц с кнопкой просмотра записей
-  Future<List<String>?> _showTableSelectionWithViewDialog(
-    List<String> tables,
-    BackupInfo backup,
-  ) async {
-    final Map<String, bool> selected = {for (var t in tables) t: false};
-
-    return await showDialog<List<String>>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Выберите таблицы для восстановления'),
-          content: SizedBox(
-            width: 500,
-            height: 400,
-            child: ListView(
-              children: tables.map((table) {
-                return CheckboxListTile(
-                  title: Text(table),
-                  value: selected[table],
-                  onChanged: (val) {
-                    setStateDialog(() {
-                      selected[table] = val ?? false;
-                    });
-                  },
-                  secondary: IconButton(
-                    icon: const Icon(Icons.visibility),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BackupTableViewer(
-                            backupPath: backup.path,
-                            tableName: table,
-                          ),
-                        ),
-                      );
-                    },
-                    tooltip: 'Просмотреть записи',
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: const Text('Отмена'),
-            ),
-            TextButton(
-              onPressed: () {
-                final selectedTables = selected.entries
-                    .where((e) => e.value)
-                    .map((e) => e.key)
-                    .toList();
-                Navigator.pop(context, selectedTables);
-              },
-              child: const Text('Выбрать'),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Закрыть'),
+          ),
+        ],
       ),
     );
   }
@@ -445,12 +310,12 @@ class _BackupListScreenState extends State<BackupListScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.restore, color: Colors.green),
-              onPressed: _isRestoring ? null : () => _restoreBackup(backup),
+              onPressed: () => _restoreBackup(backup),
               tooltip: 'Восстановить',
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: _isRestoring ? null : () => _deleteBackup(backup),
+              onPressed: () => _deleteBackup(backup),
               tooltip: 'Удалить',
             ),
           ],

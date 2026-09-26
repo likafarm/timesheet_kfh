@@ -3,8 +3,9 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart';
+import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
 /// Тип резервной копии.
 enum BackupType {
@@ -37,11 +38,24 @@ class BackupInfo {
 
 class BackupService {
   static const _maxDailyBackups = 5;
-  static const _backupDirName = 'backups';
+  /// Отладочная сборка кладёт копии отдельно: иначе `flutter run`
+  /// перезаписал бы сегодняшнюю копию рабочей базы.
+  static const _backupDirName = kDebugMode ? 'backups (debug)' : 'backups';
+
+  /// Папка копий; по умолчанию `Документы/backups` (в отладочной сборке —
+  /// `Документы/backups (debug)`); другая — для тестов.
+  final String? backupDirectory;
+
+  BackupService({this.backupDirectory});
 
   Future<Directory> _getBackupDirectory() async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final backupDir = Directory(p.join(appDocDir.path, _backupDirName));
+    final backupDir = Directory(
+      backupDirectory ??
+          p.join(
+            (await getApplicationDocumentsDirectory()).path,
+            _backupDirName,
+          ),
+    );
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
@@ -55,16 +69,10 @@ class BackupService {
   /// - [BackupType.monthly]: имя `monthly_YYYY-MM.db`.
   ///   Если файл за этот месяц уже есть — пропускает (первая копия месяца важнее).
   Future<String?> createBackup(
-    Database db, {
+    LocalDatabase db, {
     BackupType type = BackupType.daily,
   }) async {
     try {
-      final dbPath = db.path;
-      final sourceFile = File(dbPath);
-      if (!await sourceFile.exists()) {
-        throw Exception('Файл базы данных не найден');
-      }
-
       final backupDir = await _getBackupDirectory();
       final now = DateTime.now();
 
@@ -91,20 +99,39 @@ class BackupService {
         return backupPath;
       }
 
-      // Сбрасываем WAL в основной файл БД, чтобы копия была согласованной.
-      try {
-        await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
-      } catch (e) {
-        debugPrint('WAL checkpoint failed (non-fatal): $e');
-      }
+      // VACUUM INTO — согласованный снимок открытой базы. Пишем во
+      // временный файл: VACUUM INTO не перезаписывает существующий.
+      final tmp = File('$backupPath.tmp');
+      if (await tmp.exists()) await tmp.delete();
+      await db.customStatement('VACUUM INTO ?', [tmp.path]);
+      final target = File(backupPath);
+      if (await target.exists()) await target.delete();
+      await tmp.rename(backupPath);
 
-      await sourceFile.copy(backupPath);
       await _cleanupOldBackups(backupDir);
       return backupPath;
     } catch (e) {
       debugPrint('Ошибка создания бэкапа: $e');
       return null;
     }
+  }
+
+  /// Копия старой базы (v8) перед переносом в формат v2.
+  /// Имя `backup_v8_<дата-время>.db`; такие копии не удаляются автоматически.
+  /// Бросает исключение, если копию сделать не удалось.
+  Future<String> backupLegacyDatabase(String v8Path) async {
+    final backupDir = await _getBackupDirectory();
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final stamp =
+        '${now.year}-${two(now.month)}-${two(now.day)}_'
+        '${two(now.hour)}-${two(now.minute)}-${two(now.second)}';
+    final backupPath = p.join(backupDir.path, 'backup_v8_$stamp.db');
+    await File(v8Path).copy(backupPath);
+    // Копия сохраняет дату изменения оригинала — ставим текущую,
+    // чтобы в списке копий было видно, когда она сделана.
+    await File(backupPath).setLastModified(now);
+    return backupPath;
   }
 
   /// Очищает старые ежедневные копии, оставляя только последние [_maxDailyBackups].
@@ -200,155 +227,39 @@ class BackupService {
     if (await file.exists()) await file.delete();
   }
 
-  /// Восстанавливает файл БД из бэкапа. [currentDbPath] — путь к основной БД
-  /// (снимать до закрытия соединения). Соседние `-wal`/`-shm` удаляются.
-  Future<bool> restoreFullBackup(
-    String backupPath,
-    String currentDbPath,
-  ) async {
+  /// Таблицы копии (без служебных sqlite_*). Копия открывается только
+  /// на чтение.
+  Future<List<String>> getBackupTableNames(String backupPath) async {
+    final db = sql.sqlite3.open(backupPath, mode: sql.OpenMode.readOnly);
     try {
-      final backupFile = File(backupPath);
-      if (!await backupFile.exists()) {
-        throw Exception('Файл бэкапа не найден');
-      }
-      await backupFile.copy(currentDbPath);
-      for (final suffix in ['-wal', '-shm']) {
-        final sidecar = File('$currentDbPath$suffix');
-        if (await sidecar.exists()) {
-          await sidecar.delete();
-        }
-      }
-      return true;
-    } catch (e) {
-      debugPrint('Ошибка восстановления БД: $e');
-      return false;
-    }
-  }
-
-  /// Замена таблицы целиком с сохранением первичных ключей.
-  Future<int> restoreTables(
-    String backupPath,
-    Database currentDb,
-    List<String> tableNames,
-  ) async {
-    final backupDb = await openDatabase(backupPath);
-    try {
-      await currentDb.execute('PRAGMA foreign_keys = OFF');
-      final ordered = _orderTablesForRestore(tableNames);
-      int totalInserted = 0;
-      for (final table in ordered) {
-        final rows = await backupDb.query(table);
-        await currentDb.transaction((txn) async {
-          await txn.delete(table);
-          for (final row in rows) {
-            final mutableRow = Map<String, Object?>.from(row);
-            await txn.insert(
-              table,
-              mutableRow,
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
-            totalInserted++;
-          }
-        });
-      }
-      return totalInserted;
+      return db
+          .select(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+          )
+          .map((r) => r['name'] as String)
+          .toList();
     } finally {
-      try {
-        await currentDb.execute('PRAGMA foreign_keys = ON');
-      } catch (_) {}
-      await backupDb.close();
+      db.close();
     }
   }
 
-  static const _restoreTableOrder = [
-    'company_settings',
-    'employees',
-    'employee_rates',
-    'timesheet',
-    'payments',
-    'payroll_results',
-    'sick_leave',
-    'vacation',
-  ];
-
-  List<String> _orderTablesForRestore(List<String> tableNames) {
-    final remaining = List<String>.from(tableNames);
-    final ordered = <String>[];
-    for (final name in _restoreTableOrder) {
-      if (remaining.remove(name)) {
-        ordered.add(name);
-      }
-    }
-    ordered.addAll(remaining);
-    return ordered;
-  }
-
-  /// Получить список всех таблиц (кроме системных)
-  Future<List<String>> getTableNames(Database currentDb) async {
-    final result = await currentDb.rawQuery(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-    );
-    return result.map((row) => row['name'] as String).toList();
-  }
-
-  /// Получить записи из указанной таблицы из бэкапа
+  /// Записи таблицы копии. Копия открывается только на чтение.
   Future<List<Map<String, dynamic>>> getBackupTableData(
     String backupPath,
     String tableName,
   ) async {
-    final backupDb = await openDatabase(backupPath);
-    try {
-      return await backupDb.query(tableName);
-    } finally {
-      await backupDb.close();
+    if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(tableName)) {
+      throw ArgumentError('Недопустимое имя таблицы: $tableName');
     }
-  }
-
-  /// Восстановить выбранные записи из бэкапа в текущую таблицу.
-  /// Если запись с таким же id существует — обновляется, иначе вставляется.
-  Future<int> restoreSelectedRows(
-    String backupPath,
-    Database currentDb,
-    String tableName,
-    List<int> rowIds,
-  ) async {
-    if (rowIds.isEmpty) return 0;
-
-    final backupDb = await openDatabase(backupPath);
+    final db = sql.sqlite3.open(backupPath, mode: sql.OpenMode.readOnly);
     try {
-      final placeholders = rowIds.map((_) => '?').join(',');
-      final rows = await backupDb.query(
-        tableName,
-        where: 'id IN ($placeholders)',
-        whereArgs: rowIds,
-      );
-
-      if (rows.isEmpty) return 0;
-
-      int processed = 0;
-      for (final row in rows) {
-        final mutableRow = Map<String, Object?>.from(row);
-        await currentDb.insert(
-          tableName,
-          mutableRow,
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-        processed++;
-      }
-      return processed;
+      return db
+          .select('SELECT * FROM $tableName')
+          .map((r) => Map<String, dynamic>.of(r))
+          .toList();
     } finally {
-      await backupDb.close();
-    }
-  }
-
-  /// Получить список id для всех записей в таблице бэкапа
-  Future<List<int>> getBackupRowIds(String backupPath, String tableName) async {
-    final backupDb = await openDatabase(backupPath);
-    try {
-      final result = await backupDb.query(tableName, columns: ['id']);
-      return result.map((row) => row['id'] as int).toList();
-    } finally {
-      await backupDb.close();
+      db.close();
     }
   }
 }

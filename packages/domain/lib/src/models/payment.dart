@@ -1,5 +1,3 @@
-import '../utils/date_utils.dart';
-
 /// Модель выплаты сотруднику
 class Payment {
   final String? id;
@@ -28,38 +26,6 @@ class Payment {
     this.notes,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
-
-  factory Payment.fromMap(Map<String, dynamic> map) {
-    return Payment(
-      id: map['id']?.toString(),
-      employeeId: map['employee_id'].toString(),
-      paymentDate: parseDateIso(map['payment_date'] as String),
-      amount: (map['amount'] as num).toDouble(),
-      paymentType: map['payment_type'] as String? ?? 'salary',
-      periodStart: dateOnlyString(map['period_start'] as String?),
-      periodEnd: dateOnlyString(map['period_end'] as String?),
-      paymentMethod: map['payment_method'] as String?,
-      documentNumber: map['document_number'] as String?,
-      notes: map['notes'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'employee_id': employeeId,
-      'payment_date': formatDateIso(paymentDate),
-      'amount': amount,
-      'payment_type': paymentType,
-      'period_start': periodStart,
-      'period_end': periodEnd,
-      'payment_method': paymentMethod,
-      'document_number': documentNumber,
-      'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
 
   /// Название типа выплаты на русском
   String get paymentTypeName {

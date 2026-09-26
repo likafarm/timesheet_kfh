@@ -35,48 +35,6 @@ class PayrollResult {
     this.skippedWorkDays = 0,
   }) : calculatedAt = calculatedAt ?? DateTime.now();
 
-  factory PayrollResult.fromMap(Map<String, dynamic> map) {
-    return PayrollResult(
-      id: map['id']?.toString(),
-      employeeId: map['employee_id'].toString(),
-      year: map['year'] as int,
-      month: map['month'] as int,
-      baseDays: (map['base_days'] as num).toDouble(),
-      fieldDays: (map['field_days'] as num).toDouble(),
-      sickDays: (map['sick_days'] as num).toDouble(),
-      vacationDays: (map['vacation_days'] as num).toDouble(),
-      totalSalary: (map['total_salary'] as num).toDouble(),
-      baseRateUsed: map['base_rate_used'] != null
-          ? (map['base_rate_used'] as num).toDouble()
-          : null,
-      fieldRateUsed: map['field_rate_used'] != null
-          ? (map['field_rate_used'] as num).toDouble()
-          : null,
-      calculatedAt: DateTime.parse(map['calculated_at'] as String),
-      status: map['status'] as String? ?? 'calculated',
-      skippedWorkDays: (map['skipped_work_days'] as num?)?.toInt() ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'employee_id': employeeId,
-      'year': year,
-      'month': month,
-      'base_days': baseDays,
-      'field_days': fieldDays,
-      'sick_days': sickDays,
-      'vacation_days': vacationDays,
-      'total_salary': totalSalary,
-      'base_rate_used': baseRateUsed,
-      'field_rate_used': fieldRateUsed,
-      'calculated_at': calculatedAt.toIso8601String(),
-      'status': status,
-      'skipped_work_days': skippedWorkDays,
-    };
-  }
-
   PayrollResult copyWith({
     String? id,
     String? employeeId,

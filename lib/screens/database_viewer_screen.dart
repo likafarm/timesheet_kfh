@@ -31,8 +31,7 @@ class _DatabaseViewerScreenState extends State<DatabaseViewerScreen> {
       _error = null;
     });
     try {
-      final db = context.read<AppProvider>().db;
-      final tables = await db.getTableNames();
+      final tables = await context.read<AppProvider>().getTableNames();
       if (!mounted) return;
       setState(() {
         _tableNames = tables;
@@ -108,7 +107,8 @@ class _DatabaseViewerScreenState extends State<DatabaseViewerScreen> {
   }
 }
 
-/// Экран просмотра конкретной таблицы с редактированием и удалением
+/// Просмотр таблицы (только чтение). Правка строк по uuid с отметкой
+/// updated_at — этап 1, шаг 1.6.
 class TableViewerScreen extends StatefulWidget {
   final String tableName;
 
@@ -137,8 +137,10 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
       _error = null;
     });
     try {
-      final db = context.read<AppProvider>().db;
-      final data = await db.getTableData(widget.tableName, limit: _limit);
+      final data = await context.read<AppProvider>().getTableData(
+        widget.tableName,
+        limit: _limit,
+      );
       if (!mounted) return;
       setState(() {
         if (data.isNotEmpty) {
@@ -163,166 +165,6 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
       _limit = 1000;
     });
     await _loadData();
-  }
-
-  Future<void> _deleteRow(Map<String, dynamic> row, int index) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Подтверждение удаления'),
-        content: Text(
-          'Удалить строку #${index + 1} из таблицы ${widget.tableName}?',
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppButton(
-            label: 'Удалить',
-            onPressed: () => Navigator.pop(context, true),
-            color: Colors.red,
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _isLoading = true);
-    if (!mounted) return;
-    try {
-      final db = context.read<AppProvider>().db;
-      final id = row['id'];
-      if (id == null) {
-        throw Exception('Таблица не содержит поля "id" для удаления');
-      }
-      await db.deleteRow(widget.tableName, id);
-      if (!mounted) return;
-      setState(() {
-        _rows.removeAt(index);
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Строка удалена')));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _editRow(Map<String, dynamic> row, int index) async {
-    final Map<String, TextEditingController> controllers = {};
-    for (var col in _columns) {
-      if (col == 'id') continue;
-      var value = row[col];
-      String initialValue = value?.toString() ?? '';
-      if (value is DateTime) {
-        initialValue = DateFormat('dd.MM.yyyy HH:mm').format(value);
-      }
-      controllers[col] = TextEditingController(text: initialValue);
-    }
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Редактирование строки #${index + 1}'),
-        content: SizedBox(
-          width: 400,
-          height: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: controllers.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: TextField(
-                    controller: entry.value,
-                    decoration: InputDecoration(
-                      labelText: entry.key,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppButton(
-            label: 'Сохранить',
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
-
-    final updatedRow = <String, dynamic>{};
-    for (var col in _columns) {
-      if (col == 'id') {
-        updatedRow[col] = row['id'];
-        continue;
-      }
-      final text = controllers[col]!.text.trim();
-      if (text.isEmpty) {
-        updatedRow[col] = null;
-      } else if (row[col] is int) {
-        updatedRow[col] = int.tryParse(text);
-      } else if (row[col] is double) {
-        updatedRow[col] = double.tryParse(text);
-      } else if (row[col] is DateTime) {
-        try {
-          updatedRow[col] = DateTime.parse(text);
-        } catch (_) {
-          updatedRow[col] = text;
-        }
-      } else {
-        updatedRow[col] = text;
-      }
-    }
-
-    setState(() => _isLoading = true);
-    if (!mounted) return;
-    try {
-      final db = context.read<AppProvider>().db;
-      final id = row['id'];
-      if (id == null) {
-        throw Exception('Таблица не содержит поля "id" для обновления');
-      }
-      await db.updateRow(widget.tableName, id, updatedRow);
-      if (!mounted) return;
-      final newRow = Map<String, dynamic>.from(row);
-      for (var col in _columns) {
-        if (col != 'id') {
-          newRow[col] = updatedRow[col];
-        }
-      }
-      setState(() {
-        _rows[index] = newRow;
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Строка обновлена')));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -419,16 +261,8 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
                               ),
                             );
                           }),
-                          const DataColumn(
-                            label: Text(
-                              'Действия',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
                         ],
-                        rows: _rows.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final row = entry.value;
+                        rows: _rows.map((row) {
                           return DataRow(
                             cells: [
                               ..._columns.map((col) {
@@ -440,45 +274,18 @@ class _TableViewerScreenState extends State<TableViewerScreen> {
                                   ).format(value);
                                 }
                                 return DataCell(
-                                  GestureDetector(
-                                    onTap: () => _editRow(row, index),
-                                    child: Container(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 200,
-                                      ),
-                                      child: Text(
-                                        display,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
+                                  Container(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 200,
+                                    ),
+                                    child: Text(
+                                      display,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 );
                               }),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        size: 18,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: () => _editRow(row, index),
-                                      tooltip: 'Редактировать',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        size: 18,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: () => _deleteRow(row, index),
-                                      tooltip: 'Удалить',
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ],
                           );
                         }).toList(),

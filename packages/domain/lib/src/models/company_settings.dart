@@ -28,43 +28,6 @@ class CompanySettings {
     this.nightShiftMultiplier = 1.2,
   });
 
-  factory CompanySettings.fromMap(Map<String, dynamic> map) {
-    return CompanySettings(
-      id: map['id']?.toString(),
-      companyName: map['company_name'] as String,
-      directorName: map['director_name'] as String?,
-      inn: map['inn'] as String?,
-      ogrn: map['ogrn'] as String?,
-      bankAccount: map['bank_account'] as String?,
-      bankName: map['bank_name'] as String?,
-      legalAddress: map['legal_address'] as String?,
-      phone: map['phone'] as String?,
-      defaultWorkDayHours:
-          (map['default_work_day_hours'] as num?)?.toDouble() ?? 8.0,
-      overtimeMultiplier:
-          (map['overtime_multiplier'] as num?)?.toDouble() ?? 1.5,
-      nightShiftMultiplier:
-          (map['night_shift_multiplier'] as num?)?.toDouble() ?? 1.2,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'company_name': companyName,
-      'director_name': directorName,
-      'inn': inn,
-      'ogrn': ogrn,
-      'bank_account': bankAccount,
-      'bank_name': bankName,
-      'legal_address': legalAddress,
-      'phone': phone,
-      'default_work_day_hours': defaultWorkDayHours,
-      'overtime_multiplier': overtimeMultiplier,
-      'night_shift_multiplier': nightShiftMultiplier,
-    };
-  }
-
   CompanySettings copyWith({
     String? id,
     String? companyName,

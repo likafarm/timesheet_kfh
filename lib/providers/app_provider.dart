@@ -2,15 +2,27 @@
 
 import 'package:flutter/material.dart';
 import 'package:kfh_domain/kfh_domain.dart';
-import '../services/database_service.dart';
+import '../services/app_database.dart';
 import '../services/backup_service.dart';
 
 class AppProvider extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService();
+  AppProvider(this._appDb);
+
+  final AppDatabase _appDb;
   final BackupService _backupService = BackupService();
 
-  DatabaseService get db => _db;
   BackupService get backupService => _backupService;
+
+  /// Путь к файлу базы (для «О программе»).
+  String get databasePath => _appDb.path;
+
+  EmployeeRepository get _employeesRepo => _appDb.repos.employees;
+  RateRepository get _ratesRepo => _appDb.repos.rates;
+  TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
+  PaymentRepository get _paymentsRepo => _appDb.repos.payments;
+  PayrollRepository get _payrollRepo => _appDb.repos.payroll;
+  SettingsRepository get _settingsRepo => _appDb.repos.settings;
+  PayrollService get _payrollService => _appDb.repos.payrollService;
 
   // Списки данных
   List<Employee> _employees = [];
@@ -19,7 +31,7 @@ class AppProvider extends ChangeNotifier {
   List<EmployeeRate> _employeeRates = [];
   List<PayrollResult> _payrollResults = [];
   Map<String, double> _startingBalances = {};
-  Map<String, dynamic>? _companySettings;
+  CompanySettings? _companySettings;
 
   // Состояние загрузки
   bool _isLoading = false;
@@ -47,7 +59,7 @@ class AppProvider extends ChangeNotifier {
   List<EmployeeRate> get employeeRates => _employeeRates;
   List<PayrollResult> get payrollResults => _payrollResults;
   Map<String, double> get startingBalances => _startingBalances;
-  Map<String, dynamic>? get companySettings => _companySettings;
+  CompanySettings? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -72,13 +84,13 @@ class AppProvider extends ChangeNotifier {
   // ==========================================================================
 
   Future<void> loadCompanySettings() async {
-    _companySettings = await _db.getCompanySettings();
+    _companySettings = await _settingsRepo.get();
     notifyListeners();
   }
 
-  Future<void> updateCompanySettings(Map<String, dynamic> settings) async {
+  Future<void> updateCompanySettings(CompanySettings settings) async {
     try {
-      await _db.updateCompanySettings(settings);
+      await _settingsRepo.save(settings);
       await loadCompanySettings();
     } catch (e) {
       _error = 'Ошибка обновления настроек: $e';
@@ -91,13 +103,15 @@ class AppProvider extends ChangeNotifier {
   // ==========================================================================
 
   Future<void> loadEmployees({bool activeOnly = false}) async {
-    _employees = await _db.getAllEmployees(activeOnly: activeOnly);
+    _employees = await _employeesRepo.all(
+      activeOn: activeOnly ? DateTime.now() : null,
+    );
     notifyListeners();
   }
 
   Future<void> addEmployee(Employee employee, {DateTime? rateStartDate}) async {
     try {
-      final id = await _db.insertEmployee(employee);
+      final id = await _employeesRepo.add(employee);
       final start = rateStartDate ?? employee.hireDate;
       final rate = EmployeeRate(
         employeeId: id,
@@ -105,7 +119,7 @@ class AppProvider extends ChangeNotifier {
         fieldRate: employee.fieldRate,
         startDate: start,
       );
-      await _db.insertEmployeeRate(rate);
+      await _ratesRepo.add(rate);
       await loadEmployees();
       setNeedRefreshReports(true);
     } catch (e) {
@@ -116,22 +130,11 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> updateEmployee(Employee employee) async {
     try {
-      await _db.updateEmployee(employee);
+      await _employeesRepo.update(employee);
       await loadEmployees();
       setNeedRefreshReports(true);
     } catch (e) {
       _error = 'Ошибка обновления сотрудника: $e';
-      notifyListeners();
-    }
-  }
-
-  Future<void> deleteEmployee(String id) async {
-    try {
-      await _db.deleteEmployee(id);
-      await loadEmployees();
-      setNeedRefreshReports(true);
-    } catch (e) {
-      _error = 'Ошибка удаления сотрудника: $e';
       notifyListeners();
     }
   }
@@ -155,7 +158,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> loadEmployeeRates({String? employeeId}) async {
     if (employeeId != null) {
-      _employeeRates = await _db.getEmployeeRateHistory(employeeId);
+      _employeeRates = await _ratesRepo.history(employeeId);
     } else {
       _employeeRates = [];
     }
@@ -164,7 +167,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addEmployeeRate(EmployeeRate rate) async {
     try {
-      await _db.insertEmployeeRate(rate);
+      await _ratesRepo.add(rate);
       await loadEmployeeRates(employeeId: rate.employeeId);
       setNeedRefreshReports(true);
     } catch (e) {
@@ -177,7 +180,7 @@ class AppProvider extends ChangeNotifier {
     String employeeId,
     DateTime date,
   ) async {
-    return await _db.getEmployeeRateAtDate(employeeId, date);
+    return await _ratesRepo.at(employeeId, date);
   }
 
   // ==========================================================================
@@ -193,7 +196,7 @@ class AppProvider extends ChangeNotifier {
     try {
       _currentPeriodStart = start;
       _currentPeriodEnd = end;
-      _timesheetRecords = await _db.getTimesheetByPeriod(
+      _timesheetRecords = await _timesheetRepo.inPeriod(
         start,
         end,
         employeeId: employeeId,
@@ -211,7 +214,7 @@ class AppProvider extends ChangeNotifier {
     DateTime date,
   ) async {
     try {
-      final existing = await _db.getTimesheetByPeriod(date, date);
+      final existing = await _timesheetRepo.inPeriod(date, date);
       for (var record in records) {
         TimesheetRecord? existingRecord;
         for (var r in existing) {
@@ -227,9 +230,9 @@ class AppProvider extends ChangeNotifier {
             workPlace: record.workPlace,
             notes: record.notes,
           );
-          await _db.updateTimesheetRecord(updated);
+          await _timesheetRepo.update(updated);
         } else {
-          await _db.insertTimesheetRecord(record);
+          await _timesheetRepo.add(record);
         }
       }
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
@@ -246,10 +249,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> saveTimesheetRecord(TimesheetRecord record) async {
     try {
-      final existing = await _db.getTimesheetRecord(
-        record.employeeId,
-        record.date,
-      );
+      final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
         final updated = existing.copyWith(
           dayType: record.dayType,
@@ -257,9 +257,9 @@ class AppProvider extends ChangeNotifier {
           workPlace: record.workPlace,
           notes: record.notes,
         );
-        await _db.updateTimesheetRecord(updated);
+        await _timesheetRepo.update(updated);
       } else {
-        await _db.insertTimesheetRecord(record);
+        await _timesheetRepo.add(record);
       }
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
@@ -275,16 +275,13 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
     try {
-      final existing = await _db.getTimesheetRecord(
-        record.employeeId,
-        record.date,
-      );
+      final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
         _error = 'Запись на эту дату уже есть';
         notifyListeners();
         return;
       }
-      await _db.insertTimesheetRecord(record);
+      await _timesheetRepo.add(record);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
       } else {
@@ -299,7 +296,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
     try {
-      await _db.updateTimesheetRecord(record);
+      await _timesheetRepo.update(record);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
       } else {
@@ -314,7 +311,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> deleteTimesheetRecord(String id) async {
     try {
-      await _db.deleteTimesheetRecord(id);
+      await _timesheetRepo.delete(id);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
         await loadTimesheet(_currentPeriodStart!, _currentPeriodEnd!);
       } else {
@@ -328,7 +325,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<List<TimesheetRecord>> getTimesheetForDate(DateTime date) async {
-    return await _db.getTimesheetByPeriod(date, date);
+    return await _timesheetRepo.inPeriod(date, date);
   }
 
   // ==========================================================================
@@ -338,10 +335,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> loadAllPayments({DateTime? startDate, DateTime? endDate}) async {
     _setLoading(true);
     try {
-      _payments = await _db.getAllPayments(
-        startDate: startDate,
-        endDate: endDate,
-      );
+      _payments = await _paymentsRepo.list(start: startDate, end: endDate);
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки выплат: $e';
@@ -357,10 +351,10 @@ class AppProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      _payments = await _db.getPaymentsByEmployee(
-        employeeId,
-        startDate: startDate,
-        endDate: endDate,
+      _payments = await _paymentsRepo.list(
+        employeeId: employeeId,
+        start: startDate,
+        end: endDate,
       );
       _error = null;
     } catch (e) {
@@ -372,7 +366,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addPayment(Payment payment) async {
     try {
-      await _db.insertPayment(payment);
+      await _paymentsRepo.add(payment);
       notifyListeners();
       setNeedRefreshReports(true);
     } catch (e) {
@@ -383,7 +377,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> updatePayment(Payment payment) async {
     try {
-      await _db.updatePayment(payment);
+      await _paymentsRepo.update(payment);
       notifyListeners();
       setNeedRefreshReports(true);
     } catch (e) {
@@ -394,7 +388,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> deletePayment(String id, String employeeId) async {
     try {
-      await _db.deletePayment(id);
+      await _paymentsRepo.delete(id);
       notifyListeners();
       setNeedRefreshReports(true);
     } catch (e) {
@@ -404,8 +398,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> loadStartingBalances(int year, int month) async {
-    final date = DateTime(year, month, 1);
-    _startingBalances = await _db.getStartingBalances(date);
+    _startingBalances = await _payrollService.startingBalances(
+      DateTime(year, month, 1),
+    );
     notifyListeners();
   }
 
@@ -418,7 +413,11 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
-    return await _db.calculateMonthlySalary(employeeId, year, month);
+    return (await _payrollService.calculateMonth(
+      employeeId,
+      year,
+      month,
+    )).toMap();
   }
 
   // ==========================================================================
@@ -428,7 +427,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> loadPayrollResultsForMonth(int year, int month) async {
     _setLoading(true);
     try {
-      _payrollResults = await _db.getPayrollResultsForMonth(year, month);
+      _payrollResults = await _payrollRepo.forMonth(year, month);
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки результатов расчёта: $e';
@@ -440,16 +439,11 @@ class AppProvider extends ChangeNotifier {
   Future<void> calculatePayrollForMonth(int year, int month) async {
     _setLoading(true);
     try {
-      final employees = await _db.getAllEmployees(activeOnly: false);
+      final employees = await _employeesRepo.all();
       for (var emp in employees) {
         if (emp.id == null) continue;
-        final data = await _db.calculateMonthlySalaryDetailed(
-          emp.id!,
-          year,
-          month,
-        );
-        final result = _payrollFromCalc(emp.id!, year, month, data);
-        await _db.savePayrollResult(result);
+        final calc = await _payrollService.calculateMonth(emp.id!, year, month);
+        await _payrollRepo.save(_payrollFromCalc(calc));
       }
       await loadPayrollResultsForMonth(year, month);
       _error = null;
@@ -463,21 +457,20 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<bool> isPayrollUpToDate(String employeeId, int year, int month) async {
-    final result = await _db.getPayrollResult(employeeId, year, month);
+    final result = await _payrollRepo.resultFor(employeeId, year, month);
     if (result == null) return false;
-    final currentData = await _db.calculateMonthlySalaryDetailed(
+    final current = await _payrollService.calculateMonth(
       employeeId,
       year,
       month,
     );
     const epsilon = 0.001;
-    return (result.baseDays - currentData['baseDays']).abs() < epsilon &&
-        (result.fieldDays - currentData['fieldDays']).abs() < epsilon &&
-        (result.sickDays - currentData['sickDays']).abs() < epsilon &&
-        (result.vacationDays - currentData['vacationDays']).abs() < epsilon &&
-        (result.totalSalary - currentData['totalSalary']).abs() < epsilon &&
-        result.skippedWorkDays ==
-            ((currentData['skippedWorkDays'] as num?)?.toInt() ?? 0);
+    return (result.baseDays - current.baseDays).abs() < epsilon &&
+        (result.fieldDays - current.fieldDays).abs() < epsilon &&
+        (result.sickDays - current.sickDays).abs() < epsilon &&
+        (result.vacationDays - current.vacationDays).abs() < epsilon &&
+        (result.totalSalary - current.totalSalary).abs() < epsilon &&
+        result.skippedWorkDays == current.skippedWorkDays;
   }
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
@@ -485,7 +478,11 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
-    return await _db.calculateMonthlySalaryDetailed(employeeId, year, month);
+    return (await _payrollService.calculateMonth(
+      employeeId,
+      year,
+      month,
+    )).toMap();
   }
 
   Future<void> recalculateSingleEmployee(
@@ -493,36 +490,26 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
-    final data = await _db.calculateMonthlySalaryDetailed(
-      employeeId,
-      year,
-      month,
-    );
-    final result = _payrollFromCalc(employeeId, year, month, data);
-    await _db.savePayrollResult(result);
+    final calc = await _payrollService.calculateMonth(employeeId, year, month);
+    await _payrollRepo.save(_payrollFromCalc(calc));
     setNeedRefreshReports(true);
   }
 
-  PayrollResult _payrollFromCalc(
-    String employeeId,
-    int year,
-    int month,
-    Map<String, dynamic> data,
-  ) {
+  PayrollResult _payrollFromCalc(PayrollCalculation calc) {
     return PayrollResult(
-      employeeId: employeeId,
-      year: year,
-      month: month,
-      baseDays: data['baseDays'],
-      fieldDays: data['fieldDays'],
-      sickDays: data['sickDays'],
-      vacationDays: data['vacationDays'],
-      totalSalary: data['totalSalary'],
-      baseRateUsed: data['baseRateUsed'],
-      fieldRateUsed: data['fieldRateUsed'],
+      employeeId: calc.employeeId,
+      year: calc.year,
+      month: calc.month,
+      baseDays: calc.baseDays,
+      fieldDays: calc.fieldDays,
+      sickDays: calc.sickDays,
+      vacationDays: calc.vacationDays,
+      totalSalary: calc.totalSalary,
+      baseRateUsed: calc.baseRateUsed,
+      fieldRateUsed: calc.fieldRateUsed,
       calculatedAt: DateTime.now(),
       status: 'calculated',
-      skippedWorkDays: (data['skippedWorkDays'] as num?)?.toInt() ?? 0,
+      skippedWorkDays: calc.skippedWorkDays,
     );
   }
 
@@ -532,8 +519,10 @@ class AppProvider extends ChangeNotifier {
 
   Future<String?> createBackup() async {
     try {
-      final db = await _db.database;
-      return await _backupService.createBackup(db, type: BackupType.daily);
+      return await _backupService.createBackup(
+        _appDb.db,
+        type: BackupType.daily,
+      );
     } catch (e) {
       _error = 'Ошибка создания бэкапа: $e';
       notifyListeners();
@@ -547,9 +536,8 @@ class AppProvider extends ChangeNotifier {
   ///   если за текущий месяц копия уже существует.
   Future<void> autoBackup() async {
     try {
-      final db = await _db.database;
-      await _backupService.createBackup(db, type: BackupType.daily);
-      await _backupService.createBackup(db, type: BackupType.monthly);
+      await _backupService.createBackup(_appDb.db, type: BackupType.daily);
+      await _backupService.createBackup(_appDb.db, type: BackupType.monthly);
     } catch (e) {
       // Автобэкап не должен нарушать работу приложения
       debugPrint('autoBackup error: $e');
@@ -558,43 +546,6 @@ class AppProvider extends ChangeNotifier {
 
   Future<List<BackupInfo>> getBackups() async {
     return await _backupService.getBackups();
-  }
-
-  Future<bool> restoreFullBackup(String backupPath) async {
-    try {
-      final db = await _db.database;
-      final dbPath = db.path;
-      await _db.close();
-      final success = await _backupService.restoreFullBackup(
-        backupPath,
-        dbPath,
-      );
-      if (success) {
-        await loadAllData();
-      }
-      return success;
-    } catch (e) {
-      _error = 'Ошибка восстановления: $e';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<int> restoreTables(String backupPath, List<String> tableNames) async {
-    try {
-      final db = await _db.database;
-      final count = await _backupService.restoreTables(
-        backupPath,
-        db,
-        tableNames,
-      );
-      await loadAllData();
-      return count;
-    } catch (e) {
-      _error = 'Ошибка восстановления таблиц: $e';
-      notifyListeners();
-      return 0;
-    }
   }
 
   Future<void> deleteBackup(String path) async {
@@ -606,27 +557,31 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // Новый метод для восстановления выбранных записей
-  Future<int> restoreSelectedRows(
-    String backupPath,
-    String tableName,
-    List<int> rowIds,
-  ) async {
-    try {
-      final db = await _db.database;
-      final count = await _backupService.restoreSelectedRows(
-        backupPath,
-        db,
-        tableName,
-        rowIds,
-      );
-      await loadAllData();
-      return count;
-    } catch (e) {
-      _error = 'Ошибка восстановления записей: $e';
-      notifyListeners();
-      return 0;
+  // ==========================================================================
+  // ПРОСМОТР БАЗЫ (только чтение)
+  // ==========================================================================
+
+  Future<List<String>> getTableNames() async {
+    final rows = await _appDb.db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' "
+          "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .get();
+    return rows.map((r) => r.read<String>('name')).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getTableData(
+    String tableName, {
+    int limit = 100,
+  }) async {
+    if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(tableName)) {
+      throw ArgumentError('Недопустимое имя таблицы: $tableName');
     }
+    final rows = await _appDb.db
+        .customSelect('SELECT * FROM $tableName LIMIT $limit')
+        .get();
+    return rows.map((r) => r.data).toList();
   }
 
   // ==========================================================================

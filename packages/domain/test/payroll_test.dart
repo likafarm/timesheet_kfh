@@ -3,18 +3,14 @@ import 'package:kfh_domain/kfh_domain.dart';
 
 const _emp = 'emp-1';
 
-EmployeeRate rate(
-  double base,
-  double field,
-  DateTime start, [
-  DateTime? end,
-]) => EmployeeRate(
-  employeeId: _emp,
-  baseRate: base,
-  fieldRate: field,
-  startDate: start,
-  endDate: end,
-);
+EmployeeRate rate(double base, double field, DateTime start, [DateTime? end]) =>
+    EmployeeRate(
+      employeeId: _emp,
+      baseRate: base,
+      fieldRate: field,
+      startDate: start,
+      endDate: end,
+    );
 
 TimesheetRecord work(DateTime date, String place, [double days = 1.0]) =>
     TimesheetRecord(
@@ -96,8 +92,11 @@ void main() {
         rate(1000, 1500, DateTime(2026, 1, 1), DateTime(2026, 8, 31)),
         rate(1200, 1800, DateTime(2026, 9, 1)),
       ];
-      final aug = calc([work(DateTime(2026, 8, 31), 'base')], history,
-          month: 8);
+      final aug = calc(
+        [work(DateTime(2026, 8, 31), 'base')],
+        history,
+        month: 8,
+      );
       final sep = calc([work(DateTime(2026, 9, 1), 'base')], history);
       expect(aug.totalSalary, 1000);
       expect(sep.totalSalary, 1200);
@@ -146,19 +145,31 @@ void main() {
     });
 
     test('дробные ставки считаются без потерь до копейки', () {
-      final r = calc([
-        for (var d = 1; d <= 30; d++) work(DateTime(2026, 9, d), 'base'),
-      ], [rate(1234.56, 0, DateTime(2026, 1, 1))]);
+      final r = calc(
+        [for (var d = 1; d <= 30; d++) work(DateTime(2026, 9, d), 'base')],
+        [rate(1234.56, 0, DateTime(2026, 1, 1))],
+      );
       expect(r.totalSalary, closeTo(30 * 1234.56, 0.005));
     });
 
     test('toMap сохраняет прежние ключи', () {
       final m = calc([work(DateTime(2026, 9, 1), 'base')], rates).toMap();
-      expect(m.keys, containsAll(<String>[
-        'employeeId', 'year', 'month', 'baseDays', 'fieldDays', 'sickDays',
-        'vacationDays', 'totalSalary', 'baseRateUsed', 'fieldRateUsed',
-        'skippedWorkDays',
-      ]));
+      expect(
+        m.keys,
+        containsAll(<String>[
+          'employeeId',
+          'year',
+          'month',
+          'baseDays',
+          'fieldDays',
+          'sickDays',
+          'vacationDays',
+          'totalSalary',
+          'baseRateUsed',
+          'fieldRateUsed',
+          'skippedWorkDays',
+        ]),
+      );
     });
   });
 

@@ -57,10 +57,10 @@ void main() {
     test('високосный февраль', () {
       final end = DateTime(2028, 3, 0); // 29.02.2028
       expect(end.day, 29);
-      expect(
-        dateRangeExclusiveEnd(DateTime(2028, 2, 1), end),
-        ('2028-02-01', '2028-03-01'),
-      );
+      expect(dateRangeExclusiveEnd(DateTime(2028, 2, 1), end), (
+        '2028-02-01',
+        '2028-03-01',
+      ));
     });
 
     test('конец включается даже если в нём есть время', () {

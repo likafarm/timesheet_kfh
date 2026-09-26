@@ -5,8 +5,6 @@ import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:test/test.dart';
 
-import 'support/legacy_v8_schema.dart';
-
 /// Старая база v8 для тестов.
 class LegacyDb {
   final sql.Database db;

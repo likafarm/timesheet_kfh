@@ -62,7 +62,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   Future<void> _loadRateAtDate() async {
     final id = widget.employee.id;
     if (id == null) return;
-    final rate = await context.read<AppProvider>().db.getEmployeeRateAtDate(
+    final rate = await context.read<AppProvider>().getEmployeeRateAtDate(
       id,
       _date,
     );

@@ -61,6 +61,16 @@ void main() {
       expect(await repo.employees.all(), hasLength(1));
     });
 
+    test('снятие увольнения сохраняется', () async {
+      final id = await addEmployee(
+        'Иванов Иван',
+        dismissal: DateTime(2026, 9, 1),
+      );
+      final e = (await repo.employees.byId(id))!;
+      await repo.employees.update(e.copyWith(clearDismissalDate: true));
+      expect((await repo.employees.byId(id))!.dismissalDate, isNull);
+    });
+
     test('удаление скрывает сотрудника', () async {
       final id = await addEmployee('Иванов Иван');
       await repo.employees.delete(id);

@@ -337,8 +337,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                           _showDismissDialog(context, employee);
                                         } else if (value == 'reinstate') {
                                           _confirmReinstate(context, employee);
-                                        } else if (value == 'delete') {
-                                          _confirmDelete(context, employee);
                                         } else if (value == 'history') {
                                           Navigator.push(
                                             context,
@@ -380,17 +378,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                           const PopupMenuItem(
                                             value: 'history',
                                             child: Text('История ставок'),
-                                          ),
-                                        );
-                                        items.add(
-                                          const PopupMenuItem(
-                                            value: 'delete',
-                                            child: Text(
-                                              'Удалить',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                              ),
-                                            ),
                                           ),
                                         );
                                         return items;
@@ -507,40 +494,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
             label: 'Восстановить',
             width: 100,
             onPressed: () {
-              final updated = employee.copyWith(dismissalDate: null);
+              final updated = employee.copyWith(clearDismissalDate: true);
               context.read<AppProvider>().updateEmployee(updated);
               Navigator.pop(context);
             },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, Employee employee) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удаление сотрудника'),
-        content: Text(
-          'Удалить ${employee.fullName}?\n\n'
-          'Все записи табеля и выплаты этого сотрудника также будут удалены.',
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            width: 100,
-            onPressed: () => Navigator.pop(context),
-          ),
-          AppButton(
-            label: 'Удалить',
-            width: 100,
-            onPressed: () {
-              context.read<AppProvider>().deleteEmployee(employee.id!);
-              Navigator.pop(context);
-            },
-            color: Colors.red,
           ),
         ],
       ),

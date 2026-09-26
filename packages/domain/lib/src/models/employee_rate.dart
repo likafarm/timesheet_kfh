@@ -1,5 +1,3 @@
-import '../utils/date_utils.dart';
-
 /// Модель истории изменения ставок сотрудника
 class EmployeeRate {
   final String? id;
@@ -17,28 +15,6 @@ class EmployeeRate {
     required this.startDate,
     this.endDate,
   });
-
-  factory EmployeeRate.fromMap(Map<String, dynamic> map) {
-    return EmployeeRate(
-      id: map['id']?.toString(),
-      employeeId: map['employee_id'].toString(),
-      baseRate: (map['base_rate'] as num).toDouble(),
-      fieldRate: (map['field_rate'] as num).toDouble(),
-      startDate: parseDateIso(map['start_date'] as String),
-      endDate: parseDateIsoOrNull(map['end_date'] as String?),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'employee_id': employeeId,
-      'base_rate': baseRate,
-      'field_rate': fieldRate,
-      'start_date': formatDateIso(startDate),
-      'end_date': formatDateIsoOrNull(endDate),
-    };
-  }
 
   EmployeeRate copyWith({
     String? id,

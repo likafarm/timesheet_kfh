@@ -1,5 +1,3 @@
-import '../utils/date_utils.dart';
-
 /// Модель записи табеля (упрощённая)
 class TimesheetRecord {
   final String? id;
@@ -21,32 +19,6 @@ class TimesheetRecord {
     this.notes,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
-
-  factory TimesheetRecord.fromMap(Map<String, dynamic> map) {
-    return TimesheetRecord(
-      id: map['id']?.toString(),
-      employeeId: map['employee_id'].toString(),
-      date: parseDateIso(map['date'] as String),
-      dayType: map['day_type'] as String? ?? 'work',
-      days: (map['days'] as num?)?.toDouble() ?? 0.0,
-      workPlace: map['work_place'] as String?,
-      notes: map['notes'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'employee_id': employeeId,
-      'date': formatDateIso(date),
-      'day_type': dayType,
-      'days': days,
-      'work_place': workPlace,
-      'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
 
   TimesheetRecord copyWith({
     String? id,

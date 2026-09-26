@@ -2,15 +2,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kfx_time_tracking/services/db_location.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
 void main() {
   late Directory root;
   late String dataDir;
   late String exeDir;
   late String cwdDir;
-
-  setUpAll(sqfliteFfiInit);
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('db_location_test');
@@ -27,27 +25,27 @@ void main() {
   Future<String> makeDb(String dir, String name) async {
     await Directory(dir).create(recursive: true);
     final path = p.join(dir, dbFileName);
-    final db = await databaseFactoryFfi.openDatabase(path);
-    await db.execute('CREATE TABLE employees (id INTEGER PRIMARY KEY, full_name TEXT)');
-    await db.insert('employees', {'full_name': name});
-    await db.close();
+    final db = sql.sqlite3.open(path);
+    db.execute(
+      'CREATE TABLE employees (id INTEGER PRIMARY KEY, full_name TEXT)',
+    );
+    db.execute('INSERT INTO employees (full_name) VALUES (?)', [name]);
+    db.close();
     return path;
   }
 
   Future<String> readName(String path) async {
-    final db = await databaseFactoryFfi.openDatabase(path);
+    final db = sql.sqlite3.open(path, mode: sql.OpenMode.readOnly);
     try {
-      final rows = await db.query('employees');
-      return rows.single['full_name'] as String;
+      return db.select('SELECT full_name FROM employees').single['full_name']
+          as String;
     } finally {
-      await db.close();
+      db.close();
     }
   }
 
-  Future<DbLocation> resolve() => resolveDatabasePath(
-        dataDir: dataDir,
-        legacyDirs: [exeDir, cwdDir],
-      );
+  Future<DbLocation> resolve() =>
+      resolveDatabasePath(dataDir: dataDir, legacyDirs: [exeDir, cwdDir]);
 
   test('старой базы нет — новый путь, ничего не создаётся', () async {
     final loc = await resolve();
@@ -128,9 +126,9 @@ void main() {
   test('чужая база без таблиц программы не переносится', () async {
     await Directory(exeDir).create(recursive: true);
     final old = p.join(exeDir, dbFileName);
-    final db = await databaseFactoryFfi.openDatabase(old);
-    await db.execute('CREATE TABLE other (id INTEGER)');
-    await db.close();
+    final db = sql.sqlite3.open(old);
+    db.execute('CREATE TABLE other (id INTEGER)');
+    db.close();
 
     final loc = await resolve();
     expect(loc.path, old);

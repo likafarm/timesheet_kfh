@@ -24,10 +24,12 @@ dependencies:
   # Управление состоянием
   provider: ^6.1.5
 
-  # Локальная база данных SQLite
-  sqflite: ^2.4.3
+  # Локальная база (drift, схема v2) и перенос старой базы v8
+  kfh_local_db:
+    path: packages/local_db
+  drift: 2.34.0
+  sqlite3: ^3.4.0
   path: ^1.9.1
-  sqflite_common_ffi: ^2.3.5
 
   # Иконки
   cupertino_icons: ^1.0.9
