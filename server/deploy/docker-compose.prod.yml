@@ -1,0 +1,88 @@
+# Боевой стенд на VPS: MySQL + API + Caddy (HTTPS Let's Encrypt).
+# Запускается только через deploy.sh (он же создаёт секреты):
+#
+#   docker compose -p kfh --env-file /opt/kfh/kfh.env \
+#     -f /opt/kfh/src/server/deploy/docker-compose.prod.yml ps
+#
+# Наружу открыты только 80/443 Caddy. MySQL и API — во внутренней сети.
+# Секреты — файлы в /opt/kfh/secrets (папка 700, сами файлы 444: compose
+# монтирует их в контейнер как есть, а API работает не от root).
+name: kfh
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: kfh
+      MYSQL_USER: kfh_api
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=512M
+    secrets:
+      - mysql_root_password
+      - mysql_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # ping возвращает 0 и при «Access denied» — пароль не нужен.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  api:
+    image: kfh-api:current
+    build:
+      context: ../..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DB_HOST: mysql
+      DB_NAME: kfh
+      DB_USER: kfh_api
+      DB_PASSWORD_FILE: /run/secrets/mysql_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      TRUST_PROXY: "true"
+      # Миграции применяет deploy.sh (`api migrate`) после резервной копии.
+      MIGRATE_ON_START: "false"
+    secrets:
+      - mysql_password
+      - jwt_secret
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    environment:
+      KFH_DOMAIN: ${KFH_DOMAIN:?не задан KFH_DOMAIN в /opt/kfh/kfh.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+
+secrets:
+  mysql_root_password:
+    file: /opt/kfh/secrets/mysql_root_password
+  mysql_password:
+    file: /opt/kfh/secrets/mysql_password
+  jwt_secret:
+    file: /opt/kfh/secrets/jwt_secret
+
+volumes:
+  mysql-data:
+  caddy-data:
+  caddy-config:
