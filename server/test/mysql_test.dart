@@ -23,10 +23,10 @@ void main() {
         "(SELECT VARIABLE_VALUE FROM performance_schema.session_status "
         " WHERE VARIABLE_NAME = 'Ssl_cipher') AS cipher");
     final row = result.rows.single;
-    expect(row.colByName('cs'), 'utf8mb4');
-    expect(row.colByName('tz'), '+00:00');
-    expect(row.colByName('text'), 'Иванов 🌾');
-    expect(row.colByName('cipher'), isNotEmpty);
+    expect(row.text('cs'), 'utf8mb4');
+    expect(row.text('tz'), '+00:00');
+    expect(row.text('text'), 'Иванов 🌾');
+    expect(row.text('cipher'), isNotEmpty);
   }, skip: mysqlSkip);
 
   test('соединение убито на стороне MySQL — пул восстанавливается сам',
@@ -36,7 +36,7 @@ void main() {
     final id = (await db.execute('SELECT CONNECTION_ID() AS id'))
         .rows
         .single
-        .colByName('id');
+        .text('id');
     final killer = MySqlDatabase.connect(testDbConfig());
     addTearDown(killer.close);
     await killer.execute('KILL $id');
@@ -49,7 +49,7 @@ void main() {
         final newId = (await db.execute('SELECT CONNECTION_ID() AS id'))
             .rows
             .single
-            .colByName('id');
+            .text('id');
         expect(newId, isNot(id));
         return;
       } catch (e) {

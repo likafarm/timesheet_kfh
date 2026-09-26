@@ -47,6 +47,13 @@ Middleware accessLog(Logger logger) => (inner) => (request) async {
       return response;
     };
 
+/// Ответы API не кэшируются ни браузером, ни прокси: в них токены и
+/// персональные данные.
+Middleware noStore() => (inner) => (request) async {
+      final response = await inner(request);
+      return response.change(headers: {'cache-control': 'no-store'});
+    };
+
 /// Единая обработка ошибок: [ApiException] уходит клиенту как есть,
 /// любая другая ошибка — 500 без подробностей (подробности — в журнал).
 Middleware handleErrors(Logger logger) => (inner) => (request) async {

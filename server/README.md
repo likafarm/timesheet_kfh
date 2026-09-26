@@ -16,6 +16,8 @@ API синхронизации и отчётов поверх MySQL. Чисты�
 
 | `MIGRATIONS_DIR` | `migrations` | папка SQL-миграций (в образе — `/app/migrations`) |
 | `MIGRATE_ON_START` | false | применять миграции при старте (только стенд) |
+| `JWT_SECRET` / `JWT_SECRET_FILE` | — (для сервера обязателен) | ключ подписи access-токенов, ≥ 32 байт (`openssl rand -base64 48`) |
+| `TRUST_PROXY` | false | за Caddy: адрес клиента — последний в `X-Forwarded-For` |
 
 Без обязательной переменной сервер не стартует (код выхода 78, причина — в журнале).
 
@@ -59,9 +61,50 @@ $env:KFH_TEST_MYSQL="1"; dart test -t mysql # на стенде; хост/пор
 Тесты на MySQL создают себе отдельную базу `kfh_test_…` от root (`KFH_TEST_DB_ROOT_PASSWORD`, по умолчанию
 пароль стенда) и удаляют её после себя.
 
+## Команды образа
+
+```powershell
+docker compose -f server/docker-compose.dev.yml run --rm api migrate
+docker compose -f server/docker-compose.dev.yml run --rm api create-admin <логин> "<ФИО>"   # пока админов нет
+docker compose -f server/docker-compose.dev.yml run --rm api set-password <логин>          # из консоли сервера
+```
+
+Пароль команды спрашивают без эха (или читают первую строку stdin: `-T` и конвейер).
+
 ## Эндпоинты
 
 - `GET /health` — 200 `{"status":"ok","version":"…","db":"ok"}`; если MySQL не отвечает за 3 с — 503.
+- `POST /auth/login` `{login, password}` → `{access_token, access_expires_at, refresh_token, refresh_expires_at, user}`.
+  Заголовок `X-Device-Id` (необязательный) пишется в токен и аудит.
+- `POST /auth/refresh` `{refresh_token}` → новая пара; старый refresh гасится. Повторное предъявление погашенного
+  refresh гасит всю цепочку этого входа (`token_reuse` в аудите).
+- `POST /auth/logout` `{refresh_token}` → 204 (всегда).
+- `GET /auth/me`, `POST /auth/change-password` `{old_password, new_password}` → новая пара, прочие входы гаснут.
+- Только админ: `GET /users`, `POST /users` `{login, full_name, role, password}` → 201,
+  `PATCH /users/<uuid>` `{full_name?, role?, is_active?}`, `POST /users/<uuid>/reset-password` `{password}` → 204.
+
+Остальное — с `Authorization: Bearer <access_token>`. Коды ошибок для клиента:
+`token_invalid` (401, обменять refresh), `session_expired` (401, войти заново), `invalid_credentials` (401),
+`user_disabled` (403), `forbidden` (403), `password_change_required` (403 — пароль от админа, доступны только
+`me`, `change-password`, `refresh`, `logout`), `too_many_attempts` (429, `Retry-After`), `login_taken`,
+`self_change`, `last_admin` (409), `validation` (400), `too_large` (413).
+
+## Вход и пароли
+
+- Пароли — Argon2id (19 МиБ, 2 прохода, ~0,25 с), строка PHC; проверено по эталонной утилите `argon2`.
+  Считается в отдельном isolate. Пароль 8–128 символов.
+- Access — JWT HS256 на 15 минут; каждый запрос читает пользователя из базы: отключение и смена роли действуют
+  сразу, смена пароля гасит выданные до неё access-токены. Refresh — 30 дней, в базе только sha256, ротация.
+- Подбор: 5 неудач на логин и 30 на адрес за 15 минут → 429. Счёт в памяти процесса.
+  Неизвестный логин проверяется так же долго, как известный.
+- Пользователя с паролем от админа сервер заставляет сменить пароль при входе.
+- Все действия со входом и пользователями — в `audit_log` в той же транзакции; хэшей паролей там нет.
+
+## Чтение результатов MySQL
+
+Драйвер отдаёт столбцы с флагом BINARY (строки `_bin`: uuid, хэши; `information_schema`) байтами, а JSON —
+разобранным. Значения читать только через `row.text()` / `row.textOf()` (`lib/src/sql.dart`), моменты времени
+в параметры — через `sqlDateTime()` (драйвер подставил бы `Z`, MySQL его не принимает).
 
 Ошибки API — всегда `{"error": {"code": "...", "message": "..."}}`; неизвестный адрес — 404 `not_found`,
 непредвиденная ошибка — 500 `internal` (подробности только в журнале). Каждый ответ несёт заголовок

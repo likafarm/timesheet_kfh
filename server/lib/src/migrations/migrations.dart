@@ -6,6 +6,7 @@ import 'package:mysql_client_plus/mysql_client_plus.dart';
 
 import '../database.dart';
 import '../logger.dart';
+import '../sql.dart';
 import 'sql_split.dart';
 
 /// Ошибка миграций: сервер с ней не стартует.
@@ -168,10 +169,10 @@ class MigrationRunner {
     final applied = [
       for (final row in result.rows)
         AppliedMigration(
-          int.parse(row.colByName('version')!),
-          row.colByName('name')!,
-          row.colByName('checksum')!,
-          DateTime.parse('${row.colByName('applied_at')!}Z'),
+          row.intOf('version'),
+          row.textOf('name'),
+          row.textOf('checksum'),
+          DateTime.parse('${row.textOf('applied_at')}Z'),
         ),
     ];
     final byVersion = {for (final m in migrations) m.version: m};
@@ -212,7 +213,7 @@ class MigrationRunner {
     final result = await conn.execute(
         'SELECT GET_LOCK(:name, :timeout) AS got',
         {'name': lockName, 'timeout': lockTimeoutSeconds});
-    if (result.rows.single.colByName('got') != '1') {
+    if (result.rows.single.text('got') != '1') {
       throw MigrationException('миграции уже выполняет другой процесс '
           '(ждали $lockTimeoutSeconds с)');
     }

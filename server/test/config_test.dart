@@ -74,6 +74,48 @@ void main() {
     }
   });
 
+  group('ключ токенов и прокси', () {
+    test('по умолчанию ключа нет, прокси не доверяем', () {
+      final config = ServerConfig.fromEnvironment(minimal);
+      expect(config.jwtSecret, isNull);
+      expect(config.trustProxy, isFalse);
+      expect(config.requireJwtSecret, throwsA(isA<ConfigException>()));
+    });
+
+    test('ключ из переменной и из файла', () {
+      final key = 'k' * 32;
+      expect(
+          ServerConfig.fromEnvironment({...minimal, 'JWT_SECRET': key})
+              .requireJwtSecret(),
+          key);
+      expect(
+          ServerConfig.fromEnvironment(
+                  {...minimal, 'JWT_SECRET_FILE': '/run/secrets/jwt'},
+                  readFile: (_) => '$key\n')
+              .jwtSecret,
+          key);
+    });
+
+    test('короткий ключ — ошибка (считаются байты UTF-8)', () {
+      expect(
+          () => ServerConfig.fromEnvironment(
+              {...minimal, 'JWT_SECRET': 'k' * 31}),
+          throwsA(isA<ConfigException>()));
+      // 16 кириллических букв = 32 байта.
+      expect(
+          ServerConfig.fromEnvironment({...minimal, 'JWT_SECRET': 'ж' * 16})
+              .jwtSecret,
+          'ж' * 16);
+    });
+
+    test('TRUST_PROXY', () {
+      expect(
+          ServerConfig.fromEnvironment({...minimal, 'TRUST_PROXY': 'true'})
+              .trustProxy,
+          isTrue);
+    });
+  });
+
   group('пароль', () {
     final withoutPassword = {...minimal}..remove('DB_PASSWORD');
 

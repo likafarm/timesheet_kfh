@@ -30,7 +30,7 @@ void main() {
                 'FROM information_schema.tables '
                 'WHERE table_schema = DATABASE() ORDER BY table_name'))
             .rows)
-          row.colByName('t')!,
+          row.textOf('t'),
       ];
 
   test('миграции проекта применяются на пустую базу, повтор — пустой',

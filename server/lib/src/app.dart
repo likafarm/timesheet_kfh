@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import 'database.dart';
+import 'http/auth_api.dart';
 import 'http/middleware.dart';
 import 'http/responses.dart';
 import 'logger.dart';
@@ -12,14 +13,21 @@ import 'version.dart';
 /// Сколько ждать ответа MySQL в `/health`.
 const healthDbTimeout = Duration(seconds: 3);
 
-/// Собирает обработчик всех запросов API.
-Handler buildHandler({required Database db, required Logger logger}) {
+/// Собирает обработчик всех запросов API. [authApi] не задан — только
+/// `/health` (для тестов HTTP-слоя без MySQL).
+Handler buildHandler({
+  required Database db,
+  required Logger logger,
+  AuthApi? authApi,
+}) {
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => _health(request, db, logger));
+  authApi?.addRoutes(router);
 
   return const Pipeline()
       .addMiddleware(requestId())
       .addMiddleware(accessLog(logger))
+      .addMiddleware(noStore())
       .addMiddleware(handleErrors(logger))
       .addHandler(router.call);
 }

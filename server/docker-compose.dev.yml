@@ -40,6 +40,7 @@ services:
       DB_NAME: kfh
       DB_USER: kfh_api
       DB_PASSWORD: dev-api
+      JWT_SECRET: dev-only-jwt-secret-0123456789abcdef
       # На стенде миграции применяются сами; на VPS — «server migrate»
       # после резервной копии.
       MIGRATE_ON_START: "true"

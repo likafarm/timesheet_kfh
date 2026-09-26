@@ -66,10 +66,10 @@ void main() {
       return {
         for (final row in result.rows)
           // Служебный столбец для частичной уникальности — только сервер.
-          if (!row.colByName('extra')!.contains('GENERATED'))
-            row.colByName('name')!: (
-              row.colByName('type')!,
-              row.colByName('nullable') == '1'
+          if (!row.textOf('extra').contains('GENERATED'))
+            row.textOf('name'): (
+              row.textOf('type'),
+              row.text('nullable') == '1'
             ),
       };
     }
@@ -141,7 +141,7 @@ void main() {
     test('кириллица и эмодзи сохраняются', () async {
       final r = await testDb.db.execute(
           'SELECT full_name FROM employees WHERE uuid = :u', {'u': employee});
-      expect(r.rows.single.colByName('full_name'), 'Иванов Иван 🌾');
+      expect(r.rows.single.text('full_name'), 'Иванов Иван 🌾');
     }, skip: mysqlSkip);
 
     test('день табеля: второй живой — отказ, удалённые не мешают', () async {
@@ -186,7 +186,7 @@ void main() {
           {'u': u, 'e': employee});
       final r = await testDb.db.execute(
           'SELECT updated_at FROM employee_rates WHERE uuid = :u', {'u': u});
-      expect(r.rows.single.colByName('updated_at'),
+      expect(r.rows.single.text('updated_at'),
           '2026-09-26 04:54:54.502936');
     }, skip: mysqlSkip);
 

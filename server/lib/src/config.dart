@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 /// Ошибка настройки сервера: не хватает переменной окружения или значение
@@ -44,19 +45,33 @@ class DbConfig {
 /// - `MIGRATIONS_DIR` — папка SQL-миграций (по умолчанию `migrations`
 ///   в рабочей папке);
 /// - `MIGRATE_ON_START` — применять миграции при старте (по умолчанию
-///   `false`: на VPS их применяет `server migrate` после резервной копии).
+///   `false`: на VPS их применяет `server migrate` после резервной копии);
+/// - `JWT_SECRET` или `JWT_SECRET_FILE` — ключ подписи access-токенов, не
+///   короче 32 байт (нужен только самому серверу, не командам);
+/// - `TRUST_PROXY` — сервер за своим прокси (Caddy): адрес клиента брать из
+///   `X-Forwarded-For` (по умолчанию `false`).
 class ServerConfig {
   final int port;
   final DbConfig db;
   final String migrationsDir;
   final bool migrateOnStart;
+  final String? jwtSecret;
+  final bool trustProxy;
 
   const ServerConfig({
     required this.port,
     required this.db,
     this.migrationsDir = 'migrations',
     this.migrateOnStart = false,
+    this.jwtSecret,
+    this.trustProxy = false,
   });
+
+  /// Ключ подписи токенов: без него сервер не запускается.
+  String requireJwtSecret() =>
+      jwtSecret ??
+      (throw ConfigException('не задан ключ токенов: JWT_SECRET '
+          'или JWT_SECRET_FILE'));
 
   factory ServerConfig.fromEnvironment(
     Map<String, String> env, {
@@ -91,35 +106,41 @@ class ServerConfig {
       throw ConfigException('$name должна быть true или false, получено «$raw»');
     }
 
-    String password() {
-      final direct = env['DB_PASSWORD'] ?? '';
-      final file = env['DB_PASSWORD_FILE']?.trim() ?? '';
+    /// Секрет из переменной NAME или из файла NAME_FILE (Docker secrets).
+    String? secret(String name) {
+      final direct = env[name] ?? '';
+      final file = env['${name}_FILE']?.trim() ?? '';
       if (direct.isNotEmpty && file.isNotEmpty) {
-        throw ConfigException('заданы и DB_PASSWORD, и DB_PASSWORD_FILE — '
-            'оставьте одну');
+        throw ConfigException('заданы и $name, и ${name}_FILE — оставьте одну');
       }
       if (file.isNotEmpty) {
         final String content;
         try {
           content = read(file);
         } on FileSystemException catch (e) {
-          throw ConfigException('не прочитан DB_PASSWORD_FILE ($file): '
+          throw ConfigException('не прочитан ${name}_FILE ($file): '
               '${e.osError?.message ?? e.message}');
         }
         // Файлы секретов обычно кончаются переводом строки.
         final value = content.trimRight();
         if (value.isEmpty) {
-          throw ConfigException('файл DB_PASSWORD_FILE ($file) пуст');
+          throw ConfigException('файл ${name}_FILE ($file) пуст');
         }
         return value;
       }
-      if (direct.isEmpty) {
-        throw ConfigException('не задан пароль MySQL: DB_PASSWORD '
-            'или DB_PASSWORD_FILE');
-      }
-      return direct;
+      return direct.isEmpty ? null : direct;
     }
 
+    final password = secret('DB_PASSWORD');
+    if (password == null) {
+      throw ConfigException('не задан пароль MySQL: DB_PASSWORD '
+          'или DB_PASSWORD_FILE');
+    }
+    final jwtSecret = secret('JWT_SECRET');
+    if (jwtSecret != null && utf8.encode(jwtSecret).length < 32) {
+      throw ConfigException('JWT_SECRET короче 32 байт — возьмите, например, '
+          '«openssl rand -base64 48»');
+    }
     return ServerConfig(
       port: intValue('PORT', 8080),
       db: DbConfig(
@@ -127,7 +148,7 @@ class ServerConfig {
         port: intValue('DB_PORT', 3306),
         database: required('DB_NAME'),
         user: required('DB_USER'),
-        password: password(),
+        password: password,
         secure: boolValue('DB_SECURE', true),
         maxConnections: intValue('DB_MAX_CONNECTIONS', 10, max: 100),
       ),
@@ -135,6 +156,8 @@ class ServerConfig {
           ? 'migrations'
           : env['MIGRATIONS_DIR']!.trim(),
       migrateOnStart: boolValue('MIGRATE_ON_START', false),
+      jwtSecret: jwtSecret,
+      trustProxy: boolValue('TRUST_PROXY', false),
     );
   }
 }
