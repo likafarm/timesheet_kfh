@@ -62,9 +62,9 @@ class PayrollService {
       };
 
   /// Считает и сохраняет месяц — для всех сотрудников (включая уволенных)
-  /// или только для [employeeId]. Сотрудник без начислений и выплат за
-  /// месяц ([payrollNeeded]) в расчёт не входит: расчёт не сохраняется, а
-  /// прежний сохранённый удаляется.
+  /// или только для [employeeId]. Сотрудник без начислений, выплат за
+  /// месяц и входящего остатка ([payrollNeeded]) в расчёт не входит:
+  /// расчёт не сохраняется, а прежний сохранённый удаляется.
   Future<PayrollMonthSave> saveMonth(
     int year,
     int month, {
@@ -77,10 +77,14 @@ class PayrollService {
               if (e.id != null) e.id!,
           ];
     final paid = await paidInMonth(year, month);
+    final balances = await startingBalances(DateTime(year, month, 1));
     var saved = 0, removed = 0;
     for (final id in ids) {
       final calc = await calculateMonth(id, year, month);
-      if (payrollNeeded(emptyPayroll: calc.isEmpty, paidInMonth: paid.contains(id))) {
+      if (payrollNeeded(
+          emptyPayroll: calc.isEmpty,
+          paidInMonth: paid.contains(id),
+          startingBalance: balances[id] ?? 0)) {
         await payroll.save(PayrollResult.fromCalculation(calc));
         saved++;
       } else {
@@ -95,13 +99,18 @@ class PayrollService {
   }
 
   /// Сохранённые расчёты месяца для отчёта: без сотрудников, у которых в
-  /// месяце нет ни начислений, ни выплат (такие строки могли остаться от
-  /// расчётов до 2026-09-26 — они исчезнут и из базы при пересчёте).
+  /// месяце нет ни начислений, ни выплат, ни входящего остатка (такие
+  /// строки могли остаться от расчётов до 2026-09-26 — они исчезнут и из
+  /// базы при пересчёте).
   Future<List<PayrollResult>> resultsForReport(int year, int month) async {
     final paid = await paidInMonth(year, month);
+    final balances = await startingBalances(DateTime(year, month, 1));
     return [
       for (final r in await payroll.forMonth(year, month))
-        if (payrollNeeded(emptyPayroll: r.isEmpty, paidInMonth: paid.contains(r.employeeId)))
+        if (payrollNeeded(
+            emptyPayroll: r.isEmpty,
+            paidInMonth: paid.contains(r.employeeId),
+            startingBalance: balances[r.employeeId] ?? 0))
           r,
     ];
   }

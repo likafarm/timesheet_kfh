@@ -21,13 +21,19 @@ class EmployeePayroll {
   /// Были ли выплаты сотруднику в этом месяце.
   final bool paidInMonth;
 
-  EmployeePayroll(this.employee, this.calculation, this.saved,
-      {required this.paidInMonth});
+  /// Входящий остаток на 1-е число месяца.
+  final double startingBalance;
 
-  /// Входит ли сотрудник в расчёт месяца: есть начисления или выплаты
-  /// ([payrollNeeded] из kfh_domain — то же правило, что в приложении).
-  bool get needed =>
-      payrollNeeded(emptyPayroll: calculation.isEmpty, paidInMonth: paidInMonth);
+  EmployeePayroll(this.employee, this.calculation, this.saved,
+      {required this.paidInMonth, required this.startingBalance});
+
+  /// Входит ли сотрудник в расчёт месяца: есть начисления, выплаты или
+  /// входящий остаток ([payrollNeeded] из kfh_domain — то же правило, что
+  /// в приложении).
+  bool get needed => payrollNeeded(
+      emptyPayroll: calculation.isEmpty,
+      paidInMonth: paidInMonth,
+      startingBalance: startingBalance);
 
   /// Сохранённое совпадает с тем, что должно быть: свежий расчёт — для
   /// нужных, отсутствие расчёта — для выпавших из расчёта.
@@ -42,15 +48,17 @@ class EmployeePayroll {
         'saved': saved == null
             ? null
             : {'uuid': saved!.uuid, ...saved!.data, 'updated_at': formatSyncTimestamp(saved!.updatedAt)},
+        'starting_balance': startingBalance,
         'needed': needed,
         'up_to_date': upToDate,
       };
 }
 
-/// Сохранённый расчёт показывается в отчёте, если в нём есть начисления
-/// или сотруднику в месяце что-то выплачено (пустые строки могли остаться
-/// от расчётов до 2026-09-26).
-bool savedPayrollVisible(Map<String, Object?> saved, {required bool paidInMonth}) =>
+/// Сохранённый расчёт показывается в отчёте, если в нём есть начисления,
+/// сотруднику в месяце что-то выплачено или у него есть входящий остаток
+/// (пустые строки могли остаться от расчётов до 2026-09-26).
+bool savedPayrollVisible(Map<String, Object?> saved,
+        {required bool paidInMonth, required double startingBalance}) =>
     payrollNeeded(
       emptyPayroll: isEmptyPayroll(
         baseDays: saved['base_days'] as double,
@@ -61,6 +69,7 @@ bool savedPayrollVisible(Map<String, Object?> saved, {required bool paidInMonth}
         skippedWorkDays: saved['skipped_work_days'] as int,
       ),
       paidInMonth: paidInMonth,
+      startingBalance: startingBalance,
     );
 
 Map<String, Object?> _calculationJson(PayrollCalculation c) => {
@@ -115,7 +124,15 @@ class PayrollCalculator {
   /// сохранёнными результатами месяца. В список входят только нужные
   /// ([EmployeePayroll.needed]) и те, у кого остался сохранённый расчёт
   /// (его уберёт пересчёт).
-  Future<List<EmployeePayroll>> calculate(SqlExecutor sql, int year, int month) async {
+  Future<List<EmployeePayroll>> calculate(SqlExecutor sql, int year, int month) async =>
+      (await calculateEveryone(sql, year, month))
+          .where((r) => r.needed || r.saved != null)
+          .toList();
+
+  /// Свежий расчёт каждого неудалённого сотрудника за месяц — без отбора
+  /// (для сверки импорта).
+  Future<List<EmployeePayroll>> calculateEveryone(
+      SqlExecutor sql, int year, int month) async {
     _checkMonth(year, month);
     final first = DateTime(year, month, 1), last = DateTime(year, month + 1, 0);
     final employees = await _rows.live(sql, _t('employees'),
@@ -137,6 +154,7 @@ class PayrollCalculator {
     }
     final savedBy = {for (final s in saved) s.data['employee_uuid'] as String: s};
     final paid = await paidInMonth(sql, year, month);
+    final balances = await startingBalances(sql, year, month);
 
     return [
       for (final e in employees)
@@ -151,8 +169,9 @@ class PayrollCalculator {
           ),
           savedBy[e.uuid],
           paidInMonth: paid.contains(e.uuid),
+          startingBalance: balances[e.uuid] ?? 0,
         ),
-    ].where((r) => r.needed || r.saved != null).toList();
+    ];
   }
 
   /// Входящий остаток на 1-е число месяца: начислено за прошлые месяцы −

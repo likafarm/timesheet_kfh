@@ -439,14 +439,42 @@ void main() {
       expect(olgaRow['calculation']['total_salary'], 0.0);
       (s, json) = await call('GET', '/payroll?year=2026&month=9');
       expect([for (final r in json['results']) r['employee_uuid']], contains(olga));
-      // Выплата 1 октября — уже другой месяц: в октябре Ольга есть, в
-      // ноябре — нет.
+      // Выплата 1 октября — уже другой месяц: в октябре Ольга есть по
+      // выплате.
       await push([payment(olga, '2026-10-01', 100)]);
       (s, json) = await call('GET', '/payroll/calculation?year=2026&month=10');
       expect([for (final e in json['employees']) e['employee_uuid']], contains(olga));
-      (s, json) = await call('GET', '/payroll/calculation?year=2026&month=11');
-      expect([for (final e in json['employees']) e['employee_uuid']],
-          isNot(contains(olga)));
+    }, skip: mysqlSkip);
+
+    test('входящий остаток оставляет в расчёте без дней и выплат', () async {
+      await seed();
+      await push([payment(olga, '2026-09-30', 700)]);
+      await call('POST', '/payroll/calculate', body: {'year': 2026, 'month': 9});
+      // Ноябрь: ни дней, ни выплат. Иван: 5650 начислено − 1000 − 2000
+      // выплачено = долг 2650; Ольга: 0 − 700 = переплата; Пётр: 1100 долг.
+      var (s, json) = await call('GET', '/payroll/calculation?year=2026&month=11');
+      expect(s, 200);
+      final byEmployee = {
+        for (final e in json['employees']) e['employee_uuid']: e,
+      };
+      expect(byEmployee.keys.toSet(), {ivan, petr, olga});
+      expect(byEmployee[ivan]['starting_balance'], 2650.0);
+      expect(byEmployee[olga]['starting_balance'], -700.0);
+      expect(byEmployee[ivan]['calculation']['total_salary'], 0.0);
+      (s, json) = await call('POST', '/payroll/calculate',
+          body: {'year': 2026, 'month': 11});
+      expect(json['saved'], 3);
+      (s, json) = await call('GET', '/payroll?year=2026&month=11');
+      expect(json['results'], hasLength(3));
+
+      // Долги погашены — в декабре пусто.
+      await push([
+        payment(ivan, '2026-11-15', 2650),
+        payment(petr, '2026-11-15', 1100),
+        payment(olga, '2026-11-15', -700),
+      ]);
+      (s, json) = await call('GET', '/payroll/calculation?year=2026&month=12');
+      expect(json['employees'], isEmpty);
     }, skip: mysqlSkip);
 
     test('удалили все дни — пересчёт убирает расчёт сотрудника', () async {

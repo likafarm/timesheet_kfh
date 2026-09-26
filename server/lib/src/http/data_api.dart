@@ -94,11 +94,13 @@ class DataApi {
     return jsonResponse({
       'year': year,
       'month': month,
-      // Без сотрудников, у которых в месяце нет ни начислений, ни выплат.
+      // Без сотрудников, у которых в месяце нет ни начислений, ни выплат, ни
+      // входящего остатка.
       'results': [
         for (final r in saved)
           if (savedPayrollVisible(r.data,
-              paidInMonth: paid.contains(r.data['employee_uuid'])))
+              paidInMonth: paid.contains(r.data['employee_uuid']),
+              startingBalance: balances[r.data['employee_uuid']] ?? 0))
             _json(user, r),
       ],
       'starting_balances': balances,
