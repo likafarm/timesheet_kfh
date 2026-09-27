@@ -541,7 +541,7 @@ class _OperatorEmployeeList extends StatelessWidget {
                       ? 'Сотрудников нет. Они придут с сервера после входа.'
                       : 'Нет работающих сотрудников.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
             )

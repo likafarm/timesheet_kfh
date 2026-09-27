@@ -218,7 +218,7 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
                 child: Text(
                   'В этот день нет работающих сотрудников.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
             )
@@ -236,7 +236,7 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
                       locked
                           ? 'Месяц закрыт — отметки менять нельзя.'
                           : 'Отмечено $marked из ${employees.length}',
-                      style: TextStyle(color: Colors.grey[700]),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   );
                 }

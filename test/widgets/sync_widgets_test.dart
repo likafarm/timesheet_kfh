@@ -307,6 +307,25 @@ void main() {
     expect(find.textContaining('повтор в'), findsNothing);
   });
 
+  testWidgets('экран сервера на телефоне: значения не сжаты в столбик', (
+    tester,
+  ) async {
+    await setUpSync(tester, size: const Size(390, 844));
+    await tester.runAsync(() async {
+      await sync.signIn('localhost', 'ivan', 'secret-pass');
+      await sync.link(await sync.analyzeLink());
+    });
+    await tester.pumpWidget(app(const SyncScreen()));
+    await settle(tester);
+    // Адрес сервера и пользователь — не больше двух строк (было по слогу).
+    for (final text in ['https://localhost', 'Иван Иванов (ivan, администратор)']) {
+      final rect = tester.getRect(find.text(text));
+      expect(rect.height, lessThan(50), reason: text);
+      expect(rect.width, greaterThan(180), reason: text);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('экран сервера: учётная запись и журнал', (tester) async {
     await setUpSync(tester);
     await tester.runAsync(() async {

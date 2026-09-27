@@ -322,22 +322,23 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 
   Widget _buildLegend() {
+    final c = TimesheetColors.of(context);
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Wrap(
         spacing: 16,
         runSpacing: 4,
         children: [
-          _legendItem('1 / 0.5', Colors.green[50]!),
-          _legendItem('Б', Colors.blue[50]!),
-          _legendItem('О', Colors.purple[50]!),
-          _legendItem('В', Colors.grey[200]!),
+          _legendItem('1 / 0.5', c.work, c),
+          _legendItem('Б', c.sick, c),
+          _legendItem('О', c.vacation, c),
+          _legendItem('В', c.dayoff, c),
         ],
       ),
     );
   }
 
-  Widget _legendItem(String label, Color color) {
+  Widget _legendItem(String label, Color color, TimesheetColors c) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -346,13 +347,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           height: 20,
           decoration: BoxDecoration(
             color: color,
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: c.border),
             borderRadius: BorderRadius.circular(4),
           ),
           alignment: Alignment.center,
           child: Text(
             label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: c.text,
+            ),
           ),
         ),
         const SizedBox(width: 4),
@@ -364,7 +369,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               : label == 'О'
               ? '— Отпуск'
               : '— Выходной',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: c.mutedText),
         ),
       ],
     );
@@ -465,10 +470,12 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
     super.dispose();
   }
 
-  static final _border = BorderSide(color: Colors.grey[300]!);
+  late TimesheetColors _c;
+  BorderSide get _border => BorderSide(color: _c.border);
 
   @override
   Widget build(BuildContext context) {
+    _c = TimesheetColors.of(context);
     final nameWidth = widget.compact ? 116.0 : 160.0;
     final dayWidth = widget.compact ? 44.0 : 40.0;
     final cellHeight = widget.compact ? 48.0 : 40.0;
@@ -491,10 +498,10 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
             dayWidth,
             cellHeight,
           ),
-        _totalHeader('Раб.', Colors.grey[100]!, dayWidth, cellHeight),
-        _totalHeader('Вых.', Colors.grey[50]!, dayWidth, cellHeight),
-        _totalHeader('Бол.', Colors.blue[50]!, dayWidth, cellHeight),
-        _totalHeader('Отп.', Colors.purple[50]!, dayWidth, cellHeight),
+        _totalHeader('Раб.', _c.total, dayWidth, cellHeight),
+        _totalHeader('Вых.', _c.totalAlt, dayWidth, cellHeight),
+        _totalHeader('Бол.', _c.sick, dayWidth, cellHeight),
+        _totalHeader('Отп.', _c.vacation, dayWidth, cellHeight),
       ],
     );
 
@@ -537,10 +544,10 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
                 cellHeight: cellHeight,
                 onTap: () => widget.onCellTap(employee, day),
               ),
-            _totalCell(work, Colors.grey[100]!, dayWidth, cellHeight, true),
-            _totalCell(dayoff, Colors.grey[50]!, dayWidth, cellHeight, false),
-            _totalCell(sick, Colors.blue[50]!, dayWidth, cellHeight, false),
-            _totalCell(vacation, Colors.purple[50]!, dayWidth, cellHeight, false),
+            _totalCell(work, _c.total, dayWidth, cellHeight, true),
+            _totalCell(dayoff, _c.totalAlt, dayWidth, cellHeight, false),
+            _totalCell(sick, _c.sick, dayWidth, cellHeight, false),
+            _totalCell(vacation, _c.vacation, dayWidth, cellHeight, false),
           ],
         ),
       );
@@ -631,7 +638,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
           ),
           Text(
             employee.position,
-            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 10, color: _c.mutedText),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -650,9 +657,9 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: isToday
-            ? Colors.blue[50]
+            ? _c.today
             : isWeekend
-            ? Colors.red[50]
+            ? _c.weekend
             : null,
         border: Border(left: _border, bottom: _border),
       ),
@@ -664,14 +671,14 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 11,
-              color: isWeekend ? Colors.red : null,
+              color: isWeekend ? _c.weekendText : _c.text,
             ),
           ),
           Text(
             _getWeekdayShort(date.weekday),
             style: TextStyle(
               fontSize: 9,
-              color: isWeekend ? Colors.red : Colors.grey[600],
+              color: isWeekend ? _c.weekendText : _c.mutedText,
             ),
           ),
         ],
@@ -690,7 +697,11 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 9,
+            color: _c.text,
+          ),
           textAlign: TextAlign.center,
         ),
       );
@@ -714,6 +725,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
       style: TextStyle(
         fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         fontSize: 10,
+        color: _c.text,
       ),
     ),
   );
@@ -745,8 +757,9 @@ class _TimesheetCell extends StatelessWidget {
     final hasRecord = record.id != null;
 
     String displayText = '';
+    final c = TimesheetColors.of(context);
     Color backgroundColor = Colors.transparent;
-    Color textColor = Colors.black87;
+    final textColor = c.text;
 
     if (hasRecord) {
       if (record.dayType == 'work') {
@@ -760,17 +773,17 @@ class _TimesheetCell extends StatelessWidget {
             placeStr = '\nполе';
           }
           displayText = daysStr + placeStr;
-          backgroundColor = Colors.green[50]!;
+          backgroundColor = c.work;
         }
       } else if (record.dayType == 'sick') {
         displayText = 'Б';
-        backgroundColor = Colors.blue[50]!;
+        backgroundColor = c.sick;
       } else if (record.dayType == 'vacation') {
         displayText = 'О';
-        backgroundColor = Colors.purple[50]!;
+        backgroundColor = c.vacation;
       } else if (record.dayType == 'dayoff') {
         displayText = 'В';
-        backgroundColor = Colors.grey[200]!;
+        backgroundColor = c.dayoff;
       }
     }
 
@@ -782,7 +795,7 @@ class _TimesheetCell extends StatelessWidget {
         padding: const EdgeInsets.all(1),
         decoration: BoxDecoration(
           color: backgroundColor,
-          border: Border(left: BorderSide(color: Colors.grey[300]!)),
+          border: Border(left: BorderSide(color: c.border)),
         ),
         alignment: Alignment.center,
         child: Text(

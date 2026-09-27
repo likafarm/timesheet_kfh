@@ -8,6 +8,7 @@ import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/screens/daily_input_screen.dart';
 import 'package:kfx_time_tracking/screens/timesheet_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
+import 'package:kfx_time_tracking/theme/app_theme.dart';
 import 'package:kfx_time_tracking/widgets/timesheet_record_dialog.dart';
 import 'package:provider/provider.dart';
 
@@ -96,6 +97,31 @@ void main() {
     await settle(tester);
     saved = await tester.runAsync(() => repos.timesheet.on(ids[0], day));
     expect(saved, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('тёмная тема: итоги табеля — тёмный фон, светлый текст', (
+    tester,
+  ) async {
+    await setUpData(tester);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: const TimesheetScreen(),
+        ),
+      ),
+    );
+    await settle(tester);
+    final total = tester.widget<Text>(find.text('0.0').first);
+    expect(total.style!.color!.computeLuminance(), greaterThan(0.5));
+    final box = tester
+        .widget<Container>(
+          find.ancestor(of: find.text('0.0').first, matching: find.byType(Container)).first,
+        )
+        .decoration as BoxDecoration;
+    expect(box.color!.computeLuminance(), lessThan(0.1));
     expect(tester.takeException(), isNull);
   });
 

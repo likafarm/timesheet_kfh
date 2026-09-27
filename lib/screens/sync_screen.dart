@@ -114,25 +114,58 @@ class _AccountCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final (label, value) in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 200,
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+            // Широкий экран — таблица: подписи по своей ширине (не больше
+            // 40%), значения — остальное. Телефон — подпись над значением,
+            // значению вся ширина (иначе адрес и имя рвутся по слогам).
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final muted = TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                );
+                if (constraints.maxWidth < 480) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final (label, value) in rows)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(label, style: muted.copyWith(fontSize: 12)),
+                              SelectableText(value),
+                            ],
+                          ),
                         ),
-                      ),
+                    ],
+                  );
+                }
+                return Table(
+                  columnWidths: const {
+                    0: MinColumnWidth(
+                      IntrinsicColumnWidth(),
+                      FractionColumnWidth(0.4),
                     ),
-                    Expanded(child: SelectableText(value)),
+                    1: FlexColumnWidth(),
+                  },
+                  children: [
+                    for (final (label, value) in rows)
+                      TableRow(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 3, 16, 3),
+                            child: Text(label, style: muted),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: SelectableText(value),
+                          ),
+                        ],
+                      ),
                   ],
-                ),
-              ),
+                );
+              },
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
