@@ -8,6 +8,7 @@ export 'src/api_client.dart';
 export 'src/backoff.dart';
 export 'src/failures.dart';
 export 'src/session.dart';
+export 'src/sync_bootstrap.dart';
 export 'src/sync_engine.dart';
 export 'src/sync_journal.dart';
 export 'src/sync_transport.dart';

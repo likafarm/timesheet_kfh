@@ -100,14 +100,19 @@ class KfhApiClient {
     Map<String, String>? query,
   }) => _authorized('GET', path, query: query);
 
-  Future<Map<String, Object?>> postJson(String path, Object? body) =>
-      _authorized('POST', path, body: body);
+  /// [timeout] — свой срок ожидания (долгие операции вроде импорта).
+  Future<Map<String, Object?>> postJson(
+    String path,
+    Object? body, {
+    Duration? timeout,
+  }) => _authorized('POST', path, body: body, timeout: timeout);
 
   Future<Map<String, Object?>> _authorized(
     String method,
     String path, {
     Map<String, String>? query,
     Object? body,
+    Duration? timeout,
   }) async {
     var pair = await tokens.read();
     if (pair == null) throw NotSignedIn();
@@ -121,6 +126,7 @@ class KfhApiClient {
         query: query,
         body: body,
         access: pair.accessToken,
+        timeout: timeout,
       );
     } on ApiFailure catch (e) {
       if (e.status != 401 || e.code != 'token_invalid') rethrow;
@@ -134,6 +140,7 @@ class KfhApiClient {
       query: query,
       body: body,
       access: pair.accessToken,
+      timeout: timeout,
     );
   }
 
@@ -178,7 +185,9 @@ class KfhApiClient {
     Map<String, String>? query,
     Object? body,
     String? access,
+    Duration? timeout,
   }) async {
+    final wait = timeout ?? this.timeout;
     final base = baseUrl.path.endsWith('/')
         ? baseUrl.path.substring(0, baseUrl.path.length - 1)
         : baseUrl.path;
@@ -199,8 +208,8 @@ class KfhApiClient {
     final http.Response response;
     try {
       response = await http.Response.fromStream(
-        await _http.send(request).timeout(timeout),
-      ).timeout(timeout);
+        await _http.send(request).timeout(wait),
+      ).timeout(wait);
     } on http.ClientException catch (e) {
       throw NetworkFailure(e);
     } on TimeoutException catch (e) {
@@ -227,8 +236,12 @@ class KfhApiClient {
     if (json is Map<String, Object?> && json['error'] is Map) {
       final error = json['error'] as Map;
       final code = error['code'], message = error['message'];
+      final details = error['details'];
       if (code is String && message is String) {
-        throw ApiFailure(status, code, message);
+        throw ApiFailure(status, code, message, [
+          if (details is List)
+            for (final d in details) '$d',
+        ]);
       }
     }
     throw ServerFailure('HTTP $status', status: status);

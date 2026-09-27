@@ -11,6 +11,9 @@ import 'sync_export_builder.dart';
 const syncCursorKey = 'sync_cursor';
 const syncEpochKey = 'sync_epoch';
 
+/// Ключ адреса сервера, к которому привязана база.
+const syncServerKey = 'sync_server';
+
 /// Место в журнале изменений сервера: номер и эпоха (после восстановления
 /// сервера из копии эпоха меняется, и курсор теряет смысл).
 class SyncCursor {
@@ -273,6 +276,48 @@ class LocalSyncStore {
     return result;
   }
 
+  // ----------------------------------------------------------- привязка
+
+  /// Сервер, с которым база синхронизируется (адрес), или null — база ещё
+  /// не привязана: сначала первый вход (выгрузка, привязка или приём).
+  Future<String?> linkedServer() => db.syncStateDao.getValue(syncServerKey);
+
+  Future<void> setLinkedServer(String server) =>
+      db.syncStateDao.setValue(syncServerKey, server);
+
+  /// Забыть прежний сервер: все записи снова «не отправлены» (новому
+  /// серверу неизвестны), курсор с нуля, отметки об отказах сняты.
+  /// Данные базы не меняются.
+  Future<void> forgetServer() => db.transaction(() async {
+        for (final table in syncTables) {
+          await db.customUpdate(
+            'UPDATE ${table.name} SET remote_updated_at = NULL '
+            'WHERE remote_updated_at IS NOT NULL',
+            updates: {_tableInfo(table.name)},
+            updateKind: UpdateKind.update,
+          );
+        }
+        await clearRejections();
+        await resetCursor();
+        await db.customUpdate(
+          'DELETE FROM sync_state WHERE key = ?',
+          variables: [Variable<String>(syncServerKey)],
+          updates: {db.syncState},
+          updateKind: UpdateKind.delete,
+        );
+      });
+
+  /// uuid всех записей по таблицам (и удалённых тоже).
+  Future<Map<String, Set<String>>> localKeys() async => {
+        for (final table in syncTables)
+          table.name: {
+            for (final row in await db
+                .customSelect('SELECT uuid FROM ${table.name}')
+                .get())
+              row.read<String>('uuid'),
+          },
+      };
+
   /// Первый вход на устройстве без своих данных: всё, что есть в базе
   /// (строка настроек хозяйства по умолчанию), считается известным серверу —
   /// при приёме серверные версии заменят его, а не наоборот.
@@ -341,11 +386,14 @@ class LocalSyncStore {
     }
     final local = await _row(table.name, change.uuid);
     if (local != null && !_isDirty(local)) {
-      // Своя же отправленная запись вернулась с сервера — ничего не менять.
+      // Своя же отправленная запись вернулась с сервера — данные не менять.
       final mine = syncChangeFromLocalRow(table, local);
-      if (mine.updatedAt == change.updatedAt &&
-          mine.editedBy == change.editedBy &&
-          _same(mine, change)) {
+      if (mine.updatedAt == change.updatedAt && _same(mine, change)) {
+        // Отличаться может только отметка «кто менял» (у строки настроек
+        // новой базы её нет, сервер при импорте ставит id устройства).
+        if (mine.editedBy != change.editedBy) {
+          await _write(table, change, exists: true);
+        }
         report.unchanged++;
         return;
       }

@@ -519,6 +519,65 @@ void main() {
     });
   });
 
+  group('привязка к серверу', () {
+    test('по умолчанию база не привязана; адрес сохраняется', () async {
+      expect(await a.store.linkedServer(), isNull);
+      await a.store.setLinkedServer('https://tab.example.ru');
+      expect(await a.store.linkedServer(), 'https://tab.example.ru');
+    });
+
+    test('forgetServer: всё снова не отправлено, данные те же', () async {
+      final emp = await a.addEmployee('Иванов Иван');
+      await a.addWork(emp, DateTime(2026, 9, 1));
+      await a.pushAll();
+      await a.store.saveCursor(const SyncCursor(9, 'e'));
+      await a.store.setLinkedServer('https://old.example.ru');
+      final before = await readAllSyncRows(a.db);
+
+      await a.store.forgetServer();
+      expect(await a.store.pendingCount(), 3);
+      expect(await a.store.cursor(), SyncCursor.start);
+      expect(await a.store.linkedServer(), isNull);
+      final after = await readAllSyncRows(a.db);
+      expect(
+        [for (final r in after) r.toJson()],
+        [for (final r in before) r.toJson()],
+      );
+    });
+
+    test('localKeys — все записи, и удалённые', () async {
+      final emp = await a.addEmployee('Иванов Иван');
+      final day = await a.addWork(emp, DateTime(2026, 9, 1));
+      await a.repo.timesheet.delete(day);
+      final keys = await a.store.localKeys();
+      expect(keys['employees'], {emp});
+      expect(keys['timesheet'], {day});
+      expect(keys['company_settings'], {companySettingsUuid});
+    });
+
+    test(
+      'версия, отличающаяся только отметкой «кто менял», — не новые данные',
+      () async {
+        final emp = await a.addEmployee('Иванов Иван');
+        await a.pushAll();
+        final mine = await a.row('employees', emp);
+        final server = SyncChange(
+          table: mine.table,
+          uuid: mine.uuid,
+          updatedAt: mine.updatedAt,
+          deleted: mine.deleted,
+          editedBy: 'imported-device',
+          data: mine.data,
+        );
+        final report = await a.store.applyRemote([server]);
+        expect(report.unchanged, 1);
+        expect(report.applied, 0);
+        expect((await a.row('employees', emp)).editedBy, 'imported-device');
+        expect(await a.store.pendingCount(), 0);
+      },
+    );
+  });
+
   group('курсор', () {
     test('по умолчанию — с начала', () async {
       expect(await a.store.cursor(), SyncCursor.start);

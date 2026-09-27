@@ -84,10 +84,19 @@ class SyncEngine {
 
   bool get isRunning => _running != null;
 
-  Future<SyncReport> run({bool retryRejected = false}) =>
-      _running ??= _run(retryRejected).whenComplete(() => _running = null);
+  /// [linking] — первая синхронизация после привязки к серверу: все
+  /// записи считаются неотправленными, и «уступила» здесь не значит «была
+  /// правка» — в журнале это сказано иначе.
+  Future<SyncReport> run({bool retryRejected = false, bool linking = false}) =>
+      _running ??= _run(
+        retryRejected,
+        linking,
+      ).whenComplete(() => _running = null);
 
-  Future<SyncReport> _run(bool retryRejected) async {
+  bool _linking = false;
+
+  Future<SyncReport> _run(bool retryRejected, bool linking) async {
+    _linking = linking;
     final report = SyncReport();
     if (retryRejected) await store.clearRejections();
     var resync = await _push(report);
@@ -238,8 +247,11 @@ class SyncEngine {
       table: lost.local.table,
       uuid: lost.local.uuid,
       message: lost.reason == LostReason.overwritten
-          ? '$title: правка с этого устройства уступила более поздней '
-                'правке с сервера'
+          ? _linking
+                ? '$title: при привязке к серверу на нём оказалась более '
+                      'поздняя версия записи — принята она'
+                : '$title: правка с этого устройства уступила более поздней '
+                      'правке с сервера'
           : '$title: на сервере уже есть запись на этот '
                 '${lost.local.table == 'timesheet' ? 'день' : 'месяц'}, '
                 'введённая раньше, — запись с этого устройства снята',

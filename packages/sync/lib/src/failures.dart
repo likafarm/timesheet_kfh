@@ -46,7 +46,10 @@ class ApiFailure extends SyncFailure {
   @override
   final String message;
 
-  ApiFailure(this.status, this.code, this.message);
+  /// Подробности (например, список расхождений при импорте).
+  final List<String> details;
+
+  ApiFailure(this.status, this.code, this.message, [this.details = const []]);
 
   /// Нужно войти заново (логином и паролем).
   bool get needsLogin => const {
