@@ -131,5 +131,9 @@ void main() {
     await tester.tap(cell);
     await settle(tester);
     expect(find.byType(TimesheetRecordDialog), findsOneWidget);
+    // На телефоне — панель снизу, а не окно по центру.
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

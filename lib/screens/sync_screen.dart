@@ -12,6 +12,7 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/sync_provider.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/sync_dialogs.dart';
 import '../widgets/sync_status_bar.dart';
 
@@ -163,7 +164,7 @@ class _AccountCard extends StatelessWidget {
                   ),
                 if (user != null && sync.phase == SyncPhase.ready)
                   OutlinedButton.icon(
-                    onPressed: () => showDialog<bool>(
+                    onPressed: () => showAppDialog<bool>(
                       context: context,
                       builder: (_) => const ChangePasswordDialog(),
                     ),

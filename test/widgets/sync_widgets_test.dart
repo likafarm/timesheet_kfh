@@ -22,8 +22,13 @@ void main() {
   late MemorySyncJournal journal;
   late int backups;
 
-  Future<void> setUpSync(WidgetTester tester, {bool debugBuild = false}) async {
-    tester.view.physicalSize = const Size(1024, 768);
+  Future<void> setUpSync(
+    WidgetTester tester, {
+    bool debugBuild = false,
+    Size size = const Size(1024, 768),
+    ClientKind client = ClientKind.desktop,
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     server = SyncTestServer();
@@ -41,6 +46,7 @@ void main() {
         journal: journal,
         autoSync: false,
         debugBuild: debugBuild,
+        client: client,
       );
       await sync.init();
     });
@@ -121,6 +127,51 @@ void main() {
 
     expect(find.textContaining('Синхронизировано сегодня'), findsOneWidget);
     expect(find.text('Иван Иванов'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('телефон: вход оператора и приём — панелями снизу', (
+    tester,
+  ) async {
+    await setUpSync(
+      tester,
+      size: const Size(390, 844),
+      client: ClientKind.phone,
+    );
+    server.role = 'operator';
+    await tester.pumpWidget(withBar());
+    await tester.tap(find.text('Войти'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('Вход на сервер'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Логин'), 'oper');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Пароль'),
+      'secret-pass',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await settle(tester);
+
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('Первый вход на сервер'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Принять данные с сервера'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Готово'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Синхронизировано сегодня'), findsOneWidget);
+    expect(backups, 1);
     expect(tester.takeException(), isNull);
   });
 

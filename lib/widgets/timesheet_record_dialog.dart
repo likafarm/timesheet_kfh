@@ -7,6 +7,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import 'common_widgets.dart';
+import 'adaptive_dialog.dart';
 
 class TimesheetRecordDialog extends StatefulWidget {
   final Employee employee;
@@ -80,7 +81,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.record?.id != null;
 
-    return AlertDialog(
+    return AppDialog(
       title: Text('${isEditing ? 'Редактировать' : 'Добавить'} запись'),
       content: SizedBox(
         width: 400,

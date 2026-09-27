@@ -13,6 +13,7 @@ import '../widgets/daily_timesheet_dialog.dart';
 import '../services/print_service.dart';
 import '../theme/app_theme.dart';
 import 'daily_input_screen.dart';
+import '../widgets/adaptive_dialog.dart';
 
 class TimesheetScreen extends StatefulWidget {
   const TimesheetScreen({super.key});
@@ -389,7 +390,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
       ),
     );
 
-    showDialog(
+    showAppDialog<void>(
       context: context,
       builder: (context) => TimesheetRecordDialog(
         employee: employee,
