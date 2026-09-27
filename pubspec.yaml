@@ -58,6 +58,9 @@ dependencies:
   win32: ^6.4.0
   ffi: ^2.1.0
 
+  # Ссылка на новую версию программы (этап 4.8)
+  url_launcher: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

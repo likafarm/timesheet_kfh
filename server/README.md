@@ -18,6 +18,7 @@ API синхронизации и отчётов поверх MySQL. Чисты�
 | `MIGRATE_ON_START` | false | применять миграции при старте (только стенд) |
 | `JWT_SECRET` / `JWT_SECRET_FILE` | — (для сервера обязателен) | ключ подписи access-токенов, ≥ 32 байт (`openssl rand -base64 48`) |
 | `TRUST_PROXY` | false | за Caddy: адрес клиента — последний в `X-Forwarded-For` |
+| `CLIENT_VERSIONS_FILE` | — | файл версий программ для `GET /client/version` (нет — обновлений не требуется) |
 
 Без обязательной переменной сервер не стартует (код выхода 78, причина — в журнале).
 
@@ -186,6 +187,11 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   `zcat kfh.sql.gz | mysql -uroot -p` в чистую MySQL 8.4 (дамп сам создаёт базу `kfh`) → `server migrate`
   (ничего не применяет) → запуск API. На VPS после восстановления — `UPDATE sync_serial SET epoch = UUID();`
   и пароль `kfh_api` из `secrets/mysql_password` (пользователи MySQL в дамп не входят).
+- **Программа для телефона** (этап 4.8): `/opt/kfh/downloads` — `kfh-X.Y.Z.apk`, `index.html` (страница
+  `https://…/download/`, отдаёт Caddy) и `versions.json` (читает API: `GET /client/version` без входа —
+  последняя и минимальная версии по платформам, программа старее минимальной ставит синхронизацию на паузу и
+  показывает «нужна новая версия»). Выкладка APK — `.\server\deploy\publish_apk.ps1 -Apk
+  installer_output\kfh-X.Y.Z.apk [-Min X.Y.Z]` (сначала APK, затем список версий); только с согласия владельца.
 
 ## Приёмка этапа 2
 

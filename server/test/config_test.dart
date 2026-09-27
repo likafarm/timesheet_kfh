@@ -74,6 +74,15 @@ void main() {
     }
   });
 
+  test('файл версий программ — необязателен', () {
+    expect(ServerConfig.fromEnvironment(minimal).clientVersionsFile, isNull);
+    expect(
+        ServerConfig.fromEnvironment(
+                {...minimal, 'CLIENT_VERSIONS_FILE': ' /downloads/versions.json '})
+            .clientVersionsFile,
+        '/downloads/versions.json');
+  });
+
   group('ключ токенов и прокси', () {
     test('по умолчанию ключа нет, прокси не доверяем', () {
       final config = ServerConfig.fromEnvironment(minimal);

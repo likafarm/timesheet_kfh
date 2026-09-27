@@ -7,6 +7,7 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/providers/sync_provider.dart';
 import 'package:kfx_time_tracking/screens/sync_screen.dart';
 import 'package:kfx_time_tracking/widgets/sync_status_bar.dart';
+import 'package:kfx_time_tracking/widgets/update_banner.dart';
 import 'package:provider/provider.dart';
 
 import '../support/sync_test_server.dart';
@@ -47,6 +48,7 @@ void main() {
         autoSync: false,
         debugBuild: debugBuild,
         client: client,
+        appVersion: () async => '1.2.0',
       );
       await sync.init();
     });
@@ -172,6 +174,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Синхронизировано сегодня'), findsOneWidget);
     expect(backups, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('старая версия — полоса «нужна новая версия» со ссылкой', (
+    tester,
+  ) async {
+    await setUpSync(tester);
+    server.versions = {
+      'platforms': {
+        'windows': {
+          'latest': '1.3.0',
+          'min': '1.3.0',
+          'url': 'https://tab.example.ru/download/',
+        },
+      },
+    };
+    await tester.pumpWidget(
+      app(const Scaffold(body: Column(children: [UpdateBanner()]))),
+    );
+    expect(find.textContaining('новая версия'), findsNothing);
+    await tester.runAsync(sync.checkVersion);
+    await tester.pump();
+    expect(find.textContaining('Нужна новая версия программы — 1.3.0'), findsOneWidget);
+    expect(find.text('Скачать'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

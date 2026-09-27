@@ -14,6 +14,9 @@ class SyncTestServer {
   final rows = <String, Map<String, Object?>>{};
   final log = <String>[];
 
+  /// Ответ `GET /client/version` (null — старый сервер без этого адреса).
+  Map<String, Object?>? versions;
+
   /// Закрытые месяцы `(год, месяц)`.
   final locks = <(int, int)>[];
 
@@ -71,6 +74,9 @@ class SyncTestServer {
         return http.Response('', 204);
       case '/auth/refresh':
         return _error(401, 'session_expired', 'Сеанс завершён, войдите заново');
+      case '/client/version':
+        final v = versions;
+        return v == null ? _error(404, 'not_found', 'Нет адреса') : _json(v);
     }
     if (sessionExpired) {
       return _error(401, 'token_invalid', 'Требуется вход в систему');

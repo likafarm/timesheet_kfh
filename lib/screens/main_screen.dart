@@ -10,6 +10,7 @@ import 'sync_screen.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/sync_status_bar.dart';
+import '../widgets/update_banner.dart';
 
 /// Главный экран: узкий экран (телефон) — нижняя навигация, широкий —
 /// тёмная боковая панель (UI_REQUIREMENTS п. 2.2). Набор разделов зависит
@@ -138,9 +139,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final content = IndexedStack(
-      index: _selectedIndex,
-      children: _navigationItems.map((item) => item.screen).toList(),
+    final content = Column(
+      children: [
+        const UpdateBanner(),
+        Expanded(
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: _navigationItems.map((item) => item.screen).toList(),
+          ),
+        ),
+      ],
     );
     final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
     if (compact) {

@@ -10,9 +10,11 @@ import 'dart:io';
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/file_journal.dart';
 import 'package:kfh_sync/kfh_sync.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
 import '../services/file_token_store.dart';
@@ -89,7 +91,9 @@ class SyncProvider extends ChangeNotifier {
     this.changeDelay = const Duration(seconds: 5),
     this.debugBuild = kDebugMode,
     ClientKind? client,
-  }) : client =
+    Future<String> Function()? appVersion,
+  }) : _appVersion = appVersion ?? _installedVersion,
+       client =
            client ?? (isAndroidApp ? ClientKind.phone : ClientKind.desktop),
        _db = database,
        _tokenStore =
@@ -129,6 +133,49 @@ class SyncProvider extends ChangeNotifier {
 
   /// Какая это программа: от неё зависит, какие роли могут войти.
   final ClientKind client;
+
+  /// Версия этой программы (`pubspec.yaml`).
+  final Future<String> Function() _appVersion;
+  static Future<String> _installedVersion() async =>
+      (await PackageInfo.fromPlatform()).version;
+
+  /// Версии программы на сервере (шаг 4.8); null — ещё не известны.
+  PlatformVersion? _serverVersion;
+  String? _version;
+
+  /// Версия этой программы (после [init]).
+  String? get appVersion => _version;
+
+  /// Версия на сервере для этой платформы (null — сервер не сообщил).
+  PlatformVersion? get serverVersion => _serverVersion;
+
+  /// Программа старее минимальной версии сервера: синхронизация на паузе
+  /// до обновления (введённое сохраняется здесь и уйдёт после обновления).
+  bool get updateRequired {
+    final v = _serverVersion, current = _version;
+    return v != null && current != null && v.requiresUpdate(current);
+  }
+
+  /// На сервере есть версия новее этой.
+  bool get updateAvailable {
+    final v = _serverVersion, current = _version;
+    return v != null && current != null && v.hasUpdate(current);
+  }
+
+  String get _platformKey => client == ClientKind.phone ? 'android' : 'windows';
+
+  /// Версии программ — с сервера, без входа. Сбой не мешает: остаётся
+  /// прежнее знание (проверка повторится после следующей синхронизации).
+  Future<void> checkVersion() async {
+    try {
+      _version ??= await _appVersion();
+      final all = await _api!.clientVersions();
+      _serverVersion = all.platforms[_platformKey];
+      notifyListeners();
+    } catch (e) {
+      debugPrint('sync: версии программ не получены: $e');
+    }
+  }
 
   /// Отладочная сборка: адрес не на этом компьютере — только с явного
   /// согласия (у неё своя база, но вход — настоящий).
@@ -218,6 +265,7 @@ class SyncProvider extends ChangeNotifier {
     }
     await _updatePhase();
     await refreshPending();
+    unawaitedSafe(checkVersion());
   }
 
   /// База переоткрыта (полное восстановление из копии) — начать заново.
@@ -424,7 +472,7 @@ class SyncProvider extends ChangeNotifier {
   }
 
   /// Итог последней попытки для расписания.
-  SyncAttempt _attempt() => _phase != SyncPhase.ready
+  SyncAttempt _attempt() => _phase != SyncPhase.ready || updateRequired
       ? SyncAttempt.blocked
       : _problem != null
       ? SyncAttempt.transient
@@ -432,6 +480,13 @@ class SyncProvider extends ChangeNotifier {
 
   Future<SyncReport?> _runSync({bool retryRejected = false}) async {
     if (_phase != SyncPhase.ready || _suspended) return null;
+    if (updateRequired) {
+      _problem =
+          'Нужна новая версия программы (${_serverVersion!.latest}): '
+          'синхронизация на паузе, введённое сохраняется $onThisDevice.';
+      notifyListeners();
+      return null;
+    }
     _syncing = true;
     notifyListeners();
     try {
@@ -471,6 +526,7 @@ class SyncProvider extends ChangeNotifier {
     );
     if (report.changedLocalData) await onDataChanged();
     await _refreshLocks();
+    await checkVersion();
   }
 
   /// Закрытые месяцы — с сервера, после каждой удачной синхронизации. Сбой

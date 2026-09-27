@@ -29,6 +29,7 @@ void main() {
     setUp(() async {
       db = LocalDatabase.memory();
       sync = SyncProvider(
+        appVersion: () async => '1.3.0',
         database: db,
         dataDirectory: '.',
         onDataChanged: () async {},
@@ -100,6 +101,7 @@ void main() {
       journal = MemorySyncJournal();
       final tokens = MemoryTokenStore();
       sync = SyncProvider(
+        appVersion: () async => '1.3.0',
         database: app.localDatabase,
         dataDirectory: root.path,
         onDataChanged: app.reloadAfterSync,

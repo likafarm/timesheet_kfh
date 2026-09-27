@@ -333,7 +333,7 @@ void main() {
       final quiet = await pc2.sync();
       expect(quiet.resynced, isFalse);
     });
-  });
+  }, skip: mysqlSkip);
 
   group('первый вход', () {
     test('пустой сервер: база ПК выгружается, всё сходится', () async {
@@ -475,7 +475,7 @@ void main() {
       expect(await pc2.bootstrap.isLinked(), isTrue);
       expect((await pc2.repo.timesheet.on(emp, sep1))!.days, 1);
     });
-  });
+  }, skip: mysqlSkip);
 
   // Приёмка на копии настоящей базы: KFH_ACCEPTANCE_DB — путь к копии
   // базы v2 (например, Документыackups\daily_…db). Файл не меняется:

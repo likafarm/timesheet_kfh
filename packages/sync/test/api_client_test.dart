@@ -78,6 +78,26 @@ void main() {
     expect(jsonDecode(r.body), {'login': 'ivan', 'password': 'secret-pass'});
   });
 
+  test('версии программ — без входа; старый сервер — пустой список', () async {
+    final api = client(
+      (r) => _json({
+        'platforms': {
+          'android': {'latest': '1.3.0', 'min': '1.3.0'},
+        },
+      }),
+    );
+    final v = await api.clientVersions();
+    expect(v.platforms['android']!.requiresUpdate('1.2.0'), isTrue);
+    expect(requests.single.headers['authorization'], isNull);
+    expect(requests.single.url.path, '/client/version');
+
+    final old = client((r) => _error(404, 'not_found', 'Нет такого адреса'));
+    expect((await old.clientVersions()).platforms, isEmpty);
+
+    final broken = client((r) => _json({'platforms': 1}));
+    await expectLater(broken.clientVersions(), throwsA(isA<ServerFailure>()));
+  });
+
   test('неверный пароль — ApiFailure с сообщением сервера', () async {
     final api = client(
       (r) => _error(401, 'invalid_credentials', 'Неверный логин или пароль'),

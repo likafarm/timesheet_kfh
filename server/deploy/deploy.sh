@@ -42,6 +42,8 @@ log "исходники ревизии $REV"
 #    новый пароль к ней не подойдёт: останавливаемся.
 install -d -m 700 "$SECRETS"
 install -d -m 700 "$ROOT/backups" "$BACKUPS"
+# Страница загрузки и APK (этап 4.8) — читают Caddy и API, пишет publish_apk.ps1.
+install -d -m 755 "$ROOT/downloads"
 db_volume_exists=false
 docker volume inspect kfh_mysql-data >/dev/null 2>&1 && db_volume_exists=true
 for name in mysql_root_password mysql_password jwt_secret; do

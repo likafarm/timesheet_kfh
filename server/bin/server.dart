@@ -107,6 +107,10 @@ Future<void> main(List<String> args) async {
       ImportService(db: db, payroll: PayrollCalculator(db: db), logger: logger),
       authApi,
     ),
+    clientApi: ClientApi(
+      versionsFile: config.clientVersionsFile,
+      logger: logger,
+    ),
   );
   final server =
       await shelf_io.serve(handler, InternetAddress.anyIPv4, config.port);
