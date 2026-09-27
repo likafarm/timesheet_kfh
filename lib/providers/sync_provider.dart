@@ -16,6 +16,7 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:path/path.dart' as p;
 
 import '../services/file_token_store.dart';
+import '../services/platform.dart';
 
 /// Где находится программа по отношению к серверу.
 enum SyncPhase {
@@ -48,9 +49,13 @@ class SyncUserException implements Exception {
 class SyncProvider extends ChangeNotifier {
   /// Сервер по умолчанию. Отладочная сборка — только локальный стенд
   /// (`docker-compose.dev.yml`), чтобы `flutter run` не трогал рабочий.
-  static const defaultServer = kDebugMode
-      ? 'http://localhost:8080'
-      : 'https://tab.korovatech.ru';
+  ///
+  /// Эмулятор Android видит компьютер разработчика по адресу 10.0.2.2.
+  static String get defaultServer => !kDebugMode
+      ? 'https://tab.korovatech.ru'
+      : isAndroidApp
+      ? 'http://10.0.2.2:8080'
+      : 'http://localhost:8080';
 
   /// Ключ времени последней удачной синхронизации в `sync_state`.
   static const lastSyncKey = 'sync_last_at';
@@ -59,13 +64,15 @@ class SyncProvider extends ChangeNotifier {
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
 
-  /// Сервер на этом компьютере (стенд), а не рабочий.
+  /// Сервер на этом компьютере (стенд), а не рабочий. Для эмулятора
+  /// Android компьютер разработчика — 10.0.2.2.
   static bool isLocalServer(String server) {
     final host = Uri.tryParse(server)?.host ?? '';
     return host == 'localhost' ||
         host == '127.0.0.1' ||
         host == '::1' ||
-        host == '[::1]';
+        host == '[::1]' ||
+        (isAndroidApp && host == '10.0.2.2');
   }
 
   SyncProvider({
@@ -81,7 +88,10 @@ class SyncProvider extends ChangeNotifier {
     this.syncInterval = const Duration(minutes: 5),
     this.changeDelay = const Duration(seconds: 5),
     this.debugBuild = kDebugMode,
-  }) : _db = database,
+    ClientKind? client,
+  }) : client =
+           client ?? (isAndroidApp ? ClientKind.phone : ClientKind.desktop),
+       _db = database,
        _tokenStore =
            tokenStore ??
            ((server) => platformTokenStore(dataDirectory, server)),
@@ -117,6 +127,9 @@ class SyncProvider extends ChangeNotifier {
   );
   bool _localEdit = false;
 
+  /// Какая это программа: от неё зависит, какие роли могут войти.
+  final ClientKind client;
+
   /// Отладочная сборка: адрес не на этом компьютере — только с явного
   /// согласия (у неё своя база, но вход — настоящий).
   final bool debugBuild;
@@ -138,7 +151,7 @@ class SyncProvider extends ChangeNotifier {
   Timer? _pendingTimer;
 
   SyncPhase _phase = SyncPhase.starting;
-  String _server = defaultServer;
+  late String _server = defaultServer;
   SessionUser? _user;
   bool _syncing = false;
   bool _offline = false;
@@ -198,6 +211,11 @@ class SyncProvider extends ChangeNotifier {
     _lastSyncAt = saved == null ? null : DateTime.tryParse(saved)?.toLocal();
     await _connect(_server);
     _user = await _api!.currentUser();
+    if (_user != null && !_user!.canUseOn(client)) {
+      // Сохранённый вход роли, которой здесь не место, — забыть.
+      await _api!.logout();
+      _user = null;
+    }
     await _updatePhase();
     await refreshPending();
   }
@@ -316,14 +334,12 @@ class SyncProvider extends ChangeNotifier {
     } on SyncFailure catch (e) {
       throw SyncUserException(_explain(e));
     }
-    if (!user.canUseDesktop) {
+    final refusal = user.refusalOn(client);
+    if (refusal != null) {
       await _api!.logout();
       _user = null;
       await _updatePhase();
-      throw SyncUserException(
-        'Роль «${user.roleTitle}» пока не работает в программе для Windows — '
-        'нужна учётная запись администратора или бухгалтера.',
-      );
+      throw SyncUserException(refusal);
     }
     _user = user;
     _problem = null;
@@ -360,6 +376,7 @@ class SyncProvider extends ChangeNotifier {
     transport: HttpSyncTransport(_api!),
     engine: _syncEngine,
     server: _server,
+    client: client,
   );
 
   /// Что будет при первом входе этой базы на сервер. Ничего не меняет.
@@ -477,7 +494,7 @@ class SyncProvider extends ChangeNotifier {
         _user = null;
         _problem =
             '${e.message}. Войдите снова — до входа данные '
-            'сохраняются только на этом компьютере.';
+            'сохраняются только $onThisDevice.';
       } else if (e.code == 'password_change_required') {
         final u = _user;
         if (u != null) {

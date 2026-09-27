@@ -68,7 +68,8 @@ void main() {
     final api = client((r) => _json(_pair('1')));
     final user = await api.login('ivan', 'secret-pass');
     expect(user.login, 'ivan');
-    expect(user.canUseDesktop, isTrue);
+    expect(user.canUseOn(ClientKind.desktop), isTrue);
+    expect(user.canUseOn(ClientKind.phone), isFalse);
     expect(tokens.tokens!.accessToken, 'access-1');
     final r = requests.single;
     expect(r.method, 'POST');

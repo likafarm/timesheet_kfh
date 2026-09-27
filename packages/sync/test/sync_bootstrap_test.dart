@@ -28,7 +28,10 @@ void main() {
   late LocalSyncStore store;
   late int imports;
 
-  SyncBootstrap bootstrap(String address) {
+  SyncBootstrap bootstrap(
+    String address, {
+    ClientKind client = ClientKind.desktop,
+  }) {
     final transport = server.client(db.deviceId);
     // /admin/import поддельного сервера: записи кладутся как есть.
     final api = KfhApiClient(
@@ -60,6 +63,7 @@ void main() {
       transport: transport,
       engine: SyncEngine(store: store, transport: transport),
       server: address,
+      client: client,
     );
   }
 
@@ -81,17 +85,75 @@ void main() {
     ),
   );
 
-  test('оператору — отказ', () async {
-    final plan = await bootstrap('https://a').analyze(
-      const SessionUser(
-        uuid: '01900000-0000-7000-8000-000000000002',
-        login: 'op',
-        fullName: 'Оператор',
-        role: 'operator',
-      ),
-    );
+  const operator = SessionUser(
+    uuid: '01900000-0000-7000-8000-000000000002',
+    login: 'op',
+    fullName: 'Оператор',
+    role: 'operator',
+  );
+
+  test('на Windows оператору — отказ', () async {
+    final plan = await bootstrap('https://a').analyze(operator);
     expect(plan.allowed, isFalse);
     expect(plan.refusal, contains('оператор'));
+  });
+
+  test('на телефоне — только оператор', () async {
+    final b = bootstrap('https://a', client: ClientKind.phone);
+    final plan = await b.analyze(_admin);
+    expect(plan.allowed, isFalse);
+    expect(plan.refusal, contains('только для оператора'));
+  });
+
+  test('оператор на телефоне: пустая база — приём, ничего не уходит', () async {
+    // На сервере — данные хозяйства (сотрудник пришёл с другого устройства).
+    final other = LocalDatabase.memory();
+    addTearDown(other.close);
+    final emp = await DriftRepositories(other).employees.add(
+      Employee(
+        fullName: 'Петров Пётр',
+        position: 'Рабочий',
+        hireDate: DateTime(2025, 3, 1),
+        baseRate: 1000,
+        fieldRate: 1500,
+      ),
+    );
+    await SyncEngine(
+      store: LocalSyncStore(other),
+      transport: server.client(other.deviceId),
+    ).run();
+    final settings = server.rows('company_settings').single;
+
+    final b = bootstrap('https://a', client: ClientKind.phone);
+    final plan = await b.analyze(operator);
+    expect(plan.kind, BootstrapKind.download);
+    expect(plan.allowed, isTrue);
+    await b.execute(plan, backup: () async {});
+    expect(await b.isLinked(), isTrue);
+    expect(await DriftRepositories(db).employees.byId(emp), isNotNull);
+    // Своя строка настроек хозяйства на сервер не ушла.
+    expect(server.rows('company_settings').single.uuid, settings.uuid);
+    expect(await store.pendingCount(), 0);
+    expect(imports, 0);
+  });
+
+  test('оператор на телефоне: пустой сервер — тоже приём', () async {
+    final b = bootstrap('https://a', client: ClientKind.phone);
+    final plan = await b.analyze(operator);
+    expect(plan.kind, BootstrapKind.download);
+    await b.execute(plan, backup: () async {});
+    expect(server.rows('company_settings'), isEmpty);
+    expect(await store.pendingCount(), 0);
+  });
+
+  test('оператор на телефоне: здесь свои данные — отказ', () async {
+    await addEmployee();
+    final plan = await bootstrap(
+      'https://a',
+      client: ClientKind.phone,
+    ).analyze(operator);
+    expect(plan.allowed, isFalse);
+    expect(plan.refusal, contains('пустую базу'));
   });
 
   test('пусто и там, и здесь — просто начать', () async {

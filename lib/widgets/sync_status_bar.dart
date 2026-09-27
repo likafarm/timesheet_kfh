@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
 import '../screens/sync_screen.dart';
 import 'sync_dialogs.dart';
 
@@ -54,7 +55,7 @@ class SyncStatusBar extends StatelessWidget {
         color = sync.problem != null ? warning : muted;
         text =
             sync.problem ??
-            'Вход на сервер не выполнен — данные только на этом компьютере';
+            'Вход на сервер не выполнен — данные только $onThisDevice';
         action = TextButton(
           onPressed: () => startSignIn(context),
           child: const Text('Войти'),

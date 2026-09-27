@@ -25,8 +25,9 @@ void main() {
   late int reloads;
   late int lockChanges;
 
-  SyncProvider provider() => _track(
+  SyncProvider provider({ClientKind client = ClientKind.desktop}) => _track(
     SyncProvider(
+      client: client,
       database: db,
       dataDirectory: '.',
       onDataChanged: () async => reloads++,
@@ -127,6 +128,50 @@ void main() {
       throwsA(isA<SyncUserException>()),
     );
     expect(sync.phase, SyncPhase.signedOut);
+    expect(tokens.tokens, isNull);
+  });
+
+  test('телефон: оператор входит, первый вход — только приём', () async {
+    server.role = 'operator';
+    final sync = provider(client: ClientKind.phone);
+    await sync.init();
+    await sync.signIn('https://localhost', 'oper', 'secret-pass');
+    expect(sync.phase, SyncPhase.needsLink);
+    final plan = await sync.analyzeLink();
+    expect(plan.kind, BootstrapKind.download);
+    final report = await sync.link(plan);
+    expect(report.pushed, 0, reason: 'настройки хозяйства не уходят');
+    expect(sync.phase, SyncPhase.ready);
+    expect(sync.pending, 0);
+  });
+
+  test('телефон: администратору — отказ', () async {
+    final sync = provider(client: ClientKind.phone);
+    await sync.init();
+    await expectLater(
+      sync.signIn('https://localhost', 'ivan', 'secret-pass'),
+      throwsA(
+        isA<SyncUserException>().having(
+          (e) => e.message,
+          'message',
+          contains('только для оператора'),
+        ),
+      ),
+    );
+    expect(sync.phase, SyncPhase.signedOut);
+    expect(tokens.tokens, isNull);
+  });
+
+  test('сохранённый вход чужой роли при запуске забывается', () async {
+    server.role = 'operator';
+    final phone = provider(client: ClientKind.phone);
+    await phone.init();
+    await phone.signIn('https://localhost', 'oper', 'secret-pass');
+    expect(tokens.tokens, isNotNull);
+    // Те же токены в программе для Windows.
+    final desktop = provider();
+    await desktop.init();
+    expect(desktop.phase, SyncPhase.signedOut);
     expect(tokens.tokens, isNull);
   });
 

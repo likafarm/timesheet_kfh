@@ -54,3 +54,9 @@ Future<String> backupsDirectory() async {
     kDebugMode ? 'backups (debug)' : 'backups',
   );
 }
+
+/// «на этом компьютере» / «на этом телефоне» — для сообщений.
+String get onThisDevice => isAndroidApp ? 'на этом телефоне' : 'на этом компьютере';
+
+/// «этого компьютера» / «этого телефона» — для сообщений.
+String get ofThisDevice => isAndroidApp ? 'этого телефона' : 'этого компьютера';

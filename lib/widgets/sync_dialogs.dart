@@ -7,6 +7,7 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
 
 /// Вход и всё, что после него нужно: смена выданного пароля, первый вход
 /// базы на сервер.
@@ -148,9 +149,14 @@ class _SignInDialogState extends State<SignInDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Вход нужен для обмена данными с другими компьютерами. Без '
-                  'входа программа работает как раньше — только с этой базой.',
+                Text(
+                  isAndroidApp
+                      ? 'Войдите учётной записью оператора: сотрудники и '
+                            'табель придут с сервера, введённые дни уйдут на '
+                            'сервер сами, когда будет связь.'
+                      : 'Вход нужен для обмена данными с другими '
+                            'компьютерами. Без входа программа работает как '
+                            'раньше — только с этой базой.',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -428,7 +434,7 @@ class _LinkDialogState extends State<LinkDialog> {
         setState(() {
           _error = e is SyncUserException
               ? e.message
-              : 'Не удалось: $e. Данные этого компьютера не пострадали — '
+              : 'Не удалось: $e. Данные $ofThisDevice не пострадали — '
                     'перед началом сделана резервная копия.';
           _step = _LinkStep.failed;
         });
@@ -459,7 +465,7 @@ class _LinkDialogState extends State<LinkDialog> {
     final error = Theme.of(context).colorScheme.error;
     switch (_step) {
       case _LinkStep.analyzing:
-        return _progress('Сравниваю данные этого компьютера и сервера…');
+        return _progress('Сравниваю данные $ofThisDevice и сервера…');
       case _LinkStep.running:
         return _progress(
           'Резервная копия базы, затем обмен с сервером. Не закрывайте '

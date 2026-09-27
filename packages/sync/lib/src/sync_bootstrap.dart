@@ -96,6 +96,9 @@ class SyncBootstrap {
   /// Сколько ждать ответа на импорт (сервер сверяет всё в одной транзакции).
   final Duration importTimeout;
 
+  /// Какая программа входит: от неё зависит, какие роли допускаются.
+  final ClientKind client;
+
   SyncBootstrap({
     required this.store,
     required this.api,
@@ -103,6 +106,7 @@ class SyncBootstrap {
     required this.engine,
     required this.server,
     this.importTimeout = const Duration(minutes: 5),
+    this.client = ClientKind.desktop,
   });
 
   /// База уже привязана к этому серверу — первый вход не нужен.
@@ -126,12 +130,22 @@ class SyncBootstrap {
       refusal: refusal,
     );
 
-    if (!user.canUseDesktop) {
+    final roleRefusal = user.refusalOn(client);
+    if (roleRefusal != null) {
+      return plan(BootstrapKind.fresh, refusal: roleRefusal);
+    }
+    if (user.isOperator) {
+      // Оператор только принимает данные с сервера (этап 4): отправить он
+      // может лишь табель, поэтому базу с чужими данными не привязывает.
+      // Даже при пустом сервере — «приём»: строка настроек хозяйства
+      // отмечается отправленной и не уходит на сервер (оператору нельзя).
       return plan(
-        BootstrapKind.fresh,
-        refusal:
-            'Роль «${user.roleTitle}» пока не работает в программе для '
-            'Windows — нужна учётная запись администратора или бухгалтера.',
+        BootstrapKind.download,
+        refusal: localRows == 0
+            ? null
+            : 'На этом телефоне уже есть данные ($localRows записей), не '
+                  'связанные с сервером. Оператор может войти только в '
+                  'пустую базу — обратитесь к администратору.',
       );
     }
     if (serverRows == 0 && localRows == 0) return plan(BootstrapKind.fresh);
