@@ -512,6 +512,9 @@ class _LinkDialogState extends State<LinkDialog> {
         setState(() {
           _error = e is SyncUserException
               ? e.message
+              : isWebApp
+              ? 'Не удалось: $e. Данные на сервере не затронуты — '
+                    'попробуйте ещё раз.'
               : 'Не удалось: $e. Данные $ofThisDevice не пострадали — '
                     'перед началом сделана резервная копия.';
           _step = _LinkStep.failed;
@@ -546,8 +549,10 @@ class _LinkDialogState extends State<LinkDialog> {
         return _progress('Сравниваю данные $ofThisDevice и сервера…');
       case _LinkStep.running:
         return _progress(
-          'Резервная копия базы, затем обмен с сервером. Не закрывайте '
-          'программу…',
+          isWebApp
+              ? 'Приём данных с сервера. Не закрывайте вкладку…'
+              : 'Резервная копия базы, затем обмен с сервером. Не закрывайте '
+                    'программу…',
         );
       case _LinkStep.plan:
         final plan = _plan!;
@@ -555,9 +560,18 @@ class _LinkDialogState extends State<LinkDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(plan.description),
+            // Веб-версия только принимает данные в пустую базу браузера,
+            // резервной копии перед этим нет — копировать нечего.
+            Text(
+              isWebApp && plan.kind == BootstrapKind.download
+                  ? 'С сервера будут приняты записей: ${plan.serverRows}. '
+                        'Они хранятся в этом браузере до выхода.'
+                  : plan.description,
+            ),
             const SizedBox(height: 12),
-            if (plan.allowed)
+            if (plan.allowed && isWebApp)
+              const SizedBox.shrink()
+            else if (plan.allowed)
               const Text(
                 'Перед началом будет сделана резервная копия базы (папка '
                 'резервных копий, имя backup_before_sync_…).',
@@ -585,7 +599,7 @@ class _LinkDialogState extends State<LinkDialog> {
                 child: Text(
                   'Записей, где победила версия сервера: ${r.lost}; не принято '
                   'сервером: ${r.rejected}. Подробности — в журнале '
-                  'синхронизации (Настройки → Сервер).',
+                  'синхронизации (Настройки › Сервер).',
                 ),
               ),
           ],

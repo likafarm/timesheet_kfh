@@ -1,46 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Заменяется значением --base-href при сборке (на сервере — /app/). -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Учёт рабочего времени и расчёт зарплаты КФХ">
+  <meta name="theme-color" content="#2E7D32">
+  <meta name="robots" content="noindex, nofollow">
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="kfx_time_tracking">
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>kfx_time_tracking</title>
   <link rel="manifest" href="manifest.json">
+
+  <title>Учёт рабочего времени КФХ</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #F6FBF3; }
+    @media (prefers-color-scheme: dark) { html, body { background: #101410; } }
+    #loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      font: 16px system-ui, "Segoe UI", Roboto, sans-serif; color: #2E7D32;
+    }
+    #loading .spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 4px solid #C8E6C9; border-top-color: #2E7D32;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Загрузка…</div>
+  </div>
+  <noscript>Для работы программы включите JavaScript.</noscript>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

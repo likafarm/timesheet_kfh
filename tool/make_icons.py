@@ -5,7 +5,9 @@
 - android/app/src/main/res/mipmap-*/ic_launcher_foreground.png — слой
   адаптивной иконки (Android 8+), фон — цвет ic_launcher_background;
 - android/app/src/main/res/drawable-nodpi/splash_logo.png — заставка;
-- windows/runner/resources/app_icon.ico — 16…256 px.
+- windows/runner/resources/app_icon.ico — 16…256 px;
+- web/favicon.png, web/icons/*.png — веб-версия (maskable — на зелёном
+  квадрате без скругления: браузер сам обрежет по форме).
 
 Запуск из корня репозитория: python tool/make_icons.py (нужен Pillow).
 """
@@ -102,5 +104,18 @@ def main():
     )
 
 
+def web_icons():
+    icon = full_icon()
+    icon.resize((32, 32), Image.LANCZOS).save('web/favicon.png')
+    maskable = Image.new('RGBA', (S, S), GREEN)
+    maskable.alpha_composite(foreground())
+    for px in (192, 512):
+        icon.resize((px, px), Image.LANCZOS).save(f'web/icons/Icon-{px}.png')
+        maskable.resize((px, px), Image.LANCZOS).save(
+            f'web/icons/Icon-maskable-{px}.png'
+        )
+
+
 if __name__ == '__main__':
     main()
+    web_icons()

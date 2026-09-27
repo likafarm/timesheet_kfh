@@ -67,8 +67,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Сверка web/sqlite3.wasm с контрольной суммой (test/web_assets_test.dart)
+  crypto: ^3.0.7
 
 flutter:
   uses-material-design: true
   assets:
     - assets/fonts/
+  # Шрифт интерфейса веб-версии (кириллица без загрузки шрифтов с серверов
+  # Google); те же файлы — для печати PDF.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -38,6 +39,9 @@ class AppTheme {
       brightness: brightness,
     ),
     useMaterial3: true,
+    // Веб-версия — свой Roboto (assets/fonts): иначе браузер подгружает
+    // шрифты с серверов Google. Windows и Android — системный шрифт.
+    fontFamily: kIsWeb ? 'Roboto' : null,
     cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

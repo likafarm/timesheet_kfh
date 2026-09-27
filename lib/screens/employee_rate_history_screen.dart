@@ -99,14 +99,9 @@ class _EmployeeRateHistoryScreenState extends State<EmployeeRateHistoryScreen> {
                       backgroundColor: isActive
                           ? Colors.green[100]
                           : Colors.grey[300],
-                      child: Text(
-                        isActive ? '✓' : '•',
-                        style: TextStyle(
-                          color: isActive
-                              ? Colors.green[800]
-                              : Colors.grey[600],
-                        ),
-                      ),
+                      child: isActive
+                          ? Icon(Icons.check, size: 20, color: Colors.green[800])
+                          : Text('•', style: TextStyle(color: Colors.grey[600])),
                     ),
                     title: Row(
                       children: [

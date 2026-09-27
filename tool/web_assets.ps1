@@ -48,6 +48,6 @@ $worker = Join-Path $root 'web\drift_worker.js'
 & dart compile js -O4 -o $worker tool/web/drift_worker.dart
 if ($LASTEXITCODE -ne 0) { throw 'Ne sobralsya drift_worker.js' }
 Remove-Item -ErrorAction SilentlyContinue "$worker.deps", "$worker.map"
-# Pometka versii - dlya proverki v testah (web_assets_test.dart).
-Set-Content -Encoding ascii (Join-Path $root 'web\drift_worker.version') $driftVersion
+# Pometka versii - dlya proverki v testah (test/web_assets_test.dart).
+Set-Content -Encoding ascii (Join-Path $root 'tool\web\drift_worker.version') $driftVersion
 Write-Host "web/drift_worker.js: ok (drift $driftVersion)"
