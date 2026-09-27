@@ -72,3 +72,6 @@ structure.txt
 
 # Локальные настройки Claude Code (пути к временным файлам)
 .claude/
+
+# Копии web/sqlite3.wasm и web/drift_worker.js для теста базы в браузере
+/packages/local_db/test/browser/assets/

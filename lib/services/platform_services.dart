@@ -25,11 +25,28 @@ class PlatformServices {
   /// рабочей и без входа). База к этому моменту закрыта.
   final Future<void> Function()? eraseLocalData;
 
+  /// Веб-версия: завершается, когда программу открыли в другой вкладке и
+  /// нажали там «Работать здесь» — эта вкладка должна остановиться.
+  final Future<void>? lostToAnotherTab;
+
+  /// Веб-версия: перезагрузить страницу.
+  final void Function()? reloadPage;
+
   const PlatformServices({
     required this.database,
     required this.backups,
     required this.tokenStore,
     required this.journal,
     this.eraseLocalData,
+    this.lostToAnotherTab,
+    this.reloadPage,
   });
+}
+
+/// Веб-версия уже открыта в другой вкладке этого браузера.
+class AnotherTabOpen implements Exception {
+  const AnotherTabOpen();
+
+  @override
+  String toString() => 'Программа уже открыта в другой вкладке браузера';
 }

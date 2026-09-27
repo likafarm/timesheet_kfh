@@ -1,0 +1,4 @@
+# Тесты в браузере (test/browser) запускаются только явно:
+# tool/web_test.ps1 из корня репозитория.
+paths: [test]
+platforms: [vm]

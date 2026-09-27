@@ -9,6 +9,7 @@ import 'app_database.dart';
 import 'browser_storage.dart';
 import 'platform_services.dart';
 import 'web_string_storage.dart';
+import 'web_tab_lock.dart';
 
 const startupErrorHint =
     'Данные на сервере не затронуты. Причина — ниже. Попробуйте обновить '
@@ -19,15 +20,20 @@ const startupErrorHint =
 const webDatabaseName = 'kfh_time_tracking';
 
 // Файлы из web/ строго под версии sqlite3 и drift приложения
-// (tool/web_assets.ps1). Относительно адреса страницы (/app/).
-final _sqlite3Uri = Uri.parse('sqlite3.wasm');
-final _driftWorkerUri = Uri.parse('drift_worker.js');
+// (tool/web_assets.ps1). Адреса абсолютные: worker разрешает относительные
+// от своего адреса, а не от страницы.
+final _sqlite3Uri = Uri.base.resolve('sqlite3.wasm');
+final _driftWorkerUri = Uri.base.resolve('drift_worker.js');
 
 /// Запомнить следующий вход после закрытия вкладки (нет отметки
 /// «Чужой компьютер»).
 bool rememberNextSignIn = true;
 
-Future<PlatformServices> startPlatform() async {
+/// Программа открыта в другой вкладке — [AnotherTabOpen]; [takeOver] —
+/// забрать работу у той вкладки.
+Future<PlatformServices> startPlatform({bool takeOver = false}) async {
+  final tab = await acquireTabLock(steal: takeOver);
+  if (tab == null) throw const AnotherTabOpen();
   final WebDatabase opened;
   try {
     opened = await openWebDatabase(
@@ -53,6 +59,8 @@ Future<PlatformServices> startPlatform() async {
       remember: () => rememberNextSignIn,
     ),
     journal: journal,
+    lostToAnotherTab: tab.lost,
+    reloadPage: reloadPage,
     eraseLocalData: () async {
       journal.clear();
       await deleteWebDatabase(

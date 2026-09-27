@@ -15,10 +15,24 @@ import 'widgets/auth_gate.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
+  await _start();
+}
 
+/// [takeOver] — веб-версия забирает работу у другой вкладки.
+Future<void> _start({bool takeOver = false}) async {
   final PlatformServices platform;
   try {
-    platform = await startPlatform();
+    platform = await startPlatform(takeOver: takeOver);
+  } on AnotherTabOpen {
+    runApp(
+      AnotherTabApp(
+        text:
+            'Программа уже открыта в другой вкладке этого браузера. Работать '
+            'можно только в одной вкладке — иначе правки могут потеряться.',
+        onWorkHere: () => _start(takeOver: true),
+      ),
+    );
+    return;
   } catch (e) {
     runApp(StartupErrorApp(message: '$e'));
     return;
@@ -48,6 +62,9 @@ class _MyAppState extends State<MyApp> {
   late final AppProvider _app;
   late final SyncProvider _sync;
   late int _generation;
+
+  /// Веб-версию открыли в другой вкладке — здесь всё остановлено.
+  bool _lostToAnotherTab = false;
 
   @override
   void initState() {
@@ -79,6 +96,11 @@ class _MyAppState extends State<MyApp> {
       await _app.autoBackup();
       await _sync.init();
     });
+    platform.lostToAnotherTab?.then((_) async {
+      await _sync.suspend();
+      await _app.localDatabase.close();
+      if (mounted) setState(() => _lostToAnotherTab = true);
+    });
   }
 
   @override
@@ -90,6 +112,14 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_lostToAnotherTab) {
+      return AnotherTabApp(
+        text:
+            'Программу открыли в другой вкладке браузера — работа '
+            'продолжается там. Эта вкладка остановлена, введённое сохранено.',
+        onWorkHere: () async => widget.platform.reloadPage?.call(),
+      );
+    }
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _app),
@@ -105,6 +135,54 @@ class _MyAppState extends State<MyApp> {
         darkTheme: AppTheme.darkTheme,
         // Без входа программа не запускается (все платформы).
         home: const AuthGate(child: MainScreen()),
+      ),
+    );
+  }
+}
+
+/// Веб-версия: программа открыта в другой вкладке браузера.
+class AnotherTabApp extends StatelessWidget {
+  final String text;
+  final Future<void> Function() onWorkHere;
+
+  const AnotherTabApp({
+    super.key,
+    required this.text,
+    required this.onWorkHere,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: _localizations,
+      theme: _theme,
+      darkTheme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.tab_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  Text(text, textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: onWorkHere,
+                    child: const Text('Работать здесь'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

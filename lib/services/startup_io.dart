@@ -23,7 +23,8 @@ const startupErrorHint =
     'подробности записаны в журнал db_location.log в папке данных '
     'программы. Можно закрыть программу и вернуться к предыдущей версии.';
 
-Future<PlatformServices> startPlatform() async {
+/// [takeOver] — только для веб-версии (забрать у другой вкладки).
+Future<PlatformServices> startPlatform({bool takeOver = false}) async {
   final dataDir = await appDataDirectory();
   final backups = BackupService();
   final database = await openAppDatabase(
