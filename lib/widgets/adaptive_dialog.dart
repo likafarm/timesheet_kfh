@@ -71,9 +71,14 @@ class AppDialog extends StatelessWidget {
       );
     }
     final theme = Theme.of(context);
+    // Снизу — клавиатура или системные кнопки Android (с Android 15
+    // программа рисуется под ними): кнопки формы должны быть выше.
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final systemBar = MediaQuery.viewPaddingOf(context).bottom;
     return Padding(
-      padding: EdgeInsets.only(bottom: keyboard),
+      padding: EdgeInsets.only(
+        bottom: keyboard > systemBar ? keyboard : systemBar,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
         child: Column(

@@ -13,6 +13,7 @@ import 'services/db_location.dart';
 import 'services/platform.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
+import 'widgets/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,7 +107,8 @@ class _MyAppState extends State<MyApp> {
         localizationsDelegates: _localizations,
         theme: _theme,
         darkTheme: AppTheme.darkTheme,
-        home: const MainScreen(),
+        // Без входа программа не запускается (все платформы).
+        home: const AuthGate(child: MainScreen()),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/providers/sync_provider.dart';
 import 'package:kfx_time_tracking/screens/sync_screen.dart';
+import 'package:kfx_time_tracking/widgets/auth_gate.dart';
 import 'package:kfx_time_tracking/widgets/sync_status_bar.dart';
 import 'package:kfx_time_tracking/widgets/update_banner.dart';
 import 'package:provider/provider.dart';
@@ -199,6 +200,90 @@ void main() {
     expect(find.textContaining('Нужна новая версия программы — 1.3.0'), findsOneWidget);
     expect(find.text('Скачать'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('без входа программа не запускается', () {
+    Widget gated() => app(
+      const AuthGate(child: Scaffold(body: Center(child: Text('ПРОГРАММА')))),
+    );
+
+    testWidgets('первым — вход; отказ — «Войти» или «Выйти»', (tester) async {
+      await setUpSync(tester);
+      await tester.pumpWidget(gated());
+      await tester.pumpAndSettle();
+      expect(find.text('ПРОГРАММА'), findsNothing);
+      expect(find.text('Вход на сервер'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Отмена'));
+      await tester.pumpAndSettle();
+      expect(find.text('ПРОГРАММА'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Войти'), findsOneWidget);
+      expect(find.text('Выйти из программы'), findsOneWidget);
+
+      // Неверный пароль — уточнить данные в том же окне.
+      await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Логин'), 'ivan');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Пароль'), 'x');
+      await tester.tap(find.widgetWithText(FilledButton, 'Войти').last);
+      await settle(tester);
+      expect(find.text('Неверный логин или пароль'), findsOneWidget);
+      expect(find.text('ПРОГРАММА'), findsNothing);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Пароль'),
+        'secret-pass',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Войти').last);
+      await settle(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Первый вход на сервер'), findsWidgets);
+      await tester.tap(find.widgetWithText(FilledButton, 'Начать'));
+      await settle(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Готово'));
+      await tester.pumpAndSettle();
+      expect(find.text('ПРОГРАММА'), findsOneWidget);
+
+      // Выход — снова вход.
+      await tester.runAsync(sync.signOut);
+      await tester.pumpAndSettle();
+      expect(find.text('ПРОГРАММА'), findsNothing);
+      expect(find.text('Вход на сервер'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('сохранённый вход — сразу программа, и без сети', (
+      tester,
+    ) async {
+      await setUpSync(tester);
+      await tester.runAsync(() async {
+        await sync.signIn('localhost', 'ivan', 'secret-pass');
+        await sync.link(await sync.analyzeLink());
+      });
+      server.online = false;
+      await tester.pumpWidget(gated());
+      await tester.pumpAndSettle();
+      expect(find.text('ПРОГРАММА'), findsOneWidget);
+      expect(find.text('Вход на сервер'), findsNothing);
+    });
+
+    testWidgets('телефон: кнопки панели входа выше системных кнопок', (
+      tester,
+    ) async {
+      await setUpSync(
+        tester,
+        size: const Size(390, 844),
+        client: ClientKind.phone,
+      );
+      tester.view.padding = const FakeViewPadding(bottom: 48);
+      tester.view.viewPadding = const FakeViewPadding(bottom: 48);
+      await tester.pumpWidget(gated());
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      final button = tester.getRect(find.widgetWithText(FilledButton, 'Войти').last);
+      expect(button.bottom, lessThanOrEqualTo(844 - 48));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('нет связи — предупреждение в строке состояния', (tester) async {

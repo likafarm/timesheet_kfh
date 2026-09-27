@@ -223,7 +223,10 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 16),
+              // Отдельной страницей экран доходит до системных кнопок.
+              padding: EdgeInsets.only(
+                bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
               itemCount: employees.length + 1,
               itemBuilder: (context, i) {
                 if (i == 0) {

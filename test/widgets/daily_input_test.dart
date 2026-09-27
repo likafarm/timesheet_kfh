@@ -134,6 +134,16 @@ void main() {
     // На телефоне — панель снизу, а не окно по центру.
     expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
+    // Оператору — без ставок: ни в шапке, ни в списке мест работы.
+    expect(find.textContaining('Ставк'), findsNothing);
+    expect(find.textContaining('₽'), findsNothing);
+    final places = tester
+        .widget<DropdownButton<String?>>(find.byType(DropdownButton<String?>))
+        .items!
+        .map((i) => (i.child as Text).data)
+        .toList();
+    expect(places, ['База', 'Поле']);
+    expect(find.textContaining('₽'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
