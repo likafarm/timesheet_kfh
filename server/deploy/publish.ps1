@@ -20,7 +20,7 @@ Set-Location $root
 
 $rev = (git rev-parse --short HEAD).Trim()
 if (git status --porcelain) { $rev = "$rev-dirty" }
-$paths = @("pubspec.lock", "packages/domain", "packages/local_db/pubspec.yaml", "server")
+$paths = @("pubspec.lock", "packages/domain", "packages/local_db/pubspec.yaml", "packages/sync/pubspec.yaml", "server")
 $list = Join-Path $env:TEMP "kfh-src-files.txt"
 $tar = Join-Path $env:TEMP "kfh-src.tar"
 
