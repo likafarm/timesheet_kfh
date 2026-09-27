@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/payroll_detail_dialog.dart';
 
@@ -155,6 +156,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _calculateAll() async {
     if (_isCalculatingAll) return;
+    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
+        !mounted) {
+      return;
+    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -206,6 +211,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _recalculateSingle(String employeeId) async {
     if (_calculatingSingle.contains(employeeId)) return;
+    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
+        !mounted) {
+      return;
+    }
     setState(() => _calculatingSingle.add(employeeId));
     try {
       final provider = context.read<AppProvider>();
@@ -283,12 +292,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
               cursor: SystemMouseCursors.click,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  capitalizedMonth,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      capitalizedMonth,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    ClosedMonthBadge(
+                      year: _selectedYear,
+                      month: _selectedMonth,
+                    ),
+                  ],
                 ),
               ),
             ),

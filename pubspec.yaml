@@ -1,7 +1,7 @@
 name: kfx_time_tracking
 description: "Учёт рабочего времени в КФХ"
 publish_to: "none"
-version: 1.1.1+3
+version: 1.2.0+4
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -10,6 +10,7 @@ environment:
 workspace:
   - packages/domain
   - packages/local_db
+  - packages/sync
   - server
 
 dependencies:
@@ -47,6 +48,15 @@ dependencies:
   pdf: ^3.11.3
   printing: ^5.14.2
   package_info_plus: ^10.2.1
+
+  # Синхронизация с сервером (вход, движок, первый вход). Токены входа
+  # шифруются DPAPI Windows через win32/ffi (flutter_secure_storage требует
+  # компонент ATL Visual Studio для сборки).
+  kfh_sync:
+    path: packages/sync
+  http: ^1.2.0
+  win32: ^6.4.0
+  ffi: ^2.1.0
 
 dev_dependencies:
   flutter_test:

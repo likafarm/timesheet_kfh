@@ -5,6 +5,7 @@ import 'package:kfh_local_db/kfh_local_db.dart'
     show BackupFormat, businessTables;
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../providers/sync_provider.dart';
 import '../utils/cell_format.dart';
 import '../widgets/common_widgets.dart';
 
@@ -74,6 +75,11 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
     if (!_selected.remove(uuid)) _selected.add(uuid);
   });
 
+  String _syncNote() {
+    final note = context.read<SyncProvider>().restoreWarning(full: false);
+    return note == null ? '' : '\n\n$note';
+  }
+
   Future<void> _restoreSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -84,7 +90,8 @@ class _BackupTableViewerState extends State<BackupTableViewer> {
           'в том виде, как они сохранены в копии?\n\n'
           'Запись текущей базы на тот же день табеля (или тот же месяц '
           'расчёта) будет помечена удалённой. Перед восстановлением '
-          'программа сохранит копию текущей базы.',
+          'программа сохранит копию текущей базы.'
+          '${_syncNote()}',
         ),
         actions: [
           TextButton(

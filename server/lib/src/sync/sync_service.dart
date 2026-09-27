@@ -10,7 +10,6 @@ import '../http/responses.dart';
 import '../logger.dart';
 import '../sql.dart';
 import 'change_log.dart';
-import 'period_guard.dart';
 import 'sync_rows.dart';
 
 /// Итог одного изменения из пачки push.
@@ -175,8 +174,7 @@ class SyncService {
         final (year, month) = locked;
         return result('rejected',
             code: 'period_locked',
-            message: 'Месяц ${month.toString().padLeft(2, '0')}.$year закрыт — '
-                'изменения в нём запрещены');
+            message: PeriodLockedException(year, month).message);
       }
 
       if (existing == null) {

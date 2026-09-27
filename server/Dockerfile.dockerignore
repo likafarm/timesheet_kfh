@@ -3,6 +3,7 @@
 !pubspec.lock
 !packages/domain/
 !packages/local_db/pubspec.yaml
+!packages/sync/pubspec.yaml
 !server/
 **/.dart_tool/
 **/build/

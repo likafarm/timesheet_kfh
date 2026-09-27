@@ -3,9 +3,9 @@
 #
 # Корневой pubspec.yaml — Flutter-приложение, в образе Flutter нет. Поэтому
 # здесь собирается свой маленький workspace, а версии пакетов берутся из
-# общего pubspec.lock. packages/local_db нужен только затем, что он
-# dev-зависимость сервера (тест сверки схемы): pub разрешает и dev-зависимости,
-# в exe он не попадает.
+# общего pubspec.lock. packages/local_db и packages/sync нужны только затем,
+# что они dev-зависимости сервера (тест сверки схемы, сквозной тест клиента
+# синхронизации): pub разрешает и dev-зависимости, в exe они не попадают.
 
 FROM dart:3.12 AS build
 WORKDIR /src
@@ -18,11 +18,13 @@ RUN printf '%s\n' \
     'workspace:' \
     '  - packages/domain' \
     '  - packages/local_db' \
+    '  - packages/sync' \
     '  - server' \
     > pubspec.yaml
 COPY pubspec.lock ./
 COPY packages/domain/pubspec.yaml packages/domain/
 COPY packages/local_db/pubspec.yaml packages/local_db/
+COPY packages/sync/pubspec.yaml packages/sync/
 COPY server/pubspec.yaml server/
 RUN dart pub get
 

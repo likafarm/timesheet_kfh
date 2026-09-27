@@ -29,21 +29,24 @@ SyncChange syncChangeFromLocalRow(SyncTable table, Map<String, Object?> row) {
 /// `updated_at` в базе — текст ISO (drift `store_date_time_values_as_text`);
 /// на всякий случай понимаем и секунды Unix.
 DateTime _moment(Object? value) => switch (value) {
-      String s => DateTime.parse(s).toUtc(),
-      int seconds =>
-        DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true),
-      _ => throw FormatException('updated_at: $value'),
-    };
+  String s => DateTime.parse(s).toUtc(),
+  int seconds => DateTime.fromMillisecondsSinceEpoch(
+    seconds * 1000,
+    isUtc: true,
+  ),
+  _ => throw FormatException('updated_at: $value'),
+};
 
 /// Все записи бизнес-таблиц, включая удалённые, в порядке записи (сначала
 /// сотрудники).
 Future<List<SyncChange>> readAllSyncRows(LocalDatabase db) async => [
-      for (final table in syncTables)
-        for (final r in await db
+  for (final table in syncTables)
+    for (final r
+        in await db
             .customSelect('SELECT * FROM ${table.name} ORDER BY uuid')
             .get())
-          syncChangeFromLocalRow(table, r.data),
-    ];
+      syncChangeFromLocalRow(table, r.data),
+];
 
 /// Выгрузка базы для разового переноса на сервер: все записи и
 /// контрольные цифры — число строк по таблицам и расчёт ЗП с входящим
@@ -77,7 +80,8 @@ Future<SyncExport> buildSyncExport(LocalDatabase db, {DateTime? now}) async {
       case 'timesheet':
       case 'payments':
         final day = parseDateIso(
-            r.data[r.table == 'timesheet' ? 'date' : 'payment_date'] as String);
+          r.data[r.table == 'timesheet' ? 'date' : 'payment_date'] as String,
+        );
         months.add((day.year, day.month));
       case 'payroll_results':
         months.add((r.data['year'] as int, r.data['month'] as int));
@@ -93,22 +97,25 @@ Future<SyncExport> buildSyncExport(LocalDatabase db, {DateTime? now}) async {
   ];
   final payroll = <PayrollCheck>[];
   for (final (year, month) in sorted) {
-    final balances =
-        await repos.payrollService.startingBalances(DateTime(year, month, 1));
+    final balances = await repos.payrollService.startingBalances(
+      DateTime(year, month, 1),
+    );
     for (final id in employees) {
       final c = await repos.payrollService.calculateMonth(id, year, month);
-      payroll.add(PayrollCheck(
-        employeeUuid: id,
-        year: year,
-        month: month,
-        baseDays: c.baseDays,
-        fieldDays: c.fieldDays,
-        sickDays: c.sickDays,
-        vacationDays: c.vacationDays,
-        totalSalary: c.totalSalary,
-        skippedWorkDays: c.skippedWorkDays,
-        startingBalance: balances[id] ?? 0,
-      ));
+      payroll.add(
+        PayrollCheck(
+          employeeUuid: id,
+          year: year,
+          month: month,
+          baseDays: c.baseDays,
+          fieldDays: c.fieldDays,
+          sickDays: c.sickDays,
+          vacationDays: c.vacationDays,
+          totalSalary: c.totalSalary,
+          skippedWorkDays: c.skippedWorkDays,
+          startingBalance: balances[id] ?? 0,
+        ),
+      );
     }
   }
 

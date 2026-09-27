@@ -1,0 +1,141 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:kfh_domain/kfh_domain.dart';
+import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_sync/kfh_sync.dart';
+import 'package:test/test.dart';
+
+import 'support/fake_server.dart';
+
+// Сквозные сценарии первого входа с настоящим сервером (импорт со сверкой,
+// привязка, приём) — server/test/client_sync_test.dart. Здесь — решения.
+
+const _admin = SessionUser(
+  uuid: '01900000-0000-7000-8000-000000000001',
+  login: 'ivan',
+  fullName: 'Иван',
+  role: 'admin',
+);
+
+void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
+  late FakeSyncServer server;
+  late LocalDatabase db;
+  late LocalSyncStore store;
+  late int imports;
+
+  SyncBootstrap bootstrap(String address) {
+    final transport = server.client(db.deviceId);
+    // /admin/import поддельного сервера: записи кладутся как есть.
+    final api = KfhApiClient(
+      baseUrl: Uri.parse(address),
+      deviceId: 'device',
+      tokens: MemoryTokenStore(
+        AuthTokens(
+          accessToken: 'a',
+          accessExpiresAt: DateTime.now().add(const Duration(hours: 1)),
+          refreshToken: 'r',
+          refreshExpiresAt: DateTime.now().add(const Duration(days: 1)),
+          user: _admin,
+        ),
+      ),
+      client: MockClient((r) async {
+        imports++;
+        final export = SyncExport.fromJson(jsonDecode(r.body));
+        export.rows.forEach(server.put);
+        return http.Response(
+          '{"ok": true}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    return SyncBootstrap(
+      store: store,
+      api: api,
+      transport: transport,
+      engine: SyncEngine(store: store, transport: transport),
+      server: address,
+    );
+  }
+
+  setUp(() {
+    server = FakeSyncServer();
+    db = LocalDatabase.memory();
+    store = LocalSyncStore(db);
+    imports = 0;
+  });
+  tearDown(() => db.close());
+
+  Future<String> addEmployee() => DriftRepositories(db).employees.add(
+    Employee(
+      fullName: 'Иванов Иван',
+      position: 'Рабочий',
+      hireDate: DateTime(2025, 3, 1),
+      baseRate: 1000,
+      fieldRate: 1500,
+    ),
+  );
+
+  test('оператору — отказ', () async {
+    final plan = await bootstrap('https://a').analyze(
+      const SessionUser(
+        uuid: '01900000-0000-7000-8000-000000000002',
+        login: 'op',
+        fullName: 'Оператор',
+        role: 'operator',
+      ),
+    );
+    expect(plan.allowed, isFalse);
+    expect(plan.refusal, contains('оператор'));
+  });
+
+  test('пусто и там, и здесь — просто начать', () async {
+    final b = bootstrap('https://a');
+    final plan = await b.analyze(_admin);
+    expect(plan.kind, BootstrapKind.fresh);
+    expect(plan.allowed, isTrue);
+    var backups = 0;
+    await b.execute(plan, backup: () async => backups++);
+    expect(backups, 1);
+    expect(await b.isLinked(), isTrue);
+    expect(server.rows('company_settings'), hasLength(1));
+  });
+
+  test('без резервной копии ничего не начинается', () async {
+    await addEmployee();
+    final b = bootstrap('https://a');
+    final plan = await b.analyze(_admin);
+    expect(plan.kind, BootstrapKind.upload);
+    await expectLater(
+      b.execute(plan, backup: () async => throw StateError('диск полон')),
+      throwsStateError,
+    );
+    expect(imports, 0);
+    expect(server.rows('employees'), isEmpty);
+    expect(await b.isLinked(), isFalse);
+  });
+
+  test('выгрузка, затем привязка к другому серверу — с нуля', () async {
+    final emp = await addEmployee();
+    final first = bootstrap('https://a');
+    await first.execute(await first.analyze(_admin), backup: () async {});
+    expect(imports, 1);
+    expect(await store.pendingCount(), 0);
+
+    // Другой сервер (пустой): прежние отметки «отправлено» к нему не
+    // относятся — база выгружается туда целиком.
+    server = FakeSyncServer();
+    final second = bootstrap('https://b');
+    expect(await second.isLinked(), isFalse);
+    final plan = await second.analyze(_admin);
+    expect(plan.kind, BootstrapKind.upload);
+    await second.execute(plan, backup: () async {});
+    expect(server.row('employees', emp), isNotNull);
+    expect(await store.linkedServer(), 'https://b');
+  });
+}

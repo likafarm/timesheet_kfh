@@ -117,14 +117,18 @@ class BackupService {
     }
   }
 
-  /// Копия текущей базы перед восстановлением из другой копии:
-  /// `backup_before_restore_<дата-время>.db`, автоматически не удаляется.
-  /// Бросает исключение, если копию сделать не удалось.
-  Future<String> createSafetyBackup(LocalDatabase db) async {
+  /// Копия текущей базы перед рискованной операцией:
+  /// `<prefix>_<дата-время>.db` (по умолчанию — перед восстановлением из
+  /// другой копии), автоматически не удаляется. Бросает исключение, если
+  /// копию сделать не удалось.
+  Future<String> createSafetyBackup(
+    LocalDatabase db, {
+    String prefix = 'backup_before_restore',
+  }) async {
     final backupDir = await _getBackupDirectory();
     final path = p.join(
       backupDir.path,
-      'backup_before_restore_${_stamp(DateTime.now())}.db',
+      '${prefix}_${_stamp(DateTime.now())}.db',
     );
     await db.customStatement('VACUUM INTO ?', [path]);
     return path;

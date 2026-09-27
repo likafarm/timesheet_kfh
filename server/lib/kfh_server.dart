@@ -23,7 +23,6 @@ export 'src/payroll/payroll_calculator.dart';
 export 'src/periods/period_service.dart';
 export 'src/auth/permissions.dart';
 export 'src/sync/change_log.dart';
-export 'src/sync/period_guard.dart';
 export 'src/sync/sync_rows.dart';
 export 'src/sync/sync_service.dart';
 export 'src/logger.dart';

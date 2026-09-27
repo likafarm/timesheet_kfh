@@ -6,6 +6,7 @@ import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
 import '../providers/app_provider.dart';
+import '../widgets/sync_status_bar.dart';
 
 /// Главный экран приложения с нижней навигацией
 class MainScreen extends StatefulWidget {
@@ -51,16 +52,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ),
   ];
 
+  late final AppProvider _app;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _app = context.read<AppProvider>();
+    _app.addListener(_showNotice);
   }
 
   @override
   void dispose() {
+    _app.removeListener(_showNotice);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Сообщение программы (например, «месяц закрыт») — внизу окна.
+  void _showNotice() {
+    final notice = _app.takeNotice();
+    if (notice == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(notice), duration: const Duration(seconds: 6)),
+    );
   }
 
   @override
@@ -88,25 +103,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         index: _selectedIndex,
         children: _navigationItems.map((item) => item.screen).toList(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: _navigationItems.map((item) {
-          return BottomNavigationBarItem(
-            icon: Icon(item.icon),
-            activeIcon: Icon(item.selectedIcon),
-            label: item.label,
-          );
-        }).toList(),
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SyncStatusBar(),
+          BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            items: _navigationItems.map((item) {
+              return BottomNavigationBarItem(
+                icon: Icon(item.icon),
+                activeIcon: Icon(item.selectedIcon),
+                label: item.label,
+              );
+            }).toList(),
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            selectedLabelStyle: const TextStyle(fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }

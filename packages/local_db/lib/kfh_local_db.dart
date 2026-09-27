@@ -16,4 +16,5 @@ export 'src/migration/v8_converter.dart';
 export 'src/raw_tables.dart';
 export 'src/repositories/drift_repositories.dart';
 export 'src/schema_info.dart';
+export 'src/sync/local_sync_store.dart';
 export 'src/sync/sync_export_builder.dart';

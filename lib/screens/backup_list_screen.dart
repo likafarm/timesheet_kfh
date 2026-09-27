@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:kfh_local_db/kfh_local_db.dart' show BackupFormat;
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../providers/sync_provider.dart';
 import '../services/backup_service.dart';
 import 'backup_table_viewer.dart';
 
@@ -129,7 +130,8 @@ class _BackupListScreenState extends State<BackupListScreen> {
           'Заменить текущую базу данных копией от '
           '${_formatBackupTitle(backup)}?\n\n'
           'Перед заменой программа сохранит копию текущей базы '
-          '(backup_before_restore_…), её можно будет восстановить обратно.',
+          '(backup_before_restore_…), её можно будет восстановить обратно.'
+          '${_syncNote(full: true)}',
     );
     if (!confirm || !mounted) return;
 
@@ -170,7 +172,8 @@ class _BackupListScreenState extends State<BackupListScreen> {
           'Таблицы (${selected.join(', ')}) станут такими, как в копии: '
           'строки копии вернутся, строки, которых в копии нет, будут '
           'помечены удалёнными.\n\n'
-          'Перед этим программа сохранит копию текущей базы.',
+          'Перед этим программа сохранит копию текущей базы.'
+          '${_syncNote(full: false)}',
     );
     if (!confirm || !mounted) return;
 
@@ -312,6 +315,12 @@ class _BackupListScreenState extends State<BackupListScreen> {
         ),
       ),
     );
+  }
+
+  /// Предупреждение о сервере синхронизации (пусто, если база не связана).
+  String _syncNote({required bool full}) {
+    final note = context.read<SyncProvider>().restoreWarning(full: full);
+    return note == null ? '' : '\n\n$note';
   }
 
   Future<bool> _showConfirmDialog({

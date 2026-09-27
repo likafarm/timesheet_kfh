@@ -1,7 +1,22 @@
-import 'package:kfh_domain/kfh_domain.dart';
+import 'sync_tables.dart';
+
+/// Правка задевает закрытый месяц.
+class PeriodLockedException implements Exception {
+  final int year;
+  final int month;
+
+  const PeriodLockedException(this.year, this.month);
+
+  String get message =>
+      'Месяц ${month.toString().padLeft(2, '0')}.$year закрыт — '
+      'изменения в нём запрещены';
+
+  @override
+  String toString() => message;
+}
 
 /// Закрытые месяцы: изменение, которое меняет что-либо в закрытом месяце,
-/// сервер отклоняет.
+/// сервер отклоняет (и клиент не записывает — те же правила).
 ///
 /// «Меняет в месяце» считается по датам записи:
 /// - табель — день, выплата — день выплаты, расчёт — его месяц;
@@ -25,11 +40,17 @@ class PeriodGuard {
   /// Первый закрытый месяц, который задевает переход записи из [before] в
   /// [after] (null — записи не было), в виде (год, месяц); null — не
   /// задевает.
-  (int, int)? violation(String table, Map<String, Object?>? before,
-      bool beforeDeleted, Map<String, Object?> after, bool afterDeleted) {
+  (int, int)? violation(
+    String table,
+    Map<String, Object?>? before,
+    bool beforeDeleted,
+    Map<String, Object?> after,
+    bool afterDeleted,
+  ) {
     if (lockedMonths.isEmpty) return null;
-    final oldRange =
-        before == null || beforeDeleted ? null : _range(table, before);
+    final oldRange = before == null || beforeDeleted
+        ? null
+        : _range(table, before);
     final newRange = afterDeleted ? null : _range(table, after);
     if (oldRange == null && newRange == null) return null;
 
@@ -46,8 +67,10 @@ class PeriodGuard {
     final months = lockedMonths.toList()..sort();
     for (final key in months) {
       final year = key ~/ 12, month = key % 12 + 1;
-      final month_ = _Days(_day(DateTime.utc(year, month, 1)),
-          _day(DateTime.utc(year, month + 1, 0)));
+      final month_ = _Days(
+        _day(DateTime.utc(year, month, 1)),
+        _day(DateTime.utc(year, month + 1, 0)),
+      );
       if (affected.any((r) => r.intersects(month_))) return (year, month);
     }
     return null;
@@ -62,11 +85,15 @@ class PeriodGuard {
         return _Days(day('payment_date'), day('payment_date'));
       case 'payroll_results':
         final year = data['year'] as int, month = data['month'] as int;
-        return _Days(_day(DateTime.utc(year, month, 1)),
-            _day(DateTime.utc(year, month + 1, 0)));
+        return _Days(
+          _day(DateTime.utc(year, month, 1)),
+          _day(DateTime.utc(year, month + 1, 0)),
+        );
       case 'employee_rates':
-        return _Days(day('start_date'),
-            data['end_date'] == null ? _infinity : day('end_date'));
+        return _Days(
+          day('start_date'),
+          data['end_date'] == null ? _infinity : day('end_date'),
+        );
       case 'sick_leave':
       case 'vacation':
         return _Days(day('start_date'), day('end_date'));
@@ -82,7 +109,10 @@ class PeriodGuard {
   };
 
   static bool _onlyBoundsChanged(
-      String table, Map<String, Object?> before, Map<String, Object?> after) {
+    String table,
+    Map<String, Object?> before,
+    Map<String, Object?> after,
+  ) {
     final bounds = _bounds[table];
     if (bounds == null) return false;
     final columns = syncTableByName(table)!.columnNames;
@@ -106,8 +136,10 @@ class _Days {
 }
 
 /// Дни, которые входят ровно в один из отрезков: (a \ b) ∪ (b \ a).
-List<_Days> _symmetricDifference(_Days a, _Days b) =>
-    [..._subtract(a, b), ..._subtract(b, a)];
+List<_Days> _symmetricDifference(_Days a, _Days b) => [
+  ..._subtract(a, b),
+  ..._subtract(b, a),
+];
 
 /// Дни [x], не входящие в [y]: ноль, один или два куска.
 List<_Days> _subtract(_Days x, _Days y) {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
 
@@ -124,7 +125,15 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  void _showEditPaymentDialog(BuildContext context, Payment payment) {
+  Future<void> _showEditPaymentDialog(
+    BuildContext context,
+    Payment payment,
+  ) async {
+    final day = payment.paymentDate;
+    if (!await ensureMonthOpen(context, day.year, day.month) ||
+        !context.mounted) {
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => _PaymentFormDialog(
@@ -140,7 +149,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, Payment payment) {
+  Future<void> _confirmDelete(BuildContext context, Payment payment) async {
+    final day = payment.paymentDate;
+    if (!await ensureMonthOpen(context, day.year, day.month) ||
+        !context.mounted) {
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -236,12 +250,21 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               cursor: SystemMouseCursors.click,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  capitalizedMonth,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      capitalizedMonth,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    ClosedMonthBadge(
+                      year: _selectedMonth.year,
+                      month: _selectedMonth.month,
+                    ),
+                  ],
                 ),
               ),
             ),
