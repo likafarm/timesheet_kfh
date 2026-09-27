@@ -14,6 +14,9 @@ const syncEpochKey = 'sync_epoch';
 /// Ключ адреса сервера, к которому привязана база.
 const syncServerKey = 'sync_server';
 
+/// Ключ списка закрытых на сервере месяцев (`["2026-08", …]`).
+const periodLocksKey = 'period_locks';
+
 /// Место в журнале изменений сервера: номер и эпоха (после восстановления
 /// сервера из копии эпоха меняется, и курсор теряет смысл).
 class SyncCursor {
@@ -276,6 +279,46 @@ class LocalSyncStore {
     return result;
   }
 
+  // ----------------------------------------------------------- закрытые месяцы
+
+  /// Закрытые на сервере месяцы (как их видела последняя синхронизация),
+  /// ключи [PeriodGuard.monthKey].
+  Future<Set<int>> lockedMonths() async {
+    final raw = await db.syncStateDao.getValue(periodLocksKey);
+    if (raw == null) return {};
+    try {
+      final list = jsonDecode(raw);
+      if (list is! List) return {};
+      return {
+        for (final m in list)
+          if (m is String && RegExp(r'^\d{4}-\d{2}$').hasMatch(m))
+            PeriodGuard.monthKey(
+              int.parse(m.substring(0, 4)),
+              int.parse(m.substring(5)),
+            ),
+      };
+    } on FormatException {
+      return {};
+    }
+  }
+
+  /// Сохраняет список закрытых месяцев `(год, месяц)`. Возвращает true,
+  /// если он изменился.
+  Future<bool> saveLockedMonths(Iterable<(int, int)> months) async {
+    final keys = {for (final (y, m) in months) PeriodGuard.monthKey(y, m)};
+    final before = await lockedMonths();
+    if (before.length == keys.length && before.containsAll(keys)) return false;
+    final sorted = keys.toList()..sort();
+    await db.syncStateDao.setValue(
+      periodLocksKey,
+      jsonEncode([
+        for (final k in sorted)
+          '${k ~/ 12}-${(k % 12 + 1).toString().padLeft(2, '0')}',
+      ]),
+    );
+    return true;
+  }
+
   // ----------------------------------------------------------- привязка
 
   /// Сервер, с которым база синхронизируется (адрес), или null — база ещё
@@ -286,7 +329,8 @@ class LocalSyncStore {
       db.syncStateDao.setValue(syncServerKey, server);
 
   /// Забыть прежний сервер: все записи снова «не отправлены» (новому
-  /// серверу неизвестны), курсор с нуля, отметки об отказах сняты.
+  /// серверу неизвестны), курсор с нуля, отметки об отказах и список
+  /// закрытых месяцев сняты.
   /// Данные базы не меняются.
   Future<void> forgetServer() => db.transaction(() async {
         for (final table in syncTables) {
@@ -300,8 +344,11 @@ class LocalSyncStore {
         await clearRejections();
         await resetCursor();
         await db.customUpdate(
-          'DELETE FROM sync_state WHERE key = ?',
-          variables: [Variable<String>(syncServerKey)],
+          'DELETE FROM sync_state WHERE key IN (?, ?)',
+          variables: [
+            Variable<String>(syncServerKey),
+            Variable<String>(periodLocksKey),
+          ],
           updates: {db.syncState},
           updateKind: UpdateKind.delete,
         );

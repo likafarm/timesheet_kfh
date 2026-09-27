@@ -578,6 +578,28 @@ void main() {
     );
   });
 
+  group('закрытые месяцы', () {
+    test('по умолчанию нет; сохраняются; изменение замечается', () async {
+      expect(await a.store.lockedMonths(), isEmpty);
+      expect(await a.store.saveLockedMonths([(2026, 8), (2025, 12)]), isTrue);
+      expect(await a.store.lockedMonths(), {
+        PeriodGuard.monthKey(2026, 8),
+        PeriodGuard.monthKey(2025, 12),
+      });
+      expect(await a.db.syncStateDao.getValue(periodLocksKey),
+          '["2025-12","2026-08"]');
+      expect(await a.store.saveLockedMonths([(2025, 12), (2026, 8)]), isFalse);
+      expect(await a.store.saveLockedMonths([]), isTrue);
+      expect(await a.store.lockedMonths(), isEmpty);
+    });
+
+    test('смена сервера сбрасывает список', () async {
+      await a.store.saveLockedMonths([(2026, 8)]);
+      await a.store.forgetServer();
+      expect(await a.store.lockedMonths(), isEmpty);
+    });
+  });
+
   group('курсор', () {
     test('по умолчанию — с начала', () async {
       expect(await a.store.cursor(), SyncCursor.start);

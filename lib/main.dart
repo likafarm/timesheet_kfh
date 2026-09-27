@@ -64,6 +64,7 @@ class _MyAppState extends State<MyApp> {
       dataDirectory: p.dirname(widget.appDb.path),
       onDataChanged: _app.reloadAfterSync,
       backup: _app.createSyncSafetyBackup,
+      onLocksChanged: _app.loadLockedMonths,
     );
     _generation = _app.databaseGeneration;
     // Полное восстановление из копии переоткрывает базу — синхронизация

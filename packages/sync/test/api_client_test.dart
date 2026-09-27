@@ -214,6 +214,20 @@ void main() {
     });
   });
 
+  test('закрытые месяцы', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) => _json({
+        'locks': [
+          {'year': 2026, 'month': 8, 'locked_at': '2026-09-27T10:00:00Z'},
+          {'year': 2026, 'month': 7, 'note': null},
+        ],
+      }),
+    );
+    expect(await api.lockedMonths(), [(2026, 8), (2026, 7)]);
+    expect(requests.single.url.path, '/periods/locks');
+  });
+
   group('HttpSyncTransport', () {
     setUp(() => tokens.tokens = AuthTokens.fromJson(_pair('1')));
 

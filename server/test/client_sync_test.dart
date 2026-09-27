@@ -147,6 +147,12 @@ void main() {
       logger: logger,
       authApi: authApi,
       syncApi: SyncApi(SyncService(db: testDb.db, logger: logger), authApi),
+      dataApi: DataApi(
+        db: testDb.db,
+        auth: authApi,
+        periods: periods,
+        payroll: PayrollCalculator(db: testDb.db),
+      ),
       adminApi: AdminApi(
         ImportService(
           db: testDb.db,
@@ -294,6 +300,8 @@ void main() {
         final emp = await pc1.addEmployee('Иванов Иван');
         await pc1.sync();
         await periods.lock(accountant, 2026, 8, 'сдан');
+      // Клиент видит список закрытых месяцев (для отметок в интерфейсе).
+      expect(await pc1.api.lockedMonths(), [(2026, 8)]);
 
         await pc1.addWork(emp, DateTime(2026, 8, 3));
         final report = await pc1.sync();
@@ -304,6 +312,7 @@ void main() {
         expect(await serverCount('timesheet'), 0);
 
         await periods.unlock(accountant, '2026', '8');
+      expect(await pc1.api.lockedMonths(), isEmpty);
         final retry = await pc1.sync(retryRejected: true);
         expect(retry.pushed, 1);
         expect(await serverCount('timesheet'), 1);

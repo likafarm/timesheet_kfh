@@ -60,6 +60,7 @@ class SyncProvider extends ChangeNotifier {
     required String dataDirectory,
     required this.onDataChanged,
     required this.backup,
+    this.onLocksChanged,
     TokenStore Function(String server)? tokenStore,
     http.Client Function()? httpClient,
     SyncJournal? journal,
@@ -83,6 +84,9 @@ class SyncProvider extends ChangeNotifier {
   /// Резервная копия базы перед первым входом; бросает исключение, если
   /// копию сделать не удалось.
   final Future<void> Function() backup;
+
+  /// Список закрытых на сервере месяцев изменился (он в `sync_state`).
+  final Future<void> Function()? onLocksChanged;
 
   final SyncJournal journal;
 
@@ -366,6 +370,19 @@ class SyncProvider extends ChangeNotifier {
       report.finishedAt.toIso8601String(),
     );
     if (report.changedLocalData) await onDataChanged();
+    await _refreshLocks();
+  }
+
+  /// Закрытые месяцы — с сервера, после каждой удачной синхронизации. Сбой
+  /// не мешает: остаётся прежний список (сервер всё равно не примет правку
+  /// в закрытом месяце).
+  Future<void> _refreshLocks() async {
+    try {
+      final months = await _api!.lockedMonths();
+      if (await _store.saveLockedMonths(months)) await onLocksChanged?.call();
+    } on SyncFailure catch (e) {
+      debugPrint('sync: закрытые месяцы не получены: ${e.message}');
+    }
   }
 
   Future<void> _afterFailure(SyncFailure e) async {

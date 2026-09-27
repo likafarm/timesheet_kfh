@@ -50,6 +50,12 @@ class AppProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  /// Закрытые на сервере месяцы ([PeriodGuard.monthKey]).
+  Set<int> _lockedMonths = {};
+
+  /// Сообщение для строки внизу окна (например, «месяц закрыт»).
+  String? _notice;
+
   // Для перезагрузки табеля
   DateTime? _currentPeriodStart;
   DateTime? _currentPeriodEnd;
@@ -80,6 +86,68 @@ class AppProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Месяц закрыт на сервере — правки в нём не записываются.
+  bool isMonthLocked(int year, int month) =>
+      _lockedMonths.contains(PeriodGuard.monthKey(year, month));
+
+  /// Есть сообщение для пользователя — забрать его (показывается один раз).
+  String? takeNotice() {
+    final n = _notice;
+    _notice = null;
+    return n;
+  }
+
+  /// Проверка по правилам сервера ([PeriodGuard]): правка не задевает
+  /// закрытый месяц. Иначе — сообщение в [takeNotice] и false.
+  /// [after] = null — удаление.
+  bool _allowedInOpenPeriod(
+    String table,
+    Map<String, Object?>? before,
+    Map<String, Object?>? after,
+  ) {
+    if (_lockedMonths.isEmpty) return true;
+    final locked = PeriodGuard(_lockedMonths).violation(
+      table,
+      before,
+      false,
+      after ?? before ?? const {},
+      after == null,
+    );
+    if (locked == null) return true;
+    _notice =
+        '${PeriodLockedException(locked.$1, locked.$2).message}. '
+        'Открыть месяц может бухгалтер или администратор.';
+    notifyListeners();
+    return false;
+  }
+
+  bool _dayAllowed(String table, DateTime? before, DateTime? after) {
+    final column = table == 'payments' ? 'payment_date' : 'date';
+    return _allowedInOpenPeriod(
+      table,
+      before == null ? null : {column: formatDateIso(before)},
+      after == null ? null : {column: formatDateIso(after)},
+    );
+  }
+
+  bool _monthAllowed(int year, int month) => _allowedInOpenPeriod(
+    'payroll_results',
+    null,
+    {'year': year, 'month': month},
+  );
+
+  bool _rateAllowed(DateTime start) => _allowedInOpenPeriod(
+    'employee_rates',
+    null,
+    {'start_date': formatDateIso(start), 'end_date': null},
+  );
+
+  /// Перечитать список закрытых месяцев (после синхронизации).
+  Future<void> loadLockedMonths() async {
+    _lockedMonths = await LocalSyncStore(_appDb.db).lockedMonths();
+    notifyListeners();
+  }
+
   // ==========================================================================
   // ЗАГРУЗКА ДАННЫХ
   // ==========================================================================
@@ -87,7 +155,11 @@ class AppProvider extends ChangeNotifier {
   Future<void> loadAllData() async {
     _setLoading(true);
     try {
-      await Future.wait([loadEmployees(), loadCompanySettings()]);
+      await Future.wait([
+        loadEmployees(),
+        loadCompanySettings(),
+        loadLockedMonths(),
+      ]);
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки данных: $e';
@@ -127,6 +199,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addEmployee(Employee employee, {DateTime? rateStartDate}) async {
+    if (!_rateAllowed(rateStartDate ?? employee.hireDate)) return;
     try {
       final id = await _employeesRepo.add(employee);
       final start = rateStartDate ?? employee.hireDate;
@@ -183,6 +256,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addEmployeeRate(EmployeeRate rate) async {
+    if (!_rateAllowed(rate.startDate)) return;
     try {
       await _ratesRepo.add(rate);
       await loadEmployeeRates(employeeId: rate.employeeId);
@@ -231,6 +305,7 @@ class AppProvider extends ChangeNotifier {
     List<TimesheetRecord> records,
     DateTime date,
   ) async {
+    if (!_dayAllowed('timesheet', null, date)) return;
     try {
       final existing = await _timesheetRepo.inPeriod(date, date);
       for (var record in records) {
@@ -266,6 +341,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> saveTimesheetRecord(TimesheetRecord record) async {
+    if (!_dayAllowed('timesheet', null, record.date)) return;
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
@@ -292,6 +368,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
+    if (!_dayAllowed('timesheet', null, record.date)) return;
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
@@ -313,6 +390,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
+    final old = _timesheetRecords.where((r) => r.id == record.id).firstOrNull;
+    if (!_dayAllowed('timesheet', old?.date, record.date)) return;
     try {
       await _timesheetRepo.update(record);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
@@ -328,6 +407,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> deleteTimesheetRecord(String id) async {
+    final old = _timesheetRecords.where((r) => r.id == id).firstOrNull;
+    if (old != null && !_dayAllowed('timesheet', old.date, null)) return;
     try {
       await _timesheetRepo.delete(id);
       if (_currentPeriodStart != null && _currentPeriodEnd != null) {
@@ -390,6 +471,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addPayment(Payment payment) async {
+    if (!_dayAllowed('payments', null, payment.paymentDate)) return;
     try {
       await _paymentsRepo.add(payment);
       notifyListeners();
@@ -401,6 +483,10 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updatePayment(Payment payment) async {
+    final old = _payments.where((p) => p.id == payment.id).firstOrNull;
+    if (!_dayAllowed('payments', old?.paymentDate, payment.paymentDate)) {
+      return;
+    }
     try {
       await _paymentsRepo.update(payment);
       notifyListeners();
@@ -412,6 +498,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> deletePayment(String id, String employeeId) async {
+    final old = _payments.where((p) => p.id == id).firstOrNull;
+    if (old != null && !_dayAllowed('payments', old.paymentDate, null)) return;
     try {
       await _paymentsRepo.delete(id);
       notifyListeners();
@@ -464,6 +552,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> calculatePayrollForMonth(int year, int month) async {
+    if (!_monthAllowed(year, month)) return;
     _setLoading(true);
     try {
       // Сотрудники без начислений и выплат за месяц в расчёт не входят.
@@ -513,6 +602,7 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
+    if (!_monthAllowed(year, month)) return;
     // Если начислений и выплат не осталось — прежний расчёт удаляется.
     await _payrollService.saveMonth(year, month, employeeId: employeeId);
     setNeedRefreshReports(true);

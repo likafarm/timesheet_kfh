@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../widgets/closed_month.dart';
 import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
@@ -102,6 +103,8 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     if (_isCalculating) return;
     final year = _selectedMonth.year;
     final month = _selectedMonth.month;
+    if (!await ensureMonthOpen(context, year, month)) return;
+    if (!mounted) return;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -191,12 +194,21 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                 onTap: _selectMonth,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
-                  child: Text(
-                    capitalizedMonth,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        capitalizedMonth,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      ClosedMonthBadge(
+                        year: _selectedMonth.year,
+                        month: _selectedMonth.month,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -252,15 +264,22 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                         records: provider.timesheetRecords,
                         selectedMonth: _selectedMonth,
                         daysInMonth: daysInMonth,
-                        onCellTap: (employee, day) => _showRecordDialog(
-                          context,
-                          employee,
-                          DateTime(
-                            _selectedMonth.year,
-                            _selectedMonth.month,
-                            day,
-                          ),
-                        ),
+                        onCellTap: (employee, day) async {
+                          final month = _selectedMonth;
+                          if (!await ensureMonthOpen(
+                                context,
+                                month.year,
+                                month.month,
+                              ) ||
+                              !context.mounted) {
+                            return;
+                          }
+                          _showRecordDialog(
+                            context,
+                            employee,
+                            DateTime(month.year, month.month, day),
+                          );
+                        },
                       ),
                     ),
                     _buildLegend(),

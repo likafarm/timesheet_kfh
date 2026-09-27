@@ -14,6 +14,9 @@ class SyncTestServer {
   final rows = <String, Map<String, Object?>>{};
   final log = <String>[];
 
+  /// Закрытые месяцы `(год, месяц)`.
+  final locks = <(int, int)>[];
+
   /// Сколько было запросов push и pull.
   int pushes = 0;
   int pulls = 0;
@@ -87,6 +90,12 @@ class SyncTestServer {
                 log.add(key);
                 return {'change_id': c['change_id'], 'status': 'applied'};
               }(),
+          ],
+        });
+      case '/periods/locks':
+        return _json({
+          'locks': [
+            for (final (y, m) in locks) {'year': y, 'month': m},
           ],
         });
       case '/sync/pull':

@@ -52,16 +52,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ),
   ];
 
+  late final AppProvider _app;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _app = context.read<AppProvider>();
+    _app.addListener(_showNotice);
   }
 
   @override
   void dispose() {
+    _app.removeListener(_showNotice);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Сообщение программы (например, «месяц закрыт») — внизу окна.
+  void _showNotice() {
+    final notice = _app.takeNotice();
+    if (notice == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(notice), duration: const Duration(seconds: 6)),
+    );
   }
 
   @override

@@ -23,6 +23,7 @@ void main() {
   late MemoryTokenStore tokens;
   late int backups;
   late int reloads;
+  late int lockChanges;
 
   SyncProvider provider() => _track(
     SyncProvider(
@@ -30,6 +31,7 @@ void main() {
       dataDirectory: '.',
       onDataChanged: () async => reloads++,
       backup: () async => backups++,
+      onLocksChanged: () async => lockChanges++,
       tokenStore: (_) => tokens,
       httpClient: () => MockClient(server.handle),
       journal: MemorySyncJournal(),
@@ -43,6 +45,7 @@ void main() {
     tokens = MemoryTokenStore();
     backups = 0;
     reloads = 0;
+    lockChanges = 0;
   });
   tearDown(() async {
     for (final p in _providers) {
@@ -240,5 +243,23 @@ void main() {
     expect(sync.phase, SyncPhase.signedOut);
     await sync.signIn('localhost:8080', 'ivan', 'secret-pass');
     expect(sync.phase, SyncPhase.ready, reason: 'первый вход не повторяется');
+  });
+
+  test('закрытые месяцы приходят с каждой синхронизацией', () async {
+    final sync = await signedIn();
+    server.locks.add((2026, 8));
+    await sync.link(await sync.analyzeLink());
+    expect(await LocalSyncStore(db).lockedMonths(), {
+      PeriodGuard.monthKey(2026, 8),
+    });
+    expect(lockChanges, 1);
+
+    await sync.syncNow();
+    expect(lockChanges, 1, reason: 'список не менялся');
+
+    server.locks.clear();
+    await sync.syncNow();
+    expect(await LocalSyncStore(db).lockedMonths(), isEmpty);
+    expect(lockChanges, 2);
   });
 }

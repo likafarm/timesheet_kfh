@@ -93,6 +93,18 @@ class KfhApiClient {
     return pair.user;
   }
 
+  /// Закрытые на сервере месяцы `(год, месяц)`.
+  Future<List<(int, int)>> lockedMonths() async {
+    final json = await getJson('/periods/locks');
+    final locks = json['locks'];
+    if (locks is! List) throw ServerFailure('нет списка закрытых месяцев');
+    return [
+      for (final l in locks)
+        if (l is Map && l['year'] is int && l['month'] is int)
+          (l['year'] as int, l['month'] as int),
+    ];
+  }
+
   // ------------------------------------------------------------- запросы
 
   Future<Map<String, Object?>> getJson(
