@@ -32,6 +32,14 @@ class PlatformServices {
   /// Веб-версия: перезагрузить страницу.
   final void Function()? reloadPage;
 
+  /// Веб-версия: запоминать ли следующий вход после закрытия вкладки
+  /// (false — «Чужой компьютер»).
+  final void Function(bool remember)? rememberSignIn;
+
+  /// Веб-версия: при закрытии вкладки с «чужим» входом и неотправленными
+  /// правками браузер переспрашивает ([hasUnsent] — есть ли такие).
+  final void Function(bool Function() hasUnsent)? guardPageClose;
+
   const PlatformServices({
     required this.database,
     required this.backups,
@@ -40,6 +48,8 @@ class PlatformServices {
     this.eraseLocalData,
     this.lostToAnotherTab,
     this.reloadPage,
+    this.rememberSignIn,
+    this.guardPageClose,
   });
 }
 

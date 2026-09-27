@@ -13,6 +13,7 @@ abstract interface class StringStorage {
   String? read(String key);
   void write(String key, String value);
   void remove(String key);
+  Iterable<String> keys();
 }
 
 /// Строки в памяти — для тестов.
@@ -27,7 +28,17 @@ class MemoryStringStorage implements StringStorage {
 
   @override
   void remove(String key) => values.remove(key);
+
+  @override
+  Iterable<String> keys() => values.keys;
 }
+
+/// Ключи токенов в хранилище: `kfh_auth:<сервер>`.
+const browserTokenPrefix = 'kfh_auth:';
+
+/// Есть ли в хранилище вход на какой-нибудь сервер.
+bool hasBrowserTokens(StringStorage storage) =>
+    storage.keys().any((k) => k.startsWith(browserTokenPrefix));
 
 /// Токены входа веб-версии.
 ///
@@ -50,7 +61,7 @@ class BrowserTokenStore implements TokenStore {
     required this.remember,
   });
 
-  String get _key => 'kfh_auth:$server';
+  String get _key => '$browserTokenPrefix$server';
 
   @override
   Future<AuthTokens?> read() async {

@@ -221,52 +221,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsCard(
                     child: Column(
                       children: [
-                        // Резервное копирование
-                        ListTile(
-                          leading: const Icon(Icons.backup),
-                          title: const Text('Резервное копирование'),
-                          subtitle: const Text(
-                            'Создать ежедневную резервную копию сейчас',
+                        // Резервные копии — в файлах; в веб-версии их нет:
+                        // база браузера — копия данных сервера.
+                        if (context.read<AppProvider>().hasLocalBackups) ...[
+                          // Резервное копирование
+                          ListTile(
+                            leading: const Icon(Icons.backup),
+                            title: const Text('Резервное копирование'),
+                            subtitle: const Text(
+                              'Создать ежедневную резервную копию сейчас',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () async {
+                              final provider = context.read<AppProvider>();
+                              final path = await provider.createBackup();
+                              if (!context.mounted) return;
+                              if (path != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Резервная копия создана'),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Ошибка создания копии'),
+                                  ),
+                                );
+                              }
+                            },
                           ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () async {
-                            final provider = context.read<AppProvider>();
-                            final path = await provider.createBackup();
-                            if (!context.mounted) return;
-                            if (path != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Резервная копия создана'),
+                          const Divider(height: 1),
+
+                          // Восстановление
+                          ListTile(
+                            leading: const Icon(Icons.restore),
+                            title: const Text('Восстановление'),
+                            subtitle: const Text(
+                              'Восстановить данные из копии',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const BackupListScreen(),
                                 ),
                               );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Ошибка создания копии'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        const Divider(height: 1),
-
-                        // Восстановление
-                        ListTile(
-                          leading: const Icon(Icons.restore),
-                          title: const Text('Восстановление'),
-                          subtitle: const Text('Восстановить данные из копии'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const BackupListScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const Divider(height: 1),
-
+                            },
+                          ),
+                          const Divider(height: 1),
+                        ],
                         if (kDebugMode) ...[
                           ListTile(
                             leading: const Icon(Icons.storage),

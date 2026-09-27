@@ -84,6 +84,8 @@ class SyncProvider extends ChangeNotifier {
     required this._tokenStore,
     required this.journal,
     this.onLocksChanged,
+    this.rememberSignIn,
+    this.eraseAfterSignOut,
     http.Client Function()? httpClient,
     this.autoSync = true,
     this.syncInterval = const Duration(minutes: 5),
@@ -107,6 +109,31 @@ class SyncProvider extends ChangeNotifier {
   final Future<void> Function()? onLocksChanged;
 
   final SyncJournal journal;
+
+  /// Веб-версия: запоминать ли следующий вход после закрытия вкладки
+  /// (false — отметка «Чужой компьютер»). null — вход помнится всегда.
+  final void Function(bool remember)? rememberSignIn;
+
+  /// Веб-версия: после выхода стереть данные браузера (приложение закрывает
+  /// базу, стирает её и перезагружает страницу). null — база остаётся
+  /// привязанной к серверу (Windows, Android).
+  final Future<void> Function()? eraseAfterSignOut;
+
+  /// В окне входа — отметка «Чужой компьютер».
+  bool get offersPublicComputer => rememberSignIn != null;
+
+  /// Выход стирает данные этого устройства.
+  bool get erasesOnSignOut => eraseAfterSignOut != null;
+
+  /// Адрес сервера можно сменить. Веб-версия работает только с сервером, с
+  /// которого открыта страница (кроме отладки: там API на другом порту).
+  bool get canChangeServer => client != ClientKind.web || debugBuild;
+
+  /// Вход прекращается вместе со сроком refresh-токена, даже без связи
+  /// (веб-версия, этап 5). Программы для Windows и телефона без связи
+  /// продолжают работать и узнают об окончании сеанса от сервера.
+  bool get _sessionExpiresLocally => client == ClientKind.web;
+  Timer? _expiryTimer;
 
   /// Синхронизироваться самой (шаг 3.5): при запуске, после правок, раз в
   /// 5 минут, с паузами при отсутствии сети. В тестах — выключено.
@@ -261,6 +288,7 @@ class SyncProvider extends ChangeNotifier {
       _user = null;
     }
     await _updatePhase();
+    await _watchSessionExpiry();
     await refreshPending();
     unawaitedSafe(checkVersion());
   }
@@ -358,11 +386,14 @@ class SyncProvider extends ChangeNotifier {
   /// текстом.
   /// [allowRemoteInDebug] — в отладочной сборке человек подтвердил вход на
   /// сервер не на этом компьютере.
+  /// [publicComputer] — веб-версия: не запоминать вход после закрытия
+  /// вкладки.
   Future<void> signIn(
     String server,
     String login,
     String password, {
     bool allowRemoteInDebug = false,
+    bool publicComputer = false,
   }) async {
     final address = normalizeServer(server);
     if (debugBuild && !isLocalServer(address) && !allowRemoteInDebug) {
@@ -371,6 +402,7 @@ class SyncProvider extends ChangeNotifier {
         'нужно подтвердить отдельно.',
       );
     }
+    rememberSignIn?.call(!publicComputer);
     await _connect(address);
     _server = address;
     final SessionUser user;
@@ -390,6 +422,7 @@ class SyncProvider extends ChangeNotifier {
     _problem = null;
     _offline = false;
     await _updatePhase();
+    await _watchSessionExpiry();
   }
 
   /// Смена пароля (обязательная после выдачи администратором или по
@@ -404,13 +437,48 @@ class SyncProvider extends ChangeNotifier {
   }
 
   /// Выход: токены удаляются, база остаётся привязанной к серверу —
-  /// следующий вход продолжит с того же места.
+  /// следующий вход продолжит с того же места. Веб-версия после выхода
+  /// стирает базу браузера ([eraseAfterSignOut]): неотправленное теряется,
+  /// предупреждает об этом окно выхода.
   Future<void> signOut() async {
+    final erase = eraseAfterSignOut;
+    if (erase != null) await suspend();
+    _expiryTimer?.cancel();
     await _api?.logout();
     _user = null;
     _problem = null;
     _offline = false;
+    if (erase != null) {
+      await erase();
+      return;
+    }
     await _updatePhase();
+  }
+
+  /// Веб-версия: вход кончается вместе со сроком refresh-токена — тогда
+  /// экран входа (данные браузера остаются: тот же вход продолжит с того же
+  /// места).
+  Future<void> _watchSessionExpiry() async {
+    _expiryTimer?.cancel();
+    if (!_sessionExpiresLocally || _user == null) return;
+    final tokens = await _api?.tokens.read();
+    if (tokens == null) return;
+    final left = tokens.refreshExpiresAt.difference(DateTime.now().toUtc());
+    if (left <= Duration.zero) {
+      await _api?.logout();
+      _user = null;
+      _problem =
+          'Срок входа истёк. Войдите снова — до входа данные сохраняются '
+          'только $onThisDevice.';
+      await _updatePhase();
+      return;
+    }
+    // Таймер браузера не дольше ~24 дней — проверяем не реже раза в сутки.
+    const day = Duration(days: 1);
+    _expiryTimer = Timer(
+      left > day ? day : left,
+      () => unawaitedSafe(_watchSessionExpiry()),
+    );
   }
 
   // ------------------------------------------------------------- первый вход
@@ -523,6 +591,8 @@ class SyncProvider extends ChangeNotifier {
     );
     if (report.changedLocalData) await onDataChanged();
     await _refreshLocks();
+    // Обмен refresh-токена продлевает вход.
+    await _watchSessionExpiry();
     await checkVersion();
   }
 
@@ -608,6 +678,7 @@ class SyncProvider extends ChangeNotifier {
   @override
   void dispose() {
     _scheduler.stop();
+    _expiryTimer?.cancel();
     _updates?.cancel();
     _pendingTimer?.cancel();
     _api?.close();

@@ -204,7 +204,9 @@ class _AccountCard extends StatelessWidget {
                     icon: const Icon(Icons.password),
                     label: const Text('Сменить пароль'),
                   ),
-                if (user != null)
+                // Веб-версия после выхода стирает базу браузера и
+                // перезагружает страницу — там сразу окно входа.
+                if (user != null && !sync.erasesOnSignOut)
                   OutlinedButton.icon(
                     onPressed: sync.isSyncing
                         ? null
@@ -217,7 +219,9 @@ class _AccountCard extends StatelessWidget {
                   ),
                 if (user != null)
                   OutlinedButton.icon(
-                    onPressed: sync.isSyncing ? null : () => sync.signOut(),
+                    onPressed: sync.isSyncing
+                        ? null
+                        : () => confirmSignOut(context),
                     icon: const Icon(Icons.logout),
                     label: const Text('Выйти'),
                   ),

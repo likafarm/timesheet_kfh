@@ -80,7 +80,18 @@ class _MyAppState extends State<MyApp> {
       onLocksChanged: _app.loadLockedMonths,
       tokenStore: platform.tokenStore,
       journal: platform.journal,
+      rememberSignIn: platform.rememberSignIn,
+      eraseAfterSignOut: platform.eraseLocalData == null
+          ? null
+          : () async {
+              // Веб-версия: база браузера стирается, страница начинает
+              // с чистого листа.
+              await _app.localDatabase.close();
+              await platform.eraseLocalData!();
+              platform.reloadPage?.call();
+            },
     );
+    platform.guardPageClose?.call(() => _sync.pending > 0);
     _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;
     // Полное восстановление из копии переоткрывает базу — синхронизация

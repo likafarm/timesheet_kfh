@@ -22,4 +22,9 @@ class WebStringStorage implements StringStorage {
 
   @override
   void remove(String key) => storage.removeItem(key);
+
+  @override
+  Iterable<String> keys() => [
+    for (var i = 0; i < storage.length; i++) ?storage.key(i),
+  ];
 }
