@@ -1,0 +1,21 @@
+# Реверс-прокси перед API. Сертификат Let's Encrypt Caddy получает и
+# продлевает сам (данные — в томе caddy-data, не удалять: лимиты выдачи).
+{$KFH_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Адрес клиента API берёт из X-Forwarded-For (TRUST_PROXY=true):
+	# Caddy без trusted_proxies пишет туда только реальный адрес.
+	reverse_proxy api:8080
+
+	log {
+		output stdout
+		format json
+	}
+}

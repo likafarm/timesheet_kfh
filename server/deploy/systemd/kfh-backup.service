@@ -1,0 +1,16 @@
+# Бэкап базы КФХ в Yandex Object Storage (server/deploy/backup.sh).
+# Ставит и обновляет deploy.sh.
+[Unit]
+Description=KFH: backup MySQL to Object Storage
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/usr/bin/bash /opt/kfh/src/server/deploy/backup.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=1h

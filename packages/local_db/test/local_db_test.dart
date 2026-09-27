@@ -261,6 +261,29 @@ void main() {
       },
     );
 
+    test('начало новой ставки со временем суток (около полуночи) — '
+        'прежняя закрывается предыдущим числом', () async {
+      final emp = await addEmployee('Петров Пётр');
+      await db.ratesDao.addRate(
+        employeeUuid: emp,
+        baseRate: 1000,
+        fieldRate: 1500,
+        startDate: DateTime(2026, 1, 1),
+      );
+      // Дата из диалога — «сейчас», с временем: 00:05 первого числа.
+      await db.ratesDao.addRate(
+        employeeUuid: emp,
+        baseRate: 1200,
+        fieldRate: 1800,
+        startDate: DateTime(2027, 1, 1, 0, 5),
+      );
+      final history = await db.ratesDao.rateHistory(emp);
+      expect(history.map((r) => (r.startDate, r.endDate)), [
+        ('2026-01-01', '2026-12-31'),
+        ('2027-01-01', null),
+      ]);
+    });
+
     test('удалённая ставка не действует', () async {
       final emp = await addEmployee('Иванов Иван');
       final rate = await db.ratesDao.addRate(

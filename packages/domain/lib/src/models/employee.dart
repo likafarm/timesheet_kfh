@@ -1,3 +1,5 @@
+import '../utils/date_utils.dart';
+
 /// Модель сотрудника КФХ (упрощённая)
 class Employee {
   final String? id;
@@ -18,8 +20,16 @@ class Employee {
     required this.fieldRate,
   });
 
-  bool get isActive =>
-      dismissalDate == null || dismissalDate!.isAfter(DateTime.now());
+  /// Работает сегодня (по местному календарю).
+  bool get isActive => isActiveOn(DateTime.now());
+
+  /// Работает в день [day]: не уволен или уволен позже этого дня. День
+  /// увольнения — уже нерабочий (как в выборке базы: `dismissal_date >
+  /// день`). Сравниваются календарные дни, время суток не влияет.
+  bool isActiveOn(DateTime day) {
+    final dismissed = dismissalDate;
+    return dismissed == null || calendarDay(dismissed).isAfter(calendarDay(day));
+  }
 
   /// [clearDismissalDate] — снять увольнение: `dismissalDate: null`
   /// в copyWith означает «не менять».

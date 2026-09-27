@@ -1,0 +1,3 @@
+tags:
+  # Тесты на настоящей MySQL (стенд docker-compose.dev.yml).
+  mysql:

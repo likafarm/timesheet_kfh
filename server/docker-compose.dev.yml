@@ -1,0 +1,54 @@
+# Локальный стенд для разработки: MySQL 8 + API.
+# ТОЛЬКО ДЛЯ РАЗРАБОТКИ: пароли ниже — учебные, на VPS не использовать.
+#
+#   docker compose -f server/docker-compose.dev.yml up -d --build
+#   curl http://localhost:8080/health
+#   docker compose -f server/docker-compose.dev.yml down      # данные сохранятся
+#   docker compose -f server/docker-compose.dev.yml down -v   # вместе с данными
+name: kfh-dev
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: dev-root
+      MYSQL_DATABASE: kfh
+      MYSQL_USER: kfh_api
+      MYSQL_PASSWORD: dev-api
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      # Только на localhost: для тестов и просмотра базы с этого ПК.
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pdev-root"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    environment:
+      PORT: "8080"
+      DB_HOST: mysql
+      DB_NAME: kfh
+      DB_USER: kfh_api
+      DB_PASSWORD: dev-api
+      JWT_SECRET: dev-only-jwt-secret-0123456789abcdef
+      # На стенде миграции применяются сами; на VPS — «server migrate»
+      # после резервной копии.
+      MIGRATE_ON_START: "true"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

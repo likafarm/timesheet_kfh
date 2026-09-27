@@ -429,10 +429,12 @@ class AppProvider extends ChangeNotifier {
   // PAYROLL
   // ==========================================================================
 
+  /// Расчёты месяца для отчёта — без сотрудников, у которых в месяце нет ни
+  /// начислений, ни выплат.
   Future<void> loadPayrollResultsForMonth(int year, int month) async {
     _setLoading(true);
     try {
-      _payrollResults = await _payrollRepo.forMonth(year, month);
+      _payrollResults = await _payrollService.resultsForReport(year, month);
       _error = null;
     } catch (e) {
       _error = 'Ошибка загрузки результатов расчёта: $e';
@@ -444,12 +446,8 @@ class AppProvider extends ChangeNotifier {
   Future<void> calculatePayrollForMonth(int year, int month) async {
     _setLoading(true);
     try {
-      final employees = await _employeesRepo.all();
-      for (var emp in employees) {
-        if (emp.id == null) continue;
-        final calc = await _payrollService.calculateMonth(emp.id!, year, month);
-        await _payrollRepo.save(_payrollFromCalc(calc));
-      }
+      // Сотрудники без начислений и выплат за месяц в расчёт не входят.
+      await _payrollService.saveMonth(year, month);
       await loadPayrollResultsForMonth(year, month);
       _error = null;
       setNeedRefreshReports(true);
@@ -495,27 +493,9 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
-    final calc = await _payrollService.calculateMonth(employeeId, year, month);
-    await _payrollRepo.save(_payrollFromCalc(calc));
+    // Если начислений и выплат не осталось — прежний расчёт удаляется.
+    await _payrollService.saveMonth(year, month, employeeId: employeeId);
     setNeedRefreshReports(true);
-  }
-
-  PayrollResult _payrollFromCalc(PayrollCalculation calc) {
-    return PayrollResult(
-      employeeId: calc.employeeId,
-      year: calc.year,
-      month: calc.month,
-      baseDays: calc.baseDays,
-      fieldDays: calc.fieldDays,
-      sickDays: calc.sickDays,
-      vacationDays: calc.vacationDays,
-      totalSalary: calc.totalSalary,
-      baseRateUsed: calc.baseRateUsed,
-      fieldRateUsed: calc.fieldRateUsed,
-      calculatedAt: DateTime.now(),
-      status: 'calculated',
-      skippedWorkDays: calc.skippedWorkDays,
-    );
   }
 
   // ==========================================================================

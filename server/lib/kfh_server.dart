@@ -1,0 +1,33 @@
+/// Сервер КФХ: API синхронизации и отчётов поверх MySQL.
+library;
+
+export 'src/admin/import_service.dart';
+export 'src/app.dart';
+export 'src/audit.dart';
+export 'src/auth/access_token.dart';
+export 'src/auth/auth_service.dart';
+export 'src/auth/login_throttle.dart';
+export 'src/auth/password_hasher.dart';
+export 'src/auth/refresh_tokens.dart';
+export 'src/auth/users.dart';
+export 'src/config.dart';
+export 'src/database.dart';
+export 'src/http/auth_api.dart';
+export 'src/http/middleware.dart';
+export 'src/http/request_utils.dart';
+export 'src/http/responses.dart';
+export 'src/http/sync_api.dart';
+export 'src/http/admin_api.dart';
+export 'src/http/data_api.dart';
+export 'src/payroll/payroll_calculator.dart';
+export 'src/periods/period_service.dart';
+export 'src/auth/permissions.dart';
+export 'src/sync/change_log.dart';
+export 'src/sync/period_guard.dart';
+export 'src/sync/sync_rows.dart';
+export 'src/sync/sync_service.dart';
+export 'src/logger.dart';
+export 'src/migrations/migrations.dart';
+export 'src/migrations/sql_split.dart';
+export 'src/sql.dart';
+export 'src/version.dart';

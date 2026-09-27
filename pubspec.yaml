@@ -1,7 +1,7 @@
 name: kfx_time_tracking
 description: "Учёт рабочего времени в КФХ"
 publish_to: "none"
-version: 1.1.0+2
+version: 1.1.1+3
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -10,6 +10,7 @@ environment:
 workspace:
   - packages/domain
   - packages/local_db
+  - server
 
 dependencies:
   flutter:

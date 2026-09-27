@@ -83,6 +83,9 @@ abstract interface class PaymentRepository {
 abstract interface class PayrollRepository {
   /// Сохраняет расчёт за месяц (заменяет прежний). Возвращает id.
   Future<String> save(PayrollResult result);
+
+  /// Мягкое удаление сохранённого расчёта (сотрудник выпал из расчёта).
+  Future<void> delete(String id);
   Future<PayrollResult?> resultFor(String employeeId, int year, int month);
   Future<List<PayrollResult>> forMonth(int year, int month);
 

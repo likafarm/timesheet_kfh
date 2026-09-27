@@ -1,0 +1,63 @@
+import 'dart:async';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
+
+import 'database.dart';
+import 'http/admin_api.dart';
+import 'http/auth_api.dart';
+import 'http/data_api.dart';
+import 'http/middleware.dart';
+import 'http/responses.dart';
+import 'http/sync_api.dart';
+import 'logger.dart';
+import 'version.dart';
+
+/// Сколько ждать ответа MySQL в `/health`.
+const healthDbTimeout = Duration(seconds: 3);
+
+/// Собирает обработчик всех запросов API. [authApi] не задан — только
+/// `/health` (для тестов HTTP-слоя без MySQL).
+Handler buildHandler({
+  required Database db,
+  required Logger logger,
+  AuthApi? authApi,
+  SyncApi? syncApi,
+  DataApi? dataApi,
+  AdminApi? adminApi,
+}) {
+  final router = Router(notFoundHandler: _notFound)
+    ..get('/health', (Request request) => _health(request, db, logger));
+  authApi?.addRoutes(router);
+  syncApi?.addRoutes(router);
+  dataApi?.addRoutes(router);
+  adminApi?.addRoutes(router);
+
+  return const Pipeline()
+      .addMiddleware(requestId())
+      .addMiddleware(accessLog(logger))
+      .addMiddleware(noStore())
+      .addMiddleware(handleErrors(logger))
+      .addHandler(router.call);
+}
+
+Response _notFound(Request request) =>
+    errorResponse(404, 'not_found', 'Нет такого адреса API');
+
+/// Живость сервера и связь с MySQL. 200 — всё в порядке, 503 — база
+/// не отвечает (причина — только в журнал).
+Future<Response> _health(Request request, Database db, Logger logger) async {
+  var dbOk = true;
+  try {
+    await db.ping().timeout(healthDbTimeout);
+  } catch (e) {
+    dbOk = false;
+    logger.warning('health: база не отвечает',
+        {'request_id': requestIdOf(request), 'error': e.toString()});
+  }
+  return jsonResponse({
+    'status': dbOk ? 'ok' : 'unavailable',
+    'version': serverVersion,
+    'db': dbOk ? 'ok' : 'error',
+  }, status: dbOk ? 200 : 503);
+}

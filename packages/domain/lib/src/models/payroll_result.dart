@@ -1,5 +1,7 @@
 // packages/domain/lib/src/models/payroll_result.dart
 
+import '../payroll.dart';
+
 /// Результат расчёта зарплаты за месяц для сотрудника
 class PayrollResult {
   final String? id;
@@ -34,6 +36,37 @@ class PayrollResult {
     this.status = 'calculated',
     this.skippedWorkDays = 0,
   }) : calculatedAt = calculatedAt ?? DateTime.now();
+
+  /// Результат для сохранения из свежего расчёта.
+  factory PayrollResult.fromCalculation(
+    PayrollCalculation calc, {
+    DateTime? calculatedAt,
+  }) =>
+      PayrollResult(
+        employeeId: calc.employeeId,
+        year: calc.year,
+        month: calc.month,
+        baseDays: calc.baseDays,
+        fieldDays: calc.fieldDays,
+        sickDays: calc.sickDays,
+        vacationDays: calc.vacationDays,
+        totalSalary: calc.totalSalary,
+        baseRateUsed: calc.baseRateUsed,
+        fieldRateUsed: calc.fieldRateUsed,
+        calculatedAt: calculatedAt,
+        status: 'calculated',
+        skippedWorkDays: calc.skippedWorkDays,
+      );
+
+  /// Сохранённый расчёт без начислений (см. [isEmptyPayroll]).
+  bool get isEmpty => isEmptyPayroll(
+        baseDays: baseDays,
+        fieldDays: fieldDays,
+        sickDays: sickDays,
+        vacationDays: vacationDays,
+        totalSalary: totalSalary,
+        skippedWorkDays: skippedWorkDays,
+      );
 
   PayrollResult copyWith({
     String? id,
