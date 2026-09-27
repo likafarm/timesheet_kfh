@@ -18,6 +18,9 @@ $version = (Select-String -Path (Join-Path $root 'pubspec.yaml') -Pattern '^vers
 $name = $version.Split('+')[0]
 
 Push-Location $root
+# Java pishet "Picked up JAVA_TOOL_OPTIONS" v stderr - v PowerShell 5.1 pri
+# 'Stop' eto oshibka; uspeh proveryaetsya po $LASTEXITCODE.
+$ErrorActionPreference = 'Continue'
 try {
     if ($Debug) {
         flutter build apk --debug

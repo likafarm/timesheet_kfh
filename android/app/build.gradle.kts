@@ -16,7 +16,15 @@ val keyPropertiesFile = file(
         ?: "${System.getProperty("user.home")}/.kfh/android/key.properties",
 )
 val keyProperties = Properties().apply {
-    if (keyPropertiesFile.exists()) keyPropertiesFile.inputStream().use { load(it) }
+    if (keyPropertiesFile.exists()) keyPropertiesFile.reader(Charsets.UTF_8).use { load(it) }
+}
+
+// storeFile — относительно key.properties (путь профиля с кириллицей в
+// .properties писать не нужно).
+fun keyStoreFile(): File {
+    val path = keyProperties.getProperty("storeFile")
+    val f = File(path)
+    return if (f.isAbsolute) f else File(keyPropertiesFile.parentFile, path)
 }
 
 android {
@@ -41,7 +49,7 @@ android {
     signingConfigs {
         if (keyPropertiesFile.exists()) {
             create("release") {
-                storeFile = file(keyProperties.getProperty("storeFile"))
+                storeFile = keyStoreFile()
                 storePassword = keyProperties.getProperty("storePassword")
                 keyAlias = keyProperties.getProperty("keyAlias")
                 keyPassword = keyProperties.getProperty("keyPassword")
