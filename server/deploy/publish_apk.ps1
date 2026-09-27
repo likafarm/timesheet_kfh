@@ -15,6 +15,9 @@ param(
     [string]$Domain = "tab.korovatech.ru"
 )
 $ErrorActionPreference = "Stop"
+# ssh/scp/docker pishut progress v stderr - v PowerShell 5.1 pri "Stop" eto
+# oshibka posredi vykladki. Uspekh proveryaetsya po $LASTEXITCODE.
+$nativeErrors = "Continue"
 
 $root = git rev-parse --show-toplevel
 if (-not $?) { throw "ne git-repozitoriy" }
@@ -67,6 +70,7 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText((Join-Path $tmp "index.html"), $html, $utf8)
 
 Write-Host "APK $name ($sizeMb MB), min $Min, sha256 $hash"
+$ErrorActionPreference = $nativeErrors
 scp -q $apkPath (Join-Path $tmp "versions.json") (Join-Path $tmp "index.html") "${SshHost}:/tmp/"
 if ($LASTEXITCODE -ne 0) { throw "scp: oshibka" }
 # Snachala APK, potom spisok versiy: programma ne uvidit ssylku na fail, kotorogo net.
