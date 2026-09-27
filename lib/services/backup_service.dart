@@ -2,10 +2,11 @@
 
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
+
+import 'platform.dart';
 
 /// Тип резервной копии.
 enum BackupType {
@@ -39,23 +40,16 @@ class BackupInfo {
 class BackupService {
   static const _maxDailyBackups = 5;
 
-  /// Отладочная сборка кладёт копии отдельно: иначе `flutter run`
-  /// перезаписал бы сегодняшнюю копию рабочей базы.
-  static const _backupDirName = kDebugMode ? 'backups (debug)' : 'backups';
-
-  /// Папка копий; по умолчанию `Документы/backups` (в отладочной сборке —
-  /// `Документы/backups (debug)`); другая — для тестов.
+  /// Папка копий; по умолчанию — [backupsDirectory] (у отладочной сборки
+  /// своя, чтобы `flutter run` не перезаписал копию рабочей базы); другая —
+  /// для тестов.
   final String? backupDirectory;
 
   BackupService({this.backupDirectory});
 
   Future<Directory> _getBackupDirectory() async {
     final backupDir = Directory(
-      backupDirectory ??
-          p.join(
-            (await getApplicationDocumentsDirectory()).path,
-            _backupDirName,
-          ),
+      backupDirectory ?? await backupsDirectory(),
     );
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);

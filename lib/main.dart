@@ -10,6 +10,7 @@ import 'screens/main_screen.dart';
 import 'services/app_database.dart';
 import 'services/backup_service.dart';
 import 'services/db_location.dart';
+import 'services/platform.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
 
@@ -20,7 +21,7 @@ void main() async {
   final AppDatabase appDb;
   try {
     appDb = await openAppDatabase(
-      dataDir: appDataDirectory(),
+      dataDir: await appDataDirectory(),
       legacyDirs: legacyDatabaseDirectories(),
       backupLegacy: BackupService().backupLegacyDatabase,
       log: logDbLocation,

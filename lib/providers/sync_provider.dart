@@ -15,7 +15,7 @@ import 'package:kfh_sync/file_journal.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:path/path.dart' as p;
 
-import '../services/dpapi_token_store.dart';
+import '../services/file_token_store.dart';
 
 /// Где находится программа по отношению к серверу.
 enum SyncPhase {
@@ -84,10 +84,7 @@ class SyncProvider extends ChangeNotifier {
   }) : _db = database,
        _tokenStore =
            tokenStore ??
-           ((server) => DpapiTokenStore(
-             File(p.join(dataDirectory, 'sync_auth.dat')),
-             server,
-           )),
+           ((server) => platformTokenStore(dataDirectory, server)),
        _httpClient = httpClient ?? http.Client.new,
        journal =
            journal ?? FileSyncJournal(File(p.join(dataDirectory, 'sync.log')));
