@@ -33,6 +33,7 @@ void main() {
       tokenStore: (_) => tokens,
       httpClient: () => MockClient(server.handle),
       journal: MemorySyncJournal(),
+      autoSync: false,
     ),
   );
 

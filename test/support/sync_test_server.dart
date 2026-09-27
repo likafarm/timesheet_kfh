@@ -14,6 +14,10 @@ class SyncTestServer {
   final rows = <String, Map<String, Object?>>{};
   final log = <String>[];
 
+  /// Сколько было запросов push и pull.
+  int pushes = 0;
+  int pulls = 0;
+
   http.Response _json(Object? body, [int status = 200]) => http.Response(
     jsonEncode(body),
     status,
@@ -70,6 +74,7 @@ class SyncTestServer {
     }
     switch (r.url.path) {
       case '/sync/push':
+        pushes++;
         final changes =
             (jsonDecode(r.body) as Map<String, Object?>)['changes'] as List;
         return _json({
@@ -85,6 +90,7 @@ class SyncTestServer {
           ],
         });
       case '/sync/pull':
+        pulls++;
         final cursor = int.parse(r.url.queryParameters['cursor'] ?? '0');
         final keys = log.skip(cursor).toSet();
         return _json({

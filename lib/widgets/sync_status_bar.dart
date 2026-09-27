@@ -82,6 +82,10 @@ class SyncStatusBar extends StatelessWidget {
               : Icons.error_outline;
           color = sync.isOffline ? warning : theme.colorScheme.error;
           parts.add(sync.problem!);
+          final next = sync.nextAttemptAt;
+          if (next != null) {
+            parts.add('повтор в ${DateFormat('HH:mm:ss').format(next)}');
+          }
         } else {
           icon = Icons.cloud_done_outlined;
           color = Colors.green.shade700;

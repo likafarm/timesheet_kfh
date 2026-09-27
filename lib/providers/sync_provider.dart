@@ -63,6 +63,9 @@ class SyncProvider extends ChangeNotifier {
     TokenStore Function(String server)? tokenStore,
     http.Client Function()? httpClient,
     SyncJournal? journal,
+    this.autoSync = true,
+    this.syncInterval = const Duration(minutes: 5),
+    this.changeDelay = const Duration(seconds: 5),
   }) : _db = database,
        _tokenStore =
            tokenStore ??
@@ -82,6 +85,23 @@ class SyncProvider extends ChangeNotifier {
   final Future<void> Function() backup;
 
   final SyncJournal journal;
+
+  /// Синхронизироваться самой (шаг 3.5): при запуске, после правок, раз в
+  /// 5 минут, с паузами при отсутствии сети. В тестах — выключено.
+  final bool autoSync;
+
+  /// Плановая синхронизация — раз в [syncInterval]; правка уходит через
+  /// [changeDelay] после последней.
+  final Duration syncInterval;
+  final Duration changeDelay;
+  late final SyncScheduler _scheduler = SyncScheduler(
+    _scheduledRun,
+    interval: syncInterval,
+    changeDelay: changeDelay,
+    onChanged: notifyListeners,
+  );
+  bool _localEdit = false;
+
   final TokenStore Function(String server) _tokenStore;
   final http.Client Function() _httpClient;
 
@@ -121,6 +141,9 @@ class SyncProvider extends ChangeNotifier {
   /// Из них отклонено сервером — ждут вмешательства.
   int get rejected => _rejected;
 
+  /// Когда следующая автоматическая попытка (null — не назначена).
+  DateTime? get nextAttemptAt => autoSync ? _scheduler.nextAttemptAt : null;
+
   LocalSyncStore get _store => LocalSyncStore(_db);
 
   // ------------------------------------------------------------- запуск
@@ -140,6 +163,7 @@ class SyncProvider extends ChangeNotifier {
   /// База переоткрыта (полное восстановление из копии) — начать заново.
   Future<void> rebind(LocalDatabase database) async {
     if (identical(database, _db)) return;
+    _scheduler.stop();
     _db = database;
     _engine = null;
     await init();
@@ -166,6 +190,15 @@ class SyncProvider extends ChangeNotifier {
       _phase = SyncPhase.needsLink;
     } else {
       _phase = SyncPhase.ready;
+    }
+    if (autoSync) {
+      if (_phase != SyncPhase.ready) {
+        _scheduler.stop();
+      } else if (!_scheduler.isStarted) {
+        _scheduler.start(); // первая попытка — сразу
+      } else if (_scheduler.isBlocked) {
+        _scheduler.resume();
+      }
     }
     notifyListeners();
   }
@@ -282,9 +315,28 @@ class SyncProvider extends ChangeNotifier {
 
   // ------------------------------------------------------------- синхронизация
 
-  /// Синхронизировать сейчас. Не бросает: ошибка — в [problem].
+  /// Синхронизировать сейчас (кнопка). Не бросает: ошибка — в [problem].
   /// [retryRejected] — отправить и отклонённые ранее правки.
   Future<SyncReport?> syncNow({bool retryRejected = false}) async {
+    final report = await _runSync(retryRejected: retryRejected);
+    if (autoSync) _scheduler.ranManually(_attempt());
+    return report;
+  }
+
+  /// Попытка по расписанию.
+  Future<SyncAttempt> _scheduledRun() async {
+    await _runSync();
+    return _attempt();
+  }
+
+  /// Итог последней попытки для расписания.
+  SyncAttempt _attempt() => _phase != SyncPhase.ready
+      ? SyncAttempt.blocked
+      : _problem != null
+      ? SyncAttempt.transient
+      : SyncAttempt.ok;
+
+  Future<SyncReport?> _runSync({bool retryRejected = false}) async {
     if (_phase != SyncPhase.ready) return null;
     _syncing = true;
     notifyListeners();
@@ -355,6 +407,11 @@ class SyncProvider extends ChangeNotifier {
   Future<void> refreshPending() async {
     _pending = await _store.pendingCount();
     _rejected = (await _store.rejectedChanges()).length;
+    // Правка человека (не запись самой синхронизации) — отправить вскоре.
+    if (_localEdit && _pending > _rejected && autoSync) {
+      _scheduler.localChanged();
+    }
+    _localEdit = false;
     notifyListeners();
   }
 
@@ -363,7 +420,10 @@ class SyncProvider extends ChangeNotifier {
 
   void _watchDatabase() {
     _updates?.cancel();
-    _updates = _db.tableUpdates().listen((_) {
+    _updates = _db.tableUpdates().listen((updates) {
+      if (!_syncing && updates.any((u) => businessTables.contains(u.table))) {
+        _localEdit = true;
+      }
       _pendingTimer?.cancel();
       _pendingTimer = Timer(
         const Duration(milliseconds: 400),
@@ -377,6 +437,7 @@ class SyncProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _scheduler.stop();
     _updates?.cancel();
     _pendingTimer?.cancel();
     _api?.close();

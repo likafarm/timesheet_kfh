@@ -39,6 +39,7 @@ void main() {
         tokenStore: (_) => MemoryTokenStore(),
         httpClient: () => MockClient(server.handle),
         journal: journal,
+        autoSync: false,
       );
       await sync.init();
     });
@@ -139,6 +140,8 @@ void main() {
       await settle(tester);
     }
     expect(find.textContaining('Нет связи с сервером'), findsOneWidget);
+    // Автоматика в этом тесте выключена — времени повтора нет.
+    expect(find.textContaining('повтор в'), findsNothing);
   });
 
   testWidgets('экран сервера: учётная запись и журнал', (tester) async {

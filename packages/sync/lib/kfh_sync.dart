@@ -11,4 +11,5 @@ export 'src/session.dart';
 export 'src/sync_bootstrap.dart';
 export 'src/sync_engine.dart';
 export 'src/sync_journal.dart';
+export 'src/sync_scheduler.dart';
 export 'src/sync_transport.dart';
