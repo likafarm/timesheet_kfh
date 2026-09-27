@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
+import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
 import 'services/app_database.dart';
 import 'services/backup_service.dart';
@@ -39,19 +41,59 @@ const _localizations = [
   GlobalCupertinoLocalizations.delegate,
 ];
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final AppDatabase appDb;
 
   const MyApp({super.key, required this.appDb});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final AppProvider _app;
+  late final SyncProvider _sync;
+  late int _generation;
+
+  @override
+  void initState() {
+    super.initState();
+    _app = AppProvider(widget.appDb);
+    _sync = SyncProvider(
+      database: _app.localDatabase,
+      dataDirectory: p.dirname(widget.appDb.path),
+      onDataChanged: _app.reloadAfterSync,
+      backup: _app.createSyncSafetyBackup,
+    );
+    _generation = _app.databaseGeneration;
+    // Полное восстановление из копии переоткрывает базу — синхронизация
+    // переключается на новую.
+    _app.addListener(() {
+      if (_app.databaseGeneration != _generation) {
+        _generation = _app.databaseGeneration;
+        _sync.rebind(_app.localDatabase);
+      }
+    });
+    _app.loadAllData().then((_) async {
+      await _app.autoBackup();
+      await _sync.init();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sync.dispose();
+    _app.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) {
-        final provider = AppProvider(appDb);
-        provider.loadAllData().then((_) => provider.autoBackup());
-        return provider;
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _app),
+        ChangeNotifierProvider.value(value: _sync),
+      ],
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,

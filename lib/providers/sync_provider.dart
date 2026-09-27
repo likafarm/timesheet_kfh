@@ -1,0 +1,385 @@
+// lib/providers/sync_provider.dart
+//
+// Синхронизация с сервером для интерфейса: вход, первый вход базы
+// (выгрузка / привязка / приём), запуск синхронизации, состояние для
+// строки статуса. Сама логика — в пакете kfh_sync.
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:drift/drift.dart' show TableUpdate;
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_sync/file_journal.dart';
+import 'package:kfh_sync/kfh_sync.dart';
+import 'package:path/path.dart' as p;
+
+import '../services/dpapi_token_store.dart';
+
+/// Где находится программа по отношению к серверу.
+enum SyncPhase {
+  /// Состояние ещё читается.
+  starting,
+
+  /// Вход не выполнен: программа работает только с этой базой.
+  signedOut,
+
+  /// Вход выполнен, но нужно сменить выданный администратором пароль.
+  passwordChange,
+
+  /// Вход выполнен, база ещё не привязана к серверу — нужен первый вход
+  /// (выгрузка, привязка или приём).
+  needsLink,
+
+  /// Всё готово — синхронизация работает.
+  ready,
+}
+
+/// Ошибка, которую нужно показать человеку как есть.
+class SyncUserException implements Exception {
+  final String message;
+  const SyncUserException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+class SyncProvider extends ChangeNotifier {
+  /// Сервер по умолчанию. Отладочная сборка — только локальный стенд
+  /// (`docker-compose.dev.yml`), чтобы `flutter run` не трогал рабочий.
+  static const defaultServer = kDebugMode
+      ? 'http://localhost:8080'
+      : 'https://tab.korovatech.ru';
+
+  /// Ключ времени последней удачной синхронизации в `sync_state`.
+  static const lastSyncKey = 'sync_last_at';
+
+  SyncProvider({
+    required LocalDatabase database,
+    required String dataDirectory,
+    required this.onDataChanged,
+    required this.backup,
+    TokenStore Function(String server)? tokenStore,
+    http.Client Function()? httpClient,
+    SyncJournal? journal,
+  }) : _db = database,
+       _tokenStore =
+           tokenStore ??
+           ((server) => DpapiTokenStore(
+             File(p.join(dataDirectory, 'sync_auth.dat')),
+             server,
+           )),
+       _httpClient = httpClient ?? http.Client.new,
+       journal =
+           journal ?? FileSyncJournal(File(p.join(dataDirectory, 'sync.log')));
+
+  /// Синхронизация записала изменения с сервера — экранам перечитать данные.
+  final Future<void> Function() onDataChanged;
+
+  /// Резервная копия базы перед первым входом; бросает исключение, если
+  /// копию сделать не удалось.
+  final Future<void> Function() backup;
+
+  final SyncJournal journal;
+  final TokenStore Function(String server) _tokenStore;
+  final http.Client Function() _httpClient;
+
+  LocalDatabase _db;
+  KfhApiClient? _api;
+  SyncEngine? _engine;
+  StreamSubscription<Set<TableUpdate>>? _updates;
+  Timer? _pendingTimer;
+
+  SyncPhase _phase = SyncPhase.starting;
+  String _server = defaultServer;
+  SessionUser? _user;
+  bool _syncing = false;
+  bool _offline = false;
+  String? _problem;
+  DateTime? _lastSyncAt;
+  SyncReport? _lastReport;
+  int _pending = 0;
+  int _rejected = 0;
+
+  SyncPhase get phase => _phase;
+  String get server => _server;
+  SessionUser? get user => _user;
+  bool get isSyncing => _syncing;
+
+  /// Последняя попытка не дошла до сервера.
+  bool get isOffline => _offline;
+
+  /// Последняя ошибка синхронизации (понятным текстом), null — всё хорошо.
+  String? get problem => _problem;
+  DateTime? get lastSyncAt => _lastSyncAt;
+  SyncReport? get lastReport => _lastReport;
+
+  /// Неотправленных записей (вместе с отклонёнными сервером).
+  int get pending => _pending;
+
+  /// Из них отклонено сервером — ждут вмешательства.
+  int get rejected => _rejected;
+
+  LocalSyncStore get _store => LocalSyncStore(_db);
+
+  // ------------------------------------------------------------- запуск
+
+  /// Читает привязку базы и сохранённый вход.
+  Future<void> init() async {
+    _watchDatabase();
+    _server = await _store.linkedServer() ?? defaultServer;
+    final saved = await _db.syncStateDao.getValue(lastSyncKey);
+    _lastSyncAt = saved == null ? null : DateTime.tryParse(saved)?.toLocal();
+    await _connect(_server);
+    _user = await _api!.currentUser();
+    await _updatePhase();
+    await refreshPending();
+  }
+
+  /// База переоткрыта (полное восстановление из копии) — начать заново.
+  Future<void> rebind(LocalDatabase database) async {
+    if (identical(database, _db)) return;
+    _db = database;
+    _engine = null;
+    await init();
+  }
+
+  Future<void> _connect(String server) async {
+    _api?.close();
+    _api = KfhApiClient(
+      baseUrl: Uri.parse(server),
+      deviceId: await _db.deviceId(),
+      tokens: _tokenStore(server),
+      client: _httpClient(),
+    );
+    _engine = null;
+  }
+
+  Future<void> _updatePhase() async {
+    final user = _user;
+    if (user == null) {
+      _phase = SyncPhase.signedOut;
+    } else if (user.mustChangePassword) {
+      _phase = SyncPhase.passwordChange;
+    } else if (await _store.linkedServer() != _server) {
+      _phase = SyncPhase.needsLink;
+    } else {
+      _phase = SyncPhase.ready;
+    }
+    notifyListeners();
+  }
+
+  SyncEngine get _syncEngine => _engine ??= SyncEngine(
+    store: _store,
+    transport: HttpSyncTransport(_api!),
+    journal: journal,
+  );
+
+  // ------------------------------------------------------------- вход
+
+  /// Адрес сервера в привычном виде: без «/» в конце, по умолчанию https.
+  static String normalizeServer(String input) {
+    var s = input.trim();
+    while (s.endsWith('/')) {
+      s = s.substring(0, s.length - 1);
+    }
+    if (!s.contains('://')) s = 'https://$s';
+    final uri = Uri.tryParse(s);
+    if (uri == null ||
+        !(uri.scheme == 'https' || uri.scheme == 'http') ||
+        uri.host.isEmpty) {
+      throw const SyncUserException('Адрес сервера указан неверно');
+    }
+    return s;
+  }
+
+  /// Вход логином и паролем. Ошибка — [SyncUserException] с понятным
+  /// текстом.
+  Future<void> signIn(String server, String login, String password) async {
+    final address = normalizeServer(server);
+    await _connect(address);
+    _server = address;
+    final SessionUser user;
+    try {
+      user = await _api!.login(login.trim(), password);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    if (!user.canUseDesktop) {
+      await _api!.logout();
+      _user = null;
+      await _updatePhase();
+      throw SyncUserException(
+        'Роль «${user.roleTitle}» пока не работает в программе для Windows — '
+        'нужна учётная запись администратора или бухгалтера.',
+      );
+    }
+    _user = user;
+    _problem = null;
+    _offline = false;
+    await _updatePhase();
+  }
+
+  /// Смена пароля (обязательная после выдачи администратором или по
+  /// желанию).
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    try {
+      _user = await _api!.changePassword(oldPassword, newPassword);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await _updatePhase();
+  }
+
+  /// Выход: токены удаляются, база остаётся привязанной к серверу —
+  /// следующий вход продолжит с того же места.
+  Future<void> signOut() async {
+    await _api?.logout();
+    _user = null;
+    _problem = null;
+    _offline = false;
+    await _updatePhase();
+  }
+
+  // ------------------------------------------------------------- первый вход
+
+  SyncBootstrap _bootstrap() => SyncBootstrap(
+    store: _store,
+    api: _api!,
+    transport: HttpSyncTransport(_api!),
+    engine: _syncEngine,
+    server: _server,
+  );
+
+  /// Что будет при первом входе этой базы на сервер. Ничего не меняет.
+  Future<BootstrapPlan> analyzeLink() async {
+    try {
+      return await _bootstrap().analyze(_user!);
+    } on SyncFailure catch (e) {
+      await _afterFailure(e);
+      throw SyncUserException(_explain(e));
+    }
+  }
+
+  /// Выполняет первый вход: копия базы, затем выгрузка / привязка / приём.
+  Future<SyncReport> link(BootstrapPlan plan) async {
+    _syncing = true;
+    notifyListeners();
+    try {
+      final report = await _bootstrap().execute(plan, backup: backup);
+      await _succeeded(report);
+      await _updatePhase();
+      return report;
+    } on SyncFailure catch (e) {
+      await _afterFailure(e);
+      throw SyncUserException(_explain(e));
+    } finally {
+      _syncing = false;
+      await refreshPending();
+    }
+  }
+
+  // ------------------------------------------------------------- синхронизация
+
+  /// Синхронизировать сейчас. Не бросает: ошибка — в [problem].
+  /// [retryRejected] — отправить и отклонённые ранее правки.
+  Future<SyncReport?> syncNow({bool retryRejected = false}) async {
+    if (_phase != SyncPhase.ready) return null;
+    _syncing = true;
+    notifyListeners();
+    try {
+      final report = await _syncEngine.run(retryRejected: retryRejected);
+      await _succeeded(report);
+      return report;
+    } on SyncFailure catch (e) {
+      await _afterFailure(e);
+      return null;
+    } catch (e) {
+      _problem = 'Ошибка синхронизации: $e';
+      return null;
+    } finally {
+      _syncing = false;
+      await refreshPending();
+    }
+  }
+
+  Future<void> _succeeded(SyncReport report) async {
+    _lastReport = report;
+    _lastSyncAt = report.finishedAt.toLocal();
+    _problem = null;
+    _offline = false;
+    await _db.syncStateDao.setValue(
+      lastSyncKey,
+      report.finishedAt.toIso8601String(),
+    );
+    if (report.changedLocalData) await onDataChanged();
+  }
+
+  Future<void> _afterFailure(SyncFailure e) async {
+    _offline = e is NetworkFailure;
+    _problem = _explain(e);
+    if (e is ApiFailure) {
+      if (e.needsLogin) {
+        await _api?.logout();
+        _user = null;
+        _problem =
+            '${e.message}. Войдите снова — до входа данные '
+            'сохраняются только на этом компьютере.';
+      } else if (e.code == 'password_change_required') {
+        final u = _user;
+        if (u != null) {
+          _user = SessionUser(
+            uuid: u.uuid,
+            login: u.login,
+            fullName: u.fullName,
+            role: u.role,
+            mustChangePassword: true,
+          );
+        }
+      }
+    }
+    await _updatePhase();
+  }
+
+  String _explain(SyncFailure e) => switch (e) {
+    NetworkFailure() => 'Нет связи с сервером $_server',
+    ApiFailure(details: final d) when d.isNotEmpty =>
+      '${e.message}:\n${d.take(10).join('\n')}',
+    _ => e.message,
+  };
+
+  // ------------------------------------------------------------- очередь
+
+  /// Пересчитать неотправленное (после правок в базе).
+  Future<void> refreshPending() async {
+    _pending = await _store.pendingCount();
+    _rejected = (await _store.rejectedChanges()).length;
+    notifyListeners();
+  }
+
+  /// Отклонённые сервером правки — для журнала.
+  Future<List<RejectedChange>> rejectedChanges() => _store.rejectedChanges();
+
+  void _watchDatabase() {
+    _updates?.cancel();
+    _updates = _db.tableUpdates().listen((_) {
+      _pendingTimer?.cancel();
+      _pendingTimer = Timer(
+        const Duration(milliseconds: 400),
+        () => unawaitedSafe(refreshPending()),
+      );
+    });
+  }
+
+  static void unawaitedSafe(Future<void> f) =>
+      f.catchError((Object e) => debugPrint('sync: $e'));
+
+  @override
+  void dispose() {
+    _updates?.cancel();
+    _pendingTimer?.cancel();
+    _api?.close();
+    super.dispose();
+  }
+}

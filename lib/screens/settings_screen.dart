@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../providers/sync_provider.dart';
+import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
 import 'backup_list_screen.dart';
 
@@ -286,13 +288,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const Divider(height: 1),
                         ],
 
-                        // Синхронизация с облаком (заглушка)
+                        // Сервер синхронизации
                         ListTile(
-                          leading: const Icon(Icons.cloud_upload),
-                          title: const Text('Синхронизация с облаком'),
-                          subtitle: const Text('Будет доступно в версии 2.0'),
-                          trailing: const Icon(Icons.lock_outline),
-                          enabled: false,
+                          leading: const Icon(Icons.cloud_sync),
+                          title: const Text('Сервер синхронизации'),
+                          subtitle: Text(
+                            context.watch<SyncProvider>().user == null
+                                ? 'Вход не выполнен'
+                                : 'Вход: ${context.watch<SyncProvider>().user!.login}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SyncScreen(),
+                            ),
+                          ),
                         ),
                         const Divider(height: 1),
 

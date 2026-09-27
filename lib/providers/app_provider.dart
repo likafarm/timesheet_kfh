@@ -21,6 +21,14 @@ class AppProvider extends ChangeNotifier {
   /// Путь к файлу базы (для «О программе»).
   String get databasePath => _appDb.path;
 
+  /// Открытая локальная база (для синхронизации). После полного
+  /// восстановления это другой объект — см. [databaseGeneration].
+  LocalDatabase get localDatabase => _appDb.db;
+
+  /// Растёт, когда база переоткрыта (полное восстановление из копии).
+  int get databaseGeneration => _databaseGeneration;
+  int _databaseGeneration = 0;
+
   EmployeeRepository get _employeesRepo => _appDb.repos.employees;
   RateRepository get _ratesRepo => _appDb.repos.rates;
   TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
@@ -45,6 +53,10 @@ class AppProvider extends ChangeNotifier {
   // Для перезагрузки табеля
   DateTime? _currentPeriodStart;
   DateTime? _currentPeriodEnd;
+  String? _currentTimesheetEmployee;
+
+  /// Последняя загрузка выплат — повторяется после синхронизации.
+  Future<void> Function()? _reloadPayments;
 
   // Флаг для обновления отчётов
   bool _needRefreshReports = false;
@@ -201,6 +213,7 @@ class AppProvider extends ChangeNotifier {
     try {
       _currentPeriodStart = start;
       _currentPeriodEnd = end;
+      _currentTimesheetEmployee = employeeId;
       _timesheetRecords = await _timesheetRepo.inPeriod(
         start,
         end,
@@ -338,6 +351,8 @@ class AppProvider extends ChangeNotifier {
   // ==========================================================================
 
   Future<void> loadAllPayments({DateTime? startDate, DateTime? endDate}) async {
+    _reloadPayments = () =>
+        loadAllPayments(startDate: startDate, endDate: endDate);
     _setLoading(true);
     try {
       _payments = await _paymentsRepo.list(start: startDate, end: endDate);
@@ -354,6 +369,11 @@ class AppProvider extends ChangeNotifier {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    _reloadPayments = () => loadPaymentsByEmployee(
+      employeeId,
+      startDate: startDate,
+      endDate: endDate,
+    );
     _setLoading(true);
     try {
       _payments = await _paymentsRepo.list(
@@ -499,6 +519,30 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
+  // СИНХРОНИЗАЦИЯ
+  // ==========================================================================
+
+  /// Синхронизация записала в базу изменения с сервера: перечитать то, что
+  /// показывают экраны (те же периоды и фильтры).
+  Future<void> reloadAfterSync() async {
+    await loadAllData();
+    final start = _currentPeriodStart, end = _currentPeriodEnd;
+    if (start != null && end != null) {
+      await loadTimesheet(start, end, employeeId: _currentTimesheetEmployee);
+    }
+    await _reloadPayments?.call();
+    setNeedRefreshReports(true);
+  }
+
+  /// Копия базы перед первым входом на сервер
+  /// (`backup_before_sync_<дата-время>.db`). Бросает исключение, если копию
+  /// сделать не удалось.
+  Future<String> createSyncSafetyBackup() => _backupService.createSafetyBackup(
+    _appDb.db,
+    prefix: 'backup_before_sync',
+  );
+
+  // ==========================================================================
   // РЕЗЕРВНОЕ КОПИРОВАНИЕ
   // ==========================================================================
 
@@ -581,6 +625,7 @@ class AppProvider extends ChangeNotifier {
         replaceDatabaseFile(prepared, path);
       } finally {
         _appDb = await AppDatabase.openFile(path);
+        _databaseGeneration++;
       }
       await loadAllData();
       setNeedRefreshReports(true);

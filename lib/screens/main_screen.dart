@@ -6,6 +6,7 @@ import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
 import '../providers/app_provider.dart';
+import '../widgets/sync_status_bar.dart';
 
 /// Главный экран приложения с нижней навигацией
 class MainScreen extends StatefulWidget {
@@ -88,25 +89,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         index: _selectedIndex,
         children: _navigationItems.map((item) => item.screen).toList(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: _navigationItems.map((item) {
-          return BottomNavigationBarItem(
-            icon: Icon(item.icon),
-            activeIcon: Icon(item.selectedIcon),
-            label: item.label,
-          );
-        }).toList(),
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SyncStatusBar(),
+          BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            items: _navigationItems.map((item) {
+              return BottomNavigationBarItem(
+                icon: Icon(item.icon),
+                activeIcon: Icon(item.selectedIcon),
+                label: item.label,
+              );
+            }).toList(),
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            selectedLabelStyle: const TextStyle(fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }
