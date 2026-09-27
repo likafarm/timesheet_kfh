@@ -505,9 +505,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final daysFormat = NumberFormat('#,##0.0', 'ru');
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
 
-    return GestureDetector(
-      onDoubleTap: () => _showDetail(result, employee),
-      behavior: HitTestBehavior.opaque,
+    // Одно касание (двойное заменено везде, этап 4).
+    return InkWell(
+      onTap: () => _showDetail(result, employee),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(

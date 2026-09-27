@@ -372,11 +372,17 @@ class AppProvider extends ChangeNotifier {
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
-        final updated = existing.copyWith(
+        // Не copyWith: `workPlace: null` в нём значит «не менять», а у
+        // больничного, отпуска и выходного места работы нет.
+        final updated = TimesheetRecord(
+          id: existing.id,
+          employeeId: existing.employeeId,
+          date: existing.date,
           dayType: record.dayType,
           days: record.days,
           workPlace: record.workPlace,
-          notes: record.notes,
+          notes: record.notes ?? existing.notes,
+          createdAt: existing.createdAt,
         );
         await _timesheetRepo.update(updated);
       } else {

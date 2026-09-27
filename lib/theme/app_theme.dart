@@ -13,6 +13,14 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF757575);
   static const Color textHint = Color(0xFFBDBDBD);
 
+  /// Боковая навигация на широком экране — тёмная (UI_REQUIREMENTS п. 2.2).
+  static const Color navigationBackground = Color(0xFF1E2B22);
+  static const Color navigationForeground = Color(0xFFB8C7BC);
+  static const Color navigationSelected = Colors.white;
+
+  /// Уже этого — телефон: нижняя навигация, формы снизу экрана.
+  static const double compactWidth = 600.0;
+
   static const double defaultRadius = 8.0;
   static const double defaultPadding = 16.0;
   static const double smallPadding = 8.0;
