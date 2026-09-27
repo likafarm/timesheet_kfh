@@ -10,6 +10,17 @@
 		-Server
 	}
 
+	# Страница загрузки программы для телефона (этап 4.8): index.html и APK
+	# из /opt/kfh/downloads. versions.json читает API (/client/version).
+	redir /download /download/
+	handle /download/* {
+		root * /srv
+		@apk path *.apk
+		header @apk Content-Type application/vnd.android.package-archive
+		header Cache-Control no-cache
+		file_server
+	}
+
 	# Адрес клиента API берёт из X-Forwarded-For (TRUST_PROXY=true):
 	# Caddy без trusted_proxies пишет туда только реальный адрес.
 	reverse_proxy api:8080

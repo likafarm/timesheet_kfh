@@ -24,16 +24,18 @@ class StringUtils {
     return '${_rateFormat.format(value)} ₽/день';
   }
 
+  /// Место работы; [withRates] = false — без ставок (программа оператора).
   static String workPlaceLabel(
     String place, {
     double? baseRate,
     double? fieldRate,
+    bool withRates = true,
   }) {
     switch (place) {
       case 'base':
-        return 'База (${formatDayRate(baseRate)})';
+        return withRates ? 'База (${formatDayRate(baseRate)})' : 'База';
       case 'field':
-        return 'Поле (${formatDayRate(fieldRate)})';
+        return withRates ? 'Поле (${formatDayRate(fieldRate)})' : 'Поле';
       default:
         return place;
     }

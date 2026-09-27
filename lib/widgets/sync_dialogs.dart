@@ -7,11 +7,13 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
+import 'adaptive_dialog.dart';
 
 /// Вход и всё, что после него нужно: смена выданного пароля, первый вход
 /// базы на сервер.
 Future<void> startSignIn(BuildContext context) async {
-  final signedIn = await showDialog<bool>(
+  final signedIn = await showAppDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (_) => const SignInDialog(),
@@ -24,7 +26,7 @@ Future<void> startSignIn(BuildContext context) async {
 Future<void> continueSyncSetup(BuildContext context) async {
   final sync = context.read<SyncProvider>();
   if (sync.phase == SyncPhase.passwordChange) {
-    final changed = await showDialog<bool>(
+    final changed = await showAppDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const ChangePasswordDialog(forced: true),
@@ -32,7 +34,7 @@ Future<void> continueSyncSetup(BuildContext context) async {
     if (changed != true || !context.mounted) return;
   }
   if (sync.phase == SyncPhase.needsLink && context.mounted) {
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const LinkDialog(),
@@ -136,7 +138,7 @@ class _SignInDialogState extends State<SignInDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Вход на сервер'),
       content: SizedBox(
         width: 400,
@@ -148,9 +150,15 @@ class _SignInDialogState extends State<SignInDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Вход нужен для обмена данными с другими компьютерами. Без '
-                  'входа программа работает как раньше — только с этой базой.',
+                Text(
+                  isAndroidApp
+                      ? 'Войдите учётной записью оператора: сотрудники и '
+                            'табель придут с сервера, введённые дни уйдут на '
+                            'сервер сами, когда будет связь.'
+                      : 'Войдите учётной записью администратора или '
+                            'бухгалтера. Без входа программа не запускается; '
+                            'вход сохраняется, и дальше программа работает '
+                            'и без связи с сервером.',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -295,7 +303,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   Widget build(BuildContext context) {
     InputDecoration field(String label) =>
         InputDecoration(labelText: label, border: const OutlineInputBorder());
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Смена пароля'),
       content: SizedBox(
         width: 400,
@@ -428,7 +436,7 @@ class _LinkDialogState extends State<LinkDialog> {
         setState(() {
           _error = e is SyncUserException
               ? e.message
-              : 'Не удалось: $e. Данные этого компьютера не пострадали — '
+              : 'Не удалось: $e. Данные $ofThisDevice не пострадали — '
                     'перед началом сделана резервная копия.';
           _step = _LinkStep.failed;
         });
@@ -459,7 +467,7 @@ class _LinkDialogState extends State<LinkDialog> {
     final error = Theme.of(context).colorScheme.error;
     switch (_step) {
       case _LinkStep.analyzing:
-        return _progress('Сравниваю данные этого компьютера и сервера…');
+        return _progress('Сравниваю данные $ofThisDevice и сервера…');
       case _LinkStep.running:
         return _progress(
           'Резервная копия базы, затем обмен с сервером. Не закрывайте '
@@ -515,7 +523,7 @@ class _LinkDialogState extends State<LinkDialog> {
   Widget build(BuildContext context) {
     final busy = _step == _LinkStep.analyzing || _step == _LinkStep.running;
     final plan = _plan;
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Первый вход на сервер'),
       content: SizedBox(
         width: 460,

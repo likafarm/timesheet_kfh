@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import 'adaptive_dialog.dart';
 
 const _closedColor = Color(0xFFB26A00);
 
@@ -55,9 +56,9 @@ class ClosedMonthBadge extends StatelessWidget {
 /// Перед правкой: месяц открыт — true; закрыт — объяснение и false.
 Future<bool> ensureMonthOpen(BuildContext context, int year, int month) async {
   if (!context.read<AppProvider>().isMonthLocked(year, month)) return true;
-  await showDialog<void>(
+  await showAppDialog<void>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => AppDialog(
       icon: const Icon(Icons.lock_outline, color: _closedColor),
       title: Text('Месяц ${_monthText(year, month)} закрыт'),
       content: const SizedBox(

@@ -7,6 +7,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import 'common_widgets.dart';
+import 'adaptive_dialog.dart';
 
 class TimesheetRecordDialog extends StatefulWidget {
   final Employee employee;
@@ -59,9 +60,12 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadRateAtDate());
   }
 
+  /// Ставки показываются всем, кроме оператора (сервер ему их не отдаёт).
+  bool get _showRates => !context.read<AppProvider>().operatorMode;
+
   Future<void> _loadRateAtDate() async {
     final id = widget.employee.id;
-    if (id == null) return;
+    if (id == null || !_showRates) return;
     final rate = await context.read<AppProvider>().getEmployeeRateAtDate(
       id,
       _date,
@@ -80,7 +84,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.record?.id != null;
 
-    return AlertDialog(
+    return AppDialog(
       title: Text('${isEditing ? 'Редактировать' : 'Добавить'} запись'),
       content: SizedBox(
         width: 400,
@@ -194,6 +198,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'base',
+                              withRates: _showRates,
                               baseRate:
                                   _rateAtDate?.baseRate ??
                                   widget.employee.baseRate,
@@ -205,6 +210,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                           child: Text(
                             StringUtils.workPlaceLabel(
                               'field',
+                              withRates: _showRates,
                               fieldRate:
                                   _rateAtDate?.fieldRate ??
                                   widget.employee.fieldRate,
@@ -221,7 +227,9 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                     ),
                   ),
                 ),
-                if (_dayType == 'work' && _workPlace != null) ...[
+                if (_showRates &&
+                    _dayType == 'work' &&
+                    _workPlace != null) ...[
                   const SizedBox(height: 6),
                   Text(
                     _workPlace == 'base'
@@ -292,12 +300,14 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
           widget.employee.position,
           style: TextStyle(color: Colors.grey[600], fontSize: 13),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Ставки: база ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
+        if (_showRates) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Ставки: база ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
           ' · поле ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
-          style: TextStyle(color: Colors.grey[700], fontSize: 12),
-        ),
+            style: TextStyle(color: Colors.grey[700], fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 8),
         ListTile(
           contentPadding: EdgeInsets.zero,

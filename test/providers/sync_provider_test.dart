@@ -25,8 +25,10 @@ void main() {
   late int reloads;
   late int lockChanges;
 
-  SyncProvider provider() => _track(
+  SyncProvider provider({ClientKind client = ClientKind.desktop}) => _track(
     SyncProvider(
+      client: client,
+      appVersion: () async => '1.3.0',
       database: db,
       dataDirectory: '.',
       onDataChanged: () async => reloads++,
@@ -128,6 +130,100 @@ void main() {
     );
     expect(sync.phase, SyncPhase.signedOut);
     expect(tokens.tokens, isNull);
+  });
+
+  test('телефон: оператор входит, первый вход — только приём', () async {
+    server.role = 'operator';
+    final sync = provider(client: ClientKind.phone);
+    await sync.init();
+    await sync.signIn('https://localhost', 'oper', 'secret-pass');
+    expect(sync.phase, SyncPhase.needsLink);
+    final plan = await sync.analyzeLink();
+    expect(plan.kind, BootstrapKind.download);
+    final report = await sync.link(plan);
+    expect(report.pushed, 0, reason: 'настройки хозяйства не уходят');
+    expect(sync.phase, SyncPhase.ready);
+    expect(sync.pending, 0);
+  });
+
+  test('телефон: администратору — отказ', () async {
+    final sync = provider(client: ClientKind.phone);
+    await sync.init();
+    await expectLater(
+      sync.signIn('https://localhost', 'ivan', 'secret-pass'),
+      throwsA(
+        isA<SyncUserException>().having(
+          (e) => e.message,
+          'message',
+          contains('только для оператора'),
+        ),
+      ),
+    );
+    expect(sync.phase, SyncPhase.signedOut);
+    expect(tokens.tokens, isNull);
+  });
+
+  test('сохранённый вход чужой роли при запуске забывается', () async {
+    server.role = 'operator';
+    final phone = provider(client: ClientKind.phone);
+    await phone.init();
+    await phone.signIn('https://localhost', 'oper', 'secret-pass');
+    expect(tokens.tokens, isNotNull);
+    // Те же токены в программе для Windows.
+    final desktop = provider();
+    await desktop.init();
+    expect(desktop.phase, SyncPhase.signedOut);
+    expect(tokens.tokens, isNull);
+  });
+
+  test('версия старее минимальной — синхронизация на паузе', () async {
+    server.versions = {
+      'platforms': {
+        'windows': {'latest': '1.4.0', 'min': '1.4.0'},
+        'android': {'latest': '1.3.0', 'min': '1.3.0'},
+      },
+    };
+    final sync = await signedIn();
+    await sync.link(await sync.analyzeLink());
+    await sync.checkVersion();
+    expect(sync.updateRequired, isTrue);
+    expect(sync.serverVersion!.latest, '1.4.0');
+
+    final pushes = server.pushes;
+    expect(await sync.syncNow(), isNull);
+    expect(server.pushes, pushes);
+    expect(sync.problem, contains('Нужна новая версия программы (1.4.0)'));
+
+    // Минимальную снизили — снова работает.
+    server.versions = {
+      'platforms': {
+        'windows': {'latest': '1.4.0', 'min': '1.3.0'},
+      },
+    };
+    await sync.checkVersion();
+    expect(sync.updateRequired, isFalse);
+    expect(sync.updateAvailable, isTrue);
+    expect(await sync.syncNow(), isNotNull);
+  });
+
+  test('телефон смотрит версию android; старый сервер — без требований', () async {
+    server.role = 'operator';
+    server.versions = {
+      'platforms': {
+        'android': {'latest': '1.3.1', 'min': '1.3.1'},
+      },
+    };
+    final phone = provider(client: ClientKind.phone);
+    await phone.init();
+    await phone.checkVersion();
+    expect(phone.updateRequired, isTrue);
+
+    server.versions = null;
+    final desktop = provider();
+    await desktop.init();
+    await desktop.checkVersion();
+    expect(desktop.updateRequired, isFalse);
+    expect(desktop.serverVersion, isNull);
   });
 
   test('выданный пароль нужно сменить, затем — первый вход', () async {

@@ -49,7 +49,9 @@ class DbConfig {
 /// - `JWT_SECRET` или `JWT_SECRET_FILE` — ключ подписи access-токенов, не
 ///   короче 32 байт (нужен только самому серверу, не командам);
 /// - `TRUST_PROXY` — сервер за своим прокси (Caddy): адрес клиента брать из
-///   `X-Forwarded-For` (по умолчанию `false`).
+///   `X-Forwarded-For` (по умолчанию `false`);
+/// - `CLIENT_VERSIONS_FILE` — файл версий программ для `GET /client/version`
+///   (не задан — обновлений не требуется).
 class ServerConfig {
   final int port;
   final DbConfig db;
@@ -57,6 +59,7 @@ class ServerConfig {
   final bool migrateOnStart;
   final String? jwtSecret;
   final bool trustProxy;
+  final String? clientVersionsFile;
 
   const ServerConfig({
     required this.port,
@@ -65,6 +68,7 @@ class ServerConfig {
     this.migrateOnStart = false,
     this.jwtSecret,
     this.trustProxy = false,
+    this.clientVersionsFile,
   });
 
   /// Ключ подписи токенов: без него сервер не запускается.
@@ -158,6 +162,9 @@ class ServerConfig {
       migrateOnStart: boolValue('MIGRATE_ON_START', false),
       jwtSecret: jwtSecret,
       trustProxy: boolValue('TRUST_PROXY', false),
+      clientVersionsFile: (env['CLIENT_VERSIONS_FILE']?.trim() ?? '').isEmpty
+          ? null
+          : env['CLIENT_VERSIONS_FILE']!.trim(),
     );
   }
 }

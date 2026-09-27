@@ -51,6 +51,10 @@ services:
       TRUST_PROXY: "true"
       # Миграции применяет deploy.sh (`api migrate`) после резервной копии.
       MIGRATE_ON_START: "false"
+      # Версии программ для GET /client/version (пишет publish_apk.ps1).
+      CLIENT_VERSIONS_FILE: /downloads/versions.json
+    volumes:
+      - /opt/kfh/downloads:/downloads:ro
     secrets:
       - mysql_password
       - jwt_secret
@@ -69,6 +73,8 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Страница загрузки и APK для телефона (этап 4.8).
+      - /opt/kfh/downloads:/srv/download:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

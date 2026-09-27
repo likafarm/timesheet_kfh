@@ -24,6 +24,7 @@ void main() {
     Duration interval = const Duration(minutes: 5),
   }) {
     final p = SyncProvider(
+      appVersion: () async => '1.3.0',
       database: db,
       dataDirectory: '.',
       onDataChanged: () async {},

@@ -92,6 +92,9 @@ class Win32Window {
 
   bool quit_on_close_ = false;
 
+  // The previous launch ended maximized: show maximized.
+  bool show_maximized_ = false;
+
   // window handle for top level window.
   HWND window_handle_ = nullptr;
 

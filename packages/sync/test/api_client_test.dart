@@ -68,13 +68,34 @@ void main() {
     final api = client((r) => _json(_pair('1')));
     final user = await api.login('ivan', 'secret-pass');
     expect(user.login, 'ivan');
-    expect(user.canUseDesktop, isTrue);
+    expect(user.canUseOn(ClientKind.desktop), isTrue);
+    expect(user.canUseOn(ClientKind.phone), isFalse);
     expect(tokens.tokens!.accessToken, 'access-1');
     final r = requests.single;
     expect(r.method, 'POST');
     expect(r.url.toString(), 'https://tab.example.ru/auth/login');
     expect(r.headers['x-device-id'], 'device-1');
     expect(jsonDecode(r.body), {'login': 'ivan', 'password': 'secret-pass'});
+  });
+
+  test('версии программ — без входа; старый сервер — пустой список', () async {
+    final api = client(
+      (r) => _json({
+        'platforms': {
+          'android': {'latest': '1.3.0', 'min': '1.3.0'},
+        },
+      }),
+    );
+    final v = await api.clientVersions();
+    expect(v.platforms['android']!.requiresUpdate('1.2.0'), isTrue);
+    expect(requests.single.headers['authorization'], isNull);
+    expect(requests.single.url.path, '/client/version');
+
+    final old = client((r) => _error(404, 'not_found', 'Нет такого адреса'));
+    expect((await old.clientVersions()).platforms, isEmpty);
+
+    final broken = client((r) => _json({'platforms': 1}));
+    await expectLater(broken.clientVersions(), throwsA(isA<ServerFailure>()));
   });
 
   test('неверный пароль — ApiFailure с сообщением сервера', () async {

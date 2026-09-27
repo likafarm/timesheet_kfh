@@ -37,6 +37,12 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (context.read<AppProvider>().operatorMode) {
+      return _OperatorEmployeeList(
+        showAll: _showAll,
+        onToggle: _toggleFilter,
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Сотрудники'),
@@ -499,6 +505,72 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Сотрудники в программе оператора: только просмотр, без ставок (сервер
+/// оператору их не отдаёт) и без правки.
+class _OperatorEmployeeList extends StatelessWidget {
+  final bool showAll;
+  final VoidCallback onToggle;
+
+  const _OperatorEmployeeList({required this.showAll, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final employees = provider.employees;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Сотрудники'),
+        centerTitle: false,
+        actions: [
+          const Text('Только работающие'),
+          Switch(value: !showAll, onChanged: (_) => onToggle()),
+        ],
+      ),
+      body: provider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : employees.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  showAll
+                      ? 'Сотрудников нет. Они придут с сервера после входа.'
+                      : 'Нет работающих сотрудников.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
+            )
+          : ListView.separated(
+              itemCount: employees.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final e = employees[i];
+                final dismissal = e.dismissalDate;
+                return ListTile(
+                  title: Text(
+                    e.fullName,
+                    style: TextStyle(
+                      decoration: e.isActive
+                          ? null
+                          : TextDecoration.lineThrough,
+                    ),
+                  ),
+                  subtitle: Text(
+                    [
+                      if (e.position.isNotEmpty) e.position,
+                      'с ${DateFormat('dd.MM.yyyy').format(e.hireDate)}',
+                      if (dismissal != null)
+                        'уволен ${DateFormat('dd.MM.yyyy').format(dismissal)}',
+                    ].join(' · '),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

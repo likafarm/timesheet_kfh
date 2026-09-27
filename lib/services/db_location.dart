@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;
 
+import 'platform.dart';
+
 /// Имя файла старой базы (sqflite, схема v8).
 const dbFileName = 'kfx_time_tracking.db';
 
@@ -135,7 +137,7 @@ Future<void> _deleteWithSidecars(String path) async {
 Future<void> logDbLocation(String message) async {
   debugPrint(message);
   try {
-    final file = File(p.join(appDataDirectory(), 'db_location.log'));
+    final file = File(p.join(await appDataDirectory(), 'db_location.log'));
     await file.writeAsString(
       '${DateTime.now().toIso8601String()} $message\n',
       mode: FileMode.append,
@@ -144,22 +146,12 @@ Future<void> logDbLocation(String message) async {
   } catch (_) {}
 }
 
-/// Папка данных программы: `%LOCALAPPDATA%\KFH Time Tracking`.
-/// Отладочная сборка использует отдельную папку, чтобы `flutter run`
-/// не смешивал тестовую базу с рабочей.
-String appDataDirectory() {
-  final base = Platform.environment['LOCALAPPDATA'];
-  if (base == null || base.isEmpty) {
-    throw StateError('Не задана переменная окружения LOCALAPPDATA');
-  }
-  final name = kDebugMode ? 'KFH Time Tracking (debug)' : 'KFH Time Tracking';
-  return p.join(base, name);
-}
-
 /// Папки, где база лежала до версии с переносом в AppData.
 /// `sqflite_common_ffi` строил путь от рабочей папки процесса, поэтому
 /// сначала проверяется папка программы, затем текущая рабочая папка.
+/// На Android старой базы не было — список пуст.
 List<String> legacyDatabaseDirectories() {
+  if (Platform.isAndroid) return const [];
   const rel = ['.dart_tool', 'sqflite_common_ffi', 'databases'];
   return [
     p.joinAll([p.dirname(Platform.resolvedExecutable), ...rel]),

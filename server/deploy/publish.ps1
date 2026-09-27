@@ -10,6 +10,9 @@ param(
     [string]$SshHost = "kfh"
 )
 $ErrorActionPreference = "Stop"
+# ssh/scp/docker pishut progress v stderr - v PowerShell 5.1 pri "Stop" eto
+# oshibka posredi vykladki. Uspekh proveryaetsya po $LASTEXITCODE.
+$nativeErrors = "Continue"
 
 $root = git rev-parse --show-toplevel
 if (-not $?) { throw "ne git-repozitoriy" }
@@ -17,7 +20,7 @@ Set-Location $root
 
 $rev = (git rev-parse --short HEAD).Trim()
 if (git status --porcelain) { $rev = "$rev-dirty" }
-$paths = @("pubspec.lock", "packages/domain", "packages/local_db/pubspec.yaml", "server")
+$paths = @("pubspec.lock", "packages/domain", "packages/local_db/pubspec.yaml", "packages/sync/pubspec.yaml", "server")
 $list = Join-Path $env:TEMP "kfh-src-files.txt"
 $tar = Join-Path $env:TEMP "kfh-src.tar"
 
@@ -29,6 +32,7 @@ $files = git ls-files -co --exclude-standard -- $paths |
 if ($LASTEXITCODE -ne 0) { throw "tar: oshibka" }
 Write-Host "revision $rev, files: $($files.Count)"
 
+$ErrorActionPreference = $nativeErrors
 scp -q $tar "${SshHost}:/tmp/kfh-src.tar"
 if ($LASTEXITCODE -ne 0) { throw "scp: oshibka" }
 

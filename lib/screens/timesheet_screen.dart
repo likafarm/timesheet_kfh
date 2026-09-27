@@ -11,6 +11,9 @@ import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
 import '../widgets/daily_timesheet_dialog.dart';
 import '../services/print_service.dart';
+import '../theme/app_theme.dart';
+import 'daily_input_screen.dart';
+import '../widgets/adaptive_dialog.dart';
 
 class TimesheetScreen extends StatefulWidget {
   const TimesheetScreen({super.key});
@@ -64,6 +67,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 
   void _showDailyInputDialog(BuildContext context) {
+    // Телефон — отдельный экран с крупными кнопками, Windows — окно.
+    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
+      Navigator.of(context)
+          .push(
+            MaterialPageRoute(
+              builder: (_) => const DailyInputScreen(standalone: true),
+            ),
+          )
+          .then((_) => _loadTimesheet());
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => DailyTimesheetDialog(
@@ -149,6 +163,16 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     }
   }
 
+  void _shiftMonth(int delta) {
+    setState(() {
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + delta,
+      );
+    });
+    _loadTimesheet();
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
@@ -159,85 +183,84 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
       _selectedMonth.month + 1,
       0,
     ).day;
+    final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
+    final operator = context.read<AppProvider>().operatorMode;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Табель учёта времени'),
+        title: Text(compact ? 'Табель' : 'Табель учёта времени'),
         centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: _printTimesheet,
-            tooltip: 'Печать табеля',
-          ),
-          IconButton(
-            icon: const Icon(Icons.calculate),
-            onPressed: _isCalculating ? null : _calculatePayroll,
-            tooltip: 'Рассчитать зарплату за месяц',
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              setState(() {
-                _selectedMonth = DateTime(
-                  _selectedMonth.year,
-                  _selectedMonth.month - 1,
-                );
-              });
-              _loadTimesheet();
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Center(
-              child: GestureDetector(
-                onTap: _selectMonth,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        capitalizedMonth,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      ClosedMonthBadge(
-                        year: _selectedMonth.year,
-                        month: _selectedMonth.month,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          if (!operator) ...[
+            IconButton(
+              icon: const Icon(Icons.print),
+              onPressed: _printTimesheet,
+              tooltip: 'Печать табеля',
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              setState(() {
-                _selectedMonth = DateTime(
-                  _selectedMonth.year,
-                  _selectedMonth.month + 1,
-                );
-              });
-              _loadTimesheet();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.today),
-            onPressed: _goToToday,
-            tooltip: 'Текущий месяц',
-          ),
+            IconButton(
+              icon: const Icon(Icons.calculate),
+              onPressed: _isCalculating ? null : _calculatePayroll,
+              tooltip: 'Рассчитать зарплату за месяц',
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.edit_calendar),
             onPressed: () => _showDailyInputDialog(context),
-            tooltip: 'Быстрый ввод за день',
+            tooltip: 'Ввод за день',
           ),
           const SizedBox(width: 8),
         ],
+        // Месяц — отдельной полосой: на телефоне в строку заголовка не
+        // помещается.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                tooltip: 'Предыдущий месяц',
+                onPressed: () => _shiftMonth(-1),
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: _selectMonth,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            capitalizedMonth,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        ClosedMonthBadge(
+                          year: _selectedMonth.year,
+                          month: _selectedMonth.month,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                tooltip: 'Следующий месяц',
+                onPressed: () => _shiftMonth(1),
+              ),
+              IconButton(
+                icon: const Icon(Icons.today),
+                onPressed: _goToToday,
+                tooltip: 'Текущий месяц',
+              ),
+            ],
+          ),
+        ),
       ),
       body: _isCalculating
           ? const Center(child: CircularProgressIndicator())
@@ -248,10 +271,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                 }
 
                 if (provider.employees.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Нет сотрудников.\nДобавьте сотрудников в разделе "Сотрудники".',
-                      textAlign: TextAlign.center,
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        operator
+                            ? 'Сотрудников нет. Они придут с сервера после '
+                                  'входа (раздел «Сервер»).'
+                            : 'Нет сотрудников.\nДобавьте сотрудников в '
+                                  'разделе "Сотрудники".',
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   );
                 }
@@ -264,6 +294,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                         records: provider.timesheetRecords,
                         selectedMonth: _selectedMonth,
                         daysInMonth: daysInMonth,
+                        compact: compact,
                         onCellTap: (employee, day) async {
                           final month = _selectedMonth;
                           if (!await ensureMonthOpen(
@@ -291,22 +322,23 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 
   Widget _buildLegend() {
+    final c = TimesheetColors.of(context);
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Wrap(
         spacing: 16,
         runSpacing: 4,
         children: [
-          _legendItem('1 / 0.5', Colors.green[50]!),
-          _legendItem('Б', Colors.blue[50]!),
-          _legendItem('О', Colors.purple[50]!),
-          _legendItem('В', Colors.grey[200]!),
+          _legendItem('1 / 0.5', c.work, c),
+          _legendItem('Б', c.sick, c),
+          _legendItem('О', c.vacation, c),
+          _legendItem('В', c.dayoff, c),
         ],
       ),
     );
   }
 
-  Widget _legendItem(String label, Color color) {
+  Widget _legendItem(String label, Color color, TimesheetColors c) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -315,13 +347,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           height: 20,
           decoration: BoxDecoration(
             color: color,
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: c.border),
             borderRadius: BorderRadius.circular(4),
           ),
           alignment: Alignment.center,
           child: Text(
             label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: c.text,
+            ),
           ),
         ),
         const SizedBox(width: 4),
@@ -333,7 +369,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               : label == 'О'
               ? '— Отпуск'
               : '— Выходной',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: c.mutedText),
         ),
       ],
     );
@@ -359,7 +395,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
       ),
     );
 
-    showDialog(
+    showAppDialog<void>(
       context: context,
       builder: (context) => TimesheetRecordDialog(
         employee: employee,
@@ -375,6 +411,9 @@ class _TimesheetGrid extends StatefulWidget {
   final List<TimesheetRecord> records;
   final DateTime selectedMonth;
   final int daysInMonth;
+
+  /// Телефон: столбец ФИО уже, ячейки крупнее под палец.
+  final bool compact;
   final void Function(Employee, int) onCellTap;
 
   const _TimesheetGrid({
@@ -382,6 +421,7 @@ class _TimesheetGrid extends StatefulWidget {
     required this.records,
     required this.selectedMonth,
     required this.daysInMonth,
+    required this.compact,
     required this.onCellTap,
   });
 
@@ -389,408 +429,306 @@ class _TimesheetGrid extends StatefulWidget {
   State<_TimesheetGrid> createState() => _TimesheetGridState();
 }
 
+/// Сетка табеля (UI_REQUIREMENTS п. 1.1, 4.1): шапка дней и столбец ФИО
+/// закреплены; дни прокручиваются по горизонтали вместе с шапкой, строки —
+/// по вертикали вместе с ФИО.
 class _TimesheetGridState extends State<_TimesheetGrid> {
-  final ScrollController _verticalScrollController = ScrollController();
+  final _namesVertical = ScrollController();
+  final _cellsVertical = ScrollController();
+  final _headerHorizontal = ScrollController();
+  final _cellsHorizontal = ScrollController();
+  bool _syncing = false;
 
   @override
-  void dispose() {
-    _verticalScrollController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _link(_namesVertical, _cellsVertical);
+    _link(_cellsVertical, _namesVertical);
+    _cellsHorizontal.addListener(() {
+      if (_headerHorizontal.hasClients) {
+        _headerHorizontal.jumpTo(_cellsHorizontal.offset);
+      }
+    });
+  }
+
+  /// Прокрутка [from] повторяется в [to].
+  void _link(ScrollController from, ScrollController to) {
+    from.addListener(() {
+      if (_syncing || !to.hasClients) return;
+      _syncing = true;
+      to.jumpTo(from.offset.clamp(0.0, to.position.maxScrollExtent));
+      _syncing = false;
+    });
   }
 
   @override
+  void dispose() {
+    _namesVertical.dispose();
+    _cellsVertical.dispose();
+    _headerHorizontal.dispose();
+    _cellsHorizontal.dispose();
+    super.dispose();
+  }
+
+  late TimesheetColors _c;
+  BorderSide get _border => BorderSide(color: _c.border);
+
+  @override
   Widget build(BuildContext context) {
-    const employeeColumnWidth = 160.0;
-    const dayColumnWidth = 40.0;
-    const cellHeight = 40.0;
+    _c = TimesheetColors.of(context);
+    final nameWidth = widget.compact ? 116.0 : 160.0;
+    final dayWidth = widget.compact ? 44.0 : 40.0;
+    final cellHeight = widget.compact ? 48.0 : 40.0;
+    const totals = 4;
+    final cellsWidth = (widget.daysInMonth + totals) * dayWidth;
 
-    const extraColumns = 3;
-    const extraWidth = dayColumnWidth * extraColumns;
-    final rightPartWidth =
-        (widget.daysInMonth * dayColumnWidth) + dayColumnWidth + extraWidth;
+    // Записи месяца: сотрудник → день.
+    final byDay = <String, Map<int, TimesheetRecord>>{};
+    for (final r in widget.records) {
+      (byDay[r.employeeId] ??= {})[r.date.day] = r;
+    }
 
-    Widget leftPart = SizedBox(
-      width: employeeColumnWidth,
-      child: Column(
-        children: [
-          Container(
-            height: cellHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-            ),
-            child: const Text(
-              'ФИО',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
+    final now = DateTime.now();
+    final header = Row(
+      children: [
+        for (var day = 1; day <= widget.daysInMonth; day++)
+          _dayHeader(
+            DateTime(widget.selectedMonth.year, widget.selectedMonth.month, day),
+            now,
+            dayWidth,
+            cellHeight,
           ),
-          Expanded(
-            child: ListView.builder(
-              controller: _verticalScrollController,
-              itemCount: widget.employees.length,
-              itemBuilder: (context, index) {
-                final employee = widget.employees[index];
-                return Container(
-                  height: cellHeight,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  alignment: Alignment.centerLeft,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[300]!),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        StringUtils.getShortName(employee.fullName),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        employee.position,
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        _totalHeader('Раб.', _c.total, dayWidth, cellHeight),
+        _totalHeader('Вых.', _c.totalAlt, dayWidth, cellHeight),
+        _totalHeader('Бол.', _c.sick, dayWidth, cellHeight),
+        _totalHeader('Отп.', _c.vacation, dayWidth, cellHeight),
+      ],
     );
 
-    Widget rightPart = Expanded(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: rightPartWidth,
-          child: Column(
+    Widget row(Employee employee) {
+      final records = byDay[employee.id] ?? const {};
+      var work = 0.0, sick = 0.0, vacation = 0.0, dayoff = 0.0;
+      for (final r in records.values) {
+        switch (r.dayType) {
+          case 'work':
+            work += r.days;
+          case 'sick':
+            sick += r.days;
+          case 'vacation':
+            vacation += r.days;
+          case 'dayoff':
+            dayoff += r.days;
+        }
+      }
+      return Container(
+        height: cellHeight,
+        decoration: BoxDecoration(border: Border(bottom: _border)),
+        child: Row(
+          children: [
+            for (var day = 1; day <= widget.daysInMonth; day++)
+              _TimesheetCell(
+                key: ValueKey('timesheet-cell-${employee.id}-$day'),
+                record:
+                    records[day] ??
+                    TimesheetRecord(
+                      employeeId: employee.id!,
+                      date: DateTime(
+                        widget.selectedMonth.year,
+                        widget.selectedMonth.month,
+                        day,
+                      ),
+                      dayType: 'work',
+                      days: 0,
+                    ),
+                dayWidth: dayWidth,
+                cellHeight: cellHeight,
+                onTap: () => widget.onCellTap(employee, day),
+              ),
+            _totalCell(work, _c.total, dayWidth, cellHeight, true),
+            _totalCell(dayoff, _c.totalAlt, dayWidth, cellHeight, false),
+            _totalCell(sick, _c.sick, dayWidth, cellHeight, false),
+            _totalCell(vacation, _c.vacation, dayWidth, cellHeight, false),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Закреплённая шапка.
+        Row(
+          children: [
+            Container(
+              width: nameWidth,
+              height: cellHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(border: Border(bottom: _border)),
+              child: const Text(
+                'ФИО',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _headerHorizontal,
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                child: SizedBox(width: cellsWidth, child: header),
+              ),
+            ),
+          ],
+        ),
+        Expanded(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Закреплённый столбец ФИО.
               SizedBox(
-                height: cellHeight,
-                child: Row(
-                  children: [
-                    ...List.generate(widget.daysInMonth, (index) {
-                      final day = index + 1;
-                      final date = DateTime(
-                        widget.selectedMonth.year,
-                        widget.selectedMonth.month,
-                        day,
-                      );
-                      final isWeekend =
-                          date.weekday == DateTime.saturday ||
-                          date.weekday == DateTime.sunday;
-                      final isToday =
-                          date.year == DateTime.now().year &&
-                          date.month == DateTime.now().month &&
-                          date.day == DateTime.now().day;
-
-                      return Container(
-                        width: dayColumnWidth,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isToday
-                              ? Colors.blue[50]
-                              : isWeekend
-                              ? Colors.red[50]
-                              : null,
-                          border: Border(
-                            left: BorderSide(color: Colors.grey[300]!),
-                            bottom: BorderSide(color: Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              '$day',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                                color: isWeekend ? Colors.red : null,
-                              ),
-                            ),
-                            Text(
-                              _getWeekdayShort(date.weekday),
-                              style: TextStyle(
-                                fontSize: 8,
-                                color: isWeekend
-                                    ? Colors.red
-                                    : Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    Container(
-                      width: dayColumnWidth,
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        border: Border(
-                          left: BorderSide(color: Colors.grey[300]!),
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: const Text(
-                        'Раб.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Container(
-                      width: dayColumnWidth,
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        border: Border(
-                          left: BorderSide(color: Colors.grey[300]!),
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: const Text(
-                        'Вых.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Container(
-                      width: dayColumnWidth,
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        border: Border(
-                          left: BorderSide(color: Colors.grey[300]!),
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: const Text(
-                        'Бол.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Container(
-                      width: dayColumnWidth,
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.purple[50],
-                        border: Border(
-                          left: BorderSide(color: Colors.grey[300]!),
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: const Text(
-                        'Отп.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
+                width: nameWidth,
+                child: ListView.builder(
+                  controller: _namesVertical,
+                  itemCount: widget.employees.length,
+                  itemExtent: cellHeight,
+                  itemBuilder: (context, index) =>
+                      _nameCell(widget.employees[index]),
                 ),
               ),
-              SizedBox(
-                height: widget.employees.length * cellHeight,
-                child: ListView.builder(
-                  controller: _verticalScrollController,
-                  itemCount: widget.employees.length,
-                  itemBuilder: (context, index) {
-                    final employee = widget.employees[index];
-
-                    double totalWorkDays = 0;
-                    double totalSickDays = 0;
-                    double totalVacationDays = 0;
-                    double totalDayoffDays = 0;
-
-                    for (final record in widget.records) {
-                      if (record.employeeId == employee.id) {
-                        if (record.dayType == 'work') {
-                          totalWorkDays += record.days;
-                        } else if (record.dayType == 'sick') {
-                          totalSickDays += record.days;
-                        } else if (record.dayType == 'vacation') {
-                          totalVacationDays += record.days;
-                        } else if (record.dayType == 'dayoff') {
-                          totalDayoffDays += record.days;
-                        }
-                      }
-                    }
-
-                    List<Widget> dayCells = [];
-                    for (int i = 0; i < widget.daysInMonth; i++) {
-                      final day = i + 1;
-                      final date = DateTime(
-                        widget.selectedMonth.year,
-                        widget.selectedMonth.month,
-                        day,
-                      );
-                      final record = widget.records.firstWhere(
-                        (r) =>
-                            r.employeeId == employee.id &&
-                            r.date.year == date.year &&
-                            r.date.month == date.month &&
-                            r.date.day == date.day,
-                        orElse: () => TimesheetRecord(
-                          employeeId: employee.id!,
-                          date: date,
-                          dayType: 'work',
-                          days: 0,
-                        ),
-                      );
-                      dayCells.add(
-                        _TimesheetCell(
-                          record: record,
-                          dayWidth: dayColumnWidth,
-                          cellHeight: cellHeight,
-                          onDoubleTap: () => widget.onCellTap(employee, day),
-                        ),
-                      );
-                    }
-
-                    dayCells.add(
-                      Container(
-                        width: dayColumnWidth,
-                        height: cellHeight,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          border: Border(
-                            left: BorderSide(color: Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            totalWorkDays.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
+              Expanded(
+                child: Scrollbar(
+                  controller: _cellsHorizontal,
+                  thumbVisibility: !widget.compact,
+                  child: SingleChildScrollView(
+                    controller: _cellsHorizontal,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: cellsWidth,
+                      child: ListView.builder(
+                        controller: _cellsVertical,
+                        itemCount: widget.employees.length,
+                        itemExtent: cellHeight,
+                        itemBuilder: (context, index) =>
+                            row(widget.employees[index]),
                       ),
-                    );
-
-                    dayCells.add(
-                      Container(
-                        width: dayColumnWidth,
-                        height: cellHeight,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          border: Border(
-                            left: BorderSide(color: Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            totalDayoffDays.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.normal,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-
-                    dayCells.add(
-                      Container(
-                        width: dayColumnWidth,
-                        height: cellHeight,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          border: Border(
-                            left: BorderSide(color: Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            totalSickDays.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.normal,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-
-                    dayCells.add(
-                      Container(
-                        width: dayColumnWidth,
-                        height: cellHeight,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.purple[50],
-                          border: Border(
-                            left: BorderSide(color: Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            totalVacationDays.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.normal,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-
-                    return Container(
-                      height: cellHeight,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: Row(children: dayCells),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
+  }
 
-    return IntrinsicHeight(
-      child: Row(
+  Widget _nameCell(Employee employee) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    alignment: Alignment.centerLeft,
+    decoration: BoxDecoration(border: Border(bottom: _border)),
+    child: Tooltip(
+      message: employee.fullName,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [leftPart, rightPart],
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            StringUtils.getShortName(employee.fullName),
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            employee.position,
+            style: TextStyle(fontSize: 10, color: _c.mutedText),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _dayHeader(DateTime date, DateTime now, double width, double height) {
+    final isWeekend =
+        date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: isToday
+            ? _c.today
+            : isWeekend
+            ? _c.weekend
+            : null,
+        border: Border(left: _border, bottom: _border),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '${date.day}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              color: isWeekend ? _c.weekendText : _c.text,
+            ),
+          ),
+          Text(
+            _getWeekdayShort(date.weekday),
+            style: TextStyle(
+              fontSize: 9,
+              color: isWeekend ? _c.weekendText : _c.mutedText,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _totalHeader(String text, Color color, double width, double height) =>
+      Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          border: Border(left: _border, bottom: _border),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 9,
+            color: _c.text,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+
+  Widget _totalCell(
+    double value,
+    Color color,
+    double width,
+    double height,
+    bool bold,
+  ) => Container(
+    width: width,
+    height: height,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: color,
+      border: Border(left: _border),
+    ),
+    child: Text(
+      value.toStringAsFixed(1),
+      style: TextStyle(
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        fontSize: 10,
+        color: _c.text,
+      ),
+    ),
+  );
 
   String _getWeekdayShort(int weekday) {
     const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -803,13 +741,15 @@ class _TimesheetCell extends StatelessWidget {
   final TimesheetRecord record;
   final double dayWidth;
   final double cellHeight;
-  final VoidCallback onDoubleTap;
+  /// Одно касание открывает правку дня (двойное заменено везде, этап 4).
+  final VoidCallback onTap;
 
   const _TimesheetCell({
+    super.key,
     required this.record,
     required this.dayWidth,
     required this.cellHeight,
-    required this.onDoubleTap,
+    required this.onTap,
   });
 
   @override
@@ -817,8 +757,9 @@ class _TimesheetCell extends StatelessWidget {
     final hasRecord = record.id != null;
 
     String displayText = '';
+    final c = TimesheetColors.of(context);
     Color backgroundColor = Colors.transparent;
-    Color textColor = Colors.black87;
+    final textColor = c.text;
 
     if (hasRecord) {
       if (record.dayType == 'work') {
@@ -832,29 +773,29 @@ class _TimesheetCell extends StatelessWidget {
             placeStr = '\nполе';
           }
           displayText = daysStr + placeStr;
-          backgroundColor = Colors.green[50]!;
+          backgroundColor = c.work;
         }
       } else if (record.dayType == 'sick') {
         displayText = 'Б';
-        backgroundColor = Colors.blue[50]!;
+        backgroundColor = c.sick;
       } else if (record.dayType == 'vacation') {
         displayText = 'О';
-        backgroundColor = Colors.purple[50]!;
+        backgroundColor = c.vacation;
       } else if (record.dayType == 'dayoff') {
         displayText = 'В';
-        backgroundColor = Colors.grey[200]!;
+        backgroundColor = c.dayoff;
       }
     }
 
-    return GestureDetector(
-      onDoubleTap: onDoubleTap,
+    return InkWell(
+      onTap: onTap,
       child: Container(
         width: dayWidth,
         height: cellHeight,
         padding: const EdgeInsets.all(1),
         decoration: BoxDecoration(
           color: backgroundColor,
-          border: Border(left: BorderSide(color: Colors.grey[300]!)),
+          border: Border(left: BorderSide(color: c.border)),
         ),
         alignment: Alignment.center,
         child: Text(

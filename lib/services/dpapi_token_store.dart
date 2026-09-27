@@ -7,12 +7,12 @@
 
 import 'dart:convert';
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:kfh_sync/kfh_sync.dart';
 import 'package:win32/win32.dart';
+
+import 'file_token_store.dart';
 
 /// Без окон и подсказок DPAPI.
 const _cryptprotectUiForbidden = 0x1;
@@ -65,58 +65,8 @@ Uint8List dpapiProtect(Uint8List data) => _dpapi(data, protect: true);
 /// Расшифровать; ошибка — [StateError].
 Uint8List dpapiUnprotect(Uint8List data) => _dpapi(data, protect: false);
 
-/// Токены одного сервера в общем файле `{сервер: токены}`.
-class DpapiTokenStore implements TokenStore {
-  final File file;
-  final String server;
-
-  DpapiTokenStore(this.file, this.server);
-
-  Future<Map<String, Object?>> _readAll() async {
-    if (!await file.exists()) return {};
-    try {
-      final plain = dpapiUnprotect(await file.readAsBytes());
-      final json = jsonDecode(utf8.decode(plain));
-      return json is Map<String, Object?> ? json : {};
-    } on Object {
-      // Файл испорчен или зашифрован другим пользователем — как будто
-      // входа не было.
-      return {};
-    }
-  }
-
-  Future<void> _writeAll(Map<String, Object?> all) async {
-    if (all.isEmpty) {
-      if (await file.exists()) await file.delete();
-      return;
-    }
-    final encrypted = dpapiProtect(utf8.encode(jsonEncode(all)));
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsBytes(encrypted, flush: true);
-    await tmp.rename(file.path);
-  }
-
-  @override
-  Future<AuthTokens?> read() async {
-    final raw = (await _readAll())[server];
-    if (raw is! Map<String, Object?>) return null;
-    try {
-      return AuthTokens.fromJson(raw);
-    } on Object {
-      return null;
-    }
-  }
-
-  @override
-  Future<void> write(AuthTokens tokens) async {
-    final all = await _readAll();
-    all[server] = tokens.toJson();
-    await _writeAll(all);
-  }
-
-  @override
-  Future<void> clear() async {
-    final all = await _readAll();
-    if (all.remove(server) != null) await _writeAll(all);
-  }
+/// Файл токенов Windows, зашифрованный DPAPI под текущим пользователем.
+class DpapiTokenStore extends FileTokenStore {
+  DpapiTokenStore(super.file, super.server)
+    : super(protect: dpapiProtect, unprotect: dpapiUnprotect);
 }

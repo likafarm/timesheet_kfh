@@ -1,3 +1,17 @@
+/// Какая программа входит на сервер.
+enum ClientKind {
+  /// Полная программа для Windows: администратор и бухгалтер.
+  desktop,
+
+  /// Программа для телефона (Android): оператор вводит табель.
+  phone;
+
+  String get title => switch (this) {
+    ClientKind.desktop => 'программе для Windows',
+    ClientKind.phone => 'программе для телефона',
+  };
+}
+
 /// Пользователь сервера, как его отдаёт `/auth/me` и `/auth/login`.
 class SessionUser {
   final String uuid;
@@ -17,10 +31,27 @@ class SessionUser {
   });
 
   bool get isAdmin => role == 'admin';
+  bool get isOperator => role == 'operator';
 
-  /// Может ли роль работать в полном клиенте Windows (решение владельца
-  /// 2026-09-27: только админ и бухгалтер; оператор — с этапа 4).
-  bool get canUseDesktop => role == 'admin' || role == 'accountant';
+  /// Может ли роль работать в этой программе (решения владельца
+  /// 2026-09-27): на Windows — админ и бухгалтер, на телефоне — оператор.
+  bool canUseOn(ClientKind client) => switch (client) {
+    ClientKind.desktop => role == 'admin' || role == 'accountant',
+    ClientKind.phone => isOperator,
+  };
+
+  /// Почему роль не может работать в этой программе (null — может).
+  String? refusalOn(ClientKind client) {
+    if (canUseOn(client)) return null;
+    return switch (client) {
+      ClientKind.desktop =>
+        'Роль «$roleTitle» не работает в программе для Windows — нужна '
+            'учётная запись администратора или бухгалтера.',
+      ClientKind.phone =>
+        'Программа для телефона — только для оператора. Роль «$roleTitle» '
+            'работает в программе для Windows.',
+    };
+  }
 
   String get roleTitle => switch (role) {
     'admin' => 'администратор',

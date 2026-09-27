@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:kfh_domain/kfh_domain.dart';
 
 import 'failures.dart';
 import 'session.dart';
@@ -103,6 +104,19 @@ class KfhApiClient {
         if (l is Map && l['year'] is int && l['month'] is int)
           (l['year'] as int, l['month'] as int),
     ];
+  }
+
+  /// Версии программ (`GET /client/version`, без входа). Старый сервер без
+  /// этого адреса — пустой список (обновлений не требуется).
+  Future<ClientVersions> clientVersions() async {
+    try {
+      return ClientVersions.fromJson(await _send('GET', '/client/version'));
+    } on ApiFailure catch (e) {
+      if (e.code == 'not_found') return ClientVersions.empty;
+      rethrow;
+    } on ClientVersionsFormatException catch (e) {
+      throw ServerFailure(e.toString());
+    }
   }
 
   // ------------------------------------------------------------- запросы

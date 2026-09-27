@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'daily_input_screen.dart';
 import 'employees_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
+import 'sync_screen.dart';
 import '../providers/app_provider.dart';
+import '../theme/app_theme.dart';
 import '../widgets/sync_status_bar.dart';
+import '../widgets/update_banner.dart';
 
-/// Главный экран приложения с нижней навигацией
+/// Главный экран: узкий экран (телефон) — нижняя навигация, широкий —
+/// тёмная боковая панель (UI_REQUIREMENTS п. 2.2). Набор разделов зависит
+/// от программы: оператору — только ввод за день, табель, сотрудники и вход на сервер.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
-  int _selectedIndex = 0;
-
-  final List<NavigationItem> _navigationItems = [
+  /// Разделы полной программы (администратор, бухгалтер).
+  static List<NavigationItem> fullSections() => [
     NavigationItem(
       icon: Icons.calendar_today_outlined,
       selectedIcon: Icons.calendar_today,
@@ -52,13 +52,52 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ),
   ];
 
+  /// Разделы программы оператора (телефон): главный — ввод за день.
+  static List<NavigationItem> operatorSections() => [
+    NavigationItem(
+      icon: Icons.edit_calendar_outlined,
+      selectedIcon: Icons.edit_calendar,
+      label: 'День',
+      screen: const DailyInputScreen(),
+    ),
+    NavigationItem(
+      icon: Icons.calendar_today_outlined,
+      selectedIcon: Icons.calendar_today,
+      label: 'Табель',
+      screen: const TimesheetScreen(),
+    ),
+    NavigationItem(
+      icon: Icons.people_outline,
+      selectedIcon: Icons.people,
+      label: 'Сотрудники',
+      screen: const EmployeesScreen(),
+    ),
+    NavigationItem(
+      icon: Icons.cloud_outlined,
+      selectedIcon: Icons.cloud,
+      label: 'Сервер',
+      screen: const SyncScreen(),
+    ),
+  ];
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
+  int _selectedIndex = 0;
+
   late final AppProvider _app;
+  late final List<NavigationItem> _navigationItems;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _app = context.read<AppProvider>();
+    _navigationItems = _app.operatorMode
+        ? MainScreen.operatorSections()
+        : MainScreen.fullSections();
     _app.addListener(_showNotice);
   }
 
@@ -96,36 +135,95 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _select(int index) => setState(() => _selectedIndex = index);
+
   @override
   Widget build(BuildContext context) {
+    final content = Column(
+      children: [
+        const UpdateBanner(),
+        Expanded(
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: _navigationItems.map((item) => item.screen).toList(),
+          ),
+        ),
+      ],
+    );
+    final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
+    if (compact) {
+      return Scaffold(
+        body: content,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SyncStatusBar(),
+            BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: _selectedIndex,
+              onTap: _select,
+              items: _navigationItems.map((item) {
+                return BottomNavigationBarItem(
+                  icon: Icon(item.icon),
+                  activeIcon: Icon(item.selectedIcon),
+                  label: item.label,
+                );
+              }).toList(),
+              selectedItemColor: Theme.of(context).colorScheme.primary,
+              unselectedItemColor: Colors.grey,
+              // Активный пункт крупнее (UI_REQUIREMENTS п. 2.1).
+              selectedLabelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _navigationItems.map((item) => item.screen).toList(),
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
+      body: Row(
         children: [
-          const SyncStatusBar(),
-          BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _selectedIndex,
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            items: _navigationItems.map((item) {
-              return BottomNavigationBarItem(
+          NavigationRail(
+            backgroundColor: AppTheme.navigationBackground,
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _select,
+            labelType: NavigationRailLabelType.all,
+            minWidth: 96,
+            indicatorColor: AppTheme.primaryColor,
+            selectedIconTheme: const IconThemeData(
+              color: AppTheme.navigationSelected,
+              size: 26,
+            ),
+            unselectedIconTheme: const IconThemeData(
+              color: AppTheme.navigationForeground,
+              size: 22,
+            ),
+            selectedLabelTextStyle: const TextStyle(
+              color: AppTheme.navigationSelected,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelTextStyle: const TextStyle(
+              color: AppTheme.navigationForeground,
+              fontSize: 12,
+            ),
+            destinations: _navigationItems.map((item) {
+              return NavigationRailDestination(
                 icon: Icon(item.icon),
-                activeIcon: Icon(item.selectedIcon),
-                label: item.label,
+                selectedIcon: Icon(item.selectedIcon),
+                label: Text(item.label),
               );
             }).toList(),
-            selectedItemColor: Theme.of(context).colorScheme.primary,
-            unselectedItemColor: Colors.grey,
-            selectedLabelStyle: const TextStyle(fontSize: 12),
-            unselectedLabelStyle: const TextStyle(fontSize: 12),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(child: content),
+                const SyncStatusBar(),
+              ],
+            ),
           ),
         ],
       ),

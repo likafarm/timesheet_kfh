@@ -10,12 +10,15 @@ import 'dart:io';
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/file_journal.dart';
 import 'package:kfh_sync/kfh_sync.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
-import '../services/dpapi_token_store.dart';
+import '../services/file_token_store.dart';
+import '../services/platform.dart';
 
 /// Где находится программа по отношению к серверу.
 enum SyncPhase {
@@ -48,9 +51,13 @@ class SyncUserException implements Exception {
 class SyncProvider extends ChangeNotifier {
   /// Сервер по умолчанию. Отладочная сборка — только локальный стенд
   /// (`docker-compose.dev.yml`), чтобы `flutter run` не трогал рабочий.
-  static const defaultServer = kDebugMode
-      ? 'http://localhost:8080'
-      : 'https://tab.korovatech.ru';
+  ///
+  /// Эмулятор Android видит компьютер разработчика по адресу 10.0.2.2.
+  static String get defaultServer => !kDebugMode
+      ? 'https://tab.korovatech.ru'
+      : isAndroidApp
+      ? 'http://10.0.2.2:8080'
+      : 'http://localhost:8080';
 
   /// Ключ времени последней удачной синхронизации в `sync_state`.
   static const lastSyncKey = 'sync_last_at';
@@ -59,13 +66,15 @@ class SyncProvider extends ChangeNotifier {
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
 
-  /// Сервер на этом компьютере (стенд), а не рабочий.
+  /// Сервер на этом компьютере (стенд), а не рабочий. Для эмулятора
+  /// Android компьютер разработчика — 10.0.2.2.
   static bool isLocalServer(String server) {
     final host = Uri.tryParse(server)?.host ?? '';
     return host == 'localhost' ||
         host == '127.0.0.1' ||
         host == '::1' ||
-        host == '[::1]';
+        host == '[::1]' ||
+        (isAndroidApp && host == '10.0.2.2');
   }
 
   SyncProvider({
@@ -81,13 +90,15 @@ class SyncProvider extends ChangeNotifier {
     this.syncInterval = const Duration(minutes: 5),
     this.changeDelay = const Duration(seconds: 5),
     this.debugBuild = kDebugMode,
-  }) : _db = database,
+    ClientKind? client,
+    Future<String> Function()? appVersion,
+  }) : _appVersion = appVersion ?? _installedVersion,
+       client =
+           client ?? (isAndroidApp ? ClientKind.phone : ClientKind.desktop),
+       _db = database,
        _tokenStore =
            tokenStore ??
-           ((server) => DpapiTokenStore(
-             File(p.join(dataDirectory, 'sync_auth.dat')),
-             server,
-           )),
+           ((server) => platformTokenStore(dataDirectory, server)),
        _httpClient = httpClient ?? http.Client.new,
        journal =
            journal ?? FileSyncJournal(File(p.join(dataDirectory, 'sync.log')));
@@ -120,6 +131,52 @@ class SyncProvider extends ChangeNotifier {
   );
   bool _localEdit = false;
 
+  /// Какая это программа: от неё зависит, какие роли могут войти.
+  final ClientKind client;
+
+  /// Версия этой программы (`pubspec.yaml`).
+  final Future<String> Function() _appVersion;
+  static Future<String> _installedVersion() async =>
+      (await PackageInfo.fromPlatform()).version;
+
+  /// Версии программы на сервере (шаг 4.8); null — ещё не известны.
+  PlatformVersion? _serverVersion;
+  String? _version;
+
+  /// Версия этой программы (после [init]).
+  String? get appVersion => _version;
+
+  /// Версия на сервере для этой платформы (null — сервер не сообщил).
+  PlatformVersion? get serverVersion => _serverVersion;
+
+  /// Программа старее минимальной версии сервера: синхронизация на паузе
+  /// до обновления (введённое сохраняется здесь и уйдёт после обновления).
+  bool get updateRequired {
+    final v = _serverVersion, current = _version;
+    return v != null && current != null && v.requiresUpdate(current);
+  }
+
+  /// На сервере есть версия новее этой.
+  bool get updateAvailable {
+    final v = _serverVersion, current = _version;
+    return v != null && current != null && v.hasUpdate(current);
+  }
+
+  String get _platformKey => client == ClientKind.phone ? 'android' : 'windows';
+
+  /// Версии программ — с сервера, без входа. Сбой не мешает: остаётся
+  /// прежнее знание (проверка повторится после следующей синхронизации).
+  Future<void> checkVersion() async {
+    try {
+      _version ??= await _appVersion();
+      final all = await _api!.clientVersions();
+      _serverVersion = all.platforms[_platformKey];
+      notifyListeners();
+    } catch (e) {
+      debugPrint('sync: версии программ не получены: $e');
+    }
+  }
+
   /// Отладочная сборка: адрес не на этом компьютере — только с явного
   /// согласия (у неё своя база, но вход — настоящий).
   final bool debugBuild;
@@ -141,7 +198,7 @@ class SyncProvider extends ChangeNotifier {
   Timer? _pendingTimer;
 
   SyncPhase _phase = SyncPhase.starting;
-  String _server = defaultServer;
+  late String _server = defaultServer;
   SessionUser? _user;
   bool _syncing = false;
   bool _offline = false;
@@ -201,8 +258,14 @@ class SyncProvider extends ChangeNotifier {
     _lastSyncAt = saved == null ? null : DateTime.tryParse(saved)?.toLocal();
     await _connect(_server);
     _user = await _api!.currentUser();
+    if (_user != null && !_user!.canUseOn(client)) {
+      // Сохранённый вход роли, которой здесь не место, — забыть.
+      await _api!.logout();
+      _user = null;
+    }
     await _updatePhase();
     await refreshPending();
+    unawaitedSafe(checkVersion());
   }
 
   /// База переоткрыта (полное восстановление из копии) — начать заново.
@@ -319,14 +382,12 @@ class SyncProvider extends ChangeNotifier {
     } on SyncFailure catch (e) {
       throw SyncUserException(_explain(e));
     }
-    if (!user.canUseDesktop) {
+    final refusal = user.refusalOn(client);
+    if (refusal != null) {
       await _api!.logout();
       _user = null;
       await _updatePhase();
-      throw SyncUserException(
-        'Роль «${user.roleTitle}» пока не работает в программе для Windows — '
-        'нужна учётная запись администратора или бухгалтера.',
-      );
+      throw SyncUserException(refusal);
     }
     _user = user;
     _problem = null;
@@ -363,6 +424,7 @@ class SyncProvider extends ChangeNotifier {
     transport: HttpSyncTransport(_api!),
     engine: _syncEngine,
     server: _server,
+    client: client,
   );
 
   /// Что будет при первом входе этой базы на сервер. Ничего не меняет.
@@ -410,7 +472,7 @@ class SyncProvider extends ChangeNotifier {
   }
 
   /// Итог последней попытки для расписания.
-  SyncAttempt _attempt() => _phase != SyncPhase.ready
+  SyncAttempt _attempt() => _phase != SyncPhase.ready || updateRequired
       ? SyncAttempt.blocked
       : _problem != null
       ? SyncAttempt.transient
@@ -418,6 +480,13 @@ class SyncProvider extends ChangeNotifier {
 
   Future<SyncReport?> _runSync({bool retryRejected = false}) async {
     if (_phase != SyncPhase.ready || _suspended) return null;
+    if (updateRequired) {
+      _problem =
+          'Нужна новая версия программы (${_serverVersion!.latest}): '
+          'синхронизация на паузе, введённое сохраняется $onThisDevice.';
+      notifyListeners();
+      return null;
+    }
     _syncing = true;
     notifyListeners();
     try {
@@ -457,6 +526,7 @@ class SyncProvider extends ChangeNotifier {
     );
     if (report.changedLocalData) await onDataChanged();
     await _refreshLocks();
+    await checkVersion();
   }
 
   /// Закрытые месяцы — с сервера, после каждой удачной синхронизации. Сбой
@@ -480,7 +550,7 @@ class SyncProvider extends ChangeNotifier {
         _user = null;
         _problem =
             '${e.message}. Войдите снова — до входа данные '
-            'сохраняются только на этом компьютере.';
+            'сохраняются только $onThisDevice.';
       } else if (e.code == 'password_change_required') {
         final u = _user;
         if (u != null) {

@@ -7,10 +7,20 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import '../services/app_database.dart';
 import '../services/backup_service.dart';
+import '../services/platform.dart';
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._appDb, {BackupService? backupService})
-    : _backupService = backupService ?? BackupService();
+  AppProvider(
+    this._appDb, {
+    BackupService? backupService,
+    bool? operatorMode,
+  }) : _backupService = backupService ?? BackupService(),
+       operatorMode = operatorMode ?? isAndroidApp;
+
+  /// Программа оператора (телефон, этап 4): записывается только табель,
+  /// ставок, сумм, выплат и расчётов оператор не видит и не меняет. Сервер
+  /// те же правила проверяет сам — здесь правка просто не начинается.
+  final bool operatorMode;
 
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;
@@ -125,6 +135,15 @@ class AppProvider extends ChangeNotifier {
     return false;
   }
 
+  /// Оператору доступен только табель: иначе — сообщение и false.
+  bool _notOperator() {
+    if (!operatorMode) return true;
+    _notice = 'Оператор вводит только табель — остальное меняют бухгалтер '
+        'или администратор.';
+    notifyListeners();
+    return false;
+  }
+
   bool _dayAllowed(String table, DateTime? before, DateTime? after) {
     final column = table == 'payments' ? 'payment_date' : 'date';
     return _allowedInOpenPeriod(
@@ -182,6 +201,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updateCompanySettings(CompanySettings settings) async {
+    if (!_notOperator()) return;
     try {
       await _settingsRepo.save(settings);
       await loadCompanySettings();
@@ -203,6 +223,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addEmployee(Employee employee, {DateTime? rateStartDate}) async {
+    if (!_notOperator()) return;
     if (!_rateAllowed(rateStartDate ?? employee.hireDate)) return;
     try {
       final id = await _employeesRepo.add(employee);
@@ -223,6 +244,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updateEmployee(Employee employee) async {
+    if (!_notOperator()) return;
     try {
       await _employeesRepo.update(employee);
       await loadEmployees();
@@ -260,6 +282,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addEmployeeRate(EmployeeRate rate) async {
+    if (!_notOperator()) return;
     if (!_rateAllowed(rate.startDate)) return;
     try {
       await _ratesRepo.add(rate);
@@ -349,11 +372,17 @@ class AppProvider extends ChangeNotifier {
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
-        final updated = existing.copyWith(
+        // Не copyWith: `workPlace: null` в нём значит «не менять», а у
+        // больничного, отпуска и выходного места работы нет.
+        final updated = TimesheetRecord(
+          id: existing.id,
+          employeeId: existing.employeeId,
+          date: existing.date,
           dayType: record.dayType,
           days: record.days,
           workPlace: record.workPlace,
-          notes: record.notes,
+          notes: record.notes ?? existing.notes,
+          createdAt: existing.createdAt,
         );
         await _timesheetRepo.update(updated);
       } else {
@@ -475,6 +504,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> addPayment(Payment payment) async {
+    if (!_notOperator()) return;
     if (!_dayAllowed('payments', null, payment.paymentDate)) return;
     try {
       await _paymentsRepo.add(payment);
@@ -487,6 +517,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updatePayment(Payment payment) async {
+    if (!_notOperator()) return;
     final old = _payments.where((p) => p.id == payment.id).firstOrNull;
     if (!_dayAllowed('payments', old?.paymentDate, payment.paymentDate)) {
       return;
@@ -502,6 +533,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> deletePayment(String id, String employeeId) async {
+    if (!_notOperator()) return;
     final old = _payments.where((p) => p.id == id).firstOrNull;
     if (old != null && !_dayAllowed('payments', old.paymentDate, null)) return;
     try {
@@ -556,6 +588,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> calculatePayrollForMonth(int year, int month) async {
+    if (!_notOperator()) return;
     if (!_monthAllowed(year, month)) return;
     _setLoading(true);
     try {
@@ -606,6 +639,7 @@ class AppProvider extends ChangeNotifier {
     int year,
     int month,
   ) async {
+    if (!_notOperator()) return;
     if (!_monthAllowed(year, month)) return;
     // Если начислений и выплат не осталось — прежний расчёт удаляется.
     await _payrollService.saveMonth(year, month, employeeId: employeeId);
@@ -702,6 +736,7 @@ class AppProvider extends ChangeNotifier {
   /// конвертером). Перед этим — копия текущей базы. При ошибке текущая
   /// база остаётся, причина — в [error].
   Future<bool> restoreFullBackup(String backupPath) async {
+    if (!_notOperator()) return false;
     try {
       await _backupService.createSafetyBackup(_appDb.db);
       final deviceId = await _appDb.db.deviceId();
@@ -735,6 +770,7 @@ class AppProvider extends ChangeNotifier {
   /// Таблицы целиком как в копии (только копии нового формата).
   /// Возвращает число восстановленных строк.
   Future<int> restoreTables(String backupPath, List<String> tables) async {
+    if (!_notOperator()) return 0;
     await _backupService.createSafetyBackup(_appDb.db);
     final restorer = BackupRestorer(_appDb.db);
     var count = 0;
@@ -752,6 +788,7 @@ class AppProvider extends ChangeNotifier {
     String table,
     List<String> uuids,
   ) async {
+    if (!_notOperator()) return 0;
     await _backupService.createSafetyBackup(_appDb.db);
     final count = await BackupRestorer(
       _appDb.db,
@@ -787,6 +824,7 @@ class AppProvider extends ChangeNotifier {
     String uuid,
     Map<String, Object?> values,
   ) async {
+    if (!_notOperator()) return;
     await _raw.updateRow(table, uuid, values);
     await loadAllData();
     setNeedRefreshReports(true);
@@ -797,6 +835,7 @@ class AppProvider extends ChangeNotifier {
     String uuid,
     bool deleted,
   ) async {
+    if (!_notOperator()) return;
     await _raw.setDeleted(table, uuid, deleted);
     await loadAllData();
     setNeedRefreshReports(true);

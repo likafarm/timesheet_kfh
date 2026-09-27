@@ -461,6 +461,11 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                                             child: Text(
                                                               StringUtils.workPlaceLabel(
                                                                 e,
+                                                                withRates: !context
+                                                                    .read<
+                                                                      AppProvider
+                                                                    >()
+                                                                    .operatorMode,
                                                                 baseRate:
                                                                     rate?.baseRate ??
                                                                     employee

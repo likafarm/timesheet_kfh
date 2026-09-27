@@ -13,6 +13,7 @@ export 'src/auth/users.dart';
 export 'src/config.dart';
 export 'src/database.dart';
 export 'src/http/auth_api.dart';
+export 'src/http/client_api.dart';
 export 'src/http/middleware.dart';
 export 'src/http/request_utils.dart';
 export 'src/http/responses.dart';
