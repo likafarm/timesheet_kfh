@@ -187,6 +187,15 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   (ничего не применяет) → запуск API. На VPS после восстановления — `UPDATE sync_serial SET epoch = UUID();`
   и пароль `kfh_api` из `secrets/mysql_password` (пользователи MySQL в дамп не входят).
 
+## Приёмка этапа 2
+
+`tool/acceptance.dart` — сценарии критериев приёмки по HTTP: вход под тремя ролями и отказы `forbidden`, смена
+пароля, выданного админом, push/pull между двумя устройствами, `duplicate` при повторе, закрытие/открытие месяца
+(`period_locked`), pull с нуля и сверка расчёта ЗП сервера с сохранённым. Создаёт тестовых пользователей и
+записи, поэтому работает только с `localhost`/`127.0.0.1` — на стенде, восстановленном из бэкапа (порядок — в
+разделе «VPS», пароль админа на копии — `set-password`). Переменные: `KFH_ACC_URL`, `KFH_ACC_ADMIN_LOGIN`,
+`KFH_ACC_ADMIN_PASSWORD`, `KFH_ACC_EXPECT_ROWS`. Пройдена 2026-09-27 на ночном бэкапе боевой базы.
+
 ## Вход и пароли
 
 - Пароли — Argon2id (19 МиБ, 2 прохода, ~0,25 с), строка PHC; проверено по эталонной утилите `argon2`.
