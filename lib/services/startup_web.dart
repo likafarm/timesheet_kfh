@@ -12,6 +12,7 @@ import 'package:web/web.dart' as web;
 import 'app_database.dart';
 import 'browser_storage.dart';
 import 'platform_services.dart';
+import 'page_reload.dart';
 import 'web_string_storage.dart';
 import 'web_tab_lock.dart';
 

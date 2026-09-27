@@ -61,6 +61,3 @@ Future<TabLock?> acquireTabLock({bool steal = false}) async {
   );
   return await granted.future ? TabLock(lost.future) : null;
 }
-
-/// Перезагрузить страницу.
-void reloadPage() => web.window.location.reload();

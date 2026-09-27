@@ -159,4 +159,27 @@ void main() {
     await sync.init();
     expect(sync.user?.login, 'ivan');
   });
+
+  test('версии: веб-версия смотрит на свою запись web', () async {
+    server.versions = {
+      'platforms': {
+        'windows': {'latest': '1.3.2', 'min': '1.3.2'},
+        'web': {
+          'latest': '1.4.1',
+          'min': '1.4.1',
+          'url': 'https://tab.korovatech.ru/app/',
+        },
+      },
+    };
+    final sync = provider();
+    await sync.init();
+    await sync.checkVersion();
+    expect(sync.serverVersion?.latest, '1.4.1');
+    expect(sync.updateRequired, isTrue);
+
+    final desktop = provider(client: ClientKind.desktop);
+    await desktop.init();
+    await desktop.checkVersion();
+    expect(desktop.serverVersion?.latest, '1.3.2');
+  });
 }

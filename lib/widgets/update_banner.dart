@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/sync_provider.dart';
+import '../services/page_reload.dart';
+import '../services/platform.dart';
 
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key});
@@ -21,7 +23,15 @@ class UpdateBanner extends StatelessWidget {
     final required = sync.updateRequired;
     final url = v.url;
     final color = required ? const Color(0xFFFFF3E0) : const Color(0xFFE8F5E9);
-    final text = required
+    // Веб-версию обновляет перезагрузка страницы.
+    final text = isWebApp
+        ? required
+              ? 'Вышла новая версия программы — ${v.latest} (открыта '
+                    '${sync.appVersion}). Обновите страницу: до этого данные '
+                    'не уходят на сервер, но всё введённое сохраняется.'
+              : 'Вышла новая версия программы — ${v.latest}. Обновите '
+                    'страницу, когда будет удобно.'
+        : required
         ? 'Нужна новая версия программы — ${v.latest} (у вас '
               '${sync.appVersion}). Пока не обновите, данные не уходят на '
               'сервер, но всё введённое сохраняется.'
@@ -40,7 +50,12 @@ class UpdateBanner extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(child: Text(text)),
-              if (url != null)
+              if (isWebApp)
+                TextButton(
+                  onPressed: reloadPage,
+                  child: const Text('Обновить страницу'),
+                )
+              else if (url != null)
                 TextButton(
                   onPressed: () => launchUrl(
                     Uri.parse(url),
