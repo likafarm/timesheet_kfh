@@ -3,6 +3,8 @@
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
+#include <algorithm>
+
 #include "resource.h"
 
 namespace {
@@ -51,6 +53,64 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
     enable_non_client_dpi_scaling(hwnd);
   }
   FreeLibrary(user32_module);
+}
+
+// Where the window placement is remembered between launches
+// (UI_REQUIREMENTS 2.1). The debug build keeps its own value.
+constexpr const wchar_t kSettingsRegKey[] = L"Software\\KFH Time Tracking";
+#ifdef _DEBUG
+constexpr const wchar_t kPlacementRegValue[] = L"WindowPlacementDebug";
+#else
+constexpr const wchar_t kPlacementRegValue[] = L"WindowPlacement";
+#endif
+
+// Reads the saved placement. False if there is none or it does not fit on
+// any connected monitor (e.g. a second monitor was unplugged).
+bool LoadPlacement(WINDOWPLACEMENT* placement) {
+  WINDOWPLACEMENT saved{};
+  DWORD size = sizeof(saved);
+  if (RegGetValue(HKEY_CURRENT_USER, kSettingsRegKey, kPlacementRegValue,
+                  RRF_RT_REG_BINARY, nullptr, &saved,
+                  &size) != ERROR_SUCCESS ||
+      size != sizeof(saved) || saved.length != sizeof(saved)) {
+    return false;
+  }
+  const RECT& r = saved.rcNormalPosition;
+  if (r.right - r.left < 200 || r.bottom - r.top < 200 ||
+      MonitorFromRect(&r, MONITOR_DEFAULTTONULL) == nullptr) {
+    return false;
+  }
+  *placement = saved;
+  return true;
+}
+
+void SavePlacement(HWND hwnd) {
+  WINDOWPLACEMENT placement{};
+  placement.length = sizeof(placement);
+  if (!GetWindowPlacement(hwnd, &placement)) {
+    return;
+  }
+  RegSetKeyValue(HKEY_CURRENT_USER, kSettingsRegKey, kPlacementRegValue,
+                 REG_BINARY, &placement, sizeof(placement));
+}
+
+// Centers the window on the work area of its monitor, shrinking it to fit.
+void CenterOnMonitor(HWND hwnd) {
+  RECT rect;
+  GetWindowRect(hwnd, &rect);
+  MONITORINFO info{};
+  info.cbSize = sizeof(info);
+  if (!GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                      &info)) {
+    return;
+  }
+  const RECT& work = info.rcWork;
+  LONG width = std::min(rect.right - rect.left, work.right - work.left);
+  LONG height = std::min(rect.bottom - rect.top, work.bottom - work.top);
+  LONG x = work.left + (work.right - work.left - width) / 2;
+  LONG y = work.top + (work.bottom - work.top - height) / 2;
+  SetWindowPos(hwnd, nullptr, x, y, width, height,
+               SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 }  // namespace
@@ -146,11 +206,23 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  // Size, position and maximized state of the previous launch; the window
+  // stays hidden until the first frame (FlutterWindow::OnCreate -> Show).
+  WINDOWPLACEMENT placement{};
+  if (LoadPlacement(&placement)) {
+    show_maximized_ = placement.showCmd == SW_SHOWMAXIMIZED;
+    placement.showCmd = SW_HIDE;
+    SetWindowPlacement(window, &placement);
+  } else {
+    CenterOnMonitor(window);
+  }
+
   return OnCreate();
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_,
+                    show_maximized_ ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
 }
 
 // static
@@ -195,6 +267,7 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_DESTROY:
+      SavePlacement(hwnd);
       window_handle_ = nullptr;
       Destroy();
       if (quit_on_close_) {
