@@ -71,3 +71,31 @@ Middleware handleErrors(Logger logger) => (inner) => (request) async {
         return errorResponse(500, 'internal', 'Внутренняя ошибка сервера');
       }
     };
+
+/// CORS — только для отладки веб-версии (`flutter run -d chrome` на своём
+/// порту, API стенда — на другом): разрешены лишь адреса [origins]
+/// (`CORS_ORIGINS`). На VPS список пуст — веб-версия открыта с того же
+/// адреса, что и API, и чужим страницам браузер обращаться к API не даст.
+Middleware cors(Set<String> origins) => (inner) => (request) async {
+      final origin = request.headers['origin'];
+      if (origins.isEmpty || origin == null || !origins.contains(origin)) {
+        return inner(request);
+      }
+      final headers = {
+        'access-control-allow-origin': origin,
+        'access-control-expose-headers': requestIdHeader,
+        'vary': 'Origin',
+      };
+      if (request.method == 'OPTIONS' &&
+          request.headers.containsKey('access-control-request-method')) {
+        return Response(204, headers: {
+          ...headers,
+          'access-control-allow-methods': 'GET, POST, PATCH, DELETE',
+          'access-control-allow-headers':
+              'accept, authorization, content-type, x-device-id',
+          'access-control-max-age': '600',
+        });
+      }
+      final response = await inner(request);
+      return response.change(headers: headers);
+    };

@@ -123,4 +123,44 @@ void main() {
       expect(log.single['stack'], isNotEmpty);
     });
   });
+
+  group('CORS (отладка веб-версии)', () {
+    Handler withCors(Set<String> origins) => buildHandler(
+          db: db,
+          logger: Logger(write: (_) {}),
+          corsOrigins: origins,
+        );
+
+    Request preflight(String origin) =>
+        Request('OPTIONS', Uri.parse('http://localhost/health'), headers: {
+          'origin': origin,
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'authorization, x-device-id',
+        });
+
+    test('разрешённый адрес: предварительный запрос и ответ', () async {
+      final h = withCors({'http://localhost:5080'});
+      final pre = await h(preflight('http://localhost:5080'));
+      expect(pre.statusCode, 204);
+      expect(pre.headers['access-control-allow-origin'],
+          'http://localhost:5080');
+      expect(pre.headers['access-control-allow-headers'],
+          contains('x-device-id'));
+      final r = await h(Request('GET', Uri.parse('http://localhost/health'),
+          headers: {'origin': 'http://localhost:5080'}));
+      expect(r.statusCode, 200);
+      expect(r.headers['access-control-allow-origin'], 'http://localhost:5080');
+      expect(r.headers['access-control-expose-headers'], 'x-request-id');
+    });
+
+    test('чужой адрес и выключенный CORS — без разрешений', () async {
+      for (final h in [withCors({'http://localhost:5080'}), handler]) {
+        final pre = await h(preflight('https://evil.example'));
+        expect(pre.headers['access-control-allow-origin'], isNull);
+        final r = await h(Request('GET', Uri.parse('http://localhost/health'),
+            headers: {'origin': 'https://evil.example'}));
+        expect(r.headers['access-control-allow-origin'], isNull);
+      }
+    });
+  });
 }

@@ -27,6 +27,7 @@ Handler buildHandler({
   DataApi? dataApi,
   AdminApi? adminApi,
   ClientApi? clientApi,
+  Set<String> corsOrigins = const {},
 }) {
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => _health(request, db, logger));
@@ -39,6 +40,7 @@ Handler buildHandler({
   return const Pipeline()
       .addMiddleware(requestId())
       .addMiddleware(accessLog(logger))
+      .addMiddleware(cors(corsOrigins))
       .addMiddleware(noStore())
       .addMiddleware(handleErrors(logger))
       .addHandler(router.call);

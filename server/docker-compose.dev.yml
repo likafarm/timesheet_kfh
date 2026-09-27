@@ -44,6 +44,8 @@ services:
       # На стенде миграции применяются сами; на VPS — «server migrate»
       # после резервной копии.
       MIGRATE_ON_START: "true"
+      # Отладка веб-версии: flutter run -d chrome --web-port 5080
+      CORS_ORIGINS: "http://localhost:5080"
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

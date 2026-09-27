@@ -83,6 +83,23 @@ void main() {
         '/downloads/versions.json');
   });
 
+  test('CORS: по умолчанию выключен, адреса — только точные', () {
+    expect(ServerConfig.fromEnvironment(minimal).corsOrigins, isEmpty);
+    expect(
+        ServerConfig.fromEnvironment({
+          ...minimal,
+          'CORS_ORIGINS': 'http://localhost:5080, http://127.0.0.1:5080',
+        }).corsOrigins,
+        {'http://localhost:5080', 'http://127.0.0.1:5080'});
+    for (final bad in ['*', 'localhost:5080', 'http://localhost:5080/app']) {
+      expect(
+          () => ServerConfig.fromEnvironment(
+              {...minimal, 'CORS_ORIGINS': bad}),
+          throwsA(isA<ConfigException>()),
+          reason: bad);
+    }
+  });
+
   group('ключ токенов и прокси', () {
     test('по умолчанию ключа нет, прокси не доверяем', () {
       final config = ServerConfig.fromEnvironment(minimal);

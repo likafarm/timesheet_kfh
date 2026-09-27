@@ -3,6 +3,7 @@
 // Запуск веб-версии (этап 5): база drift WASM в хранилище браузера (OPFS или
 // IndexedDB), без файловых копий; токены и журнал — в хранилище браузера.
 
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:kfh_local_db/web.dart';
@@ -67,6 +68,14 @@ Future<PlatformServices> startPlatform({bool takeOver = false}) async {
       name: webDatabaseName,
       sqlite3Uri: _sqlite3Uri,
       driftWorkerUri: _driftWorkerUri,
+    );
+    // Первый запрос — здесь: если браузер не запустил обработчик базы
+    // (worker), запрос не ответит никогда — лучше сказать об этом.
+    await opened.db.deviceId().timeout(const Duration(seconds: 30));
+  } on TimeoutException {
+    throw const DatabaseOpenException(
+      'База в браузере не ответила за 30 секунд. Закройте другие вкладки '
+      'программы и обновите страницу.',
     );
   } on WebStorageUnavailable catch (e) {
     throw DatabaseOpenException('$e');
