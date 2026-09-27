@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:test/test.dart';
 
@@ -166,7 +166,7 @@ void main() {
     expect(File(sourcePath).readAsBytesSync(), sourceBytes);
     expect(File('$targetPath.tmp').existsSync(), isFalse);
 
-    final db = LocalDatabase.file(File(targetPath));
+    final db = openLocalDatabaseFile(File(targetPath));
     addTearDown(db.close);
 
     final employees = await db.employeesDao.allEmployees();
@@ -217,7 +217,7 @@ void main() {
 
     await convertV8ToV2(sourcePath: sourcePath, targetPath: targetPath);
 
-    final db = LocalDatabase.file(File(targetPath));
+    final db = openLocalDatabaseFile(File(targetPath));
     addTearDown(db.close);
     final rows = await db.select(db.timesheet).get();
     expect(rows.single.date, '2026-08-03');

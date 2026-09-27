@@ -3,9 +3,10 @@ import 'dart:io';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kfh_domain/kfh_domain.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
+import 'package:kfx_time_tracking/services/database_files.dart';
 import 'package:kfx_time_tracking/services/backup_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;
@@ -31,7 +32,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('restore_test');
     dbPath = p.join(root.path, 'kfx_time_tracking_v2.db');
     backupDir = p.join(root.path, 'backups');
-    appDb = await AppDatabase.openFile(dbPath);
+    appDb = await openAppDatabaseFile(dbPath);
     provider = AppProvider(
       appDb,
       backupService: BackupService(backupDirectory: backupDir),

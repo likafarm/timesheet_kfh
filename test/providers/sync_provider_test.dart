@@ -30,7 +30,6 @@ void main() {
       client: client,
       appVersion: () async => '1.3.0',
       database: db,
-      dataDirectory: '.',
       onDataChanged: () async => reloads++,
       backup: () async => backups++,
       onLocksChanged: () async => lockChanges++,
@@ -206,25 +205,28 @@ void main() {
     expect(await sync.syncNow(), isNotNull);
   });
 
-  test('телефон смотрит версию android; старый сервер — без требований', () async {
-    server.role = 'operator';
-    server.versions = {
-      'platforms': {
-        'android': {'latest': '1.3.1', 'min': '1.3.1'},
-      },
-    };
-    final phone = provider(client: ClientKind.phone);
-    await phone.init();
-    await phone.checkVersion();
-    expect(phone.updateRequired, isTrue);
+  test(
+    'телефон смотрит версию android; старый сервер — без требований',
+    () async {
+      server.role = 'operator';
+      server.versions = {
+        'platforms': {
+          'android': {'latest': '1.3.1', 'min': '1.3.1'},
+        },
+      };
+      final phone = provider(client: ClientKind.phone);
+      await phone.init();
+      await phone.checkVersion();
+      expect(phone.updateRequired, isTrue);
 
-    server.versions = null;
-    final desktop = provider();
-    await desktop.init();
-    await desktop.checkVersion();
-    expect(desktop.updateRequired, isFalse);
-    expect(desktop.serverVersion, isNull);
-  });
+      server.versions = null;
+      final desktop = provider();
+      await desktop.init();
+      await desktop.checkVersion();
+      expect(desktop.updateRequired, isFalse);
+      expect(desktop.serverVersion, isNull);
+    },
+  );
 
   test('выданный пароль нужно сменить, затем — первый вход', () async {
     server.mustChange = true;

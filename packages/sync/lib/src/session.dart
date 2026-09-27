@@ -4,11 +4,16 @@ enum ClientKind {
   desktop,
 
   /// Программа для телефона (Android): оператор вводит табель.
-  phone;
+  phone,
+
+  /// Веб-версия в браузере (этап 5): запасной вход администратора и
+  /// бухгалтера; данные только принимаются с сервера в пустую базу.
+  web;
 
   String get title => switch (this) {
     ClientKind.desktop => 'программе для Windows',
     ClientKind.phone => 'программе для телефона',
+    ClientKind.web => 'веб-версии',
   };
 }
 
@@ -34,9 +39,11 @@ class SessionUser {
   bool get isOperator => role == 'operator';
 
   /// Может ли роль работать в этой программе (решения владельца
-  /// 2026-09-27): на Windows — админ и бухгалтер, на телефоне — оператор.
+  /// 2026-09-27): на Windows и в веб-версии — админ и бухгалтер, на
+  /// телефоне — оператор.
   bool canUseOn(ClientKind client) => switch (client) {
-    ClientKind.desktop => role == 'admin' || role == 'accountant',
+    ClientKind.desktop ||
+    ClientKind.web => role == 'admin' || role == 'accountant',
     ClientKind.phone => isOperator,
   };
 
@@ -50,6 +57,10 @@ class SessionUser {
       ClientKind.phone =>
         'Программа для телефона — только для оператора. Роль «$roleTitle» '
             'работает в программе для Windows.',
+      ClientKind.web =>
+        'Роль «$roleTitle» не работает в веб-версии — нужна учётная запись '
+            'администратора или бухгалтера. Оператор работает в программе '
+            'для телефона.',
     };
   }
 

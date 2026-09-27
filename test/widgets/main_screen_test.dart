@@ -48,7 +48,6 @@ void main() {
       sync = SyncProvider(
         appVersion: () async => '1.3.0',
         database: db,
-        dataDirectory: '.',
         onDataChanged: () async {},
         backup: () async {},
         tokenStore: (_) => MemoryTokenStore(),
@@ -89,7 +88,12 @@ void main() {
     final bar = tester.widget<BottomNavigationBar>(
       find.byType(BottomNavigationBar),
     );
-    expect(bar.items.map((i) => i.label), ['День', 'Табель', 'Сотрудники', 'Сервер']);
+    expect(bar.items.map((i) => i.label), [
+      'День',
+      'Табель',
+      'Сотрудники',
+      'Сервер',
+    ]);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Выплаты'), findsNothing);
     final ex = tester.takeException();

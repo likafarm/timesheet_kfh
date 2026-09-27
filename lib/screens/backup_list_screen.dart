@@ -1,13 +1,12 @@
 // lib/screens/backup_list_screen.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kfh_local_db/kfh_local_db.dart' show BackupFormat;
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
-import '../services/backup_service.dart';
+import '../services/local_backups.dart';
 import 'backup_table_viewer.dart';
 
 class BackupListScreen extends StatefulWidget {
@@ -537,8 +536,7 @@ class _BackupListScreenState extends State<BackupListScreen> {
 
   String _formatFileSize(String path) {
     try {
-      final file = File(path);
-      final size = file.statSync().size;
+      final size = context.read<AppProvider>().backupService.backupSize(path);
       if (size < 1024) return '$size B';
       if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
       return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';

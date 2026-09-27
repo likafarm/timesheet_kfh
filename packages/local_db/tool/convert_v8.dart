@@ -5,7 +5,7 @@
 
 import 'dart:io';
 
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 
 Future<void> main(List<String> args) async {
   if (args.length != 2) {

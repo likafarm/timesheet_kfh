@@ -5,19 +5,15 @@
 // строки статуса. Сама логика — в пакете kfh_sync.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
 import 'package:kfh_local_db/kfh_local_db.dart';
-import 'package:kfh_sync/file_journal.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path/path.dart' as p;
 
-import '../services/file_token_store.dart';
 import '../services/platform.dart';
 
 /// Где находится программа по отношению к серверу.
@@ -53,7 +49,11 @@ class SyncProvider extends ChangeNotifier {
   /// (`docker-compose.dev.yml`), чтобы `flutter run` не трогал рабочий.
   ///
   /// Эмулятор Android видит компьютер разработчика по адресу 10.0.2.2.
-  static String get defaultServer => !kDebugMode
+  /// Веб-версия работает только со своим сервером — тем, с которого
+  /// открыта страница (API на том же адресе, этап 5).
+  static String get defaultServer => kIsWeb && !kDebugMode
+      ? Uri.base.origin
+      : !kDebugMode
       ? 'https://tab.korovatech.ru'
       : isAndroidApp
       ? 'http://10.0.2.2:8080'
@@ -79,13 +79,12 @@ class SyncProvider extends ChangeNotifier {
 
   SyncProvider({
     required LocalDatabase database,
-    required String dataDirectory,
     required this.onDataChanged,
     required this.backup,
+    required this._tokenStore,
+    required this.journal,
     this.onLocksChanged,
-    TokenStore Function(String server)? tokenStore,
     http.Client Function()? httpClient,
-    SyncJournal? journal,
     this.autoSync = true,
     this.syncInterval = const Duration(minutes: 5),
     this.changeDelay = const Duration(seconds: 5),
@@ -93,15 +92,9 @@ class SyncProvider extends ChangeNotifier {
     ClientKind? client,
     Future<String> Function()? appVersion,
   }) : _appVersion = appVersion ?? _installedVersion,
-       client =
-           client ?? (isAndroidApp ? ClientKind.phone : ClientKind.desktop),
+       client = client ?? platformClientKind,
        _db = database,
-       _tokenStore =
-           tokenStore ??
-           ((server) => platformTokenStore(dataDirectory, server)),
-       _httpClient = httpClient ?? http.Client.new,
-       journal =
-           journal ?? FileSyncJournal(File(p.join(dataDirectory, 'sync.log')));
+       _httpClient = httpClient ?? http.Client.new;
 
   /// Синхронизация записала изменения с сервера — экранам перечитать данные.
   final Future<void> Function() onDataChanged;
@@ -162,7 +155,11 @@ class SyncProvider extends ChangeNotifier {
     return v != null && current != null && v.hasUpdate(current);
   }
 
-  String get _platformKey => client == ClientKind.phone ? 'android' : 'windows';
+  String get _platformKey => switch (client) {
+    ClientKind.desktop => 'windows',
+    ClientKind.phone => 'android',
+    ClientKind.web => 'web',
+  };
 
   /// Версии программ — с сервера, без входа. Сбой не мешает: остаётся
   /// прежнее знание (проверка повторится после следующей синхронизации).

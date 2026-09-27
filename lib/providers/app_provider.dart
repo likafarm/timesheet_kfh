@@ -1,21 +1,15 @@
 // lib/providers/app_provider.dart
 
-import 'dart:isolate';
-
 import 'package:flutter/material.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import '../services/app_database.dart';
-import '../services/backup_service.dart';
+import '../services/local_backups.dart';
 import '../services/platform.dart';
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(
-    this._appDb, {
-    BackupService? backupService,
-    bool? operatorMode,
-  }) : _backupService = backupService ?? BackupService(),
-       operatorMode = operatorMode ?? isAndroidApp;
+  AppProvider(this._appDb, {this._backupService, bool? operatorMode})
+    : operatorMode = operatorMode ?? isAndroidApp;
 
   /// Программа оператора (телефон, этап 4): записывается только табель,
   /// ставок, сумм, выплат и расчётов оператор не видит и не меняет. Сервер
@@ -24,9 +18,17 @@ class AppProvider extends ChangeNotifier {
 
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;
-  final BackupService _backupService;
+  final LocalBackups? _backupService;
 
-  BackupService get backupService => _backupService;
+  /// Файловые копии базы; null — их нет (веб-версия).
+  LocalBackups? get backups => _backupService;
+
+  /// Файловые копии и восстановление из них есть на этой платформе.
+  bool get hasLocalBackups => _backupService != null;
+
+  LocalBackups get backupService =>
+      _backupService ??
+      (throw UnsupportedError('Резервных копий в этой версии программы нет'));
 
   /// Перед заменой файла базы (полное восстановление): остановить то, что
   /// с ней работает в фоне (синхронизацию).
@@ -138,7 +140,8 @@ class AppProvider extends ChangeNotifier {
   /// Оператору доступен только табель: иначе — сообщение и false.
   bool _notOperator() {
     if (!operatorMode) return true;
-    _notice = 'Оператор вводит только табель — остальное меняют бухгалтер '
+    _notice =
+        'Оператор вводит только табель — остальное меняют бухгалтер '
         'или администратор.';
     notifyListeners();
     return false;
@@ -665,21 +668,18 @@ class AppProvider extends ChangeNotifier {
   /// Копия базы перед первым входом на сервер
   /// (`backup_before_sync_<дата-время>.db`). Бросает исключение, если копию
   /// сделать не удалось.
-  Future<String> createSyncSafetyBackup() => _backupService.createSafetyBackup(
-    _appDb.db,
-    prefix: 'backup_before_sync',
-  );
+  Future<String> createSyncSafetyBackup() =>
+      backupService.createSafetyBackup(_appDb.db, prefix: 'backup_before_sync');
 
   // ==========================================================================
   // РЕЗЕРВНОЕ КОПИРОВАНИЕ
   // ==========================================================================
 
   Future<String?> createBackup() async {
+    final backups = _backupService;
+    if (backups == null) return null;
     try {
-      return await _backupService.createBackup(
-        _appDb.db,
-        type: BackupType.daily,
-      );
+      return await backups.createBackup(_appDb.db, type: BackupType.daily);
     } catch (e) {
       _error = 'Ошибка создания бэкапа: $e';
       notifyListeners();
@@ -692,9 +692,11 @@ class AppProvider extends ChangeNotifier {
   /// - Всегда пытается создать ежемесячную копию; сервис сам пропустит,
   ///   если за текущий месяц копия уже существует.
   Future<void> autoBackup() async {
+    final backups = _backupService;
+    if (backups == null) return;
     try {
-      await _backupService.createBackup(_appDb.db, type: BackupType.daily);
-      await _backupService.createBackup(_appDb.db, type: BackupType.monthly);
+      await backups.createBackup(_appDb.db, type: BackupType.daily);
+      await backups.createBackup(_appDb.db, type: BackupType.monthly);
     } catch (e) {
       // Автобэкап не должен нарушать работу приложения
       debugPrint('autoBackup error: $e');
@@ -702,12 +704,12 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<List<BackupInfo>> getBackups() async {
-    return await _backupService.getBackups();
+    return await _backupService?.getBackups() ?? const [];
   }
 
   Future<void> deleteBackup(String path) async {
     try {
-      await _backupService.deleteBackup(path);
+      await backupService.deleteBackup(path);
     } catch (e) {
       _error = 'Ошибка удаления бэкапа: $e';
       notifyListeners();
@@ -721,7 +723,7 @@ class AppProvider extends ChangeNotifier {
   /// Формат копии; null — файл не копия базы программы.
   BackupFormat? backupFormat(String backupPath) {
     try {
-      return detectBackupFormat(backupPath);
+      return backupService.detectFormat(backupPath);
     } on RestoreException {
       return null;
     }
@@ -730,7 +732,7 @@ class AppProvider extends ChangeNotifier {
   /// Таблицы копии, которые можно восстановить по отдельности
   /// (только копии нового формата).
   List<String> restorableTables(String backupPath) =>
-      BackupRestorer.restorableTables(backupPath);
+      backupService.restorableTables(backupPath);
 
   /// Заменяет всю базу копией (любого формата; старая переносится
   /// конвертером). Перед этим — копия текущей базы. При ошибке текущая
@@ -738,25 +740,17 @@ class AppProvider extends ChangeNotifier {
   Future<bool> restoreFullBackup(String backupPath) async {
     if (!_notOperator()) return false;
     try {
-      await _backupService.createSafetyBackup(_appDb.db);
-      final deviceId = await _appDb.db.deviceId();
-      final path = _appDb.path;
-      final prepared = '$path.restore';
-      await Isolate.run(
-        () => prepareFullRestore(
-          backupPath: backupPath,
-          targetPath: prepared,
-          deviceId: deviceId,
-        ),
+      final backups = backupService;
+      await backups.createSafetyBackup(_appDb.db);
+      await backups.restoreFull(
+        _appDb,
+        backupPath,
+        beforeReplace: () async => beforeDatabaseReplaced?.call(),
+        onReopened: (reopened) {
+          _appDb = reopened;
+          _databaseGeneration++;
+        },
       );
-      await beforeDatabaseReplaced?.call();
-      await _appDb.close();
-      try {
-        replaceDatabaseFile(prepared, path);
-      } finally {
-        _appDb = await AppDatabase.openFile(path);
-        _databaseGeneration++;
-      }
       await loadAllData();
       setNeedRefreshReports(true);
       return true;
@@ -771,11 +765,11 @@ class AppProvider extends ChangeNotifier {
   /// Возвращает число восстановленных строк.
   Future<int> restoreTables(String backupPath, List<String> tables) async {
     if (!_notOperator()) return 0;
-    await _backupService.createSafetyBackup(_appDb.db);
-    final restorer = BackupRestorer(_appDb.db);
+    final backups = backupService;
+    await backups.createSafetyBackup(_appDb.db);
     var count = 0;
     for (final table in businessTables.where(tables.contains)) {
-      count += await restorer.restoreTable(backupPath, table);
+      count += await backups.restoreTable(_appDb.db, backupPath, table);
     }
     await loadAllData();
     setNeedRefreshReports(true);
@@ -789,10 +783,14 @@ class AppProvider extends ChangeNotifier {
     List<String> uuids,
   ) async {
     if (!_notOperator()) return 0;
-    await _backupService.createSafetyBackup(_appDb.db);
-    final count = await BackupRestorer(
+    final backups = backupService;
+    await backups.createSafetyBackup(_appDb.db);
+    final count = await backups.restoreRows(
       _appDb.db,
-    ).restoreRows(backupPath, table, uuids);
+      backupPath,
+      table,
+      uuids,
+    );
     await loadAllData();
     setNeedRefreshReports(true);
     return count;

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kfh_domain/kfh_domain.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:kfx_time_tracking/services/backup_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -17,7 +17,7 @@ void main() {
   setUp(() async {
     root = await Directory.systemTemp.createTemp('backup_service_test');
     service = BackupService(backupDirectory: p.join(root.path, 'backups'));
-    db = LocalDatabase.file(File(p.join(root.path, 'v2.db')));
+    db = openLocalDatabaseFile(File(p.join(root.path, 'v2.db')));
     await DriftRepositories(db).employees.add(
       Employee(
         fullName: 'Иванов Иван',

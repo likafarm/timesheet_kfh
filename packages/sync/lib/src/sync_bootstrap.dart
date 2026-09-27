@@ -148,6 +148,18 @@ class SyncBootstrap {
                   'пустую базу — обратитесь к администратору.',
       );
     }
+    if (client == ClientKind.web) {
+      // Веб-версия (этап 5) — только приём в пустую базу браузера: при выходе
+      // она стирается, привязывать или выгружать отсюда нечего.
+      return plan(
+        BootstrapKind.download,
+        refusal: localRows == 0
+            ? null
+            : 'В этом браузере уже есть данные ($localRows записей), не '
+                  'связанные с сервером. Выйдите и войдите снова — база '
+                  'браузера будет очищена.',
+      );
+    }
     if (serverRows == 0 && localRows == 0) return plan(BootstrapKind.fresh);
     if (serverRows == 0) {
       return plan(

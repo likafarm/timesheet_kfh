@@ -69,3 +69,6 @@ coverage/
 *.docx
 build_log.txt
 structure.txt
+
+# Локальные настройки Claude Code (пути к временным файлам)
+.claude/

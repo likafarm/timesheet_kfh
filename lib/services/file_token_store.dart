@@ -10,10 +10,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:kfh_sync/kfh_sync.dart';
-import 'package:path/path.dart' as p;
-
-import 'dpapi_token_store.dart';
-import 'platform.dart';
 
 /// Токены одного сервера в общем файле.
 class FileTokenStore implements TokenStore {
@@ -83,9 +79,3 @@ class FileTokenStore implements TokenStore {
     if (all.remove(server) != null) await _writeAll(all);
   }
 }
-
-/// Хранилище токенов этой платформы в папке [dataDirectory].
-TokenStore platformTokenStore(String dataDirectory, String server) =>
-    isAndroidApp
-    ? FileTokenStore(File(p.join(dataDirectory, 'sync_auth.json')), server)
-    : DpapiTokenStore(File(p.join(dataDirectory, 'sync_auth.dat')), server);

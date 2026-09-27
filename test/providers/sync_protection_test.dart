@@ -8,7 +8,7 @@ import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/providers/sync_provider.dart';
-import 'package:kfx_time_tracking/services/app_database.dart';
+import 'package:kfx_time_tracking/services/database_files.dart';
 import 'package:kfx_time_tracking/services/backup_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -31,7 +31,6 @@ void main() {
       sync = SyncProvider(
         appVersion: () async => '1.3.0',
         database: db,
-        dataDirectory: '.',
         onDataChanged: () async {},
         backup: () async {},
         tokenStore: (_) => MemoryTokenStore(),
@@ -89,7 +88,7 @@ void main() {
 
     setUp(() async {
       root = await Directory.systemTemp.createTemp('kfh_restore_sync');
-      final appDb = await AppDatabase.openFile(
+      final appDb = await openAppDatabaseFile(
         p.join(root.path, 'kfx_time_tracking_v2.db'),
       );
       app = AppProvider(
@@ -103,7 +102,6 @@ void main() {
       sync = SyncProvider(
         appVersion: () async => '1.3.0',
         database: app.localDatabase,
-        dataDirectory: root.path,
         onDataChanged: app.reloadAfterSync,
         backup: app.createSyncSafetyBackup,
         onLocksChanged: app.loadLockedMonths,

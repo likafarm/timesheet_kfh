@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
+import 'package:kfx_time_tracking/services/database_files.dart';
 import 'package:kfx_time_tracking/services/db_location.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;

@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
-import 'services/app_database.dart';
-import 'services/backup_service.dart';
-import 'services/db_location.dart';
 import 'services/platform.dart';
+import 'services/startup.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
 import 'widgets/auth_gate.dart';
@@ -19,20 +16,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
 
-  final AppDatabase appDb;
+  final PlatformServices platform;
   try {
-    appDb = await openAppDatabase(
-      dataDir: await appDataDirectory(),
-      legacyDirs: legacyDatabaseDirectories(),
-      backupLegacy: BackupService().backupLegacyDatabase,
-      log: logDbLocation,
-    );
+    platform = await startPlatform();
   } catch (e) {
     runApp(StartupErrorApp(message: '$e'));
     return;
   }
 
-  runApp(MyApp(appDb: appDb));
+  runApp(MyApp(platform: platform));
 }
 
 ThemeData get _theme => AppTheme.lightTheme;
@@ -44,9 +36,9 @@ const _localizations = [
 ];
 
 class MyApp extends StatefulWidget {
-  final AppDatabase appDb;
+  final PlatformServices platform;
 
-  const MyApp({super.key, required this.appDb});
+  const MyApp({super.key, required this.platform});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -60,13 +52,17 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _app = AppProvider(widget.appDb);
+    final platform = widget.platform;
+    _app = AppProvider(platform.database, backupService: platform.backups);
     _sync = SyncProvider(
       database: _app.localDatabase,
-      dataDirectory: p.dirname(widget.appDb.path),
       onDataChanged: _app.reloadAfterSync,
-      backup: _app.createSyncSafetyBackup,
+      // Веб-версия принимает данные только в пустую базу браузера —
+      // копировать перед первым входом нечего.
+      backup: _app.hasLocalBackups ? _app.createSyncSafetyBackup : () async {},
       onLocksChanged: _app.loadLockedMonths,
+      tokenStore: platform.tokenStore,
+      journal: platform.journal,
     );
     _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;
@@ -153,12 +149,7 @@ class StartupErrorApp extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Программа ничего не изменила в ваших данных. Причина — ниже; '
-                'подробности записаны в журнал db_location.log в папке '
-                'данных программы. Можно закрыть программу и вернуться '
-                'к предыдущей версии.',
-              ),
+              const Text(startupErrorHint),
               const SizedBox(height: 16),
               SelectableText(
                 message,
@@ -173,12 +164,15 @@ class StartupErrorApp extends StatelessWidget {
                     icon: const Icon(Icons.copy),
                     label: const Text('Скопировать текст'),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: () => SystemNavigator.pop(),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Закрыть программу'),
-                  ),
+                  // Страницу браузера программа не закрывает.
+                  if (!isWebApp) ...[
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () => SystemNavigator.pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Закрыть программу'),
+                    ),
+                  ],
                 ],
               ),
             ],

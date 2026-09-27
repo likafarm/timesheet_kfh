@@ -156,6 +156,66 @@ void main() {
     expect(plan.refusal, contains('пустую базу'));
   });
 
+  test('в веб-версии оператору — отказ', () async {
+    final plan = await bootstrap(
+      'https://a',
+      client: ClientKind.web,
+    ).analyze(operator);
+    expect(plan.allowed, isFalse);
+    expect(plan.refusal, contains('веб-версии'));
+  });
+
+  test('веб-версия: пустая база — приём, ничего не уходит', () async {
+    final other = LocalDatabase.memory();
+    addTearDown(other.close);
+    final emp = await DriftRepositories(other).employees.add(
+      Employee(
+        fullName: 'Петров Пётр',
+        position: 'Рабочий',
+        hireDate: DateTime(2025, 3, 1),
+        baseRate: 1000,
+        fieldRate: 1500,
+      ),
+    );
+    await SyncEngine(
+      store: LocalSyncStore(other),
+      transport: server.client(other.deviceId),
+    ).run();
+    final settings = server.rows('company_settings').single;
+
+    final b = bootstrap('https://a', client: ClientKind.web);
+    final plan = await b.analyze(_admin);
+    expect(plan.kind, BootstrapKind.download);
+    expect(plan.allowed, isTrue);
+    await b.execute(plan, backup: () async {});
+    expect(await DriftRepositories(db).employees.byId(emp), isNotNull);
+    expect(server.rows('company_settings').single.uuid, settings.uuid);
+    expect(await store.pendingCount(), 0);
+    expect(imports, 0);
+  });
+
+  test(
+    'веб-версия: пустой сервер — тоже приём, ничего не выгружается',
+    () async {
+      final b = bootstrap('https://a', client: ClientKind.web);
+      final plan = await b.analyze(_admin);
+      expect(plan.kind, BootstrapKind.download);
+      await b.execute(plan, backup: () async {});
+      expect(server.rows('company_settings'), isEmpty);
+      expect(imports, 0);
+    },
+  );
+
+  test('веб-версия: в браузере уже есть данные — отказ', () async {
+    await addEmployee();
+    final plan = await bootstrap(
+      'https://a',
+      client: ClientKind.web,
+    ).analyze(_admin);
+    expect(plan.allowed, isFalse);
+    expect(plan.refusal, contains('браузере'));
+  });
+
   test('пусто и там, и здесь — просто начать', () async {
     final b = bootstrap('https://a');
     final plan = await b.analyze(_admin);
