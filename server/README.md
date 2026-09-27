@@ -180,7 +180,7 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   `sudo systemctl start kfh-backup.service`.
 - **Ключ шифрования**: открытый — в `kfh.env`, закрытый — только у владельца (`%USERPROFILE%\.kfh\backup_age.key`
   + копия вне ПК). Без него копии из бакета не расшифровать.
-- **Восстановление** (проверено 2026-09-27 на пустой схеме): скачать копию (`rclone` на VPS с настройками из
+- **Восстановление** (проверено 2026-09-27 на реальных данных: контрольные суммы всех таблиц совпали с сервером): скачать копию (`rclone` на VPS с настройками из
   `backup.sh`, или консоль Yandex Cloud) → на ПК `age -d -i backup_age.key -o kfh.sql.gz <копия>.age` (без age —
   `docker run --rm -v <папка ключа>:/k:ro -v <папка копии>:/d alpine:3.22 sh -c "apk add age && age -d …"`) →
   `zcat kfh.sql.gz | mysql -uroot -p` в чистую MySQL 8.4 (дамп сам создаёт базу `kfh`) → `server migrate`
