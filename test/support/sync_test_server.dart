@@ -85,6 +85,22 @@ class SyncTestServer {
             for (final c in changes.cast<Map<String, Object?>>())
               () {
                 final key = '${c['table']}/${c['uuid']}';
+                // Как на сервере: побеждает более поздняя правка.
+                final existing = rows[key];
+                if (existing != null) {
+                  final mine = DateTime.parse(existing['updated_at'] as String);
+                  final theirs = DateTime.parse(c['updated_at'] as String);
+                  if (!theirs.isAfter(mine)) {
+                    final same =
+                        theirs == mine &&
+                        jsonEncode(existing['data']) == jsonEncode(c['data']) &&
+                        existing['deleted'] == c['deleted'];
+                    return {
+                      'change_id': c['change_id'],
+                      'status': same ? 'duplicate' : 'stale',
+                    };
+                  }
+                }
                 rows[key] = {...c, 'edited_by': r.headers['x-device-id']}
                   ..remove('change_id');
                 log.add(key);

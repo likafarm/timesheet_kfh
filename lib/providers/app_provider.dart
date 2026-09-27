@@ -18,6 +18,10 @@ class AppProvider extends ChangeNotifier {
 
   BackupService get backupService => _backupService;
 
+  /// Перед заменой файла базы (полное восстановление): остановить то, что
+  /// с ней работает в фоне (синхронизацию).
+  Future<void> Function()? beforeDatabaseReplaced;
+
   /// Путь к файлу базы (для «О программе»).
   String get databasePath => _appDb.path;
 
@@ -710,6 +714,7 @@ class AppProvider extends ChangeNotifier {
           deviceId: deviceId,
         ),
       );
+      await beforeDatabaseReplaced?.call();
       await _appDb.close();
       try {
         replaceDatabaseFile(prepared, path);

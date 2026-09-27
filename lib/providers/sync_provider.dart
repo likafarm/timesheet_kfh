@@ -7,7 +7,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show TableUpdate;
+import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_local_db/kfh_local_db.dart';
@@ -55,6 +55,19 @@ class SyncProvider extends ChangeNotifier {
   /// Ключ времени последней удачной синхронизации в `sync_state`.
   static const lastSyncKey = 'sync_last_at';
 
+  /// Ключ в `sync_state`: база восстановлена из копии, следующая удачная
+  /// синхронизация — повторная сверка с сервером (как при привязке).
+  static const relinkKey = 'sync_relink';
+
+  /// Сервер на этом компьютере (стенд), а не рабочий.
+  static bool isLocalServer(String server) {
+    final host = Uri.tryParse(server)?.host ?? '';
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '::1' ||
+        host == '[::1]';
+  }
+
   SyncProvider({
     required LocalDatabase database,
     required String dataDirectory,
@@ -67,6 +80,7 @@ class SyncProvider extends ChangeNotifier {
     this.autoSync = true,
     this.syncInterval = const Duration(minutes: 5),
     this.changeDelay = const Duration(seconds: 5),
+    this.debugBuild = kDebugMode,
   }) : _db = database,
        _tokenStore =
            tokenStore ??
@@ -106,6 +120,17 @@ class SyncProvider extends ChangeNotifier {
   );
   bool _localEdit = false;
 
+  /// Отладочная сборка: адрес не на этом компьютере — только с явного
+  /// согласия (у неё своя база, но вход — настоящий).
+  final bool debugBuild;
+
+  /// Сервер, к которому база была привязана (для повторной сверки после
+  /// полного восстановления, когда прежняя база уже закрыта).
+  String? _linkedServer;
+
+  /// Идёт замена файла базы — синхронизация не запускается.
+  bool _suspended = false;
+
   final TokenStore Function(String server) _tokenStore;
   final http.Client Function() _httpClient;
 
@@ -139,6 +164,22 @@ class SyncProvider extends ChangeNotifier {
   DateTime? get lastSyncAt => _lastSyncAt;
   SyncReport? get lastReport => _lastReport;
 
+  /// База связана с сервером (выполнен первый вход).
+  bool get isLinked => _linkedServer != null;
+
+  /// Предупреждение для окон восстановления из копии (null — база не
+  /// связана с сервером, предупреждать не о чем).
+  String? restoreWarning({required bool full}) {
+    if (!isLinked) return null;
+    return full
+        ? 'Компьютер связан с сервером $_linkedServer. После восстановления '
+              'база будет заново сверена с сервером: записи, изменённые на '
+              'сервере позже копии, вернутся к серверному виду, а записи из '
+              'копии, которых на сервере нет, будут отправлены на сервер.'
+        : 'Компьютер связан с сервером: восстановленные записи будут '
+              'отправлены на сервер и появятся на других компьютерах.';
+  }
+
   /// Неотправленных записей (вместе с отклонёнными сервером).
   int get pending => _pending;
 
@@ -170,7 +211,28 @@ class SyncProvider extends ChangeNotifier {
     _scheduler.stop();
     _db = database;
     _engine = null;
+    final linked = _linkedServer;
+    if (linked != null) {
+      // Восстановленная копия — неизвестно, что из неё знает сервер: всё
+      // «не отправлено», курсор с нуля; первая синхронизация сверит базу с
+      // сервером как при привязке (решение владельца 2026-09-27: сервер —
+      // истина; записи копии, которых на сервере нет, уйдут туда).
+      await _store.forgetServer();
+      await _store.setLinkedServer(linked);
+      await _db.syncStateDao.setValue(relinkKey, '1');
+    }
+    _suspended = false;
     await init();
+  }
+
+  /// Перед заменой файла базы (полное восстановление): дождаться идущего
+  /// обмена и остановить автоматику. Возобновляет [rebind].
+  Future<void> suspend() async {
+    _suspended = true;
+    _scheduler.stop();
+    while (_syncing) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
   }
 
   Future<void> _connect(String server) async {
@@ -185,12 +247,13 @@ class SyncProvider extends ChangeNotifier {
   }
 
   Future<void> _updatePhase() async {
+    _linkedServer = await _store.linkedServer();
     final user = _user;
     if (user == null) {
       _phase = SyncPhase.signedOut;
     } else if (user.mustChangePassword) {
       _phase = SyncPhase.passwordChange;
-    } else if (await _store.linkedServer() != _server) {
+    } else if (_linkedServer != _server) {
       _phase = SyncPhase.needsLink;
     } else {
       _phase = SyncPhase.ready;
@@ -233,8 +296,21 @@ class SyncProvider extends ChangeNotifier {
 
   /// Вход логином и паролем. Ошибка — [SyncUserException] с понятным
   /// текстом.
-  Future<void> signIn(String server, String login, String password) async {
+  /// [allowRemoteInDebug] — в отладочной сборке человек подтвердил вход на
+  /// сервер не на этом компьютере.
+  Future<void> signIn(
+    String server,
+    String login,
+    String password, {
+    bool allowRemoteInDebug = false,
+  }) async {
     final address = normalizeServer(server);
+    if (debugBuild && !isLocalServer(address) && !allowRemoteInDebug) {
+      throw const SyncUserException(
+        'Это отладочная сборка: подключение к серверу не на этом компьютере '
+        'нужно подтвердить отдельно.',
+      );
+    }
     await _connect(address);
     _server = address;
     final SessionUser user;
@@ -341,11 +417,21 @@ class SyncProvider extends ChangeNotifier {
       : SyncAttempt.ok;
 
   Future<SyncReport?> _runSync({bool retryRejected = false}) async {
-    if (_phase != SyncPhase.ready) return null;
+    if (_phase != SyncPhase.ready || _suspended) return null;
     _syncing = true;
     notifyListeners();
     try {
-      final report = await _syncEngine.run(retryRejected: retryRejected);
+      final relink = await _db.syncStateDao.getValue(relinkKey) == '1';
+      final report = await _syncEngine.run(
+        retryRejected: retryRejected,
+        linking: relink,
+      );
+      if (relink) {
+        await _db.customUpdate(
+          'DELETE FROM sync_state WHERE key = ?',
+          variables: [Variable<String>(relinkKey)],
+        );
+      }
       await _succeeded(report);
       return report;
     } on SyncFailure catch (e) {

@@ -74,7 +74,21 @@ class _SignInDialogState extends State<SignInDialog> {
   final _password = TextEditingController();
   bool _busy = false;
   bool _showServer = false;
+  bool _remoteConfirmed = false;
   String? _error;
+
+  /// Отладочная сборка и адрес не на этом компьютере — нужно согласие.
+  bool get _needsRemoteConfirm {
+    final sync = context.read<SyncProvider>();
+    if (!sync.debugBuild) return false;
+    try {
+      return !SyncProvider.isLocalServer(
+        SyncProvider.normalizeServer(_server.text),
+      );
+    } on SyncUserException {
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -94,6 +108,13 @@ class _SignInDialogState extends State<SignInDialog> {
 
   Future<void> _submit() async {
     if (_busy || !_formKey.currentState!.validate()) return;
+    if (_needsRemoteConfirm && !_remoteConfirmed) {
+      setState(() {
+        _showServer = true;
+        _error = 'Отметьте согласие на вход с отладочной сборки.';
+      });
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -103,6 +124,7 @@ class _SignInDialogState extends State<SignInDialog> {
         _server.text,
         _login.text,
         _password.text,
+        allowRemoteInDebug: _remoteConfirmed,
       );
       if (mounted) Navigator.of(context).pop(true);
     } on SyncUserException catch (e) {
@@ -120,69 +142,88 @@ class _SignInDialogState extends State<SignInDialog> {
         width: 400,
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Вход нужен для обмена данными с другими компьютерами. Без '
-                'входа программа работает как раньше — только с этой базой.',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _login,
-                autofocus: true,
-                enabled: !_busy,
-                decoration: const InputDecoration(
-                  labelText: 'Логин',
-                  border: OutlineInputBorder(),
+          // В окне 1024×768 с отметкой согласия и ошибкой — прокрутка.
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Вход нужен для обмена данными с другими компьютерами. Без '
+                  'входа программа работает как раньше — только с этой базой.',
                 ),
-                textInputAction: TextInputAction.next,
-                validator: (v) =>
-                    (v ?? '').trim().isEmpty ? 'Укажите логин' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _password,
-                enabled: !_busy,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Пароль',
-                  border: OutlineInputBorder(),
-                ),
-                onFieldSubmitted: (_) => _submit(),
-                validator: (v) => (v ?? '').isEmpty ? 'Укажите пароль' : null,
-              ),
-              const SizedBox(height: 8),
-              if (_showServer)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: TextFormField(
-                    controller: _server,
-                    enabled: !_busy,
-                    decoration: const InputDecoration(
-                      labelText: 'Адрес сервера',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) {
-                      try {
-                        SyncProvider.normalizeServer(v ?? '');
-                        return null;
-                      } on SyncUserException catch (e) {
-                        return e.message;
-                      }
-                    },
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _login,
+                  autofocus: true,
+                  enabled: !_busy,
+                  decoration: const InputDecoration(
+                    labelText: 'Логин',
+                    border: OutlineInputBorder(),
                   ),
-                )
-              else
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _showServer = true),
-                  child: Text('Сервер: ${_server.text}'),
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Укажите логин' : null,
                 ),
-              _ErrorText(_error),
-            ],
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _password,
+                  enabled: !_busy,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Пароль',
+                    border: OutlineInputBorder(),
+                  ),
+                  onFieldSubmitted: (_) => _submit(),
+                  validator: (v) => (v ?? '').isEmpty ? 'Укажите пароль' : null,
+                ),
+                const SizedBox(height: 8),
+                if (_showServer)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: TextFormField(
+                      controller: _server,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        labelText: 'Адрес сервера',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) {
+                        try {
+                          SyncProvider.normalizeServer(v ?? '');
+                          return null;
+                        } on SyncUserException catch (e) {
+                          return e.message;
+                        }
+                      },
+                    ),
+                  )
+                else
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _showServer = true),
+                    child: Text('Сервер: ${_server.text}'),
+                  ),
+                if (_needsRemoteConfirm)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _remoteConfirmed,
+                    onChanged: _busy
+                        ? null
+                        : (v) => setState(() => _remoteConfirmed = v ?? false),
+                    title: const Text(
+                      'Это отладочная сборка (своя база «KFH Time Tracking '
+                      '(debug)»). Понимаю, что вхожу на сервер не на этом '
+                      'компьютере — только для проверки, под отдельной учёткой.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                _ErrorText(_error),
+              ],
+            ),
           ),
         ),
       ),
@@ -260,50 +301,54 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         width: 400,
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.forced)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'Пароль выдан администратором — задайте свой. Новый '
-                    'пароль — не короче 8 символов.',
+          // В окне 1024×768 с отметкой согласия и ошибкой — прокрутка.
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.forced)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Пароль выдан администратором — задайте свой. Новый '
+                      'пароль — не короче 8 символов.',
+                    ),
                   ),
+                TextFormField(
+                  controller: _old,
+                  autofocus: true,
+                  obscureText: true,
+                  enabled: !_busy,
+                  decoration: field(
+                    widget.forced ? 'Выданный пароль' : 'Текущий пароль',
+                  ),
+                  validator: (v) => (v ?? '').isEmpty ? 'Укажите пароль' : null,
                 ),
-              TextFormField(
-                controller: _old,
-                autofocus: true,
-                obscureText: true,
-                enabled: !_busy,
-                decoration: field(
-                  widget.forced ? 'Выданный пароль' : 'Текущий пароль',
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _new,
+                  obscureText: true,
+                  enabled: !_busy,
+                  decoration: field('Новый пароль'),
+                  validator: (v) => (v ?? '').length < 8
+                      ? 'Не короче 8 символов'
+                      : v == _old.text
+                      ? 'Новый пароль совпадает с прежним'
+                      : null,
                 ),
-                validator: (v) => (v ?? '').isEmpty ? 'Укажите пароль' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _new,
-                obscureText: true,
-                enabled: !_busy,
-                decoration: field('Новый пароль'),
-                validator: (v) => (v ?? '').length < 8
-                    ? 'Не короче 8 символов'
-                    : v == _old.text
-                    ? 'Новый пароль совпадает с прежним'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _repeat,
-                obscureText: true,
-                enabled: !_busy,
-                decoration: field('Новый пароль ещё раз'),
-                onFieldSubmitted: (_) => _submit(),
-                validator: (v) => v != _new.text ? 'Пароли не совпадают' : null,
-              ),
-              _ErrorText(_error),
-            ],
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _repeat,
+                  obscureText: true,
+                  enabled: !_busy,
+                  decoration: field('Новый пароль ещё раз'),
+                  onFieldSubmitted: (_) => _submit(),
+                  validator: (v) =>
+                      v != _new.text ? 'Пароли не совпадают' : null,
+                ),
+                _ErrorText(_error),
+              ],
+            ),
           ),
         ),
       ),
@@ -472,7 +517,10 @@ class _LinkDialogState extends State<LinkDialog> {
     final plan = _plan;
     return AlertDialog(
       title: const Text('Первый вход на сервер'),
-      content: SizedBox(width: 460, child: _content(context)),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(child: _content(context)),
+      ),
       actions: [
         if (!busy && _step != _LinkStep.done)
           TextButton(

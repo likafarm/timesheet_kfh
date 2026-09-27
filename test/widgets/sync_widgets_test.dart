@@ -22,7 +22,7 @@ void main() {
   late MemorySyncJournal journal;
   late int backups;
 
-  Future<void> setUpSync(WidgetTester tester) async {
+  Future<void> setUpSync(WidgetTester tester, {bool debugBuild = false}) async {
     tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -40,6 +40,7 @@ void main() {
         httpClient: () => MockClient(server.handle),
         journal: journal,
         autoSync: false,
+        debugBuild: debugBuild,
       );
       await sync.init();
     });
@@ -177,5 +178,40 @@ void main() {
     expect(find.text('Версия этого компьютера'), findsOneWidget);
     expect(find.text('Версия сервера'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('отладочная сборка: чужой сервер — только с отметкой согласия', (
+    tester,
+  ) async {
+    await setUpSync(tester, debugBuild: true);
+    await tester.pumpWidget(withBar());
+    await tester.tap(find.text('Войти'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CheckboxListTile), findsNothing, reason: 'стенд');
+
+    await tester.tap(find.textContaining('Сервер: '));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Адрес сервера'),
+      'tab.korovatech.ru',
+    );
+    await tester.pump();
+    expect(find.byType(CheckboxListTile), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Логин'), 'ivan');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Пароль'),
+      'secret-pass',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await settle(tester);
+    expect(find.textContaining('Отметьте согласие'), findsOneWidget);
+    expect(sync.phase, SyncPhase.signedOut);
+
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await settle(tester);
+    expect(sync.server, 'https://tab.korovatech.ru');
+    expect(sync.phase, SyncPhase.needsLink);
   });
 }

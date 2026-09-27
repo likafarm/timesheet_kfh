@@ -32,6 +32,7 @@ void main() {
       httpClient: () => MockClient(server.handle),
       journal: MemorySyncJournal(),
       autoSync: autoSync,
+      debugBuild: false,
       syncInterval: interval,
       changeDelay: const Duration(milliseconds: 150),
     );

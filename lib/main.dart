@@ -66,11 +66,13 @@ class _MyAppState extends State<MyApp> {
       backup: _app.createSyncSafetyBackup,
       onLocksChanged: _app.loadLockedMonths,
     );
+    _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;
     // Полное восстановление из копии переоткрывает базу — синхронизация
     // переключается на новую.
     _app.addListener(() {
       if (_app.databaseGeneration != _generation) {
+        _app.beforeDatabaseReplaced = _sync.suspend;
         _generation = _app.databaseGeneration;
         _sync.rebind(_app.localDatabase);
       }

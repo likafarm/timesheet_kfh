@@ -36,6 +36,7 @@ void main() {
       httpClient: () => MockClient(server.handle),
       journal: MemorySyncJournal(),
       autoSync: false,
+      debugBuild: false,
     ),
   );
 
