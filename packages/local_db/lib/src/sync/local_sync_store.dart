@@ -99,6 +99,9 @@ class ApplyReport {
   /// Пропущено: на устройстве неотправленная правка новее серверной.
   int keptLocal = 0;
 
+  /// Пропущено: здесь уже ровно эта версия (например, своя отправленная).
+  int unchanged = 0;
+
   final List<LostChange> lost = [];
 
   /// Локальная база могла разойтись с сервером (у записи, уступившей по
@@ -270,6 +273,21 @@ class LocalSyncStore {
     return result;
   }
 
+  /// Первый вход на устройстве без своих данных: всё, что есть в базе
+  /// (строка настроек хозяйства по умолчанию), считается известным серверу —
+  /// при приёме серверные версии заменят его, а не наоборот.
+  Future<void> markAllSynced() => db.transaction(() async {
+    for (final table in syncTables) {
+      await db.customUpdate(
+        'UPDATE ${table.name} SET remote_updated_at = updated_at '
+        'WHERE $_dirty',
+        updates: {_tableInfo(table.name)},
+        updateKind: UpdateKind.update,
+      );
+    }
+    await clearRejections();
+  });
+
   /// Отправить отклонённые изменения ещё раз (например, после открытия
   /// месяца).
   Future<void> clearRejections() => db.customUpdate(
@@ -301,14 +319,20 @@ class LocalSyncStore {
   ///   попадает в [ApplyReport.lost];
   /// - живая локальная запись с тем же уникальным ключом, что у пришедшей,
   ///   мягко удаляется без постановки в очередь (серверная пришла раньше).
-  Future<ApplyReport> applyRemote(List<SyncChange> changes) =>
-      db.transaction(() async {
-        final report = ApplyReport();
-        for (final change in changes) {
-          await _applyOne(change, report);
-        }
-        return report;
-      });
+  ///
+  /// [cursor] сохраняется в той же транзакции: страница pull принимается
+  /// целиком вместе с новым курсором или не принимается вовсе.
+  Future<ApplyReport> applyRemote(
+    List<SyncChange> changes, {
+    SyncCursor? cursor,
+  }) => db.transaction(() async {
+    final report = ApplyReport();
+    for (final change in changes) {
+      await _applyOne(change, report);
+    }
+    if (cursor != null) await saveCursor(cursor);
+    return report;
+  });
 
   Future<void> _applyOne(SyncChange change, ApplyReport report) async {
     final table = syncTableByName(change.table);
@@ -316,6 +340,16 @@ class LocalSyncStore {
       throw SyncFormatException('неизвестная таблица: ${change.table}');
     }
     final local = await _row(table.name, change.uuid);
+    if (local != null && !_isDirty(local)) {
+      // Своя же отправленная запись вернулась с сервера — ничего не менять.
+      final mine = syncChangeFromLocalRow(table, local);
+      if (mine.updatedAt == change.updatedAt &&
+          mine.editedBy == change.editedBy &&
+          _same(mine, change)) {
+        report.unchanged++;
+        return;
+      }
+    }
     if (local != null && _isDirty(local)) {
       final mine = syncChangeFromLocalRow(table, local);
       if (mine.updatedAt.isAfter(change.updatedAt)) {

@@ -10,6 +10,7 @@ environment:
 workspace:
   - packages/domain
   - packages/local_db
+  - packages/sync
   - server
 
 dependencies:

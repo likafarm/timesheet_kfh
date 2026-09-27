@@ -16,8 +16,10 @@ void main() {
 
   test('таблицы обмена = бизнес-таблицы клиента', () {
     expect(syncTables.map((t) => t.name).toSet(), businessTables.toSet());
-    expect(syncTables.map((t) => t.name).where((n) => n != 'company_settings'),
-        employeeTablesOrder);
+    expect(
+      syncTables.map((t) => t.name).where((n) => n != 'company_settings'),
+      employeeTablesOrder,
+    );
   });
 
   test('состав полей, типы и NULL совпадают со схемой drift', () async {
@@ -44,8 +46,11 @@ void main() {
           SyncType.integer || SyncType.boolean => 'INTEGER',
         };
         expect(sqlType, wanted, reason: '${table.name}.${column.name}');
-        expect(nullable, column.nullable,
-            reason: '${table.name}.${column.name}: NULL');
+        expect(
+          nullable,
+          column.nullable,
+          reason: '${table.name}.${column.name}: NULL',
+        );
       }
       final dates = table.columns
           .where((c) => c.type == SyncType.date)

@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Variable, driftRuntimeOptions;
+import 'package:drift/drift.dart' show Value, Variable, driftRuntimeOptions;
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:test/test.dart';
@@ -291,6 +291,31 @@ void main() {
       expect((await a.row('employees', emp)).updatedAt, change.updatedAt);
     });
 
+    test(
+      'пустой ПК: серверные настройки заменяют местные по умолчанию',
+      () async {
+        // На сервере — настройки первого ПК, записанные раньше.
+        await a.db.settingsDao.updateSettings(
+          const CompanySettingsCompanion(companyName: Value('КФХ Иванова')),
+        );
+        final server = await a.row('company_settings', companySettingsUuid);
+        expect(server.updatedAt.isBefore(b.now), isTrue);
+
+        // Без отметки местная версия новее — осталась бы и ушла бы на сервер.
+        await b.store.markAllSynced();
+        expect(await b.store.pendingCount(), 0);
+        final report = await b.store.applyRemote([server]);
+        expect(report.applied, 1);
+        expect(
+          (await b.row(
+            'company_settings',
+            companySettingsUuid,
+          )).data['company_name'],
+          'КФХ Иванова',
+        );
+      },
+    );
+
     test('синхронизированная запись принимает серверную версию', () async {
       final emp = await a.addEmployee('Иванов Иван');
       await a.pushAll();
@@ -364,6 +389,19 @@ void main() {
       expect(report.lost, isEmpty);
       expect(await a.pendingUuids(), [companySettingsUuid]);
     });
+
+    test(
+      'своя отправленная запись, вернувшаяся с сервера, не пишется',
+      () async {
+        final emp = await a.addEmployee('Иванов Иван');
+        await a.pushAll();
+        final report = await a.store.applyRemote([
+          await a.row('employees', emp),
+        ]);
+        expect(report.unchanged, 1);
+        expect(report.applied, 0);
+      },
+    );
 
     test('удаление с сервера', () async {
       final emp = await a.addEmployee('Иванов Иван');
@@ -467,6 +505,17 @@ void main() {
         throwsA(anything),
       );
       expect(await a.rows('timesheet'), isEmpty);
+      await expectLater(
+        a.store.applyRemote([
+          await b.row('timesheet', day),
+        ], cursor: const SyncCursor(7, 'e')),
+        throwsA(anything),
+      );
+      expect(
+        await a.store.cursor(),
+        SyncCursor.start,
+        reason: 'курсор — в той же транзакции',
+      );
     });
   });
 
