@@ -28,6 +28,9 @@ class _PeriodsScreenState extends State<PeriodsScreen> {
   /// Закрытые месяцы с сервера (ключ — [PeriodGuard.monthKey]); null — не
   /// получены.
   Map<int, PeriodLockInfo>? _locks;
+
+  /// Снимки остатков до открытия месяцев (с сервера).
+  List<PeriodSnapshot> _snapshots = [];
   String? _error;
   bool _loading = true;
 
@@ -42,12 +45,14 @@ class _PeriodsScreenState extends State<PeriodsScreen> {
     final app = context.read<AppProvider>();
     final sync = context.read<SyncProvider>();
     Map<int, PeriodLockInfo>? locks;
+    var snapshots = <PeriodSnapshot>[];
     String? error;
     try {
       locks = {
         for (final l in await sync.periodLocks())
           PeriodGuard.monthKey(l.year, l.month): l,
       };
+      snapshots = await sync.periodSnapshots();
     } on SyncUserException catch (e) {
       error = e.message;
     }
@@ -64,6 +69,7 @@ class _PeriodsScreenState extends State<PeriodsScreen> {
     setState(() {
       _months = [for (var k = last; k >= first; k--) (k ~/ 12, k % 12 + 1)];
       _locks = locks;
+      _snapshots = snapshots;
       _error = error;
       _loading = false;
     });
@@ -126,6 +132,43 @@ class _PeriodsScreenState extends State<PeriodsScreen> {
                     canUnlock: sync.canUnlockMonths,
                     onChanged: _load,
                   ),
+                if (_snapshots.isNotEmpty) ...[
+                  const Divider(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    child: Text(
+                      'Снимки до открытия',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    child: Text(
+                      'Начисления и остатки, какими они были перед открытием '
+                      'месяца и пересчётом.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  for (final snap in _snapshots)
+                    ListTile(
+                      leading: const Icon(Icons.inventory_2_outlined),
+                      title: Text(monthTitle(snap.year, snap.month)),
+                      subtitle: Text(
+                        [
+                          'открыт',
+                          if (snap.createdAt != null)
+                            DateFormat(
+                              'dd.MM.yyyy HH:mm',
+                            ).format(snap.createdAt!.toLocal()),
+                          if (snap.createdByName != null) snap.createdByName!,
+                        ].join(' · '),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => showPeriodSnapshot(context, snap.id),
+                    ),
+                ],
               ],
             ),
     );

@@ -20,6 +20,12 @@ class SyncTestServer {
   /// Закрытые месяцы `(год, месяц)`.
   final locks = <(int, int)>[];
 
+  /// Открытые месяцы, по которым сохранён снимок (id = номер + 1).
+  final snapshots = <(int, int)>[];
+
+  /// Версия сервера в `/health`.
+  String serverVersion = '0.4.0';
+
   /// Правки этих таблиц сервер отклоняет.
   final rejectTables = <String>{};
 
@@ -63,6 +69,8 @@ class SyncTestServer {
   Future<http.Response> handle(http.Request r) async {
     if (!online) throw http.ClientException('нет сети', r.url);
     switch (r.url.path) {
+      case '/health':
+        return _json({'status': 'ok', 'version': serverVersion});
       case '/auth/login':
         final body = jsonDecode(r.body) as Map<String, Object?>;
         if (body['password'] != 'secret-pass') {
@@ -176,7 +184,48 @@ class SyncTestServer {
       if (!locks.remove(month)) {
         return _error(404, 'not_found', 'Месяц не закрыт');
       }
-      return http.Response('', 204);
+      snapshots.add(month);
+      return _json({'snapshot_id': snapshots.length});
+    }
+    final preview = RegExp(
+      r'^/periods/locks/(\d+)/(\d+)/unlock-preview$',
+    ).firstMatch(r.url.path);
+    if (preview != null) {
+      if (role != 'admin') return _error(403, 'forbidden', 'Только админ');
+      final month = (int.parse(preview[1]!), int.parse(preview[2]!));
+      if (!locks.contains(month)) {
+        return _error(404, 'not_found', 'Месяц не закрыт');
+      }
+      Map<String, Object?> row(double accrued) => {
+        'employee_uuid': 'e1',
+        'full_name': 'Иванов Иван',
+        'starting': 0,
+        'accrued': accrued,
+        'paid': 0,
+        'closing': accrued,
+      };
+      return _json({
+        'year': month.$1,
+        'month': month.$2,
+        'lock': {'year': month.$1, 'month': month.$2},
+        'changes': [
+          {
+            'year': month.$1,
+            'month': month.$2,
+            'employees': [
+              {'before': row(1000), 'after': row(1500)},
+            ],
+          },
+        ],
+      });
+    }
+    if (r.url.path == '/periods/snapshots') {
+      return _json({
+        'snapshots': [
+          for (final (i, (y, m)) in snapshots.indexed.toList().reversed)
+            {'id': i + 1, 'year': y, 'month': m},
+        ],
+      });
     }
     return _error(404, 'not_found', 'Не найдено');
   }

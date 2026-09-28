@@ -417,6 +417,10 @@ void main() {
         throwsA(isA<SyncUserException>()),
         reason: 'бухгалтер не открывает',
       );
+      await expectLater(
+        sync.unlockPreview(2026, 9),
+        throwsA(isA<SyncUserException>()),
+      );
     });
 
     test('неотправленная правка в месяце — месяц не закрывается', () async {
@@ -437,6 +441,28 @@ void main() {
       // Другой месяц правка не задевает.
       await sync.lockMonth(2026, 8);
       expect(server.locks, [(2026, 8)]);
+    });
+
+    test('старый сервер — закрывать и открывать нельзя', () async {
+      final sync = await linked(role: 'admin');
+      server.serverVersion = '0.3.0';
+      for (final action in [
+        () => sync.lockMonth(2026, 9),
+        () => sync.unlockPreview(2026, 9),
+        () => sync.unlockMonth(2026, 9),
+      ]) {
+        await expectLater(
+          action(),
+          throwsA(
+            isA<SyncUserException>().having(
+              (e) => e.message,
+              'message',
+              contains('0.4.0'),
+            ),
+          ),
+        );
+      }
+      expect(server.locks, isEmpty);
     });
 
     test('нет связи — месяц не закрывается, понятная причина', () async {
@@ -462,7 +488,13 @@ void main() {
       await sync.syncNow();
       expect(sync.rejected, 1);
       server.rejectTables.clear();
-      await sync.unlockMonth(2026, 9);
+      final preview = await sync.unlockPreview(2026, 9);
+      final change = preview.changes.single.rows.single;
+      expect((change.before.accrued, change.after.accrued), (1000.0, 1500.0));
+      expect(server.locks, [(2026, 9)], reason: 'предпросмотр не открывает');
+      expect(await sync.unlockMonth(2026, 9), 1, reason: 'id снимка');
+      final snapshot = (await sync.periodSnapshots()).single;
+      expect((snapshot.year, snapshot.month), (2026, 9));
       expect(server.locks, isEmpty);
       expect(await LocalSyncStore(db).lockedMonths(), isEmpty);
       expect(sync.pending, 0, reason: 'отклонённая правка ушла');

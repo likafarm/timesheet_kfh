@@ -9,7 +9,8 @@ import 'dart:async';
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
+import 'package:kfh_domain/kfh_domain.dart'
+    show PlatformVersion, compareVersions;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -678,6 +679,7 @@ class SyncProvider extends ChangeNotifier {
         'Закрывать месяцы могут бухгалтер и администратор',
       );
     }
+    await _requirePeriodServer();
     await syncNow();
     final problem = _problem;
     if (problem != null) {
@@ -706,20 +708,80 @@ class SyncProvider extends ChangeNotifier {
     await syncNow();
   }
 
-  /// Открыть закрытый месяц (только админ). Сервер пересчитывает расчёт
-  /// месяца по текущим данным; отклонённые ранее правки уходят ещё раз.
-  Future<void> unlockMonth(int year, int month) async {
+  /// Что изменит открытие месяца (только админ): сервер проделывает
+  /// пересчёт и откатывает его. Ошибка — [SyncUserException].
+  Future<UnlockPreview> unlockPreview(int year, int month) async {
+    _requireUnlock();
+    await _requirePeriodServer();
+    try {
+      return await _api!.unlockPreview(year, month);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
+
+  /// Открыть закрытый месяц (только админ). Сервер сохраняет снимок
+  /// остатков до открытия и пересчитывает расчёты по текущим данным;
+  /// отклонённые ранее правки уходят ещё раз. Возвращает id снимка.
+  Future<int?> unlockMonth(int year, int month) async {
+    _requireUnlock();
+    await _requirePeriodServer();
+    final int? snapshot;
+    try {
+      snapshot = await _api!.unlockMonth(year, month);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await syncNow(retryRejected: true);
+    return snapshot;
+  }
+
+  /// Сервер, который перед закрытием пересчитывает месяц, а при открытии
+  /// показывает изменения и хранит снимок, — с версии 0.4.0. Со старым
+  /// закрытие зафиксировало бы устаревший расчёт.
+  static const periodServerVersion = '0.4.0';
+
+  Future<void> _requirePeriodServer() async {
+    final String? version;
+    try {
+      version = await _api!.serverVersion();
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    if (version == null || compareVersions(version, periodServerVersion) < 0) {
+      throw SyncUserException(
+        'На сервере версия ${version ?? 'неизвестна'}: закрывать и открывать '
+        'месяцы из программы можно после обновления сервера до '
+        '$periodServerVersion.',
+      );
+    }
+  }
+
+  void _requireUnlock() {
     if (!canUnlockMonths) {
       throw const SyncUserException(
         'Открыть закрытый месяц может только администратор',
       );
     }
+  }
+
+  /// Снимки остатков до открытия месяцев (без данных), новые сверху.
+  Future<List<PeriodSnapshot>> periodSnapshots() =>
+      _ask(() => _api!.periodSnapshots());
+
+  /// Снимок целиком.
+  Future<PeriodSnapshot> periodSnapshot(int id) =>
+      _ask(() => _api!.periodSnapshot(id));
+
+  Future<T> _ask<T>(Future<T> Function() request) async {
+    if (!canLockMonths) {
+      throw const SyncUserException('Нужен вход бухгалтера или администратора');
+    }
     try {
-      await _api!.unlockMonth(year, month);
+      return await request();
     } on SyncFailure catch (e) {
       throw SyncUserException(_explain(e));
     }
-    await syncNow(retryRejected: true);
   }
 
   // ------------------------------------------------------------- очередь

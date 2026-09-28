@@ -547,7 +547,7 @@ void main() {
       expect((s, json['error']['code']), (403, 'forbidden'),
           reason: 'открыть месяц может только админ');
       (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
-      expect(s, 204);
+      expect(s, 200);
       (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
       expect(s, 404);
       await push([day(ivan, '2026-09-25')]);
@@ -572,6 +572,76 @@ void main() {
       (s, _) = await call('POST', '/periods/locks',
           body: {'year': 2026, 'month': 5, 'note': 'x' * 501});
       expect(s, 400);
+    }, skip: mysqlSkip);
+
+    test('открытие: предпросмотр ничего не меняет, снимок хранит «до»',
+        () async {
+      await seed(); // без пересчёта: расчёты не сохранены
+      var (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9, 'note': 'сдан'});
+      expect(s, 201);
+      Future<int> count(String table) async => (await testDb.db
+              .execute('SELECT COUNT(*) AS c FROM $table'))
+          .rows
+          .single
+          .intOf('c');
+      final logBefore = await count('change_log');
+
+      (s, json) = await call('GET', '/periods/locks/2026/9/unlock-preview');
+      expect((s, json['error']['code']), (403, 'forbidden'));
+      (s, json) = await call('GET', '/periods/locks/2026/9/unlock-preview',
+          role: Role.admin, auto: true);
+      expect(s, 200, reason: '$json');
+      expect(json['lock']['note'], 'сдан');
+      final months = {
+        for (final m in json['changes']) '${m['month']}': m['employees'],
+      };
+      expect(months.keys, ['9', '10']);
+      final ivanSept = months['9']
+          .firstWhere((e) => e['employee_uuid'] == ivan);
+      expect((ivanSept['before']['accrued'], ivanSept['after']['accrued']),
+          (0.0, 5650.0));
+      final ivanOct = months['10']
+          .firstWhere((e) => e['employee_uuid'] == ivan);
+      // Остаток на 1.10: было 0 − 1000, станет 5650 − 1000.
+      expect((ivanOct['before']['starting'], ivanOct['after']['starting']),
+          (-1000.0, 4650.0));
+      expect(ivanOct['after']['closing'], 4650.0 + 1800 - 2000);
+
+      // Предпросмотр откатился: месяц закрыт, расчётов и журнала нет.
+      expect(await count('period_locks'), 1);
+      expect(await count('payroll_results'), 0);
+      expect(await count('change_log'), logBefore);
+      expect(await count('period_snapshots'), 0);
+
+      (s, json) = await call('DELETE', '/periods/locks/2026/9',
+          role: Role.admin, auto: true);
+      expect(s, 200);
+      final id = json['snapshot_id'] as int;
+      expect(await count('payroll_results'), 4);
+
+      (s, json) = await call('GET', '/periods/snapshots');
+      expect(s, 200);
+      final listed = json['snapshots'].single;
+      expect((listed['id'], listed['year'], listed['month'], listed['reason']),
+          (id, 2026, 9, 'unlock'));
+      expect(listed['created_by_name'], 'Админ');
+      expect(listed['lock']['locked_by_name'], 'Пользователь accountant');
+      expect(listed.containsKey('months'), isFalse);
+
+      (s, json) = await call('GET', '/periods/snapshots/$id');
+      expect(s, 200);
+      final snapSept = json['months'].first;
+      expect((snapSept['year'], snapSept['month']), (2026, 9));
+      final ivanSnap =
+          snapSept['employees'].firstWhere((e) => e['employee_uuid'] == ivan);
+      expect(ivanSnap['full_name'], 'Иванов Иван');
+      expect((ivanSnap['accrued'], ivanSnap['paid'], ivanSnap['closing']),
+          (0.0, 1000.0, -1000.0), reason: 'как было до открытия');
+      (s, _) = await call('GET', '/periods/snapshots/$id', role: Role.operator);
+      expect(s, 403);
+      (s, _) = await call('GET', '/periods/snapshots/999');
+      expect(s, 404);
     }, skip: mysqlSkip);
 
     test('закрытие ждёт незавершённый приём изменений', () async {
@@ -751,7 +821,7 @@ void main() {
 
       (s, _) = await call('DELETE', '/periods/locks/2026/9',
           auto: true, role: Role.admin);
-      expect(s, 204);
+      expect(s, 200);
       expect((await month(9))[ivan]['saved']['total_salary'], 5650.0);
       expect((await month(10))[ivan]['starting_balance'], 4650.0);
     }, skip: mysqlSkip);

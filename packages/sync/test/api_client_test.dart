@@ -269,17 +269,98 @@ void main() {
           : http.Response('', 204),
     );
     final lock = (await api.periodLocks()).single;
-    expect((lock.year, lock.month, lock.lockedByName, lock.note),
-        (2026, 8, 'Бухгалтер', 'сдан'));
+    expect(
+      (lock.year, lock.month, lock.lockedByName, lock.note),
+      (2026, 8, 'Бухгалтер', 'сдан'),
+    );
     expect(lock.lockedAt, DateTime.utc(2026, 9, 27, 10));
 
     await api.lockMonth(2026, 9, note: 'ведомость');
     expect(requests[1].url.path, '/periods/locks');
-    expect(jsonDecode(requests[1].body),
-        {'year': 2026, 'month': 9, 'note': 'ведомость'});
+    expect(jsonDecode(requests[1].body), {
+      'year': 2026,
+      'month': 9,
+      'note': 'ведомость',
+    });
     await api.unlockMonth(2026, 8);
-    expect((requests[2].method, requests[2].url.path),
-        ('DELETE', '/periods/locks/2026/8'));
+    expect(
+      (requests[2].method, requests[2].url.path),
+      ('DELETE', '/periods/locks/2026/8'),
+    );
+  });
+
+  test('открытие месяца: предпросмотр, снимок, id снимка', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    Map<String, Object?> row(double accrued, double starting) => {
+      'employee_uuid': 'e1',
+      'full_name': 'Иванов Иван',
+      'starting': starting,
+      'accrued': accrued,
+      'paid': 1000,
+      'closing': starting + accrued - 1000,
+    };
+    final api = client((r) {
+      if (r.method == 'DELETE') return _json({'snapshot_id': 7});
+      if (r.url.path.endsWith('/unlock-preview')) {
+        return _json({
+          'year': 2026,
+          'month': 9,
+          'lock': {'year': 2026, 'month': 9, 'locked_by_name': 'Бухгалтер'},
+          'changes': [
+            {
+              'year': 2026,
+              'month': 9,
+              'employees': [
+                {'before': row(0, 0), 'after': row(5650, 0)},
+              ],
+            },
+          ],
+        });
+      }
+      if (r.url.path == '/periods/snapshots') {
+        return _json({
+          'snapshots': [
+            {
+              'id': 7,
+              'year': 2026,
+              'month': 9,
+              'created_at': '2026-09-28T10:00:00.000Z',
+              'created_by_name': 'Админ',
+              'lock': null,
+            },
+          ],
+        });
+      }
+      return _json({
+        'id': 7,
+        'year': 2026,
+        'month': 9,
+        'months': [
+          {
+            'year': 2026,
+            'month': 9,
+            'employees': [row(0, 0)],
+          },
+        ],
+      });
+    });
+    final preview = await api.unlockPreview(2026, 9);
+    expect(requests.last.url.path, '/periods/locks/2026/9/unlock-preview');
+    expect(preview.lock!.lockedByName, 'Бухгалтер');
+    final change = preview.changes.single.rows.single;
+    expect(
+      (change.fullName, change.before.accrued, change.after.accrued),
+      ('Иванов Иван', 0.0, 5650.0),
+    );
+    expect(change.after.closing, 4650.0);
+
+    expect(await api.unlockMonth(2026, 9), 7);
+    final listed = (await api.periodSnapshots()).single;
+    expect((listed.id, listed.createdByName), (7, 'Админ'));
+    expect(listed.months, isEmpty);
+    final full = await api.periodSnapshot(7);
+    expect(requests.last.url.path, '/periods/snapshots/7');
+    expect(full.months.single.rows.single.closing, -1000.0);
   });
 
   group('HttpSyncTransport', () {

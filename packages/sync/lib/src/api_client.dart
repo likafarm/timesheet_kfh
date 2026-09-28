@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart';
 
 import 'failures.dart';
+import 'period_snapshots.dart';
 import 'session.dart';
 
 /// Клиент API сервера: вход, токены, JSON-запросы.
@@ -138,14 +139,32 @@ class KfhApiClient {
 
   /// Закрыть месяц (бухгалтер и админ). Сервер до закрытия пересчитывает
   /// его расчёт; уже закрыт — [ApiFailure] `already_locked`.
-  Future<void> lockMonth(int year, int month, {String? note}) => postJson(
-    '/periods/locks',
-    {'year': year, 'month': month, 'note': ?note},
-  );
+  Future<void> lockMonth(int year, int month, {String? note}) =>
+      postJson('/periods/locks', {'year': year, 'month': month, 'note': ?note});
 
-  /// Открыть закрытый месяц (только админ).
-  Future<void> unlockMonth(int year, int month) =>
-      _authorized('DELETE', '/periods/locks/$year/$month');
+  /// Открыть закрытый месяц (только админ). Сервер сохраняет снимок
+  /// остатков до открытия и пересчитывает расчёты; возвращает id снимка.
+  Future<int?> unlockMonth(int year, int month) async {
+    final json = await _authorized('DELETE', '/periods/locks/$year/$month');
+    return json['snapshot_id'] as int?;
+  }
+
+  /// Что изменит открытие месяца — без изменений на сервере (только админ).
+  Future<UnlockPreview> unlockPreview(int year, int month) async =>
+      UnlockPreview.fromJson(
+        await getJson('/periods/locks/$year/$month/unlock-preview'),
+      );
+
+  /// Снимки остатков перед открытием месяцев, новые сверху (без данных).
+  Future<List<PeriodSnapshot>> periodSnapshots() async {
+    final list = (await getJson('/periods/snapshots'))['snapshots'];
+    if (list is! List) throw ServerFailure('нет списка снимков');
+    return [for (final s in list) PeriodSnapshot.fromJson(s)];
+  }
+
+  /// Снимок целиком.
+  Future<PeriodSnapshot> periodSnapshot(int id) async =>
+      PeriodSnapshot.fromJson(await getJson('/periods/snapshots/$id'));
 
   /// Версии программ (`GET /client/version`, без входа). Старый сервер без
   /// этого адреса — пустой список (обновлений не требуется).
@@ -159,6 +178,10 @@ class KfhApiClient {
       throw ServerFailure(e.toString());
     }
   }
+
+  /// Версия сервера (`GET /health`, без входа); null — не сообщает.
+  Future<String?> serverVersion() async =>
+      (await _send('GET', '/health'))['version'] as String?;
 
   // ------------------------------------------------------------- запросы
 

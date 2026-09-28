@@ -18,7 +18,10 @@ import 'responses.dart';
 ///
 /// - `GET /periods/locks` — все; `POST /periods/locks` `{year, month, note?}`,
 ///   `DELETE /periods/locks/<year>/<month>` — закрывают бухгалтер и админ,
-///   открывает только админ;
+///   открывает только админ (ответ — `{snapshot_id}`: снимок остатков до
+///   открытия); `GET /periods/locks/<year>/<month>/unlock-preview` — что
+///   изменит открытие (админ); `GET /periods/snapshots`,
+///   `GET /periods/snapshots/<id>` — снимки (бухгалтер и админ);
 /// - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки;
 /// - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с
 ///   сохранённым (`up_to_date`), без записи;
@@ -48,6 +51,9 @@ class DataApi {
       ..get('/periods/locks', _locks)
       ..post('/periods/locks', _lock)
       ..delete('/periods/locks/<year>/<month>', _unlock)
+      ..get('/periods/locks/<year>/<month>/unlock-preview', _unlockPreview)
+      ..get('/periods/snapshots', _snapshots)
+      ..get('/periods/snapshots/<id>', _snapshot)
       ..get('/payroll', _payroll)
       ..get('/payroll/calculation', _calculation)
       ..post('/payroll/calculate', _calculate)
@@ -76,9 +82,25 @@ class DataApi {
 
   Future<Response> _unlock(Request request, String year, String month) async {
     final user = await auth.requireUser(request);
-    await periods.unlock(user, year, month,
+    final snapshot = await periods.unlock(user, year, month,
         requestId: requestIdOf(request), deviceId: deviceIdOf(request));
-    return Response(204);
+    return jsonResponse({'snapshot_id': snapshot});
+  }
+
+  Future<Response> _unlockPreview(
+      Request request, String year, String month) async {
+    final user = await auth.requireUser(request);
+    return jsonResponse(await periods.unlockPreview(user, year, month));
+  }
+
+  Future<Response> _snapshots(Request request) async {
+    await _accountant(request);
+    return jsonResponse({'snapshots': await periods.snapshots()});
+  }
+
+  Future<Response> _snapshot(Request request, String id) async {
+    await _accountant(request);
+    return jsonResponse(await periods.snapshot(id));
   }
 
   // -------------------------------------------------------------- расчёт

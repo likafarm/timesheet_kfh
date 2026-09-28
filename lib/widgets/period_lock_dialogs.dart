@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kfh_domain/kfh_domain.dart';
+import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
@@ -49,55 +50,44 @@ Future<bool> closeMonth(BuildContext context, int year, int month) async {
     ),
   );
   if (note == null || !context.mounted) return false;
-  return _run(
-    context,
-    () => sync.lockMonth(year, month, note: note),
-    done: '${monthTitle(year, month)} закрыт',
-  );
+  final closed = await _run(context, () async {
+    await sync.lockMonth(year, month, note: note);
+    return true;
+  }, done: '${monthTitle(year, month)} закрыт');
+  return closed ?? false;
 }
 
-/// Открыть закрытый месяц (только админ). true — открыт.
+/// Открыть закрытый месяц (только админ): сервер показывает, как изменятся
+/// начисления и остатки, админ подтверждает; прежние суммы сервер сохраняет
+/// снимком. true — открыт.
 Future<bool> openMonth(BuildContext context, int year, int month) async {
   final sync = context.read<SyncProvider>();
+  final preview = await _run(context, () => sync.unlockPreview(year, month));
+  if (preview == null || !context.mounted) return false;
   final ok = await showAppDialog<bool>(
     context: context,
-    builder: (context) => AppDialog(
-      icon: const Icon(Icons.lock_open),
-      title: Text('Открыть ${monthName(year, month)}?'),
-      content: const SizedBox(
-        width: 440,
-        child: Text(
-          'Табель, выплаты и ставки за месяц снова можно будет менять на всех '
-          'устройствах. Сервер пересчитает расчёт месяца по текущим данным — '
-          'зафиксированные суммы могут измениться, как и остатки следующих '
-          'месяцев.',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Отмена'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Открыть месяц'),
-        ),
-      ],
-    ),
+    builder: (context) => _OpenMonthDialog(preview: preview),
   );
   if (ok != true || !context.mounted) return false;
-  return _run(
+  final opened = await _run(
     context,
-    () => sync.unlockMonth(year, month),
-    done: '${monthTitle(year, month)} открыт',
+    () async {
+      await sync.unlockMonth(year, month);
+      return true;
+    },
+    done:
+        '${monthTitle(year, month)} открыт. Прежние суммы сохранены в снимке '
+        '(Настройки, «Закрытие месяцев»).',
   );
+  return opened ?? false;
 }
 
-/// Выполнить запрос с окном ожидания; ошибка — окно с объяснением.
-Future<bool> _run(
+/// Выполнить запрос с окном ожидания; ошибка — окно с объяснением и null.
+/// [done] — сообщение внизу окна после успеха (и отчёты перечитываются).
+Future<T?> _run<T>(
   BuildContext context,
-  Future<void> Function() action, {
-  required String done,
+  Future<T> Function() action, {
+  String? done,
 }) async {
   final messenger = ScaffoldMessenger.of(context);
   showDialog<void>(
@@ -106,19 +96,22 @@ Future<bool> _run(
     builder: (_) => const Center(child: CircularProgressIndicator()),
   );
   String? error;
+  T? result;
   try {
-    await action();
+    result = await action();
   } on SyncUserException catch (e) {
     error = e.message;
   } catch (e) {
     error = '$e';
   }
-  if (!context.mounted) return false;
+  if (!context.mounted) return null;
   Navigator.of(context, rootNavigator: true).pop();
   if (error == null) {
-    context.read<AppProvider>().setNeedRefreshReports(true);
-    messenger.showSnackBar(SnackBar(content: Text(done)));
-    return true;
+    if (done != null) {
+      context.read<AppProvider>().setNeedRefreshReports(true);
+      messenger.showSnackBar(SnackBar(content: Text(done)));
+    }
+    return result;
   }
   await showAppDialog<void>(
     context: context,
@@ -134,7 +127,290 @@ Future<bool> _run(
       ],
     ),
   );
-  return false;
+  return null;
+}
+
+final _money = NumberFormat('#,##0.00', 'ru');
+
+/// «1 000,00 ₽».
+String rub(double v) => '${_money.format(v)} ₽';
+
+String _dateTime(DateTime at) =>
+    DateFormat('dd.MM.yyyy HH:mm').format(at.toLocal());
+
+/// Подтверждение открытия: что изменит пересчёт.
+class _OpenMonthDialog extends StatelessWidget {
+  final UnlockPreview preview;
+
+  const _OpenMonthDialog({required this.preview});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final status = StatusColors.of(context);
+    final lock = preview.lock;
+    final lockedBy = [
+      if (lock?.lockedByName != null) lock!.lockedByName!,
+      if (lock?.lockedAt != null) _dateTime(lock!.lockedAt!),
+    ].join(', ');
+
+    // Изменилось — прежнее значение зачёркнуто, под ним новое (стрелки в
+    // шрифте веб-версии нет); не изменилось — одно значение.
+    Widget value(double before, double after, {bool bold = false}) {
+      final changed = (before - after).abs() >= 0.005;
+      final now = Text(
+        rub(after),
+        textAlign: TextAlign.right,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: bold ? FontWeight.w600 : null,
+          color: changed ? status.warningText : scheme.onSurfaceVariant,
+        ),
+      );
+      if (!changed) return now;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            rub(before),
+            style: TextStyle(
+              fontSize: 11,
+              color: scheme.onSurfaceVariant,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          now,
+        ],
+      );
+    }
+
+    final head = TextStyle(fontSize: 11, color: scheme.onSurfaceVariant);
+    final rows = <TableRow>[
+      TableRow(
+        children: [
+          Text('Сотрудник', style: head),
+          Text('На начало', style: head, textAlign: TextAlign.right),
+          Text('Начислено', style: head, textAlign: TextAlign.right),
+          Text('На конец', style: head, textAlign: TextAlign.right),
+        ],
+      ),
+    ];
+    for (final m in preview.changes) {
+      rows.add(
+        TableRow(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(
+                monthTitle(m.year, m.month),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(),
+            const SizedBox(),
+            const SizedBox(),
+          ],
+        ),
+      );
+      for (final c in m.rows) {
+        rows.add(
+          TableRow(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(c.fullName, style: const TextStyle(fontSize: 12)),
+              ),
+              value(c.before.starting, c.after.starting),
+              value(c.before.accrued, c.after.accrued),
+              value(c.before.closing, c.after.closing, bold: true),
+            ],
+          ),
+        );
+      }
+    }
+
+    return AppDialog(
+      icon: const Icon(Icons.lock_open),
+      title: Text(
+        'Открыть ${monthName(preview.year, preview.month)} и пересчитать?',
+      ),
+      content: SizedBox(
+        width: 720,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (lockedBy.isNotEmpty)
+                Text(
+                  'Месяц закрыт: $lockedBy'
+                  '${lock?.note == null ? '' : ' («${lock!.note}»)'}.',
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'Табель, выплаты и ставки за месяц снова можно будет менять на '
+                'всех устройствах, а расчёт этого и следующих открытых месяцев '
+                'сервер пересчитает по текущим данным.',
+              ),
+              const SizedBox(height: 12),
+              if (preview.changes.isEmpty)
+                const Text(
+                  'Пересчёт не изменит ни начислений, ни остатков.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                )
+              else ...[
+                const Text(
+                  'Что изменится (зачёркнуто — было, ниже — станет):',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(2.2),
+                    1: FlexColumnWidth(2),
+                    2: FlexColumnWidth(2),
+                    3: FlexColumnWidth(2),
+                  },
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  children: rows,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Прежние начисления и остатки сервер сохранит снимком — '
+                      'посмотреть в «Настройки», «Закрытие месяцев», раздел '
+                      '«Снимки до открытия».',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(
+            preview.changes.isEmpty ? 'Открыть месяц' : 'Открыть и пересчитать',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Снимок остатков до открытия месяца — таблицы по месяцам.
+Future<void> showPeriodSnapshot(BuildContext context, int id) async {
+  final sync = context.read<SyncProvider>();
+  final snapshot = await _run(context, () => sync.periodSnapshot(id));
+  if (snapshot == null || !context.mounted) return;
+  await showAppDialog<void>(
+    context: context,
+    builder: (context) {
+      final scheme = Theme.of(context).colorScheme;
+      final head = TextStyle(fontSize: 11, color: scheme.onSurfaceVariant);
+      Widget sum(double v, {bool bold = false}) => Text(
+        rub(v),
+        textAlign: TextAlign.right,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: bold ? FontWeight.w600 : null,
+        ),
+      );
+      final at = snapshot.createdAt;
+      return AppDialog(
+        icon: const Icon(Icons.inventory_2_outlined),
+        title: Text(
+          'Остатки до открытия: ${monthName(snapshot.year, snapshot.month)}',
+        ),
+        content: SizedBox(
+          width: 720,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Месяц открыт: ${snapshot.createdByName ?? '—'}'
+                  '${at == null ? '' : ', ${_dateTime(at)}'}. Ниже — суммы по '
+                  'расчётам, какими они были до пересчёта.',
+                ),
+                for (final m in snapshot.months) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 4),
+                    child: Text(
+                      monthTitle(m.year, m.month),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(2.4),
+                      1: FlexColumnWidth(1.6),
+                      2: FlexColumnWidth(1.6),
+                      3: FlexColumnWidth(1.6),
+                      4: FlexColumnWidth(1.6),
+                    },
+                    children: [
+                      TableRow(
+                        children: [
+                          Text('Сотрудник', style: head),
+                          for (final h in [
+                            'На начало',
+                            'Начислено',
+                            'Выплачено',
+                            'На конец',
+                          ])
+                            Text(h, style: head, textAlign: TextAlign.right),
+                        ],
+                      ),
+                      for (final b in m.rows)
+                        TableRow(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Text(
+                                b.fullName,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            sum(b.starting),
+                            sum(b.accrued),
+                            sum(b.paid),
+                            sum(b.closing, bold: true),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _CloseMonthDialog extends StatefulWidget {
@@ -168,7 +444,6 @@ class _CloseMonthDialogState extends State<_CloseMonthDialog> {
   @override
   Widget build(BuildContext context) {
     final status = StatusColors.of(context);
-    final money = NumberFormat('#,##0.00', 'ru');
     final results = widget.report.results;
     final accrued = results.fold<double>(0, (sum, r) => sum + r.totalSalary);
     Widget warning(String text) => Padding(
@@ -200,7 +475,7 @@ class _CloseMonthDialogState extends State<_CloseMonthDialog> {
                     ? 'Начислений, выплат и остатков в месяце нет — '
                           'фиксировать нечего.'
                     : 'Будет зафиксирован расчёт: ${results.length} сотр., '
-                          'начислено ${money.format(accrued)} ₽.',
+                          'начислено ${rub(accrued)}.',
               ),
               const SizedBox(height: 8),
               const Text(
