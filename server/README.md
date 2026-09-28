@@ -19,6 +19,7 @@ API синхронизации и отчётов поверх MySQL. Чисты�
 | `JWT_SECRET` / `JWT_SECRET_FILE` | — (для сервера обязателен) | ключ подписи access-токенов, ≥ 32 байт (`openssl rand -base64 48`) |
 | `TRUST_PROXY` | false | за Caddy: адрес клиента — последний в `X-Forwarded-For` |
 | `CLIENT_VERSIONS_FILE` | — | файл версий программ для `GET /client/version` (нет — обновлений не требуется) |
+| `CORS_ORIGINS` | — | через запятую — адреса страниц, которым браузер разрешит обращаться к API (только отладка веб-версии: `http://localhost:5080`); на VPS не задавать |
 
 Без обязательной переменной сервер не стартует (код выхода 78, причина — в журнале).
 
@@ -50,6 +51,12 @@ docker compose -f server/docker-compose.dev.yml down            # данные M
 
 MySQL стенда доступна с этого ПК на `127.0.0.1:3307` (`kfh_api` / `dev-api`, root / `dev-root`).
 Пароли — только для разработки.
+
+Отладка веб-версии со стендом: `flutter run -d chrome --web-port 5080` (стенд разрешает CORS для
+`http://localhost:5080`). Сборку как на VPS (`/app/` + API за Caddy) можно проверить боевым Caddyfile в сети
+стенда: `docker run --rm --network kfh-dev_default -p 127.0.0.1:8093:8093 -e KFH_DOMAIN=http://localhost:8093
+-v <репозиторий>/server/deploy/Caddyfile:/etc/caddy/Caddyfile:ro -v <репозиторий>/build/web:/srv/web/app:ro
+caddy:2.10` после `flutter build web --release --base-href /app/ --no-web-resources-cdn`.
 
 ## Тесты
 
@@ -192,6 +199,13 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   последняя и минимальная версии по платформам, программа старее минимальной ставит синхронизацию на паузу и
   показывает «нужна новая версия»). Выкладка APK — `.\server\deploy\publish_apk.ps1 -Apk
   installer_output\kfh-X.Y.Z.apk [-Min X.Y.Z]` (сначала APK, затем список версий); только с согласия владельца.
+- **Веб-версия** (этап 5): `https://…/app/` (`/` переадресует туда; API — на прежних адресах). Файлы —
+  `/opt/kfh/web/releases/<время>-<версия>`, `/opt/kfh/web/app` — ссылка на текущий выпуск (Caddy: `/srv/web`,
+  `Cache-Control: no-cache`, COOP/COEP — изоляция страницы для базы в OPFS). Выкладка —
+  `.\server\deploy\publish_web.ps1 [-Min X.Y.Z] [-SkipBuild]`: сборка (`--base-href /app/
+  --no-web-resources-cdn`) → новый выпуск → переключение ссылки → 3 последних выпуска → версия `web` в
+  `versions.json` (по умолчанию минимальная = эта же: открытые вкладки старой версии просят обновить страницу);
+  только с согласия владельца. Нужен Caddyfile сервера 0.3.0 (`publish.ps1`).
 
 ## Приёмка этапа 2
 

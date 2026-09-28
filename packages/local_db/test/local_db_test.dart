@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:kfh_domain/kfh_domain.dart' show DuplicateEntryException;
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:test/test.dart';
 
 /// Часы, которые двигает тест.
@@ -123,11 +123,11 @@ void main() {
         addTearDown(() => dir.delete(recursive: true));
         final file = File('${dir.path}/v2.db');
 
-        final first = LocalDatabase.file(file);
+        final first = openLocalDatabaseFile(file);
         final id = await first.deviceId();
         await first.close();
 
-        final second = LocalDatabase.file(file);
+        final second = openLocalDatabaseFile(file);
         expect(await second.deviceId(), id);
         expect(id, matches(_uuidV7));
         await second.close();

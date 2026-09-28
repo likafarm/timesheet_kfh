@@ -12,6 +12,7 @@ import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/sync_dialogs.dart';
 import '../widgets/sync_status_bar.dart';
@@ -204,7 +205,9 @@ class _AccountCard extends StatelessWidget {
                     icon: const Icon(Icons.password),
                     label: const Text('Сменить пароль'),
                   ),
-                if (user != null)
+                // Веб-версия после выхода стирает базу браузера и
+                // перезагружает страницу — там сразу окно входа.
+                if (user != null && !sync.erasesOnSignOut)
                   OutlinedButton.icon(
                     onPressed: sync.isSyncing
                         ? null
@@ -217,7 +220,9 @@ class _AccountCard extends StatelessWidget {
                   ),
                 if (user != null)
                   OutlinedButton.icon(
-                    onPressed: sync.isSyncing ? null : () => sync.signOut(),
+                    onPressed: sync.isSyncing
+                        ? null
+                        : () => confirmSignOut(context),
                     icon: const Icon(Icons.logout),
                     label: const Text('Выйти'),
                   ),
@@ -256,8 +261,8 @@ class _RejectedCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Эти правки остаются на этом компьютере и повторно не '
+            Text(
+              'Эти правки остаются $onThisDevice и повторно не '
               'отправляются, пока их не изменят. Если причина устранена '
               '(например, месяц открыт) — отправьте их ещё раз.',
             ),
@@ -343,7 +348,7 @@ class _JournalCard extends StatelessWidget {
                 childrenPadding: const EdgeInsets.only(left: 56, bottom: 8),
                 children: [
                   if (e.local != null)
-                    _Snapshot(title: 'Версия этого компьютера', data: e.local!),
+                    _Snapshot(title: 'Версия $ofThisDevice', data: e.local!),
                   if (e.remote != null)
                     _Snapshot(title: 'Версия сервера', data: e.remote!),
                   if (e.local == null && e.remote == null)

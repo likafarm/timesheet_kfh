@@ -54,6 +54,31 @@ class RatesDao extends DatabaseAccessor<LocalDatabase>
     return uuid;
   });
 
+  /// Вставляет ставку как есть (с датой окончания) — для правок истории
+  /// ставок, где соседние периоды уже согласованы. Возвращает uuid.
+  Future<String> insertRate({
+    required String employeeUuid,
+    required double baseRate,
+    required double fieldRate,
+    required DateTime startDate,
+    DateTime? endDate,
+  }) async {
+    final uuid = newUuid();
+    await into(employeeRates).insert(
+      EmployeeRatesCompanion.insert(
+        uuid: uuid,
+        employeeUuid: employeeUuid,
+        baseRate: baseRate,
+        fieldRate: fieldRate,
+        startDate: formatDateIso(startDate),
+        endDate: Value(formatDateIsoOrNull(endDate)),
+        updatedAt: db.nowUtc(),
+        editedBy: Value(await db.deviceId()),
+      ),
+    );
+    return uuid;
+  }
+
   /// История ставок сотрудника по дате начала.
   Future<List<EmployeeRateRow>> rateHistory(String employeeUuid) =>
       (select(employeeRates)

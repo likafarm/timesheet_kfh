@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../services/print_service.dart';
+import '../theme/app_theme.dart';
 
 class PayrollDetailDialog extends StatelessWidget {
   final Employee employee;
@@ -64,14 +65,17 @@ class PayrollDetailDialog extends StatelessWidget {
             children: [
               if (result.skippedWorkDays > 0) ...[
                 Material(
-                  color: Colors.orange[50],
+                  color: StatusColors.of(context).warningBackground,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text(
                       'В расчёт не вошли рабочие дни без ставки: ${result.skippedWorkDays}. '
                       'Проверьте историю ставок сотрудника.',
-                      style: TextStyle(color: Colors.orange[900], fontSize: 13),
+                      style: TextStyle(
+                        color: StatusColors.of(context).warningText,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),

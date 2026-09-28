@@ -52,13 +52,16 @@ void main() {
     await app.updateEmployee(employee.copyWith(fullName: 'Другой'));
     expect(app.takeNotice(), contains('только табель'));
     await app.addEmployee(employee.copyWith(fullName: 'Новый'));
-    await app.addEmployeeRate(
-      EmployeeRate(
-        employeeId: emp,
-        baseRate: 1,
-        fieldRate: 1,
-        startDate: DateTime(2026, 9, 1),
+    expect(
+      await app.addRate(
+        EmployeeRate(
+          employeeId: emp,
+          baseRate: 1,
+          fieldRate: 1,
+          startDate: DateTime(2026, 9, 1),
+        ),
       ),
+      isNotNull,
     );
     await app.addPayment(
       Payment(employeeId: emp, amount: 100, paymentDate: DateTime(2026, 9, 5)),

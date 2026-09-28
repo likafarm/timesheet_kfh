@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
+import '../theme/app_theme.dart';
 import '../providers/app_provider.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/employee_form_dialog.dart';
@@ -38,10 +39,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   @override
   Widget build(BuildContext context) {
     if (context.read<AppProvider>().operatorMode) {
-      return _OperatorEmployeeList(
-        showAll: _showAll,
-        onToggle: _toggleFilter,
-      );
+      return _OperatorEmployeeList(showAll: _showAll, onToggle: _toggleFilter);
     }
     return Scaffold(
       appBar: AppBar(
@@ -232,14 +230,25 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                             final employee = entry.value;
                             final isActive = employee.isActive;
                             final formatter = NumberFormat('#,##0.00', 'ru');
+                            // Текущие ставки — из истории ставок (действующие
+                            // сегодня), а не из карточки сотрудника.
+                            final rate = provider.currentRate(employee.id!);
+                            final scheme = Theme.of(context).colorScheme;
+                            final status = StatusColors.of(context);
 
                             return Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 border: Border(
-                                  bottom: BorderSide(color: Colors.grey[300]!),
+                                  bottom: BorderSide(
+                                    color: scheme.outlineVariant,
+                                  ),
                                 ),
-                                color: isActive ? null : Colors.grey[50],
+                                color: isActive
+                                    ? null
+                                    : scheme.surfaceContainerHighest.withValues(
+                                        alpha: 0.5,
+                                      ),
                               ),
                               child: Row(
                                 children: [
@@ -287,8 +296,15 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                   SizedBox(
                                     width: 100,
                                     child: Text(
-                                      '${formatter.format(employee.baseRate)} ₽',
-                                      style: const TextStyle(fontSize: 12),
+                                      rate == null
+                                          ? 'нет ставки'
+                                          : '${formatter.format(rate.baseRate)} ₽',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: rate == null
+                                            ? status.negative
+                                            : null,
+                                      ),
                                       textAlign: TextAlign.right,
                                     ),
                                   ),
@@ -296,7 +312,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                   SizedBox(
                                     width: 100,
                                     child: Text(
-                                      '${formatter.format(employee.fieldRate)} ₽',
+                                      rate == null
+                                          ? '—'
+                                          : '${formatter.format(rate.fieldRate)} ₽',
                                       style: const TextStyle(fontSize: 12),
                                       textAlign: TextAlign.right,
                                     ),
@@ -311,8 +329,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: isActive
-                                            ? Colors.green[100]
-                                            : Colors.grey[300],
+                                            ? status.positive.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : scheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
@@ -320,8 +340,8 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: isActive
-                                              ? Colors.green[800]
-                                              : Colors.grey[700],
+                                              ? status.positive
+                                              : scheme.onSurfaceVariant,
                                         ),
                                         textAlign: TextAlign.center,
                                       ),
@@ -381,7 +401,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                         items.add(
                                           const PopupMenuItem(
                                             value: 'history',
-                                            child: Text('История ставок'),
+                                            child: Text('Ставки'),
                                           ),
                                         );
                                         return items;
@@ -541,7 +561,10 @@ class _OperatorEmployeeList extends StatelessWidget {
                       ? 'Сотрудников нет. Они придут с сервера после входа.'
                       : 'Нет работающих сотрудников.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )

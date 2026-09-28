@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -38,11 +39,41 @@ class AppTheme {
       brightness: brightness,
     ),
     useMaterial3: true,
+    // Веб-версия — свой Roboto (assets/fonts): иначе браузер подгружает
+    // шрифты с серверов Google. Windows и Android — системный шрифт.
+    fontFamily: kIsWeb ? 'Roboto' : null,
     cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
+}
+
+/// Смысловые цвета, читаемые в обеих темах: светлый фон с тёмным текстом
+/// в тёмной теме (где текст светлый) не читается — фон здесь
+/// полупрозрачный, а цвет текста зависит от темы.
+class StatusColors {
+  final bool dark;
+
+  const StatusColors._(this.dark);
+
+  factory StatusColors.of(BuildContext context) =>
+      StatusColors._(Theme.of(context).brightness == Brightness.dark);
+
+  /// Фон строки-предупреждения («расчёт устарел», «без ставки»).
+  Color get warningBackground =>
+      Colors.orange.withValues(alpha: dark ? 0.22 : 0.12);
+
+  /// Текст предупреждения на [warningBackground] или обычном фоне.
+  Color get warningText =>
+      dark ? Colors.orange.shade200 : Colors.orange.shade900;
+
+  /// Фон строки с ошибкой.
+  Color get errorBackground => Colors.red.withValues(alpha: dark ? 0.22 : 0.10);
+
+  /// Суммы: положительный остаток, отрицательный (долг сотрудника).
+  Color get positive => dark ? Colors.green.shade300 : Colors.green.shade800;
+  Color get negative => dark ? Colors.red.shade300 : Colors.red.shade700;
 }
 
 /// Цвета сетки табеля для светлой и тёмной темы: фон отметок, итогов,

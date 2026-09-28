@@ -21,6 +21,26 @@
 		file_server
 	}
 
+	# Веб-версия (этап 5): статические файлы из /opt/kfh/web, выкладывает
+	# publish_web.ps1; /opt/kfh/web/app — ссылка на текущий выпуск в
+	# releases/, переключается целиком. API — на прежних адресах (иначе
+	# сломались бы установленные программы), поэтому веб — в /app/.
+	redir / /app/
+	redir /app /app/
+	handle /app/* {
+		root * /srv/web
+		# Файлы Flutter без хеша в имени: браузер каждый раз сверяется
+		# (ETag, ответ 304) — после выкладки сразу новая версия.
+		header Cache-Control no-cache
+		# Изоляция страницы: база в браузере работает через OPFS с
+		# блокировками (надёжнее всего); все файлы — с этого же адреса.
+		header Cross-Origin-Opener-Policy same-origin
+		header Cross-Origin-Embedder-Policy require-corp
+		@wasm path *.wasm
+		header @wasm Content-Type application/wasm
+		file_server
+	}
+
 	# Адрес клиента API берёт из X-Forwarded-For (TRUST_PROXY=true):
 	# Caddy без trusted_proxies пишет туда только реальный адрес.
 	reverse_proxy api:8080

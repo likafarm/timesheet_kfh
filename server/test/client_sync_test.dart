@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:kfh_server/kfh_server.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:shelf/shelf.dart' as shelf;
@@ -489,7 +489,7 @@ void main() {
       if (!mysqlEnabled || acceptanceDb == null) return;
       temp = await Directory.systemTemp.createTemp('kfh_link');
       final copy = await File(acceptanceDb).copy('${temp.path}/copy.db');
-      real = _Pc(handler, LocalDatabase.file(copy));
+      real = _Pc(handler, openLocalDatabaseFile(copy));
       await real.signIn('admin', 'admin-pass-1');
     });
 

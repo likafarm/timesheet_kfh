@@ -153,14 +153,17 @@ class _SignInScreenState extends State<_SignInScreen> {
                       sync.phase == SyncPhase.signedOut ? 'Войти' : 'Продолжить',
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
+                  // Страницу браузера программа не закрывает.
+                  if (!isWebApp) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _flowRunning ? null : quitApp,
+                      child: const Text('Выйти из программы'),
                     ),
-                    onPressed: _flowRunning ? null : quitApp,
-                    child: const Text('Выйти из программы'),
-                  ),
+                  ],
                 ],
               ),
             ),

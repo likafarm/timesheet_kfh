@@ -1,21 +1,15 @@
 // lib/providers/app_provider.dart
 
-import 'dart:isolate';
-
 import 'package:flutter/material.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import '../services/app_database.dart';
-import '../services/backup_service.dart';
+import '../services/local_backups.dart';
 import '../services/platform.dart';
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(
-    this._appDb, {
-    BackupService? backupService,
-    bool? operatorMode,
-  }) : _backupService = backupService ?? BackupService(),
-       operatorMode = operatorMode ?? isAndroidApp;
+  AppProvider(this._appDb, {this._backupService, bool? operatorMode})
+    : operatorMode = operatorMode ?? isAndroidApp;
 
   /// Программа оператора (телефон, этап 4): записывается только табель,
   /// ставок, сумм, выплат и расчётов оператор не видит и не меняет. Сервер
@@ -24,9 +18,17 @@ class AppProvider extends ChangeNotifier {
 
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;
-  final BackupService _backupService;
+  final LocalBackups? _backupService;
 
-  BackupService get backupService => _backupService;
+  /// Файловые копии базы; null — их нет (веб-версия).
+  LocalBackups? get backups => _backupService;
+
+  /// Файловые копии и восстановление из них есть на этой платформе.
+  bool get hasLocalBackups => _backupService != null;
+
+  LocalBackups get backupService =>
+      _backupService ??
+      (throw UnsupportedError('Резервных копий в этой версии программы нет'));
 
   /// Перед заменой файла базы (полное восстановление): остановить то, что
   /// с ней работает в фоне (синхронизацию).
@@ -56,6 +58,9 @@ class AppProvider extends ChangeNotifier {
   List<TimesheetRecord> _timesheetRecords = [];
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
+
+  /// Ставки, действующие сегодня, по сотрудникам (null — ставки нет).
+  Map<String, EmployeeRate?> _currentRates = {};
   List<PayrollResult> _payrollResults = [];
   Map<String, double> _startingBalances = {};
   CompanySettings? _companySettings;
@@ -94,6 +99,10 @@ class AppProvider extends ChangeNotifier {
   List<TimesheetRecord> get timesheetRecords => _timesheetRecords;
   List<Payment> get payments => _payments;
   List<EmployeeRate> get employeeRates => _employeeRates;
+
+  /// Ставка сотрудника, действующая сегодня (null — нет ставки на сегодня;
+  /// оператор ставок не видит).
+  EmployeeRate? currentRate(String employeeId) => _currentRates[employeeId];
   List<PayrollResult> get payrollResults => _payrollResults;
   Map<String, double> get startingBalances => _startingBalances;
   CompanySettings? get companySettings => _companySettings;
@@ -119,7 +128,20 @@ class AppProvider extends ChangeNotifier {
     Map<String, Object?>? before,
     Map<String, Object?>? after,
   ) {
-    if (_lockedMonths.isEmpty) return true;
+    final message = _periodViolation(table, before, after);
+    if (message == null) return true;
+    _notice = message;
+    notifyListeners();
+    return false;
+  }
+
+  /// Почему правка задевает закрытый месяц (null — не задевает).
+  String? _periodViolation(
+    String table,
+    Map<String, Object?>? before,
+    Map<String, Object?>? after,
+  ) {
+    if (_lockedMonths.isEmpty) return null;
     final locked = PeriodGuard(_lockedMonths).violation(
       table,
       before,
@@ -127,18 +149,16 @@ class AppProvider extends ChangeNotifier {
       after ?? before ?? const {},
       after == null,
     );
-    if (locked == null) return true;
-    _notice =
-        '${PeriodLockedException(locked.$1, locked.$2).message}. '
+    if (locked == null) return null;
+    return '${PeriodLockedException(locked.$1, locked.$2).message}. '
         'Открыть месяц может бухгалтер или администратор.';
-    notifyListeners();
-    return false;
   }
 
   /// Оператору доступен только табель: иначе — сообщение и false.
   bool _notOperator() {
     if (!operatorMode) return true;
-    _notice = 'Оператор вводит только табель — остальное меняют бухгалтер '
+    _notice =
+        'Оператор вводит только табель — остальное меняют бухгалтер '
         'или администратор.';
     notifyListeners();
     return false;
@@ -219,6 +239,13 @@ class AppProvider extends ChangeNotifier {
     _employees = await _employeesRepo.all(
       activeOn: activeOnly ? DateTime.now() : null,
     );
+    if (!operatorMode) {
+      final today = DateTime.now();
+      _currentRates = {
+        for (final e in _employees)
+          if (e.id != null) e.id!: await _ratesRepo.at(e.id!, today),
+      };
+    }
     notifyListeners();
   }
 
@@ -281,16 +308,88 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addEmployeeRate(EmployeeRate rate) async {
-    if (!_notOperator()) return;
-    if (!_rateAllowed(rate.startDate)) return;
+  /// Добавить ставку (с любой даты: соседние периоды согласуются, см.
+  /// [planAddRate]). Возвращает null, если записано, иначе — почему нет.
+  Future<String?> addRate(EmployeeRate rate) =>
+      _changeRates(rate.employeeId, (history) => planAddRate(history, rate));
+
+  /// Изменить ставку: суммы, дату начала (между соседними ставками), дату
+  /// окончания (только у последней). null — записано, иначе — почему нет.
+  Future<String?> updateRate(EmployeeRate rate) =>
+      _changeRates(rate.employeeId, (history) => planUpdateRate(history, rate));
+
+  /// Удалить ставку: её период переходит к предыдущей ставке. null —
+  /// записано, иначе — почему нет.
+  Future<String?> deleteRate(EmployeeRate rate) => _changeRates(
+    rate.employeeId,
+    (history) => planDeleteRate(history, rate.id!),
+  );
+
+  Future<String?> _changeRates(
+    String employeeId,
+    List<RateChange> Function(List<EmployeeRate> history) plan,
+  ) async {
+    if (operatorMode) {
+      return 'Ставки меняют бухгалтер или администратор.';
+    }
+    final List<RateChange> changes;
     try {
-      await _ratesRepo.add(rate);
-      await loadEmployeeRates(employeeId: rate.employeeId);
-      setNeedRefreshReports(true);
+      changes = plan(await _ratesRepo.history(employeeId));
+    } on RateTimelineException catch (e) {
+      return e.message;
+    }
+    if (changes.isEmpty) return null;
+    // Те же правила, что у сервера: ни одна правка не задевает закрытый
+    // месяц (сдвиг границы — только открытыми днями).
+    for (final c in changes) {
+      final locked = _periodViolation(
+        'employee_rates',
+        _rateRow(c.before),
+        _rateRow(c.after),
+      );
+      if (locked != null) {
+        return '$locked Чтобы ставка поменялась с какой-то даты открытого '
+            'месяца, добавьте новую ставку с этой даты.';
+      }
+    }
+    try {
+      await _ratesRepo.apply(changes);
+      await _syncEmployeeRates(employeeId);
     } catch (e) {
-      _error = 'Ошибка добавления ставки: $e';
-      notifyListeners();
+      return 'Ошибка сохранения ставки: $e';
+    }
+    await loadEmployeeRates(employeeId: employeeId);
+    await loadEmployees();
+    setNeedRefreshReports(true);
+    return null;
+  }
+
+  static Map<String, Object?>? _rateRow(EmployeeRate? r) => r == null
+      ? null
+      : {
+          'employee_uuid': r.employeeId,
+          'base_rate': r.baseRate,
+          'field_rate': r.fieldRate,
+          'start_date': formatDateIso(r.startDate),
+          'end_date': formatDateIsoOrNull(r.endDate),
+        };
+
+  /// Ставки в карточке сотрудника — копия действующей сегодня (или
+  /// последней) ставки из истории: их видят программы прежних версий.
+  Future<void> _syncEmployeeRates(String employeeId) async {
+    final employee = await _employeesRepo.byId(employeeId);
+    if (employee == null) return;
+    final history = await _ratesRepo.history(employeeId);
+    final current = rateOn(history, DateTime.now()) ?? history.lastOrNull;
+    if (current == null) return;
+    if (current.baseRate != employee.baseRate ||
+        current.fieldRate != employee.fieldRate) {
+      await _employeesRepo.update(
+        employee.copyWith(
+          baseRate: current.baseRate,
+          fieldRate: current.fieldRate,
+        ),
+      );
     }
   }
 
@@ -665,21 +764,18 @@ class AppProvider extends ChangeNotifier {
   /// Копия базы перед первым входом на сервер
   /// (`backup_before_sync_<дата-время>.db`). Бросает исключение, если копию
   /// сделать не удалось.
-  Future<String> createSyncSafetyBackup() => _backupService.createSafetyBackup(
-    _appDb.db,
-    prefix: 'backup_before_sync',
-  );
+  Future<String> createSyncSafetyBackup() =>
+      backupService.createSafetyBackup(_appDb.db, prefix: 'backup_before_sync');
 
   // ==========================================================================
   // РЕЗЕРВНОЕ КОПИРОВАНИЕ
   // ==========================================================================
 
   Future<String?> createBackup() async {
+    final backups = _backupService;
+    if (backups == null) return null;
     try {
-      return await _backupService.createBackup(
-        _appDb.db,
-        type: BackupType.daily,
-      );
+      return await backups.createBackup(_appDb.db, type: BackupType.daily);
     } catch (e) {
       _error = 'Ошибка создания бэкапа: $e';
       notifyListeners();
@@ -692,9 +788,11 @@ class AppProvider extends ChangeNotifier {
   /// - Всегда пытается создать ежемесячную копию; сервис сам пропустит,
   ///   если за текущий месяц копия уже существует.
   Future<void> autoBackup() async {
+    final backups = _backupService;
+    if (backups == null) return;
     try {
-      await _backupService.createBackup(_appDb.db, type: BackupType.daily);
-      await _backupService.createBackup(_appDb.db, type: BackupType.monthly);
+      await backups.createBackup(_appDb.db, type: BackupType.daily);
+      await backups.createBackup(_appDb.db, type: BackupType.monthly);
     } catch (e) {
       // Автобэкап не должен нарушать работу приложения
       debugPrint('autoBackup error: $e');
@@ -702,12 +800,12 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<List<BackupInfo>> getBackups() async {
-    return await _backupService.getBackups();
+    return await _backupService?.getBackups() ?? const [];
   }
 
   Future<void> deleteBackup(String path) async {
     try {
-      await _backupService.deleteBackup(path);
+      await backupService.deleteBackup(path);
     } catch (e) {
       _error = 'Ошибка удаления бэкапа: $e';
       notifyListeners();
@@ -721,7 +819,7 @@ class AppProvider extends ChangeNotifier {
   /// Формат копии; null — файл не копия базы программы.
   BackupFormat? backupFormat(String backupPath) {
     try {
-      return detectBackupFormat(backupPath);
+      return backupService.detectFormat(backupPath);
     } on RestoreException {
       return null;
     }
@@ -730,7 +828,7 @@ class AppProvider extends ChangeNotifier {
   /// Таблицы копии, которые можно восстановить по отдельности
   /// (только копии нового формата).
   List<String> restorableTables(String backupPath) =>
-      BackupRestorer.restorableTables(backupPath);
+      backupService.restorableTables(backupPath);
 
   /// Заменяет всю базу копией (любого формата; старая переносится
   /// конвертером). Перед этим — копия текущей базы. При ошибке текущая
@@ -738,25 +836,17 @@ class AppProvider extends ChangeNotifier {
   Future<bool> restoreFullBackup(String backupPath) async {
     if (!_notOperator()) return false;
     try {
-      await _backupService.createSafetyBackup(_appDb.db);
-      final deviceId = await _appDb.db.deviceId();
-      final path = _appDb.path;
-      final prepared = '$path.restore';
-      await Isolate.run(
-        () => prepareFullRestore(
-          backupPath: backupPath,
-          targetPath: prepared,
-          deviceId: deviceId,
-        ),
+      final backups = backupService;
+      await backups.createSafetyBackup(_appDb.db);
+      await backups.restoreFull(
+        _appDb,
+        backupPath,
+        beforeReplace: () async => beforeDatabaseReplaced?.call(),
+        onReopened: (reopened) {
+          _appDb = reopened;
+          _databaseGeneration++;
+        },
       );
-      await beforeDatabaseReplaced?.call();
-      await _appDb.close();
-      try {
-        replaceDatabaseFile(prepared, path);
-      } finally {
-        _appDb = await AppDatabase.openFile(path);
-        _databaseGeneration++;
-      }
       await loadAllData();
       setNeedRefreshReports(true);
       return true;
@@ -771,11 +861,11 @@ class AppProvider extends ChangeNotifier {
   /// Возвращает число восстановленных строк.
   Future<int> restoreTables(String backupPath, List<String> tables) async {
     if (!_notOperator()) return 0;
-    await _backupService.createSafetyBackup(_appDb.db);
-    final restorer = BackupRestorer(_appDb.db);
+    final backups = backupService;
+    await backups.createSafetyBackup(_appDb.db);
     var count = 0;
     for (final table in businessTables.where(tables.contains)) {
-      count += await restorer.restoreTable(backupPath, table);
+      count += await backups.restoreTable(_appDb.db, backupPath, table);
     }
     await loadAllData();
     setNeedRefreshReports(true);
@@ -789,10 +879,14 @@ class AppProvider extends ChangeNotifier {
     List<String> uuids,
   ) async {
     if (!_notOperator()) return 0;
-    await _backupService.createSafetyBackup(_appDb.db);
-    final count = await BackupRestorer(
+    final backups = backupService;
+    await backups.createSafetyBackup(_appDb.db);
+    final count = await backups.restoreRows(
       _appDb.db,
-    ).restoreRows(backupPath, table, uuids);
+      backupPath,
+      table,
+      uuids,
+    );
     await loadAllData();
     setNeedRefreshReports(true);
     return count;

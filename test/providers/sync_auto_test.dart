@@ -26,7 +26,6 @@ void main() {
     final p = SyncProvider(
       appVersion: () async => '1.3.0',
       database: db,
-      dataDirectory: '.',
       onDataChanged: () async {},
       backup: () async {},
       tokenStore: (_) => tokens,

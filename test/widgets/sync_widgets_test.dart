@@ -40,7 +40,6 @@ void main() {
       db = LocalDatabase.memory();
       sync = SyncProvider(
         database: db,
-        dataDirectory: '.',
         onDataChanged: () async {},
         backup: () async => backups++,
         tokenStore: (_) => MemoryTokenStore(),
@@ -169,7 +168,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Принять данные с сервера'));
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Принять данные с сервера'),
+    );
     await settle(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Готово'));
     await tester.pumpAndSettle();
@@ -197,14 +198,19 @@ void main() {
     expect(find.textContaining('новая версия'), findsNothing);
     await tester.runAsync(sync.checkVersion);
     await tester.pump();
-    expect(find.textContaining('Нужна новая версия программы — 1.3.0'), findsOneWidget);
+    expect(
+      find.textContaining('Нужна новая версия программы — 1.3.0'),
+      findsOneWidget,
+    );
     expect(find.text('Скачать'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   group('без входа программа не запускается', () {
     Widget gated() => app(
-      const AuthGate(child: Scaffold(body: Center(child: Text('ПРОГРАММА')))),
+      const AuthGate(
+        child: Scaffold(body: Center(child: Text('ПРОГРАММА'))),
+      ),
     );
 
     testWidgets('первым — вход; отказ — «Войти» или «Выйти»', (tester) async {
@@ -223,7 +229,10 @@ void main() {
       // Неверный пароль — уточнить данные в том же окне.
       await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Логин'), 'ivan');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Логин'),
+        'ivan',
+      );
       await tester.enterText(find.widgetWithText(TextFormField, 'Пароль'), 'x');
       await tester.tap(find.widgetWithText(FilledButton, 'Войти').last);
       await settle(tester);
@@ -280,7 +289,9 @@ void main() {
       await tester.pumpWidget(gated());
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
-      final button = tester.getRect(find.widgetWithText(FilledButton, 'Войти').last);
+      final button = tester.getRect(
+        find.widgetWithText(FilledButton, 'Войти').last,
+      );
       expect(button.bottom, lessThanOrEqualTo(844 - 48));
       expect(tester.takeException(), isNull);
     });
@@ -318,7 +329,10 @@ void main() {
     await tester.pumpWidget(app(const SyncScreen()));
     await settle(tester);
     // Адрес сервера и пользователь — не больше двух строк (было по слогу).
-    for (final text in ['https://localhost', 'Иван Иванов (ivan, администратор)']) {
+    for (final text in [
+      'https://localhost',
+      'Иван Иванов (ivan, администратор)',
+    ]) {
       final rect = tester.getRect(find.text(text));
       expect(rect.height, lessThan(50), reason: text);
       expect(rect.width, greaterThan(180), reason: text);

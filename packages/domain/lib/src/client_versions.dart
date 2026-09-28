@@ -104,7 +104,7 @@ class PlatformVersion {
   bool hasUpdate(String current) => compareVersions(current, latest) < 0;
 }
 
-/// Версии по платформам (`android`, `windows`).
+/// Версии по платформам (`android`, `windows`, `web`).
 class ClientVersions {
   final Map<String, PlatformVersion> platforms;
 

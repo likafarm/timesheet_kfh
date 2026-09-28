@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:kfh_sync/kfh_sync.dart' show ClientKind;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -16,6 +17,16 @@ bool? debugIsAndroidOverride;
 /// Программа для телефона (Android).
 bool get isAndroidApp =>
     debugIsAndroidOverride ?? (!kIsWeb && Platform.isAndroid);
+
+/// Веб-версия (этап 5).
+bool get isWebApp => kIsWeb;
+
+/// Какая это программа — для сервера (роли, версии).
+ClientKind get platformClientKind => isWebApp
+    ? ClientKind.web
+    : isAndroidApp
+    ? ClientKind.phone
+    : ClientKind.desktop;
 
 String? _dataDirectory;
 
@@ -56,7 +67,15 @@ Future<String> backupsDirectory() async {
 }
 
 /// «на этом компьютере» / «на этом телефоне» — для сообщений.
-String get onThisDevice => isAndroidApp ? 'на этом телефоне' : 'на этом компьютере';
+String get onThisDevice => isWebApp
+    ? 'в этом браузере'
+    : isAndroidApp
+    ? 'на этом телефоне'
+    : 'на этом компьютере';
 
 /// «этого компьютера» / «этого телефона» — для сообщений.
-String get ofThisDevice => isAndroidApp ? 'этого телефона' : 'этого компьютера';
+String get ofThisDevice => isWebApp
+    ? 'этого браузера'
+    : isAndroidApp
+    ? 'этого телефона'
+    : 'этого компьютера';

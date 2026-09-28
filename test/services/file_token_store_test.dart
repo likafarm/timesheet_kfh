@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/services/dpapi_token_store.dart';
 import 'package:kfx_time_tracking/services/file_token_store.dart';
+import 'package:kfx_time_tracking/services/startup_io.dart';
 import 'package:kfx_time_tracking/services/platform.dart';
 import 'package:path/path.dart' as p;
 

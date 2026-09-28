@@ -14,23 +14,10 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
+import 'backup_format.dart';
 import 'database.dart';
 import 'migration/v8_converter.dart';
 import 'schema_info.dart';
-
-enum BackupFormat { v8, v2 }
-
-/// Ключ в `sync_state`: из какой копии и когда восстановлена база.
-const restoredFromKey = 'restored_from';
-
-/// Копию нельзя использовать для восстановления.
-class RestoreException implements Exception {
-  final String message;
-  const RestoreException(this.message);
-
-  @override
-  String toString() => message;
-}
 
 /// Формат копии; неизвестный или повреждённый файл — [RestoreException].
 BackupFormat detectBackupFormat(String path) {

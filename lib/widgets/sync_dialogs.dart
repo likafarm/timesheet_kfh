@@ -42,6 +42,58 @@ Future<void> continueSyncSetup(BuildContext context) async {
   }
 }
 
+/// Выход с сервера. В веб-версии выход стирает базу браузера — сначала
+/// окно с предупреждением (и о неотправленных правках, если они есть).
+Future<void> confirmSignOut(BuildContext context) async {
+  final sync = context.read<SyncProvider>();
+  if (!sync.erasesOnSignOut) {
+    await sync.signOut();
+    return;
+  }
+  final pending = sync.pending;
+  final ok = await showAppDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AppDialog(
+      title: const Text('Выйти?'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Данные программы будут стёрты из этого браузера. На сервере '
+              'они остаются — после входа придут снова.',
+            ),
+            if (pending > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Не отправлено на сервер: $pending. Эти правки будут '
+                'потеряны. Чтобы их сохранить, отмените выход и '
+                'синхронизируйте, когда будет связь.',
+                style: TextStyle(
+                  color: Theme.of(dialogContext).colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(pending > 0 ? 'Выйти и стереть' : 'Выйти'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) await sync.signOut();
+}
+
 /// Текст ошибки под полями формы.
 class _ErrorText extends StatelessWidget {
   final String? text;
@@ -77,6 +129,7 @@ class _SignInDialogState extends State<SignInDialog> {
   bool _busy = false;
   bool _showServer = false;
   bool _remoteConfirmed = false;
+  bool _publicComputer = false;
   String? _error;
 
   /// Отладочная сборка и адрес не на этом компьютере — нужно согласие.
@@ -127,6 +180,7 @@ class _SignInDialogState extends State<SignInDialog> {
         _login.text,
         _password.text,
         allowRemoteInDebug: _remoteConfirmed,
+        publicComputer: _publicComputer,
       );
       if (mounted) Navigator.of(context).pop(true);
     } on SyncUserException catch (e) {
@@ -138,6 +192,7 @@ class _SignInDialogState extends State<SignInDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final sync = context.read<SyncProvider>();
     return AppDialog(
       title: const Text('Вход на сервер'),
       content: SizedBox(
@@ -155,6 +210,10 @@ class _SignInDialogState extends State<SignInDialog> {
                       ? 'Войдите учётной записью оператора: сотрудники и '
                             'табель придут с сервера, введённые дни уйдут на '
                             'сервер сами, когда будет связь.'
+                      : isWebApp
+                      ? 'Войдите учётной записью администратора или '
+                            'бухгалтера. Данные придут с сервера и хранятся '
+                            'в этом браузере до выхода.'
                       : 'Войдите учётной записью администратора или '
                             'бухгалтера. Без входа программа не запускается; '
                             'вход сохраняется, и дальше программа работает '
@@ -185,8 +244,25 @@ class _SignInDialogState extends State<SignInDialog> {
                   onFieldSubmitted: (_) => _submit(),
                   validator: (v) => (v ?? '').isEmpty ? 'Укажите пароль' : null,
                 ),
+                if (sync.offersPublicComputer)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _publicComputer,
+                    onChanged: _busy
+                        ? null
+                        : (v) => setState(() => _publicComputer = v ?? false),
+                    title: const Text('Чужой компьютер'),
+                    subtitle: const Text(
+                      'Вход — до закрытия вкладки; при выходе или следующем '
+                      'открытии данные будут стёрты из браузера.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                 const SizedBox(height: 8),
-                if (_showServer)
+                if (!sync.canChangeServer)
+                  const SizedBox.shrink()
+                else if (_showServer)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: TextFormField(
@@ -436,6 +512,9 @@ class _LinkDialogState extends State<LinkDialog> {
         setState(() {
           _error = e is SyncUserException
               ? e.message
+              : isWebApp
+              ? 'Не удалось: $e. Данные на сервере не затронуты — '
+                    'попробуйте ещё раз.'
               : 'Не удалось: $e. Данные $ofThisDevice не пострадали — '
                     'перед началом сделана резервная копия.';
           _step = _LinkStep.failed;
@@ -470,8 +549,10 @@ class _LinkDialogState extends State<LinkDialog> {
         return _progress('Сравниваю данные $ofThisDevice и сервера…');
       case _LinkStep.running:
         return _progress(
-          'Резервная копия базы, затем обмен с сервером. Не закрывайте '
-          'программу…',
+          isWebApp
+              ? 'Приём данных с сервера. Не закрывайте вкладку…'
+              : 'Резервная копия базы, затем обмен с сервером. Не закрывайте '
+                    'программу…',
         );
       case _LinkStep.plan:
         final plan = _plan!;
@@ -479,9 +560,18 @@ class _LinkDialogState extends State<LinkDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(plan.description),
+            // Веб-версия только принимает данные в пустую базу браузера,
+            // резервной копии перед этим нет — копировать нечего.
+            Text(
+              isWebApp && plan.kind == BootstrapKind.download
+                  ? 'С сервера будут приняты записей: ${plan.serverRows}. '
+                        'Они хранятся в этом браузере до выхода.'
+                  : plan.description,
+            ),
             const SizedBox(height: 12),
-            if (plan.allowed)
+            if (plan.allowed && isWebApp)
+              const SizedBox.shrink()
+            else if (plan.allowed)
               const Text(
                 'Перед началом будет сделана резервная копия базы (папка '
                 'резервных копий, имя backup_before_sync_…).',
@@ -509,7 +599,7 @@ class _LinkDialogState extends State<LinkDialog> {
                 child: Text(
                   'Записей, где победила версия сервера: ${r.lost}; не принято '
                   'сервером: ${r.rejected}. Подробности — в журнале '
-                  'синхронизации (Настройки → Сервер).',
+                  'синхронизации (Настройки › Сервер).',
                 ),
               ),
           ],

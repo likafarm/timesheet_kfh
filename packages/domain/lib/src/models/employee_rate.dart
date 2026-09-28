@@ -23,6 +23,7 @@ class EmployeeRate {
     double? fieldRate,
     DateTime? startDate,
     DateTime? endDate,
+    bool clearEndDate = false,
   }) {
     return EmployeeRate(
       id: id ?? this.id,
@@ -30,7 +31,8 @@ class EmployeeRate {
       baseRate: baseRate ?? this.baseRate,
       fieldRate: fieldRate ?? this.fieldRate,
       startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
+      // endDate: null значит «не менять»; снять окончание — clearEndDate.
+      endDate: clearEndDate ? null : endDate ?? this.endDate,
     );
   }
 

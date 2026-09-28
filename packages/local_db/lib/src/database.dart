@@ -1,8 +1,8 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
 import 'package:uuid/uuid.dart';
+
+import 'connection/memory_unsupported.dart'
+    if (dart.library.ffi) 'connection/memory_native.dart';
 
 import 'daos/employees_dao.dart';
 import 'daos/payments_dao.dart';
@@ -59,13 +59,10 @@ class LocalDatabase extends _$LocalDatabase {
   LocalDatabase(super.e, {DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
 
-  /// База в файле; запросы выполняются в фоновом изоляте.
-  factory LocalDatabase.file(File file, {DateTime Function()? clock}) =>
-      LocalDatabase(NativeDatabase.createInBackground(file), clock: clock);
-
-  /// База в памяти — для тестов.
+  /// База в памяти — для тестов (только Dart VM). База в файле —
+  /// `openLocalDatabaseFile` из `native.dart`, в браузере — `web.dart`.
   factory LocalDatabase.memory({DateTime Function()? clock}) =>
-      LocalDatabase(NativeDatabase.memory(), clock: clock);
+      LocalDatabase(memoryExecutor(), clock: clock);
 
   final DateTime Function() _clock;
   String? _deviceId;

@@ -61,6 +61,10 @@ class ServerConfig {
   final bool trustProxy;
   final String? clientVersionsFile;
 
+  /// Адреса страниц, которым браузер разрешит обращаться к API (CORS):
+  /// только отладка веб-версии на localhost. На VPS — пусто.
+  final Set<String> corsOrigins;
+
   const ServerConfig({
     required this.port,
     required this.db,
@@ -69,6 +73,7 @@ class ServerConfig {
     this.jwtSecret,
     this.trustProxy = false,
     this.clientVersionsFile,
+    this.corsOrigins = const {},
   });
 
   /// Ключ подписи токенов: без него сервер не запускается.
@@ -145,6 +150,22 @@ class ServerConfig {
       throw ConfigException('JWT_SECRET короче 32 байт — возьмите, например, '
           '«openssl rand -base64 48»');
     }
+    final corsOrigins = <String>{};
+    for (final raw in (env['CORS_ORIGINS'] ?? '').split(',')) {
+      final origin = raw.trim();
+      if (origin.isEmpty) continue;
+      final uri = Uri.tryParse(origin);
+      if (origin == '*' ||
+          uri == null ||
+          !(uri.scheme == 'http' || uri.scheme == 'https') ||
+          uri.host.isEmpty ||
+          uri.path.isNotEmpty ||
+          uri.hasQuery) {
+        throw ConfigException('CORS_ORIGINS: «$origin» — нужен адрес вида '
+            'http://localhost:5080, без «*» и пути');
+      }
+      corsOrigins.add(origin);
+    }
     return ServerConfig(
       port: intValue('PORT', 8080),
       db: DbConfig(
@@ -165,6 +186,7 @@ class ServerConfig {
       clientVersionsFile: (env['CLIENT_VERSIONS_FILE']?.trim() ?? '').isEmpty
           ? null
           : env['CLIENT_VERSIONS_FILE']!.trim(),
+      corsOrigins: corsOrigins,
     );
   }
 }

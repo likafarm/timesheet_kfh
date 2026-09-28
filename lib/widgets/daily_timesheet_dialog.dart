@@ -7,6 +7,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../utils/string_utils.dart';
 import '../widgets/common_widgets.dart';
+import '../theme/app_theme.dart';
 
 class DailyTimesheetDialog extends StatefulWidget {
   final DateTime initialDate;
@@ -279,11 +280,15 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: Colors.grey[300]!,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.outlineVariant,
                                             ),
                                           ),
                                           color: hasError
-                                              ? Colors.red[50]
+                                              ? StatusColors.of(
+                                                  context,
+                                                ).errorBackground
                                               : null,
                                         ),
                                         child: Row(

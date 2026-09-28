@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <!-- Заменяется значением --base-href при сборке (на сервере — /app/). -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Учёт рабочего времени и расчёт зарплаты КФХ">
+  <meta name="theme-color" content="#2E7D32">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Учёт рабочего времени КФХ</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #F6FBF3; }
+    @media (prefers-color-scheme: dark) { html, body { background: #101410; } }
+    #loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      font: 16px system-ui, "Segoe UI", Roboto, sans-serif; color: #2E7D32;
+    }
+    #loading .spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 4px solid #C8E6C9; border-top-color: #2E7D32;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Загрузка…</div>
+  </div>
+  <noscript>Для работы программы включите JavaScript.</noscript>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

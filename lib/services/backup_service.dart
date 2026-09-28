@@ -1,43 +1,23 @@
 // lib/services/backup_service.dart
+//
+// Файловые копии базы и восстановление из них (Windows, Android).
 
 import 'dart:io';
+import 'dart:isolate';
+
 import 'package:path/path.dart' as p;
 import 'package:flutter/foundation.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
+import 'app_database.dart';
+import 'database_files.dart';
+import 'local_backups.dart';
 import 'platform.dart';
 
-/// Тип резервной копии.
-enum BackupType {
-  /// Ежедневная копия — имя файла `daily_YYYY-MM-DD.db`
-  daily,
+export 'local_backups.dart' show BackupInfo, BackupType, LocalBackups;
 
-  /// Ежемесячная копия — имя файла `monthly_YYYY-MM.db`
-  monthly,
-
-  /// Устаревший формат `backup_<timestamp>.db`
-  legacy,
-}
-
-class BackupInfo {
-  final String path;
-  final String fileName;
-  final DateTime created;
-  final BackupType type;
-
-  BackupInfo({
-    required this.path,
-    required this.fileName,
-    required this.created,
-    required this.type,
-  });
-
-  @override
-  String toString() => fileName;
-}
-
-class BackupService {
+class BackupService implements LocalBackups {
   static const _maxDailyBackups = 5;
 
   /// Папка копий; по умолчанию — [backupsDirectory] (у отладочной сборки
@@ -48,9 +28,7 @@ class BackupService {
   BackupService({this.backupDirectory});
 
   Future<Directory> _getBackupDirectory() async {
-    final backupDir = Directory(
-      backupDirectory ?? await backupsDirectory(),
-    );
+    final backupDir = Directory(backupDirectory ?? await backupsDirectory());
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
@@ -63,6 +41,7 @@ class BackupService {
   ///   Если файл за сегодня уже есть — перезаписывает (актуальнее).
   /// - [BackupType.monthly]: имя `monthly_YYYY-MM.db`.
   ///   Если файл за этот месяц уже есть — пропускает (первая копия месяца важнее).
+  @override
   Future<String?> createBackup(
     LocalDatabase db, {
     BackupType type = BackupType.daily,
@@ -115,6 +94,7 @@ class BackupService {
   /// `<prefix>_<дата-время>.db` (по умолчанию — перед восстановлением из
   /// другой копии), автоматически не удаляется. Бросает исключение, если
   /// копию сделать не удалось.
+  @override
   Future<String> createSafetyBackup(
     LocalDatabase db, {
     String prefix = 'backup_before_restore',
@@ -170,6 +150,7 @@ class BackupService {
     }
   }
 
+  @override
   Future<List<BackupInfo>> getBackups() async {
     final backupDir = await _getBackupDirectory();
     return await _listBackupFiles(backupDir);
@@ -236,6 +217,7 @@ class BackupService {
     return backups;
   }
 
+  @override
   Future<void> deleteBackup(String path) async {
     final file = File(path);
     if (await file.exists()) await file.delete();
@@ -243,6 +225,7 @@ class BackupService {
 
   /// Таблицы копии (без служебных sqlite_*). Копия открывается только
   /// на чтение.
+  @override
   Future<List<String>> getBackupTableNames(String backupPath) async {
     final db = sql.sqlite3.open(backupPath, mode: sql.OpenMode.readOnly);
     try {
@@ -259,6 +242,7 @@ class BackupService {
   }
 
   /// Записи таблицы копии. Копия открывается только на чтение.
+  @override
   Future<List<Map<String, dynamic>>> getBackupTableData(
     String backupPath,
     String tableName,
@@ -276,4 +260,54 @@ class BackupService {
       db.close();
     }
   }
+
+  @override
+  int backupSize(String path) => File(path).lengthSync();
+
+  @override
+  BackupFormat detectFormat(String backupPath) =>
+      detectBackupFormat(backupPath);
+
+  @override
+  List<String> restorableTables(String backupPath) =>
+      BackupRestorer.restorableTables(backupPath);
+
+  @override
+  Future<void> restoreFull(
+    AppDatabase current,
+    String backupPath, {
+    required Future<void> Function() beforeReplace,
+    required void Function(AppDatabase reopened) onReopened,
+  }) async {
+    final deviceId = await current.db.deviceId();
+    final path = current.path;
+    final prepared = '$path.restore';
+    // Перенос v8 и сверка — в отдельном изоляте, чтобы не подвешивать окно.
+    await Isolate.run(
+      () => prepareFullRestore(
+        backupPath: backupPath,
+        targetPath: prepared,
+        deviceId: deviceId,
+      ),
+    );
+    await beforeReplace();
+    await current.close();
+    try {
+      replaceDatabaseFile(prepared, path);
+    } finally {
+      onReopened(await openAppDatabaseFile(path));
+    }
+  }
+
+  @override
+  Future<int> restoreTable(LocalDatabase db, String backupPath, String table) =>
+      BackupRestorer(db).restoreTable(backupPath, table);
+
+  @override
+  Future<int> restoreRows(
+    LocalDatabase db,
+    String backupPath,
+    String table,
+    List<String> uuids,
+  ) => BackupRestorer(db).restoreRows(backupPath, table, uuids);
 }

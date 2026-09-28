@@ -5,19 +5,15 @@
 // строки статуса. Сама логика — в пакете kfh_sync.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
 import 'package:kfh_local_db/kfh_local_db.dart';
-import 'package:kfh_sync/file_journal.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path/path.dart' as p;
 
-import '../services/file_token_store.dart';
 import '../services/platform.dart';
 
 /// Где находится программа по отношению к серверу.
@@ -53,7 +49,11 @@ class SyncProvider extends ChangeNotifier {
   /// (`docker-compose.dev.yml`), чтобы `flutter run` не трогал рабочий.
   ///
   /// Эмулятор Android видит компьютер разработчика по адресу 10.0.2.2.
-  static String get defaultServer => !kDebugMode
+  /// Веб-версия работает только со своим сервером — тем, с которого
+  /// открыта страница (API на том же адресе, этап 5).
+  static String get defaultServer => kIsWeb && !kDebugMode
+      ? Uri.base.origin
+      : !kDebugMode
       ? 'https://tab.korovatech.ru'
       : isAndroidApp
       ? 'http://10.0.2.2:8080'
@@ -79,13 +79,14 @@ class SyncProvider extends ChangeNotifier {
 
   SyncProvider({
     required LocalDatabase database,
-    required String dataDirectory,
     required this.onDataChanged,
     required this.backup,
+    required this._tokenStore,
+    required this.journal,
     this.onLocksChanged,
-    TokenStore Function(String server)? tokenStore,
+    this.rememberSignIn,
+    this.eraseAfterSignOut,
     http.Client Function()? httpClient,
-    SyncJournal? journal,
     this.autoSync = true,
     this.syncInterval = const Duration(minutes: 5),
     this.changeDelay = const Duration(seconds: 5),
@@ -93,15 +94,9 @@ class SyncProvider extends ChangeNotifier {
     ClientKind? client,
     Future<String> Function()? appVersion,
   }) : _appVersion = appVersion ?? _installedVersion,
-       client =
-           client ?? (isAndroidApp ? ClientKind.phone : ClientKind.desktop),
+       client = client ?? platformClientKind,
        _db = database,
-       _tokenStore =
-           tokenStore ??
-           ((server) => platformTokenStore(dataDirectory, server)),
-       _httpClient = httpClient ?? http.Client.new,
-       journal =
-           journal ?? FileSyncJournal(File(p.join(dataDirectory, 'sync.log')));
+       _httpClient = httpClient ?? http.Client.new;
 
   /// Синхронизация записала изменения с сервера — экранам перечитать данные.
   final Future<void> Function() onDataChanged;
@@ -114,6 +109,31 @@ class SyncProvider extends ChangeNotifier {
   final Future<void> Function()? onLocksChanged;
 
   final SyncJournal journal;
+
+  /// Веб-версия: запоминать ли следующий вход после закрытия вкладки
+  /// (false — отметка «Чужой компьютер»). null — вход помнится всегда.
+  final void Function(bool remember)? rememberSignIn;
+
+  /// Веб-версия: после выхода стереть данные браузера (приложение закрывает
+  /// базу, стирает её и перезагружает страницу). null — база остаётся
+  /// привязанной к серверу (Windows, Android).
+  final Future<void> Function()? eraseAfterSignOut;
+
+  /// В окне входа — отметка «Чужой компьютер».
+  bool get offersPublicComputer => rememberSignIn != null;
+
+  /// Выход стирает данные этого устройства.
+  bool get erasesOnSignOut => eraseAfterSignOut != null;
+
+  /// Адрес сервера можно сменить. Веб-версия работает только с сервером, с
+  /// которого открыта страница (кроме отладки: там API на другом порту).
+  bool get canChangeServer => client != ClientKind.web || debugBuild;
+
+  /// Вход прекращается вместе со сроком refresh-токена, даже без связи
+  /// (веб-версия, этап 5). Программы для Windows и телефона без связи
+  /// продолжают работать и узнают об окончании сеанса от сервера.
+  bool get _sessionExpiresLocally => client == ClientKind.web;
+  Timer? _expiryTimer;
 
   /// Синхронизироваться самой (шаг 3.5): при запуске, после правок, раз в
   /// 5 минут, с паузами при отсутствии сети. В тестах — выключено.
@@ -162,7 +182,11 @@ class SyncProvider extends ChangeNotifier {
     return v != null && current != null && v.hasUpdate(current);
   }
 
-  String get _platformKey => client == ClientKind.phone ? 'android' : 'windows';
+  String get _platformKey => switch (client) {
+    ClientKind.desktop => 'windows',
+    ClientKind.phone => 'android',
+    ClientKind.web => 'web',
+  };
 
   /// Версии программ — с сервера, без входа. Сбой не мешает: остаётся
   /// прежнее знание (проверка повторится после следующей синхронизации).
@@ -264,6 +288,7 @@ class SyncProvider extends ChangeNotifier {
       _user = null;
     }
     await _updatePhase();
+    await _watchSessionExpiry();
     await refreshPending();
     unawaitedSafe(checkVersion());
   }
@@ -361,11 +386,14 @@ class SyncProvider extends ChangeNotifier {
   /// текстом.
   /// [allowRemoteInDebug] — в отладочной сборке человек подтвердил вход на
   /// сервер не на этом компьютере.
+  /// [publicComputer] — веб-версия: не запоминать вход после закрытия
+  /// вкладки.
   Future<void> signIn(
     String server,
     String login,
     String password, {
     bool allowRemoteInDebug = false,
+    bool publicComputer = false,
   }) async {
     final address = normalizeServer(server);
     if (debugBuild && !isLocalServer(address) && !allowRemoteInDebug) {
@@ -374,6 +402,7 @@ class SyncProvider extends ChangeNotifier {
         'нужно подтвердить отдельно.',
       );
     }
+    rememberSignIn?.call(!publicComputer);
     await _connect(address);
     _server = address;
     final SessionUser user;
@@ -393,6 +422,7 @@ class SyncProvider extends ChangeNotifier {
     _problem = null;
     _offline = false;
     await _updatePhase();
+    await _watchSessionExpiry();
   }
 
   /// Смена пароля (обязательная после выдачи администратором или по
@@ -407,13 +437,48 @@ class SyncProvider extends ChangeNotifier {
   }
 
   /// Выход: токены удаляются, база остаётся привязанной к серверу —
-  /// следующий вход продолжит с того же места.
+  /// следующий вход продолжит с того же места. Веб-версия после выхода
+  /// стирает базу браузера ([eraseAfterSignOut]): неотправленное теряется,
+  /// предупреждает об этом окно выхода.
   Future<void> signOut() async {
+    final erase = eraseAfterSignOut;
+    if (erase != null) await suspend();
+    _expiryTimer?.cancel();
     await _api?.logout();
     _user = null;
     _problem = null;
     _offline = false;
+    if (erase != null) {
+      await erase();
+      return;
+    }
     await _updatePhase();
+  }
+
+  /// Веб-версия: вход кончается вместе со сроком refresh-токена — тогда
+  /// экран входа (данные браузера остаются: тот же вход продолжит с того же
+  /// места).
+  Future<void> _watchSessionExpiry() async {
+    _expiryTimer?.cancel();
+    if (!_sessionExpiresLocally || _user == null) return;
+    final tokens = await _api?.tokens.read();
+    if (tokens == null) return;
+    final left = tokens.refreshExpiresAt.difference(DateTime.now().toUtc());
+    if (left <= Duration.zero) {
+      await _api?.logout();
+      _user = null;
+      _problem =
+          'Срок входа истёк. Войдите снова — до входа данные сохраняются '
+          'только $onThisDevice.';
+      await _updatePhase();
+      return;
+    }
+    // Таймер браузера не дольше ~24 дней — проверяем не реже раза в сутки.
+    const day = Duration(days: 1);
+    _expiryTimer = Timer(
+      left > day ? day : left,
+      () => unawaitedSafe(_watchSessionExpiry()),
+    );
   }
 
   // ------------------------------------------------------------- первый вход
@@ -526,6 +591,8 @@ class SyncProvider extends ChangeNotifier {
     );
     if (report.changedLocalData) await onDataChanged();
     await _refreshLocks();
+    // Обмен refresh-токена продлевает вход.
+    await _watchSessionExpiry();
     await checkVersion();
   }
 
@@ -611,6 +678,7 @@ class SyncProvider extends ChangeNotifier {
   @override
   void dispose() {
     _scheduler.stop();
+    _expiryTimer?.cancel();
     _updates?.cancel();
     _pendingTimer?.cancel();
     _api?.close();

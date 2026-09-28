@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
-import 'services/app_database.dart';
-import 'services/backup_service.dart';
-import 'services/db_location.dart';
 import 'services/platform.dart';
+import 'services/startup.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
 import 'widgets/auth_gate.dart';
@@ -18,21 +15,30 @@ import 'widgets/auth_gate.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
+  await _start();
+}
 
-  final AppDatabase appDb;
+/// [takeOver] — веб-версия забирает работу у другой вкладки.
+Future<void> _start({bool takeOver = false}) async {
+  final PlatformServices platform;
   try {
-    appDb = await openAppDatabase(
-      dataDir: await appDataDirectory(),
-      legacyDirs: legacyDatabaseDirectories(),
-      backupLegacy: BackupService().backupLegacyDatabase,
-      log: logDbLocation,
+    platform = await startPlatform(takeOver: takeOver);
+  } on AnotherTabOpen {
+    runApp(
+      AnotherTabApp(
+        text:
+            'Программа уже открыта в другой вкладке этого браузера. Работать '
+            'можно только в одной вкладке — иначе правки могут потеряться.',
+        onWorkHere: () => _start(takeOver: true),
+      ),
     );
+    return;
   } catch (e) {
     runApp(StartupErrorApp(message: '$e'));
     return;
   }
 
-  runApp(MyApp(appDb: appDb));
+  runApp(MyApp(platform: platform));
 }
 
 ThemeData get _theme => AppTheme.lightTheme;
@@ -44,9 +50,9 @@ const _localizations = [
 ];
 
 class MyApp extends StatefulWidget {
-  final AppDatabase appDb;
+  final PlatformServices platform;
 
-  const MyApp({super.key, required this.appDb});
+  const MyApp({super.key, required this.platform});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -57,17 +63,35 @@ class _MyAppState extends State<MyApp> {
   late final SyncProvider _sync;
   late int _generation;
 
+  /// Веб-версию открыли в другой вкладке — здесь всё остановлено.
+  bool _lostToAnotherTab = false;
+
   @override
   void initState() {
     super.initState();
-    _app = AppProvider(widget.appDb);
+    final platform = widget.platform;
+    _app = AppProvider(platform.database, backupService: platform.backups);
     _sync = SyncProvider(
       database: _app.localDatabase,
-      dataDirectory: p.dirname(widget.appDb.path),
       onDataChanged: _app.reloadAfterSync,
-      backup: _app.createSyncSafetyBackup,
+      // Веб-версия принимает данные только в пустую базу браузера —
+      // копировать перед первым входом нечего.
+      backup: _app.hasLocalBackups ? _app.createSyncSafetyBackup : () async {},
       onLocksChanged: _app.loadLockedMonths,
+      tokenStore: platform.tokenStore,
+      journal: platform.journal,
+      rememberSignIn: platform.rememberSignIn,
+      eraseAfterSignOut: platform.eraseLocalData == null
+          ? null
+          : () async {
+              // Веб-версия: база браузера стирается, страница начинает
+              // с чистого листа.
+              await _app.localDatabase.close();
+              await platform.eraseLocalData!();
+              platform.reloadPage?.call();
+            },
     );
+    platform.guardPageClose?.call(() => _sync.pending > 0);
     _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;
     // Полное восстановление из копии переоткрывает базу — синхронизация
@@ -83,6 +107,11 @@ class _MyAppState extends State<MyApp> {
       await _app.autoBackup();
       await _sync.init();
     });
+    platform.lostToAnotherTab?.then((_) async {
+      await _sync.suspend();
+      await _app.localDatabase.close();
+      if (mounted) setState(() => _lostToAnotherTab = true);
+    });
   }
 
   @override
@@ -94,6 +123,14 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_lostToAnotherTab) {
+      return AnotherTabApp(
+        text:
+            'Программу открыли в другой вкладке браузера — работа '
+            'продолжается там. Эта вкладка остановлена, введённое сохранено.',
+        onWorkHere: () async => widget.platform.reloadPage?.call(),
+      );
+    }
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _app),
@@ -109,6 +146,54 @@ class _MyAppState extends State<MyApp> {
         darkTheme: AppTheme.darkTheme,
         // Без входа программа не запускается (все платформы).
         home: const AuthGate(child: MainScreen()),
+      ),
+    );
+  }
+}
+
+/// Веб-версия: программа открыта в другой вкладке браузера.
+class AnotherTabApp extends StatelessWidget {
+  final String text;
+  final Future<void> Function() onWorkHere;
+
+  const AnotherTabApp({
+    super.key,
+    required this.text,
+    required this.onWorkHere,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: _localizations,
+      theme: _theme,
+      darkTheme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.tab_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  Text(text, textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: onWorkHere,
+                    child: const Text('Работать здесь'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -153,12 +238,7 @@ class StartupErrorApp extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Программа ничего не изменила в ваших данных. Причина — ниже; '
-                'подробности записаны в журнал db_location.log в папке '
-                'данных программы. Можно закрыть программу и вернуться '
-                'к предыдущей версии.',
-              ),
+              const Text(startupErrorHint),
               const SizedBox(height: 16),
               SelectableText(
                 message,
@@ -173,12 +253,15 @@ class StartupErrorApp extends StatelessWidget {
                     icon: const Icon(Icons.copy),
                     label: const Text('Скопировать текст'),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: () => SystemNavigator.pop(),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Закрыть программу'),
-                  ),
+                  // Страницу браузера программа не закрывает.
+                  if (!isWebApp) ...[
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () => SystemNavigator.pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Закрыть программу'),
+                    ),
+                  ],
                 ],
               ),
             ],

@@ -106,7 +106,7 @@ void main() {
   test(
     'ставка, действующая в закрытом месяце, — нельзя (как на сервере)',
     () async {
-      await app.addEmployeeRate(
+      final refused = await app.addRate(
         EmployeeRate(
           employeeId: emp,
           baseRate: 1200,
@@ -115,19 +115,60 @@ void main() {
         ),
       );
       expect(await DriftRepositories(db).rates.history(emp), isEmpty);
-      expect(app.takeNotice(), contains('08.2026'));
+      expect(refused, contains('08.2026'));
 
-      await app.addEmployeeRate(
-        EmployeeRate(
-          employeeId: emp,
-          baseRate: 1200,
-          fieldRate: 1700,
-          startDate: DateTime(2026, 9, 1),
+      expect(
+        await app.addRate(
+          EmployeeRate(
+            employeeId: emp,
+            baseRate: 1200,
+            fieldRate: 1700,
+            startDate: DateTime(2026, 9, 1),
+          ),
         ),
+        isNull,
       );
       expect(await DriftRepositories(db).rates.history(emp), hasLength(1));
     },
   );
+
+  test('ставка с начала в закрытом месяце: суммы и удаление — нельзя, '
+      'новая ставка с открытого месяца — можно', () async {
+    final repos = DriftRepositories(db);
+    // Ставка с июля записана до закрытия августа.
+    await repos.rates.add(
+      EmployeeRate(
+        employeeId: emp,
+        baseRate: 1000,
+        fieldRate: 1500,
+        startDate: DateTime(2026, 7, 1),
+      ),
+    );
+    final july = (await repos.rates.history(emp)).single;
+
+    final amount = await app.updateRate(july.copyWith(baseRate: 1100));
+    expect(amount, contains('08.2026'));
+    expect(amount, contains('добавьте новую ставку'));
+    expect(await app.deleteRate(july), contains('08.2026'));
+    expect((await repos.rates.history(emp)).single.baseRate, 1000);
+
+    // Новая ставка с сентября закрывает июльскую 31.08 — задеты только
+    // открытые дни.
+    expect(
+      await app.addRate(
+        EmployeeRate(
+          employeeId: emp,
+          baseRate: 1300,
+          fieldRate: 1800,
+          startDate: DateTime(2026, 9, 1),
+        ),
+      ),
+      isNull,
+    );
+    final history = await repos.rates.history(emp);
+    expect(history.first.endDate, DateTime(2026, 8, 31));
+    expect(history.last.baseRate, 1300);
+  });
 
   test('без закрытых месяцев ничего не мешает', () async {
     await LocalSyncStore(db).saveLockedMonths([]);

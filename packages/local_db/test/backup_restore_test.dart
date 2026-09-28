@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:kfh_domain/kfh_domain.dart';
-import 'package:kfh_local_db/kfh_local_db.dart';
+import 'package:kfh_local_db/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:test/test.dart';
 
@@ -15,7 +15,7 @@ void main() {
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('kfh_restore_');
-    db = LocalDatabase.file(File('${dir.path}/current.db'));
+    db = openLocalDatabaseFile(File('${dir.path}/current.db'));
     repo = DriftRepositories(db);
   });
   tearDown(() async {
@@ -106,7 +106,7 @@ void main() {
       );
       expect(report, isNull);
 
-      final restored = LocalDatabase.file(File(target));
+      final restored = openLocalDatabaseFile(File(target));
       addTearDown(restored.close);
       final names = (await DriftRepositories(
         restored,
@@ -129,7 +129,7 @@ void main() {
       );
       expect(report!.rowCounts['employees'], 1);
 
-      final restored = LocalDatabase.file(File(target));
+      final restored = openLocalDatabaseFile(File(target));
       addTearDown(restored.close);
       final r = DriftRepositories(restored);
       expect((await r.employees.all()).single.fullName, 'Сидоров Сидор');

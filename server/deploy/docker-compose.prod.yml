@@ -75,6 +75,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Страница загрузки и APK для телефона (этап 4.8).
       - /opt/kfh/downloads:/srv/download:ro
+      # Веб-версия (этап 5): releases/ и ссылка app на текущий выпуск.
+      - /opt/kfh/web:/srv/web:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

@@ -95,6 +95,7 @@ Future<void> main(List<String> args) async {
   final handler = buildHandler(
     db: db,
     logger: logger,
+    corsOrigins: config.corsOrigins,
     authApi: authApi,
     syncApi: SyncApi(SyncService(db: db, logger: logger), authApi),
     dataApi: DataApi(
