@@ -63,7 +63,8 @@ $platforms['web'] = [ordered]@{
 $json = @{ platforms = $platforms } | ConvertTo-Json -Depth 5
 
 $tmp = Join-Path $env:TEMP "kfh-web"
-if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+# Remove-Item v PS 5.1 ne ponimaet korotkie imena (3C8A~1).
+if ([System.IO.Directory]::Exists($tmp)) { [System.IO.Directory]::Delete($tmp, $true) }
 [System.IO.Directory]::CreateDirectory($tmp) | Out-Null
 $archive = Join-Path $tmp "kfh-web.tgz"
 # *.symbols - otladochnye simvoly CanvasKit, na servere ne nuzhny.
