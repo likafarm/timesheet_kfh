@@ -86,6 +86,22 @@ Future<void> main(List<String> args) async {
     exit(await _consoleCommand(command, args, db, logger));
   }
 
+  // Расчёты открытых месяцев — по текущим данным (после выкладки новой
+  // версии или восстановления базы из копии). Совпадающие не переписываются.
+  final payroll = PayrollCalculator(db: db);
+  try {
+    final written = await db.transaction((conn) async {
+      await const ChangeLog().lock(conn.execute);
+      return payroll.recalculateOpenMonths(conn.execute);
+    });
+    logger.info('расчёты открытых месяцев сверены', {'written': written});
+  } catch (e, st) {
+    logger.error('не удалось пересчитать открытые месяцы',
+        error: e, stackTrace: st);
+    await db.close();
+    exit(1);
+  }
+
   final auth = AuthService(
     db: db,
     accessTokens: AccessTokens(utf8.encode(config.requireJwtSecret())),
@@ -97,15 +113,16 @@ Future<void> main(List<String> args) async {
     logger: logger,
     corsOrigins: config.corsOrigins,
     authApi: authApi,
-    syncApi: SyncApi(SyncService(db: db, logger: logger), authApi),
+    syncApi: SyncApi(
+        SyncService(db: db, logger: logger, payroll: payroll), authApi),
     dataApi: DataApi(
       db: db,
       auth: authApi,
-      periods: PeriodService(db: db),
-      payroll: PayrollCalculator(db: db),
+      periods: PeriodService(db: db, payroll: payroll),
+      payroll: payroll,
     ),
     adminApi: AdminApi(
-      ImportService(db: db, payroll: PayrollCalculator(db: db), logger: logger),
+      ImportService(db: db, payroll: payroll, logger: logger),
       authApi,
     ),
     clientApi: ClientApi(

@@ -8,6 +8,7 @@ import '../auth/users.dart';
 import '../database.dart';
 import '../http/responses.dart';
 import '../logger.dart';
+import '../payroll/payroll_calculator.dart';
 import '../sql.dart';
 import 'change_log.dart';
 import 'sync_rows.dart';
@@ -69,12 +70,21 @@ class SyncService {
 
   final MySqlDatabase db;
   final Logger logger;
+
+  /// Пересчёт расчётов ЗП открытых месяцев после принятых правок — в той же
+  /// транзакции ([PayrollCalculator.recalculateOpenMonths]). null — без
+  /// пересчёта (тесты самой синхронизации).
+  final PayrollCalculator? payroll;
   final DateTime Function() _now;
 
   final _rows = const SyncRows();
   final _log = const ChangeLog();
 
-  SyncService({required this.db, required this.logger, DateTime Function()? now})
+  SyncService(
+      {required this.db,
+      required this.logger,
+      this.payroll,
+      DateTime Function()? now})
       : _now = now ?? DateTime.now;
 
   // --------------------------------------------------------------- push
@@ -106,14 +116,30 @@ class SyncService {
       return byTable != 0 ? byTable : a.$1.compareTo(b.$1);
     });
 
+    var recalculated = 0;
     if (valid.isNotEmpty) {
       await db.transaction((conn) async {
         await _log.lock(conn.execute);
         final guard = PeriodGuard(await _lockedMonths(conn.execute));
         final allowed = writableTables(user.role);
+        int? impactFrom;
+        void impact(int? month) {
+          if (month != null && (impactFrom == null || month < impactFrom!)) {
+            impactFrom = month;
+          }
+        }
+
         for (final (index, change) in valid) {
           results[index] = await _applyOne(conn, user, deviceId, index, change,
-              guard, allowed, requestId);
+              guard, allowed, requestId, impact);
+        }
+        final calculator = payroll;
+        if (calculator != null && impactFrom != null) {
+          recalculated = await calculator.recalculateOpenMonths(conn.execute,
+              fromMonth: impactFrom,
+              userUuid: user.uuid,
+              deviceId: deviceId,
+              requestId: requestId);
         }
       });
     }
@@ -125,6 +151,7 @@ class SyncService {
       'total': done.length,
       for (final s in const ['applied', 'duplicate', 'stale', 'rejected'])
         s: done.where((r) => r.status == s).length,
+      'payroll_recalculated': recalculated,
     });
     return done;
   }
@@ -138,6 +165,7 @@ class SyncService {
     PeriodGuard guard,
     Set<String> allowed,
     String? requestId,
+    void Function(int? month) impact,
   ) async {
     PushResult result(String status,
             {String? code, String? message, String? conflictUuid}) =>
@@ -183,6 +211,9 @@ class SyncService {
         await _rows.update(sql, table, change, deviceId);
       }
       await _log.append(sql, change.table, change.uuid, deleted: change.deleted);
+      impact(payrollImpactFrom(change.table,
+          existing == null || existing.deleted ? null : existing.data,
+          change.deleted ? null : change.data));
       await writeAudit(sql,
           action: existing == null
               ? 'sync_insert'

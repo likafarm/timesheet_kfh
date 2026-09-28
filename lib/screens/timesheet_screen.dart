@@ -24,7 +24,6 @@ class TimesheetScreen extends StatefulWidget {
 
 class _TimesheetScreenState extends State<TimesheetScreen> {
   DateTime _selectedMonth = DateTime.now();
-  bool _isCalculating = false;
 
   @override
   void initState() {
@@ -113,56 +112,6 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     }
   }
 
-  Future<void> _calculatePayroll() async {
-    if (_isCalculating) return;
-    final year = _selectedMonth.year;
-    final month = _selectedMonth.month;
-    if (!await ensureMonthOpen(context, year, month)) return;
-    if (!mounted) return;
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Расчёт зарплаты'),
-        content: Text(
-          'Рассчитать зарплату для всех сотрудников за ${DateFormat('LLLL yyyy', 'ru').format(_selectedMonth)}?',
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppButton(
-            label: 'Рассчитать',
-            onPressed: () => Navigator.pop(context, true),
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _isCalculating = true);
-    if (!mounted) return;
-    try {
-      final provider = context.read<AppProvider>();
-      await provider.calculatePayrollForMonth(year, month);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Зарплата рассчитана и сохранена')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка расчёта: $e')));
-    } finally {
-      if (mounted) setState(() => _isCalculating = false);
-    }
-  }
-
   void _shiftMonth(int delta) {
     setState(() {
       _selectedMonth = DateTime(
@@ -196,11 +145,6 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               icon: const Icon(Icons.print),
               onPressed: _printTimesheet,
               tooltip: 'Печать табеля',
-            ),
-            IconButton(
-              icon: const Icon(Icons.calculate),
-              onPressed: _isCalculating ? null : _calculatePayroll,
-              tooltip: 'Рассчитать зарплату за месяц',
             ),
           ],
           IconButton(
@@ -262,62 +206,60 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           ),
         ),
       ),
-      body: _isCalculating
-          ? const Center(child: CircularProgressIndicator())
-          : Consumer<AppProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      body: Consumer<AppProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                if (provider.employees.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        operator
-                            ? 'Сотрудников нет. Они придут с сервера после '
-                                  'входа (раздел «Сервер»).'
-                            : 'Нет сотрудников.\nДобавьте сотрудников в '
-                                  'разделе "Сотрудники".',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                }
+          if (provider.employees.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  operator
+                      ? 'Сотрудников нет. Они придут с сервера после '
+                            'входа (раздел «Сервер»).'
+                      : 'Нет сотрудников.\nДобавьте сотрудников в '
+                            'разделе "Сотрудники".',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
 
-                return Column(
-                  children: [
-                    Expanded(
-                      child: _TimesheetGrid(
-                        employees: provider.employees,
-                        records: provider.timesheetRecords,
-                        selectedMonth: _selectedMonth,
-                        daysInMonth: daysInMonth,
-                        compact: compact,
-                        onCellTap: (employee, day) async {
-                          final month = _selectedMonth;
-                          if (!await ensureMonthOpen(
-                                context,
-                                month.year,
-                                month.month,
-                              ) ||
-                              !context.mounted) {
-                            return;
-                          }
-                          _showRecordDialog(
-                            context,
-                            employee,
-                            DateTime(month.year, month.month, day),
-                          );
-                        },
-                      ),
-                    ),
-                    _buildLegend(),
-                  ],
-                );
-              },
-            ),
+          return Column(
+            children: [
+              Expanded(
+                child: _TimesheetGrid(
+                  employees: provider.employees,
+                  records: provider.timesheetRecords,
+                  selectedMonth: _selectedMonth,
+                  daysInMonth: daysInMonth,
+                  compact: compact,
+                  onCellTap: (employee, day) async {
+                    final month = _selectedMonth;
+                    if (!await ensureMonthOpen(
+                          context,
+                          month.year,
+                          month.month,
+                        ) ||
+                        !context.mounted) {
+                      return;
+                    }
+                    _showRecordDialog(
+                      context,
+                      employee,
+                      DateTime(month.year, month.month, day),
+                    );
+                  },
+                ),
+              ),
+              _buildLegend(),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -493,7 +435,11 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
       children: [
         for (var day = 1; day <= widget.daysInMonth; day++)
           _dayHeader(
-            DateTime(widget.selectedMonth.year, widget.selectedMonth.month, day),
+            DateTime(
+              widget.selectedMonth.year,
+              widget.selectedMonth.month,
+              day,
+            ),
             now,
             dayWidth,
             cellHeight,
@@ -741,6 +687,7 @@ class _TimesheetCell extends StatelessWidget {
   final TimesheetRecord record;
   final double dayWidth;
   final double cellHeight;
+
   /// Одно касание открывает правку дня (двойное заменено везде, этап 4).
   final VoidCallback onTap;
 

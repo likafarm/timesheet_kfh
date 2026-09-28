@@ -140,23 +140,28 @@ void main() {
       logger: logger,
       hasher: const PasswordHasher(memoryKiB: 1024, iterations: 1),
     );
-    periods = PeriodService(db: testDb.db);
+    // Как на боевом сервере: приём правок и открытие месяца пересчитывают
+    // расчёты открытых месяцев.
+    final payroll = PayrollCalculator(db: testDb.db);
+    periods = PeriodService(db: testDb.db, payroll: payroll);
     final authApi = AuthApi(auth);
     handler = buildHandler(
       db: testDb.db,
       logger: logger,
       authApi: authApi,
-      syncApi: SyncApi(SyncService(db: testDb.db, logger: logger), authApi),
+      syncApi: SyncApi(
+          SyncService(db: testDb.db, logger: logger, payroll: payroll),
+          authApi),
       dataApi: DataApi(
         db: testDb.db,
         auth: authApi,
         periods: periods,
-        payroll: PayrollCalculator(db: testDb.db),
+        payroll: payroll,
       ),
       adminApi: AdminApi(
         ImportService(
           db: testDb.db,
-          payroll: PayrollCalculator(db: testDb.db),
+          payroll: payroll,
           logger: logger,
         ),
         authApi,
@@ -420,7 +425,9 @@ void main() {
       expect(plan.kind, BootstrapKind.link);
       expect(plan.commonRows, 2);
       expect(plan.onlyLocal, 1);
-      expect(plan.onlyServer, 1);
+      // День 3-го и расчёт сентября, который сервер сделал после правок
+      // второго ПК.
+      expect(plan.onlyServer, 2);
       expect(plan.description, contains('общих записей — 2'));
       expect(report.pushed, 1);
       // День 1-го на этом ПК не меняли после импорта, но после привязки он
@@ -436,6 +443,15 @@ void main() {
 
       await pc2.sync();
       expect(await pc2.repo.timesheet.on(emp, DateTime(2026, 9, 2)), isNotNull);
+
+      // Расчёт сентября сервер пересчитал после всех правок — оба ПК
+      // получили одинаковый, совпадающий с пересчётом по их данным.
+      for (final pc in [pc1, pc2]) {
+        final saved = (await pc.repo.payroll.forMonth(2026, 9)).single;
+        final fresh = await pc.repo.payrollService.calculateMonth(emp, 2026, 9);
+        expect(saved.totalSalary, fresh.totalSalary);
+        expect(saved.skippedWorkDays, 3, reason: 'ставки нет — три дня без ставки');
+      }
     });
 
     test('разные базы не смешиваются', () async {

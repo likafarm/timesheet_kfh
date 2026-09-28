@@ -1,8 +1,12 @@
+import 'package:kfh_domain/kfh_domain.dart';
+
 import '../audit.dart';
 import '../auth/users.dart';
 import '../database.dart';
 import '../http/responses.dart';
+import '../payroll/payroll_calculator.dart';
 import '../sql.dart';
+import '../sync/change_log.dart';
 
 class PeriodLock {
   final int year;
@@ -32,9 +36,13 @@ class PeriodLock {
 /// изменение не проскочит в месяц, закрытый посреди его проверки.
 class PeriodService {
   final MySqlDatabase db;
+
+  /// Пересчёт открытых месяцев после открытия месяца
+  /// ([PayrollCalculator.recalculateOpenMonths]); null — без пересчёта.
+  final PayrollCalculator? payroll;
   final DateTime Function() _now;
 
-  PeriodService({required this.db, DateTime Function()? now})
+  PeriodService({required this.db, this.payroll, DateTime Function()? now})
       : _now = now ?? DateTime.now;
 
   Future<List<PeriodLock>> list() async {
@@ -91,13 +99,17 @@ class PeriodService {
     return (await list()).firstWhere((l) => l.year == y && l.month == m);
   }
 
-  /// Открытие месяца — с записью в аудит прежнего закрытия.
+  /// Открытие месяца — с записью в аудит прежнего закрытия. Расчёт этого и
+  /// следующих открытых месяцев пересчитывается в той же транзакции:
+  /// зафиксированный расчёт снова следует за данными.
   Future<void> unlock(User actor, Object? year, Object? month,
       {String? requestId, String? deviceId}) async {
     _requireAccountant(actor);
     final (y, m) = _checkMonth(year, month);
     await db.transaction((conn) async {
       final sql = conn.execute;
+      // Пересчёт пишет журнал изменений — блокировка очереди, как у push.
+      if (payroll != null) await const ChangeLog().lock(sql);
       final r = await sql(
           'SELECT locked_by, locked_at, note FROM period_locks '
           'WHERE year = :y AND month = :m FOR UPDATE',
@@ -121,6 +133,11 @@ class PeriodService {
             'locked_at': parseSqlDateTime(row.textOf('locked_at')).toIso8601String(),
             'note': row.text('note'),
           });
+      await payroll?.recalculateOpenMonths(sql,
+          fromMonth: PeriodGuard.monthKey(y, m),
+          userUuid: actor.uuid,
+          deviceId: deviceId,
+          requestId: requestId);
     });
   }
 

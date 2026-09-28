@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/closed_month.dart';
-import '../widgets/common_widgets.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../theme/app_theme.dart';
 
@@ -23,10 +22,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<PayrollResult> _results = [];
   Map<String, double> _paymentsByEmployee = {};
   Map<String, double> _bonusByEmployee = {};
-  Map<String, bool> _upToDateStatus = {};
+
+  /// Месяц закрыт — показан зафиксированный расчёт.
+  bool _locked = false;
+
+  /// Закрытый месяц: у кого зафиксированный расчёт расходится с данными.
+  Set<String> _differs = {};
   bool _isLoading = false;
-  bool _isCalculatingAll = false;
-  final Set<String> _calculatingSingle = {};
 
   static const double _colNum = 40;
   static const double _colEmployee = 220;
@@ -70,13 +72,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (provider.employees.isEmpty) {
         await provider.loadEmployees(activeOnly: false);
       }
-      await provider.loadPayrollResultsForMonth(_selectedYear, _selectedMonth);
-      await provider.loadStartingBalances(_selectedYear, _selectedMonth);
+      await provider.loadPayrollReport(_selectedYear, _selectedMonth);
+      final report = provider.payrollReport;
       setState(() {
         _results = provider.payrollResults;
+        _locked = report?.locked ?? false;
+        _differs = report?.differs ?? const {};
       });
       await _loadPayments();
-      await _checkAllStatus();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -104,23 +107,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() {
       _paymentsByEmployee = total;
       _bonusByEmployee = bonus;
-    });
-  }
-
-  Future<void> _checkAllStatus() async {
-    final provider = context.read<AppProvider>();
-    final Map<String, bool> status = {};
-    for (var result in _results) {
-      final isUpToDate = await provider.isPayrollUpToDate(
-        result.employeeId,
-        _selectedYear,
-        _selectedMonth,
-      );
-      status[result.employeeId] = isUpToDate;
-    }
-    if (!mounted) return;
-    setState(() {
-      _upToDateStatus = status;
     });
   }
 
@@ -152,90 +138,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadData();
       });
-    }
-  }
-
-  Future<void> _calculateAll() async {
-    if (_isCalculatingAll) return;
-    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
-        !mounted) {
-      return;
-    }
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Массовый расчёт зарплаты'),
-        content: Text(
-          'Рассчитать зарплату для всех сотрудников за ${DateFormat('LLLL yyyy', 'ru').format(DateTime(_selectedYear, _selectedMonth))}?',
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppButton(
-            label: 'Рассчитать',
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    setState(() => _isCalculatingAll = true);
-    if (!mounted) return;
-    try {
-      final provider = context.read<AppProvider>();
-      await provider.calculatePayrollForMonth(_selectedYear, _selectedMonth);
-      await _loadData();
-      if (!mounted) return;
-      final skipped = _results.where((r) => r.skippedWorkDays > 0).length;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            skipped > 0
-                ? 'Зарплата рассчитана. У $skipped сотр. есть рабочие дни без ставки — сумма занижена.'
-                : 'Зарплата рассчитана для всех сотрудников',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка расчёта: $e')));
-    } finally {
-      if (mounted) setState(() => _isCalculatingAll = false);
-    }
-  }
-
-  Future<void> _recalculateSingle(String employeeId) async {
-    if (_calculatingSingle.contains(employeeId)) return;
-    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
-        !mounted) {
-      return;
-    }
-    setState(() => _calculatingSingle.add(employeeId));
-    try {
-      final provider = context.read<AppProvider>();
-      await provider.recalculateSingleEmployee(
-        employeeId,
-        _selectedYear,
-        _selectedMonth,
-      );
-      await _loadData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Сотрудник пересчитан')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка пересчёта: $e')));
-    } finally {
-      if (mounted) setState(() => _calculatingSingle.remove(employeeId));
     }
   }
 
@@ -335,11 +237,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             tooltip: 'Текущий месяц',
           ),
           IconButton(
-            icon: const Icon(Icons.calculate),
-            onPressed: _isCalculatingAll ? null : _calculateAll,
-            tooltip: 'Рассчитать зарплату за месяц',
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: 'Обновить',
@@ -366,9 +263,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Нажмите "Рассчитать" для расчёта',
+                    _locked
+                        ? 'Месяц закрыт без зафиксированного расчёта'
+                        : 'Нет начислений, выплат и остатков',
                     style: TextStyle(color: Colors.grey[500]),
                   ),
+                  if (_differs.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildMonthStatus(),
+                  ],
                 ],
               ),
             )
@@ -389,9 +292,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildMonthStatus(),
                     _buildTableHeader(),
                     SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
+                      height: MediaQuery.of(context).size.height - 212,
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
                         child: Column(
@@ -413,6 +317,43 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  /// Строка о том, откуда цифры: открытый месяц — расчёт по текущим
+  /// данным, закрытый — зафиксированный (и расходится ли он с данными).
+  Widget _buildMonthStatus() {
+    final status = StatusColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final (IconData icon, String text, Color color) = !_locked
+        ? (
+            Icons.autorenew,
+            'Месяц открыт — расчёт по текущим данным табеля, ставок и выплат',
+            scheme.onSurfaceVariant,
+          )
+        : _differs.isEmpty
+        ? (
+            Icons.lock_outline,
+            'Месяц закрыт — показан зафиксированный расчёт',
+            scheme.onSurfaceVariant,
+          )
+        : (
+            Icons.warning_amber,
+            'Месяц закрыт — зафиксированный расчёт расходится с текущими '
+                'данными у ${_differs.length} сотр. Пересчитать его можно, '
+                'открыв месяц.',
+            status.warningText,
+          );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
     );
   }
 
@@ -498,7 +439,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildRow(int index, PayrollResult result, Employee employee) {
     final provider = context.read<AppProvider>();
-    final isUpToDate = _upToDateStatus[result.employeeId] ?? false;
+    final differs = _differs.contains(result.employeeId);
     final totalPaid = _paymentsByEmployee[result.employeeId] ?? 0.0;
     final bonus = _bonusByEmployee[result.employeeId] ?? 0.0;
     final totalDays = result.baseDays + result.fieldDays;
@@ -517,9 +458,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-          // Расчёт устарел — полупрозрачный фон: текст читается и в тёмной
-          // теме.
-          color: isUpToDate ? null : status.warningBackground,
+          // Зафиксированный расчёт расходится с данными — полупрозрачный
+          // фон: текст читается и в тёмной теме.
+          color: differs ? status.warningBackground : null,
         ),
         child: Row(
           children: [
@@ -629,39 +570,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!isUpToDate)
-                    IconButton(
-                      icon: _calculatingSingle.contains(result.employeeId)
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.refresh,
-                              size: 18,
-                              color: status.warningText,
-                            ),
-                      onPressed: _calculatingSingle.contains(result.employeeId)
-                          ? null
-                          : () => _recalculateSingle(result.employeeId),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Пересчитать',
+                  if (differs)
+                    Tooltip(
+                      message:
+                          'Зафиксированный расчёт расходится с текущими данными',
+                      child: Icon(
+                        Icons.warning_amber,
+                        size: 18,
+                        color: status.warningText,
+                      ),
                     ),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.only(left: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: !_upToDateStatus.containsKey(result.employeeId)
-                          ? Colors.grey
-                          : isUpToDate
-                          ? Colors.green
-                          : Colors.orange,
-                    ),
-                  ),
                 ],
               ),
             ),

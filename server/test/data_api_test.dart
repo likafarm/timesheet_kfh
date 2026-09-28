@@ -19,6 +19,11 @@ void main() {
   late SyncService sync;
   late User accountant;
 
+  /// Как на боевом сервере: приём правок и открытие месяца пересчитывают
+  /// открытые месяцы.
+  late SyncService autoSync;
+  late Handler autoHandler;
+
   setUp(() async {
     if (!mysqlEnabled) return;
     testDb = await TestDatabase.create(maxConnections: 6);
@@ -42,6 +47,20 @@ void main() {
         auth: authApi,
         periods: PeriodService(db: testDb.db),
         payroll: PayrollCalculator(db: testDb.db),
+      ),
+    );
+    final payroll = PayrollCalculator(db: testDb.db);
+    autoSync = SyncService(db: testDb.db, logger: logger, payroll: payroll);
+    autoHandler = buildHandler(
+      db: testDb.db,
+      logger: logger,
+      authApi: authApi,
+      syncApi: SyncApi(autoSync, authApi),
+      dataApi: DataApi(
+        db: testDb.db,
+        auth: authApi,
+        periods: PeriodService(db: testDb.db, payroll: payroll),
+        payroll: payroll,
       ),
     );
     final admin = await auth.createFirstAdmin(
@@ -70,8 +89,8 @@ void main() {
   });
 
   Future<(int, dynamic)> call(String method, String path,
-      {Object? body, Role role = Role.accountant}) async {
-    final response = await handler(Request(
+      {Object? body, Role role = Role.accountant, bool auto = false}) async {
+    final response = await (auto ? autoHandler : handler)(Request(
       method,
       Uri.parse('http://localhost$path'),
       body: body == null ? null : jsonEncode(body),
@@ -158,8 +177,8 @@ void main() {
         'created_at': '2026-09-01T10:00:00',
       });
 
-  Future<void> push(List<SyncChange> changes) async {
-    final results = await sync.push(
+  Future<void> push(List<SyncChange> changes, {bool auto = false}) async {
+    final results = await (auto ? autoSync : sync).push(
         accountant, 'pc-1', [for (final c in changes) c.toJson()]);
     expect(results.map((r) => r.status).toSet(), {'applied'},
         reason: [for (final r in results) '${r.code}: ${r.message}'].join('; '));
@@ -177,8 +196,8 @@ void main() {
   /// - Пётр: ставка с 10.09 (удалённая ставка с 01.09 не считается);
   ///   01.09 поле — без ставки, 10.09 поле;
   /// - Ольга уволена 31.08, начислений и выплат нет — в расчёт не входит.
-  Future<void> seed() async {
-    await push([
+  Future<void> seed({bool auto = false}) async {
+    await push(auto: auto, [
       employee(ivan, 'Иванов Иван'),
       employee(petr, 'Петров Пётр'),
       employee(olga, 'Ольгина Ольга', dismissed: '2026-08-31'),
@@ -573,6 +592,176 @@ void main() {
       release.complete();
       await pushLike;
       expect((await locking).$1, 201);
+    }, skip: mysqlSkip);
+  });
+
+  group('автопересчёт открытых месяцев', () {
+    /// Расчёт месяца по сотрудникам: свежий и сохранённый рядом.
+    Future<Map<String, dynamic>> month(int m) async {
+      final (s, json) =
+          await call('GET', '/payroll/calculation?year=2026&month=$m');
+      expect(s, 200, reason: '$json');
+      return {for (final e in json['employees']) e['employee_uuid']: e};
+    }
+
+    Future<int> auditCount(String action) async {
+      final r = await testDb.db.execute(
+          'SELECT COUNT(*) AS c FROM audit_log WHERE action = :a', {'a': action});
+      return r.rows.single.intOf('c');
+    }
+
+    Future<SyncChange> current(String table, String id) async =>
+        (await const SyncRows()
+            .read(testDb.db.execute, syncTableByName(table)!, id))!;
+
+    test('приём правок сохраняет расчёты всех месяцев с данными', () async {
+      final start = await autoSync.pull(accountant, cursor: 0);
+      await seed(auto: true);
+      final sept = await month(9), oct = await month(10);
+      expect(sept.keys.toSet(), {ivan, petr});
+      expect(oct.keys.toSet(), {ivan, petr},
+          reason: 'Пётр — по входящему остатку');
+      for (final e in [...sept.values, ...oct.values]) {
+        expect(e['up_to_date'], isTrue, reason: '${e['full_name']}');
+      }
+      expect(sept[ivan]['saved']['total_salary'], 5650.0);
+      expect(oct[ivan]['saved']['total_salary'], 1800.0);
+      expect(await auditCount('payroll_auto_save'), 4);
+
+      final pulled = await autoSync.pull(accountant,
+          cursor: start.cursor, epoch: start.epoch);
+      final results =
+          pulled.changes.where((c) => c.table == 'payroll_results').toList();
+      expect(results, hasLength(4));
+      expect(results.every((c) => c.editedBy == 'server'), isTrue);
+
+      // Повтор той же пачки — дубликаты, расчёты не переписываются.
+      await autoSync.push(accountant, 'pc-1', [
+        for (final c in pulled.changes)
+          if (c.table != 'payroll_results') c.toJson(),
+      ]);
+      expect(await auditCount('payroll_auto_save'), 4);
+    }, skip: mysqlSkip);
+
+    test('правка в сентябре обновляет сентябрь и остаток октября', () async {
+      await seed(auto: true);
+      final petrSept = (await month(9))[petr]['saved'];
+      await push(auto: true, [day(ivan, '2026-09-22')]); // +1800 поле
+      final sept = await month(9);
+      expect(sept[ivan]['saved']['total_salary'], 7450.0);
+      expect(sept[petr]['saved']['updated_at'], petrSept['updated_at'],
+          reason: 'расчёт Петра не менялся — не переписан');
+      final (_, oct) = await call('GET', '/payroll?year=2026&month=10');
+      // 7450 − выплачено до 01.10 1000.
+      expect(oct['starting_balances'][ivan], 6450.0);
+      expect((await month(10))[ivan]['up_to_date'], isTrue);
+    }, skip: mysqlSkip);
+
+    test('перенос дня между месяцами пересчитывает оба', () async {
+      await seed(auto: true);
+      final octDay = await testDb.db.execute(
+          "SELECT uuid FROM timesheet WHERE date = '2026-10-01'");
+      final moved = await current('timesheet', octDay.rows.single.textOf('uuid'));
+      await push(auto: true, [
+        SyncChange(
+            table: 'timesheet',
+            uuid: moved.uuid,
+            updatedAt: DateTime.now().toUtc(),
+            deleted: false,
+            data: {...moved.data, 'date': '2026-09-25'}),
+      ]);
+      expect((await month(9))[ivan]['saved']['total_salary'], 5650.0 + 1800);
+      final oct = await month(10);
+      expect(oct[ivan]['calculation']['total_salary'], 0.0);
+      expect(oct[ivan]['up_to_date'], isTrue);
+      expect(oct[ivan]['saved']['total_salary'], 0.0,
+          reason: 'в октябре у Ивана выплата — строка остаётся');
+    }, skip: mysqlSkip);
+
+    test('удалили все дни месяца — расчёт месяца удаляется', () async {
+      await seed(auto: true);
+      final petrDays = await testDb.db.execute(
+          'SELECT uuid FROM timesheet WHERE employee_uuid = :e', {'e': petr});
+      await push(auto: true, [
+        for (final r in petrDays.rows)
+          SyncChange(
+              table: 'timesheet',
+              uuid: r.textOf('uuid'),
+              updatedAt: DateTime.now().toUtc(),
+              deleted: true,
+              data: (await current('timesheet', r.textOf('uuid'))).data),
+      ]);
+      expect((await month(9)).keys, isNot(contains(petr)));
+      expect((await month(10)).keys, isNot(contains(petr)));
+      expect(await auditCount('payroll_auto_delete'), 2);
+    }, skip: mysqlSkip);
+
+    test('устаревший расчёт от старого клиента исправляется тем же приёмом',
+        () async {
+      await seed(auto: true);
+      final saved = (await month(9))[ivan]['saved'];
+      // Часы клиента спешат на 2 минуты — версия сервера всё равно новее.
+      final clientStamp = DateTime.now().toUtc().add(const Duration(minutes: 2));
+      final results = await autoSync.push(accountant, 'pc-1', [
+        SyncChange(
+          table: 'payroll_results',
+          uuid: saved['uuid'],
+          updatedAt: clientStamp,
+          deleted: false,
+          data: {
+            for (final e in (saved as Map<String, dynamic>).entries)
+              if (e.key != 'uuid' && e.key != 'updated_at') e.key: e.value,
+            'total_salary': 1.0,
+          },
+        ).toJson(),
+      ]);
+      expect(results.single.status, 'applied');
+      final after = await current('payroll_results', saved['uuid']);
+      expect(after.data['total_salary'], 5650.0);
+      expect(after.updatedAt.isAfter(clientStamp), isTrue);
+      expect(after.editedBy, 'server');
+    }, skip: mysqlSkip);
+
+    test('закрытый месяц не пересчитывается; после открытия — пересчитан',
+        () async {
+      await seed(); // без пересчёта: сохранённых расчётов нет
+      var (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9}, auto: true);
+      expect(s, 201, reason: '$json');
+      // Правка сотрудника задевает все месяцы.
+      await push(auto: true, [
+        SyncChange(
+            table: 'employees',
+            uuid: petr,
+            updatedAt: DateTime.now().toUtc(),
+            deleted: false,
+            data: employee(petr, 'Петров Пётр Петрович').data),
+      ]);
+      final sept = await month(9);
+      expect(sept.values.every((e) => e['saved'] == null), isTrue,
+          reason: 'сентябрь закрыт — не трогается');
+      final oct = await month(10);
+      expect(oct[ivan]['up_to_date'], isTrue);
+      expect(oct[ivan]['starting_balance'], -1000.0,
+          reason: 'за закрытый сентябрь ничего не зафиксировано');
+
+      (s, _) = await call('DELETE', '/periods/locks/2026/9', auto: true);
+      expect(s, 204);
+      expect((await month(9))[ivan]['saved']['total_salary'], 5650.0);
+      expect((await month(10))[ivan]['starting_balance'], 4650.0);
+    }, skip: mysqlSkip);
+
+    test('полный пересчёт при запуске: только расхождения', () async {
+      await seed();
+      final payroll = PayrollCalculator(db: testDb.db);
+      Future<int> run() => testDb.db.transaction((conn) async {
+            await const ChangeLog().lock(conn.execute);
+            return payroll.recalculateOpenMonths(conn.execute);
+          });
+      expect(await run(), 4);
+      expect(await run(), 0);
+      expect(await payroll.dataMonths(testDb.db.execute),
+          (first: 2026 * 12 + 8, last: 2026 * 12 + 9));
     }, skip: mysqlSkip);
   });
 

@@ -85,16 +85,60 @@ void main() {
     expect(app.takeNotice(), contains('08.2026'));
   });
 
-  test('выплаты и расчёт ЗП в закрытом месяце — нельзя', () async {
+  test('отчёт: открытый месяц — пересчёт без записи, закрытый — '
+      'зафиксированный расчёт', () async {
+    final repos = DriftRepositories(db);
+    await repos.rates.add(
+      EmployeeRate(
+        employeeId: emp,
+        baseRate: 1000,
+        fieldRate: 1500,
+        startDate: DateTime(2025, 3, 1),
+      ),
+    );
+    // Август закрыт: день и расчёт пришли с сервера (напрямую в базу).
+    await repos.timesheet.add(work(aug3));
+    await repos.payroll.save(
+      PayrollResult(
+        employeeId: emp,
+        year: 2026,
+        month: 8,
+        baseDays: 0,
+        fieldDays: 1,
+        sickDays: 0,
+        vacationDays: 0,
+        totalSalary: 777,
+      ),
+    );
+    await app.saveTimesheetRecord(work(sep3));
+
+    await app.loadPayrollReport(2026, 9);
+    var report = app.payrollReport!;
+    expect(report.locked, isFalse);
+    expect(app.payrollResults.single.totalSalary, 1500);
+    expect(
+      app.startingBalances[emp],
+      777,
+      reason: 'закрытый август — по зафиксированному расчёту',
+    );
+    expect(
+      await repos.payroll.forMonth(2026, 9),
+      isEmpty,
+      reason: 'приложение расчёт не сохраняет',
+    );
+
+    await app.loadPayrollReport(2026, 8);
+    report = app.payrollReport!;
+    expect(report.locked, isTrue);
+    expect(app.payrollResults.single.totalSalary, 777);
+    expect(report.differs, {emp}, reason: 'по табелю вышло бы 1500');
+  });
+
+  test('выплаты в закрытом месяце — нельзя', () async {
     await app.addPayment(
       Payment(employeeId: emp, paymentDate: aug3, amount: 500),
     );
     expect(await DriftRepositories(db).payments.list(), isEmpty);
-    expect(app.takeNotice(), contains('08.2026'));
-
-    await app.calculatePayrollForMonth(2026, 8);
-    expect(app.takeNotice(), contains('08.2026'));
-    await app.recalculateSingleEmployee(emp, 2026, 8);
     expect(app.takeNotice(), contains('08.2026'));
 
     await app.addPayment(

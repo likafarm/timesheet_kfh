@@ -49,7 +49,6 @@ class AppProvider extends ChangeNotifier {
   RateRepository get _ratesRepo => _appDb.repos.rates;
   TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
   PaymentRepository get _paymentsRepo => _appDb.repos.payments;
-  PayrollRepository get _payrollRepo => _appDb.repos.payroll;
   SettingsRepository get _settingsRepo => _appDb.repos.settings;
   PayrollService get _payrollService => _appDb.repos.payrollService;
 
@@ -61,8 +60,7 @@ class AppProvider extends ChangeNotifier {
 
   /// Ставки, действующие сегодня, по сотрудникам (null — ставки нет).
   Map<String, EmployeeRate?> _currentRates = {};
-  List<PayrollResult> _payrollResults = [];
-  Map<String, double> _startingBalances = {};
+  PayrollMonthReport? _payrollReport;
   CompanySettings? _companySettings;
 
   // Состояние загрузки
@@ -103,8 +101,12 @@ class AppProvider extends ChangeNotifier {
   /// Ставка сотрудника, действующая сегодня (null — нет ставки на сегодня;
   /// оператор ставок не видит).
   EmployeeRate? currentRate(String employeeId) => _currentRates[employeeId];
-  List<PayrollResult> get payrollResults => _payrollResults;
-  Map<String, double> get startingBalances => _startingBalances;
+
+  /// Последний загруженный отчёт ([loadPayrollReport]).
+  PayrollMonthReport? get payrollReport => _payrollReport;
+  List<PayrollResult> get payrollResults => _payrollReport?.results ?? const [];
+  Map<String, double> get startingBalances =>
+      _payrollReport?.startingBalances ?? const {};
   CompanySettings? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -172,12 +174,6 @@ class AppProvider extends ChangeNotifier {
       after == null ? null : {column: formatDateIso(after)},
     );
   }
-
-  bool _monthAllowed(int year, int month) => _allowedInOpenPeriod(
-    'payroll_results',
-    null,
-    {'year': year, 'month': month},
-  );
 
   bool _rateAllowed(DateTime start) => _allowedInOpenPeriod(
     'employee_rates',
@@ -645,13 +641,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadStartingBalances(int year, int month) async {
-    _startingBalances = await _payrollService.startingBalances(
-      DateTime(year, month, 1),
-    );
-    notifyListeners();
-  }
-
   // ==========================================================================
   // ОТЧЁТЫ
   // ==========================================================================
@@ -672,53 +661,25 @@ class AppProvider extends ChangeNotifier {
   // PAYROLL
   // ==========================================================================
 
-  /// Расчёты месяца для отчёта — без сотрудников, у которых в месяце нет ни
-  /// начислений, ни выплат.
-  Future<void> loadPayrollResultsForMonth(int year, int month) async {
+  /// Отчёт месяца ([PayrollService.monthReport]): открытый месяц — свежий
+  /// пересчёт по данным этой базы (сразу видны и неотправленные правки),
+  /// закрытый — расчёт, зафиксированный сервером, с отметкой расхождений.
+  /// Приложение расчёты не сохраняет: сохранённые расчёты ведёт сервер,
+  /// пересчитывая открытые месяцы после каждой принятой правки.
+  Future<void> loadPayrollReport(int year, int month) async {
     _setLoading(true);
     try {
-      _payrollResults = await _payrollService.resultsForReport(year, month);
+      _payrollReport = await _payrollService.monthReport(
+        year,
+        month,
+        lockedMonths: _lockedMonths,
+      );
       _error = null;
     } catch (e) {
-      _error = 'Ошибка загрузки результатов расчёта: $e';
+      _error = 'Ошибка загрузки расчёта: $e';
     } finally {
       _setLoading(false);
     }
-  }
-
-  Future<void> calculatePayrollForMonth(int year, int month) async {
-    if (!_notOperator()) return;
-    if (!_monthAllowed(year, month)) return;
-    _setLoading(true);
-    try {
-      // Сотрудники без начислений и выплат за месяц в расчёт не входят.
-      await _payrollService.saveMonth(year, month);
-      await loadPayrollResultsForMonth(year, month);
-      _error = null;
-      setNeedRefreshReports(true);
-    } catch (e) {
-      _error = 'Ошибка массового расчёта зарплаты: $e';
-      notifyListeners();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<bool> isPayrollUpToDate(String employeeId, int year, int month) async {
-    final result = await _payrollRepo.resultFor(employeeId, year, month);
-    if (result == null) return false;
-    final current = await _payrollService.calculateMonth(
-      employeeId,
-      year,
-      month,
-    );
-    const epsilon = 0.001;
-    return (result.baseDays - current.baseDays).abs() < epsilon &&
-        (result.fieldDays - current.fieldDays).abs() < epsilon &&
-        (result.sickDays - current.sickDays).abs() < epsilon &&
-        (result.vacationDays - current.vacationDays).abs() < epsilon &&
-        (result.totalSalary - current.totalSalary).abs() < epsilon &&
-        result.skippedWorkDays == current.skippedWorkDays;
   }
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
@@ -731,18 +692,6 @@ class AppProvider extends ChangeNotifier {
       year,
       month,
     )).toMap();
-  }
-
-  Future<void> recalculateSingleEmployee(
-    String employeeId,
-    int year,
-    int month,
-  ) async {
-    if (!_notOperator()) return;
-    if (!_monthAllowed(year, month)) return;
-    // Если начислений и выплат не осталось — прежний расчёт удаляется.
-    await _payrollService.saveMonth(year, month, employeeId: employeeId);
-    setNeedRefreshReports(true);
   }
 
   // ==========================================================================
