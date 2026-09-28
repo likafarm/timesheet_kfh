@@ -8,6 +8,7 @@ import '../providers/app_provider.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/payroll_detail_dialog.dart';
+import '../theme/app_theme.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -418,8 +419,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildTableHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey)),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+        ),
       ),
       child: Row(
         children: [
@@ -504,6 +507,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     final daysFormat = NumberFormat('#,##0.0', 'ru');
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
+    final status = StatusColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
 
     // Одно касание (двойное заменено везде, этап 4).
     return InkWell(
@@ -511,8 +516,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-          color: isUpToDate ? null : Colors.orange[50],
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          // Расчёт устарел — полупрозрачный фон: текст читается и в тёмной
+          // теме.
+          color: isUpToDate ? null : status.warningBackground,
         ),
         child: Row(
           children: [
@@ -536,11 +543,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   if (result.skippedWorkDays > 0)
                     Text(
                       'Без ставки: ${result.skippedWorkDays} дн.',
-                      style: TextStyle(fontSize: 10, color: Colors.red[700]),
+                      style: TextStyle(fontSize: 10, color: status.negative),
                     ),
                   Text(
                     employee.position,
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -557,8 +567,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     color:
                         (provider.startingBalances[result.employeeId] ?? 0.0) <
                             0
-                        ? Colors.red
-                        : Colors.green[800],
+                        ? status.negative
+                        : status.positive,
                   ),
                   textAlign: TextAlign.right,
                 ),
@@ -609,7 +619,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: balance > 0 ? Colors.green : Colors.red,
+                  color: balance > 0 ? status.positive : status.negative,
                 ),
                 textAlign: TextAlign.right,
               ),
@@ -627,10 +637,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.refresh,
                               size: 18,
-                              color: Colors.orange,
+                              color: status.warningText,
                             ),
                       onPressed: _calculatingSingle.contains(result.employeeId)
                           ? null

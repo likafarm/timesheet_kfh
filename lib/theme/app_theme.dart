@@ -49,6 +49,33 @@ class AppTheme {
   );
 }
 
+/// Смысловые цвета, читаемые в обеих темах: светлый фон с тёмным текстом
+/// в тёмной теме (где текст светлый) не читается — фон здесь
+/// полупрозрачный, а цвет текста зависит от темы.
+class StatusColors {
+  final bool dark;
+
+  const StatusColors._(this.dark);
+
+  factory StatusColors.of(BuildContext context) =>
+      StatusColors._(Theme.of(context).brightness == Brightness.dark);
+
+  /// Фон строки-предупреждения («расчёт устарел», «без ставки»).
+  Color get warningBackground =>
+      Colors.orange.withValues(alpha: dark ? 0.22 : 0.12);
+
+  /// Текст предупреждения на [warningBackground] или обычном фоне.
+  Color get warningText =>
+      dark ? Colors.orange.shade200 : Colors.orange.shade900;
+
+  /// Фон строки с ошибкой.
+  Color get errorBackground => Colors.red.withValues(alpha: dark ? 0.22 : 0.10);
+
+  /// Суммы: положительный остаток, отрицательный (долг сотрудника).
+  Color get positive => dark ? Colors.green.shade300 : Colors.green.shade800;
+  Color get negative => dark ? Colors.red.shade300 : Colors.red.shade700;
+}
+
 /// Цвета сетки табеля для светлой и тёмной темы: фон отметок, итогов,
 /// выходных и сегодняшнего дня и текст поверх них. В тёмной теме фон
 /// тёмный, текст светлый (светлый фон с белым текстом не читается).

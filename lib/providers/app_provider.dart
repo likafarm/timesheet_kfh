@@ -58,6 +58,9 @@ class AppProvider extends ChangeNotifier {
   List<TimesheetRecord> _timesheetRecords = [];
   List<Payment> _payments = [];
   List<EmployeeRate> _employeeRates = [];
+
+  /// Ставки, действующие сегодня, по сотрудникам (null — ставки нет).
+  Map<String, EmployeeRate?> _currentRates = {};
   List<PayrollResult> _payrollResults = [];
   Map<String, double> _startingBalances = {};
   CompanySettings? _companySettings;
@@ -96,6 +99,10 @@ class AppProvider extends ChangeNotifier {
   List<TimesheetRecord> get timesheetRecords => _timesheetRecords;
   List<Payment> get payments => _payments;
   List<EmployeeRate> get employeeRates => _employeeRates;
+
+  /// Ставка сотрудника, действующая сегодня (null — нет ставки на сегодня;
+  /// оператор ставок не видит).
+  EmployeeRate? currentRate(String employeeId) => _currentRates[employeeId];
   List<PayrollResult> get payrollResults => _payrollResults;
   Map<String, double> get startingBalances => _startingBalances;
   CompanySettings? get companySettings => _companySettings;
@@ -121,7 +128,20 @@ class AppProvider extends ChangeNotifier {
     Map<String, Object?>? before,
     Map<String, Object?>? after,
   ) {
-    if (_lockedMonths.isEmpty) return true;
+    final message = _periodViolation(table, before, after);
+    if (message == null) return true;
+    _notice = message;
+    notifyListeners();
+    return false;
+  }
+
+  /// Почему правка задевает закрытый месяц (null — не задевает).
+  String? _periodViolation(
+    String table,
+    Map<String, Object?>? before,
+    Map<String, Object?>? after,
+  ) {
+    if (_lockedMonths.isEmpty) return null;
     final locked = PeriodGuard(_lockedMonths).violation(
       table,
       before,
@@ -129,12 +149,9 @@ class AppProvider extends ChangeNotifier {
       after ?? before ?? const {},
       after == null,
     );
-    if (locked == null) return true;
-    _notice =
-        '${PeriodLockedException(locked.$1, locked.$2).message}. '
+    if (locked == null) return null;
+    return '${PeriodLockedException(locked.$1, locked.$2).message}. '
         'Открыть месяц может бухгалтер или администратор.';
-    notifyListeners();
-    return false;
   }
 
   /// Оператору доступен только табель: иначе — сообщение и false.
@@ -222,6 +239,13 @@ class AppProvider extends ChangeNotifier {
     _employees = await _employeesRepo.all(
       activeOn: activeOnly ? DateTime.now() : null,
     );
+    if (!operatorMode) {
+      final today = DateTime.now();
+      _currentRates = {
+        for (final e in _employees)
+          if (e.id != null) e.id!: await _ratesRepo.at(e.id!, today),
+      };
+    }
     notifyListeners();
   }
 
@@ -284,16 +308,88 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addEmployeeRate(EmployeeRate rate) async {
-    if (!_notOperator()) return;
-    if (!_rateAllowed(rate.startDate)) return;
+  /// Добавить ставку (с любой даты: соседние периоды согласуются, см.
+  /// [planAddRate]). Возвращает null, если записано, иначе — почему нет.
+  Future<String?> addRate(EmployeeRate rate) =>
+      _changeRates(rate.employeeId, (history) => planAddRate(history, rate));
+
+  /// Изменить ставку: суммы, дату начала (между соседними ставками), дату
+  /// окончания (только у последней). null — записано, иначе — почему нет.
+  Future<String?> updateRate(EmployeeRate rate) =>
+      _changeRates(rate.employeeId, (history) => planUpdateRate(history, rate));
+
+  /// Удалить ставку: её период переходит к предыдущей ставке. null —
+  /// записано, иначе — почему нет.
+  Future<String?> deleteRate(EmployeeRate rate) => _changeRates(
+    rate.employeeId,
+    (history) => planDeleteRate(history, rate.id!),
+  );
+
+  Future<String?> _changeRates(
+    String employeeId,
+    List<RateChange> Function(List<EmployeeRate> history) plan,
+  ) async {
+    if (operatorMode) {
+      return 'Ставки меняют бухгалтер или администратор.';
+    }
+    final List<RateChange> changes;
     try {
-      await _ratesRepo.add(rate);
-      await loadEmployeeRates(employeeId: rate.employeeId);
-      setNeedRefreshReports(true);
+      changes = plan(await _ratesRepo.history(employeeId));
+    } on RateTimelineException catch (e) {
+      return e.message;
+    }
+    if (changes.isEmpty) return null;
+    // Те же правила, что у сервера: ни одна правка не задевает закрытый
+    // месяц (сдвиг границы — только открытыми днями).
+    for (final c in changes) {
+      final locked = _periodViolation(
+        'employee_rates',
+        _rateRow(c.before),
+        _rateRow(c.after),
+      );
+      if (locked != null) {
+        return '$locked Чтобы ставка поменялась с какой-то даты открытого '
+            'месяца, добавьте новую ставку с этой даты.';
+      }
+    }
+    try {
+      await _ratesRepo.apply(changes);
+      await _syncEmployeeRates(employeeId);
     } catch (e) {
-      _error = 'Ошибка добавления ставки: $e';
-      notifyListeners();
+      return 'Ошибка сохранения ставки: $e';
+    }
+    await loadEmployeeRates(employeeId: employeeId);
+    await loadEmployees();
+    setNeedRefreshReports(true);
+    return null;
+  }
+
+  static Map<String, Object?>? _rateRow(EmployeeRate? r) => r == null
+      ? null
+      : {
+          'employee_uuid': r.employeeId,
+          'base_rate': r.baseRate,
+          'field_rate': r.fieldRate,
+          'start_date': formatDateIso(r.startDate),
+          'end_date': formatDateIsoOrNull(r.endDate),
+        };
+
+  /// Ставки в карточке сотрудника — копия действующей сегодня (или
+  /// последней) ставки из истории: их видят программы прежних версий.
+  Future<void> _syncEmployeeRates(String employeeId) async {
+    final employee = await _employeesRepo.byId(employeeId);
+    if (employee == null) return;
+    final history = await _ratesRepo.history(employeeId);
+    final current = rateOn(history, DateTime.now()) ?? history.lastOrNull;
+    if (current == null) return;
+    if (current.baseRate != employee.baseRate ||
+        current.fieldRate != employee.fieldRate) {
+      await _employeesRepo.update(
+        employee.copyWith(
+          baseRate: current.baseRate,
+          fieldRate: current.fieldRate,
+        ),
+      );
     }
   }
 

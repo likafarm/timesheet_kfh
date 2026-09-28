@@ -4,6 +4,7 @@
 // Удаление везде мягкое: запись помечается удалённой и пропадает
 // из выборок, но остаётся в базе (нужно для синхронизации).
 
+import 'rate_timeline.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
 import 'models/employee_rate.dart';
@@ -44,6 +45,10 @@ abstract interface class RateRepository {
 
   /// Ставка, действующая на [date].
   Future<EmployeeRate?> at(String employeeId, DateTime date);
+
+  /// Записывает правки истории ставок ([planAddRate], [planUpdateRate],
+  /// [planDeleteRate]) одной транзакцией.
+  Future<void> apply(List<RateChange> changes);
 }
 
 abstract interface class TimesheetRepository {

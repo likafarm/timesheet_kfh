@@ -116,6 +116,35 @@ class DriftRateRepository implements RateRepository {
     final row = await _db.ratesDao.rateAt(employeeId, date);
     return row == null ? null : _fromRow(row);
   }
+
+  @override
+  Future<void> apply(List<RateChange> changes) => _db.transaction(() async {
+    final dao = _db.ratesDao;
+    for (final change in changes) {
+      final after = change.after;
+      if (change.isDelete) {
+        await dao.softDeleteRate(_requireId(change.before!.id, 'Ставка'));
+      } else if (change.isInsert) {
+        await dao.insertRate(
+          employeeUuid: after!.employeeId,
+          baseRate: after.baseRate,
+          fieldRate: after.fieldRate,
+          startDate: after.startDate,
+          endDate: after.endDate,
+        );
+      } else {
+        await dao.updateRate(
+          _requireId(change.before!.id, 'Ставка'),
+          EmployeeRatesCompanion(
+            baseRate: Value(after!.baseRate),
+            fieldRate: Value(after.fieldRate),
+            startDate: Value(formatDateIso(after.startDate)),
+            endDate: Value(formatDateIsoOrNull(after.endDate)),
+          ),
+        );
+      }
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

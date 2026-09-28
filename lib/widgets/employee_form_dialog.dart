@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../screens/employee_rate_history_screen.dart';
 import '../widgets/common_widgets.dart';
 
 class EmployeeFormDialog extends StatefulWidget {
@@ -38,12 +39,6 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       _positionController.text = e.position;
       _hireDate = e.hireDate;
       _hireDateController.text = DateFormat('dd.MM.yyyy').format(e.hireDate);
-      _baseRateController.text = e.baseRate.toString();
-      _fieldRateController.text = e.fieldRate.toString();
-      _rateStartDate = DateTime.now();
-      _rateStartDateController.text = DateFormat(
-        'dd.MM.yyyy',
-      ).format(_rateStartDate);
     } else {
       _hireDate = DateTime.now();
       _hireDateController.text = DateFormat('dd.MM.yyyy').format(_hireDate);
@@ -126,79 +121,13 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                       v?.isEmpty == true ? 'Обязательное поле' : null,
                 ),
                 const SizedBox(height: 12),
-                AppTextField(
-                  controller: _baseRateController,
-                  labelText: 'Ставка (база, ₽/день) *',
-                  prefixIcon: Icons.attach_money,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Обязательное поле';
-                    }
-                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
-                      return 'Введите число';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  controller: _fieldRateController,
-                  labelText: 'Ставка (поле, ₽/день) *',
-                  prefixIcon: Icons.attach_money,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Обязательное поле';
-                    }
-                    if (double.tryParse(v.replaceAll(',', '.')) == null) {
-                      return 'Введите число';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                AppTextField(
-                  controller: _rateStartDateController,
-                  labelText: 'Дата начала действия ставки',
-                  prefixIcon: Icons.date_range,
-                  readOnly: true,
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _rateStartDate,
-                      firstDate: _hireDate,
-                      lastDate: DateTime(2100),
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _rateStartDate = date;
-                        _rateStartDateController.text = DateFormat(
-                          'dd.MM.yyyy',
-                        ).format(date);
-                      });
-                    }
-                  },
-                  validator: (v) {
-                    if (_rateStartDate.isBefore(_hireDate)) {
-                      return 'Дата начала не может быть раньше даты приёма';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Новая ставка будет действовать с указанной даты.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-                if (isEditing) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Если ставки не изменились, новая запись не создаётся.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                  ),
-                ],
+                // Ставки меняются в истории ставок (добавление, правка,
+                // удаление с любой даты); при добавлении сотрудника —
+                // первая ставка.
+                if (isEditing)
+                  _CurrentRates(employee: widget.employee!)
+                else
+                  ..._firstRateFields(),
               ],
             ),
           ),
@@ -220,18 +149,97 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     );
   }
 
+  List<Widget> _firstRateFields() => [
+    AppTextField(
+      controller: _baseRateController,
+      labelText: 'Ставка (база, ₽/день) *',
+      prefixIcon: Icons.attach_money,
+      keyboardType: TextInputType.numberWithOptions(decimal: true),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'Обязательное поле';
+        }
+        if (double.tryParse(v.replaceAll(',', '.')) == null) {
+          return 'Введите число';
+        }
+        return null;
+      },
+    ),
+    const SizedBox(height: 12),
+    AppTextField(
+      controller: _fieldRateController,
+      labelText: 'Ставка (поле, ₽/день) *',
+      prefixIcon: Icons.attach_money,
+      keyboardType: TextInputType.numberWithOptions(decimal: true),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'Обязательное поле';
+        }
+        if (double.tryParse(v.replaceAll(',', '.')) == null) {
+          return 'Введите число';
+        }
+        return null;
+      },
+    ),
+    const SizedBox(height: 12),
+    AppTextField(
+      controller: _rateStartDateController,
+      labelText: 'Ставка действует с',
+      prefixIcon: Icons.date_range,
+      readOnly: true,
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: _rateStartDate,
+          firstDate: _hireDate,
+          lastDate: DateTime(2100),
+        );
+        if (date != null) {
+          setState(() {
+            _rateStartDate = date;
+            _rateStartDateController.text = DateFormat(
+              'dd.MM.yyyy',
+            ).format(date);
+          });
+        }
+      },
+      validator: (v) {
+        if (_rateStartDate.isBefore(_hireDate)) {
+          return 'Дата начала не может быть раньше даты приёма';
+        }
+        return null;
+      },
+    ),
+    const SizedBox(height: 8),
+    Text(
+      'Потом ставки меняются в истории ставок сотрудника.',
+      style: TextStyle(
+        fontSize: 11,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  ];
+
   Future<void> _save() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final baseRate = double.parse(
-      _baseRateController.text.replaceAll(',', '.'),
-    );
-    final fieldRate = double.parse(
-      _fieldRateController.text.replaceAll(',', '.'),
-    );
+    final provider = context.read<AppProvider>();
+    // Ставки в карточке — копия текущей ставки из истории (её обновляет
+    // AppProvider при правке истории, в том числе открытой из этой формы —
+    // поэтому свежая карточка, а не та, с которой форма открылась); у
+    // нового сотрудника — первая ставка.
+    final old = widget.employee == null
+        ? null
+        : provider.getEmployeeById(widget.employee!.id!) ?? widget.employee;
+    final baseRate =
+        old?.baseRate ??
+        double.parse(_baseRateController.text.replaceAll(',', '.'));
+    final fieldRate =
+        old?.fieldRate ??
+        double.parse(_fieldRateController.text.replaceAll(',', '.'));
 
     final employee = Employee(
       id: widget.employee?.id,
@@ -243,35 +251,11 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       fieldRate: fieldRate,
     );
 
-    final provider = context.read<AppProvider>();
     setState(() => _isSaving = true);
 
     try {
-      if (widget.employee != null) {
-        // Редактирование
-        final old = widget.employee!;
-        final ratesChanged =
-            old.baseRate != baseRate || old.fieldRate != fieldRate;
-
+      if (old != null) {
         await provider.updateEmployee(employee);
-
-        if (ratesChanged) {
-          final rate = EmployeeRate(
-            employeeId: employee.id!,
-            baseRate: baseRate,
-            fieldRate: fieldRate,
-            startDate: _rateStartDate,
-          );
-          await provider.addEmployeeRate(rate);
-        } else {
-          // Показываем уведомление, что ставки не изменились
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ставки не изменены, новая запись не создана'),
-            ),
-          );
-        }
       } else {
         // Новый сотрудник
         final startDate = _rateStartDate.isAfter(_hireDate)
@@ -303,5 +287,66 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
         ),
       );
     }
+  }
+}
+
+/// Ставки, действующие сегодня, — только показ; менять — в истории ставок.
+class _CurrentRates extends StatelessWidget {
+  final Employee employee;
+
+  const _CurrentRates({required this.employee});
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = context.watch<AppProvider>().currentRate(employee.id!);
+    final money = NumberFormat('#,##0.00', 'ru');
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Текущие ставки',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            if (rate == null)
+              Text(
+                'На сегодня ставки нет — рабочие дни без ставки не '
+                'оплачиваются.',
+                style: TextStyle(color: scheme.error),
+              )
+            else ...[
+              Text('База: ${money.format(rate.baseRate)} ₽/день'),
+              Text('Поле: ${money.format(rate.fieldRate)} ₽/день'),
+              Text(
+                'с ${DateFormat('dd.MM.yyyy').format(rate.startDate)}'
+                '${rate.endDate == null ? '' : ' по ${DateFormat('dd.MM.yyyy').format(rate.endDate!)}'}',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EmployeeRateHistoryScreen(
+                      employeeId: employee.id!,
+                      employeeName: employee.fullName,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.history),
+                label: const Text('История ставок'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

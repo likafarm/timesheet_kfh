@@ -11,6 +11,7 @@ export 'src/models/payroll_result.dart';
 export 'src/models/timesheet_record.dart';
 export 'src/payroll.dart';
 export 'src/payroll_service.dart';
+export 'src/rate_timeline.dart';
 export 'src/repositories.dart';
 export 'src/sync/period_guard.dart';
 export 'src/sync/sync_change.dart';

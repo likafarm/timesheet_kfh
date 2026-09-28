@@ -119,6 +119,59 @@ void main() {
     expect((await repo.rates.at(emp, DateTime(2026, 3, 1)))!.baseRate, 1100);
   });
 
+  test('ставки: правки истории — вставка, изменение, удаление', () async {
+    final emp = await addEmployee('Иванов Иван');
+    await repo.rates.add(
+      EmployeeRate(
+        employeeId: emp,
+        baseRate: 1000,
+        fieldRate: 1500,
+        startDate: DateTime(2026, 1, 1),
+      ),
+    );
+    // Новая последняя ставка: первая закрывается накануне, новая бессрочная.
+    await repo.rates.apply(
+      planAddRate(
+        await repo.rates.history(emp),
+        EmployeeRate(
+          employeeId: emp,
+          baseRate: 2000,
+          fieldRate: 2500,
+          startDate: DateTime(2026, 5, 1),
+        ),
+      ),
+    );
+    var history = await repo.rates.history(emp);
+    expect(history.map((r) => r.endDate), [DateTime(2026, 4, 30), null]);
+
+    // Сдвиг начала второй ставки — первая следом.
+    await repo.rates.apply(
+      planUpdateRate(
+        history,
+        history.last.copyWith(startDate: DateTime(2026, 6, 1), baseRate: 2100),
+      ),
+    );
+    history = await repo.rates.history(emp);
+    expect(history.first.endDate, DateTime(2026, 5, 31));
+    expect(
+      (history.last.startDate, history.last.baseRate),
+      (DateTime(2026, 6, 1), 2100),
+    );
+
+    // Удаление последней — первая снова бессрочная; запись мягко удалена
+    // (уйдёт на сервер при синхронизации).
+    await repo.rates.apply(planDeleteRate(history, history.last.id!));
+    history = await repo.rates.history(emp);
+    expect(history, hasLength(1));
+    expect(history.single.endDate, isNull);
+    final deleted = await db
+        .customSelect(
+          'SELECT COUNT(*) AS n FROM employee_rates WHERE deleted = 1',
+        )
+        .getSingle();
+    expect(deleted.read<int>('n'), 1);
+  });
+
   group('табель', () {
     test('добавление и чтение, дубль отклоняется', () async {
       final emp = await addEmployee('Иванов Иван');
