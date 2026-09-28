@@ -29,7 +29,7 @@ class PeriodLock {
       };
 }
 
-/// Закрытие и открытие месяцев (бухгалтер и админ).
+/// Закрытие месяцев (бухгалтер и админ) и открытие (только админ).
 ///
 /// Приём изменений (push) и расчёт читают `period_locks` с блокировкой
 /// FOR SHARE, поэтому закрытие месяца ждёт окончания начатых приёмов:
@@ -63,6 +63,8 @@ class PeriodService {
     ];
   }
 
+  /// Закрытие месяца (бухгалтер и админ). В той же транзакции до закрытия
+  /// расчёт месяца пересчитывается по текущим данным — фиксируется свежий.
   Future<PeriodLock> lock(User actor, Object? year, Object? month, Object? note,
       {String? requestId, String? deviceId}) async {
     _requireAccountant(actor);
@@ -72,12 +74,19 @@ class PeriodService {
     }
     await db.transaction((conn) async {
       final sql = conn.execute;
+      // Пересчёт пишет журнал изменений — блокировка очереди, как у push.
+      if (payroll != null) await const ChangeLog().lock(sql);
       final existing = await sql(
           'SELECT 1 FROM period_locks WHERE year = :y AND month = :m FOR UPDATE',
           {'y': y, 'm': m});
       if (existing.rows.isNotEmpty) {
         throw const ApiException(409, 'already_locked', 'Месяц уже закрыт');
       }
+      await payroll?.recalculateOpenMonths(sql,
+          fromMonth: PeriodGuard.monthKey(y, m),
+          userUuid: actor.uuid,
+          deviceId: deviceId,
+          requestId: requestId);
       await sql(
           'INSERT INTO period_locks (year, month, locked_by, locked_at, note) '
           'VALUES (:y, :m, :u, :now, :note)',
@@ -102,9 +111,13 @@ class PeriodService {
   /// Открытие месяца — с записью в аудит прежнего закрытия. Расчёт этого и
   /// следующих открытых месяцев пересчитывается в той же транзакции:
   /// зафиксированный расчёт снова следует за данными.
+  /// Открыть месяц может только админ (решение владельца 2026-09-28).
   Future<void> unlock(User actor, Object? year, Object? month,
       {String? requestId, String? deviceId}) async {
-    _requireAccountant(actor);
+    if (actor.role != Role.admin) {
+      throw const ApiException(
+          403, 'forbidden', 'Открыть закрытый месяц может только администратор');
+    }
     final (y, m) = _checkMonth(year, month);
     await db.transaction((conn) async {
       final sql = conn.execute;

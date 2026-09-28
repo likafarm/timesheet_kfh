@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../providers/sync_provider.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/payroll_detail_dialog.dart';
+import '../widgets/period_lock_dialogs.dart';
 import '../theme/app_theme.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -236,6 +238,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             onPressed: _goToToday,
             tooltip: 'Текущий месяц',
           ),
+          _buildLockButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
@@ -318,6 +321,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
     );
+  }
+
+  /// Закрыть выбранный месяц (бухгалтер, админ) или открыть (админ).
+  Widget _buildLockButton() {
+    final sync = context.watch<SyncProvider>();
+    final locked = context.select<AppProvider, bool>(
+      (p) => p.isMonthLocked(_selectedYear, _selectedMonth),
+    );
+    if (!locked && sync.canLockMonths) {
+      return IconButton(
+        icon: const Icon(Icons.lock_outline),
+        tooltip: 'Закрыть месяц',
+        onPressed: () async {
+          if (await closeMonth(context, _selectedYear, _selectedMonth)) {
+            await _loadData();
+          }
+        },
+      );
+    }
+    if (locked && sync.canUnlockMonths) {
+      return IconButton(
+        icon: const Icon(Icons.lock_open),
+        tooltip: 'Открыть месяц',
+        onPressed: () async {
+          if (await openMonth(context, _selectedYear, _selectedMonth)) {
+            await _loadData();
+          }
+        },
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   /// Строка о том, откуда цифры: открытый месяц — расчёт по текущим

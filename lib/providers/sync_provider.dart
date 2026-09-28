@@ -641,6 +641,87 @@ class SyncProvider extends ChangeNotifier {
     _ => e.message,
   };
 
+  // ------------------------------------------------------------- закрытие месяцев
+
+  /// Закрывать месяцы могут бухгалтер и админ (нужен вход и связь).
+  bool get canLockMonths =>
+      _phase == SyncPhase.ready && _user != null && !_user!.isOperator;
+
+  /// Открывать закрытые месяцы — только админ (решение владельца
+  /// 2026-09-28).
+  bool get canUnlockMonths => canLockMonths && _user!.isAdmin;
+
+  /// Закрытые месяцы с сервера: кто и когда закрыл. Ошибка —
+  /// [SyncUserException].
+  Future<List<PeriodLockInfo>> periodLocks() async {
+    if (_phase != SyncPhase.ready) {
+      throw const SyncUserException('Нужен вход на сервер');
+    }
+    try {
+      return await _api!.periodLocks();
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
+
+  /// Неотправленные правки этой базы, задевающие месяц.
+  Future<int> pendingInMonth(int year, int month) async =>
+      (await _store.pendingInMonth(year, month)).length;
+
+  /// Закрыть месяц: сначала синхронизация (правки этого компьютера должны
+  /// дойти до сервера — после закрытия он их не примет), затем закрытие
+  /// (сервер фиксирует свежий расчёт), затем снова синхронизация — список
+  /// закрытых месяцев и расчёт приходят сюда. Ошибка — [SyncUserException].
+  Future<void> lockMonth(int year, int month, {String? note}) async {
+    if (!canLockMonths) {
+      throw const SyncUserException(
+        'Закрывать месяцы могут бухгалтер и администратор',
+      );
+    }
+    await syncNow();
+    final problem = _problem;
+    if (problem != null) {
+      throw SyncUserException(
+        'Месяц не закрыт: сначала нужна синхронизация.\n$problem',
+      );
+    }
+    final unsent = await pendingInMonth(year, month);
+    if (unsent > 0) {
+      throw SyncUserException(
+        'Месяц не закрыт: в нём $unsent неотправл. правок этого компьютера '
+        '(сервер их не принял — см. «Сервер синхронизации»). После закрытия '
+        'они были бы потеряны.',
+      );
+    }
+    final t = note?.trim();
+    try {
+      await _api!.lockMonth(
+        year,
+        month,
+        note: t == null || t.isEmpty ? null : t,
+      );
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await syncNow();
+  }
+
+  /// Открыть закрытый месяц (только админ). Сервер пересчитывает расчёт
+  /// месяца по текущим данным; отклонённые ранее правки уходят ещё раз.
+  Future<void> unlockMonth(int year, int month) async {
+    if (!canUnlockMonths) {
+      throw const SyncUserException(
+        'Открыть закрытый месяц может только администратор',
+      );
+    }
+    try {
+      await _api!.unlockMonth(year, month);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await syncNow(retryRejected: true);
+  }
+
   // ------------------------------------------------------------- очередь
 
   /// Пересчитать неотправленное (после правок в базе).

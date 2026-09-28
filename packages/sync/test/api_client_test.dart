@@ -249,6 +249,39 @@ void main() {
     expect(requests.single.url.path, '/periods/locks');
   });
 
+  test('закрытые месяцы: кто закрыл, закрыть и открыть', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) => r.method == 'GET'
+          ? _json({
+              'locks': [
+                {
+                  'year': 2026,
+                  'month': 8,
+                  'locked_by_name': 'Бухгалтер',
+                  'locked_at': '2026-09-27T10:00:00.000Z',
+                  'note': 'сдан',
+                },
+              ],
+            })
+          : r.method == 'POST'
+          ? _json({'year': 2026, 'month': 9}, 201)
+          : http.Response('', 204),
+    );
+    final lock = (await api.periodLocks()).single;
+    expect((lock.year, lock.month, lock.lockedByName, lock.note),
+        (2026, 8, 'Бухгалтер', 'сдан'));
+    expect(lock.lockedAt, DateTime.utc(2026, 9, 27, 10));
+
+    await api.lockMonth(2026, 9, note: 'ведомость');
+    expect(requests[1].url.path, '/periods/locks');
+    expect(jsonDecode(requests[1].body),
+        {'year': 2026, 'month': 9, 'note': 'ведомость'});
+    await api.unlockMonth(2026, 8);
+    expect((requests[2].method, requests[2].url.path),
+        ('DELETE', '/periods/locks/2026/8'));
+  });
+
   group('HttpSyncTransport', () {
     setUp(() => tokens.tokens = AuthTokens.fromJson(_pair('1')));
 

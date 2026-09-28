@@ -153,7 +153,7 @@ class AppProvider extends ChangeNotifier {
     );
     if (locked == null) return null;
     return '${PeriodLockedException(locked.$1, locked.$2).message}. '
-        'Открыть месяц может бухгалтер или администратор.';
+        'Открыть месяц может администратор.';
   }
 
   /// Оператору доступен только табель: иначе — сообщение и false.
@@ -680,6 +680,25 @@ class AppProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Отчёт за месяц без смены [payrollReport] (для окна закрытия месяца).
+  Future<PayrollMonthReport> payrollReportFor(int year, int month) =>
+      _payrollService.monthReport(year, month, lockedMonths: _lockedMonths);
+
+  /// Месяцы `(год, месяц)`, где в этой базе есть табель или выплаты, по
+  /// возрастанию.
+  Future<List<(int, int)>> dataMonths() async {
+    final keys = <int>{
+      for (final r in await _timesheetRepo.inPeriod(
+        DateTime(1900),
+        DateTime(2200),
+      ))
+        PeriodGuard.monthKey(r.date.year, r.date.month),
+      for (final p in await _paymentsRepo.list())
+        PeriodGuard.monthKey(p.paymentDate.year, p.paymentDate.month),
+    };
+    return [for (final k in keys.toList()..sort()) (k ~/ 12, k % 12 + 1)];
   }
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(

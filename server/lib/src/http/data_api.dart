@@ -17,7 +17,8 @@ import 'responses.dart';
 /// Закрытые месяцы, расчёт ЗП и чтение данных (для веба и отчётов).
 ///
 /// - `GET /periods/locks` — все; `POST /periods/locks` `{year, month, note?}`,
-///   `DELETE /periods/locks/<year>/<month>` — бухгалтер и админ;
+///   `DELETE /periods/locks/<year>/<month>` — закрывают бухгалтер и админ,
+///   открывает только админ;
 /// - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки;
 /// - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с
 ///   сохранённым (`up_to_date`), без записи;

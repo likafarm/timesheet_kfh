@@ -12,6 +12,25 @@ import 'session.dart';
 /// Access-токен живёт 15 минут: клиент обновляет его заранее и ещё раз,
 /// если сервер всё же ответил `token_invalid`. Refresh-токен одноразовый
 /// (сервер выдаёт новую пару), поэтому обновление идёт строго по одному.
+/// Закрытый на сервере месяц.
+class PeriodLockInfo {
+  final int year;
+  final int month;
+
+  /// Кто закрыл (ФИО пользователя; null — пользователь удалён).
+  final String? lockedByName;
+  final DateTime? lockedAt;
+  final String? note;
+
+  const PeriodLockInfo({
+    required this.year,
+    required this.month,
+    this.lockedByName,
+    this.lockedAt,
+    this.note,
+  });
+}
+
 class KfhApiClient {
   final Uri baseUrl;
   final String deviceId;
@@ -95,16 +114,38 @@ class KfhApiClient {
   }
 
   /// Закрытые на сервере месяцы `(год, месяц)`.
-  Future<List<(int, int)>> lockedMonths() async {
+  Future<List<(int, int)>> lockedMonths() async => [
+    for (final l in await periodLocks()) (l.year, l.month),
+  ];
+
+  /// Закрытые месяцы со сведениями, кто и когда закрыл (новые сверху).
+  Future<List<PeriodLockInfo>> periodLocks() async {
     final json = await getJson('/periods/locks');
     final locks = json['locks'];
     if (locks is! List) throw ServerFailure('нет списка закрытых месяцев');
     return [
       for (final l in locks)
         if (l is Map && l['year'] is int && l['month'] is int)
-          (l['year'] as int, l['month'] as int),
+          PeriodLockInfo(
+            year: l['year'] as int,
+            month: l['month'] as int,
+            lockedByName: l['locked_by_name'] as String?,
+            lockedAt: DateTime.tryParse('${l['locked_at']}'),
+            note: l['note'] as String?,
+          ),
     ];
   }
+
+  /// Закрыть месяц (бухгалтер и админ). Сервер до закрытия пересчитывает
+  /// его расчёт; уже закрыт — [ApiFailure] `already_locked`.
+  Future<void> lockMonth(int year, int month, {String? note}) => postJson(
+    '/periods/locks',
+    {'year': year, 'month': month, 'note': ?note},
+  );
+
+  /// Открыть закрытый месяц (только админ).
+  Future<void> unlockMonth(int year, int month) =>
+      _authorized('DELETE', '/periods/locks/$year/$month');
 
   /// Версии программ (`GET /client/version`, без входа). Старый сервер без
   /// этого адреса — пустой список (обновлений не требуется).

@@ -175,6 +175,22 @@ class LocalSyncStore {
     return result;
   }
 
+  /// Неотправленные записи (вместе с отклонёнными), которые задевают месяц
+  /// по правилам закрытия ([PeriodGuard]): закрыть его на сервере сейчас —
+  /// значит отказать этим правкам.
+  Future<List<PendingChange>> pendingInMonth(int year, int month) async {
+    final guard = PeriodGuard({PeriodGuard.monthKey(year, month)});
+    return [
+      for (final p in await pendingChanges(
+        limit: 1 << 30,
+        includeRejected: true,
+      ))
+        // Удалённая запись задевает месяц, где была, — берём её данные.
+        if (guard.violation(p.table, null, false, p.change.data, false) != null)
+          p,
+    ];
+  }
+
   /// Число неотправленных записей (вместе с отклонёнными).
   Future<int> pendingCount() async {
     final union = syncTables

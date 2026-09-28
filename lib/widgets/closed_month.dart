@@ -31,7 +31,7 @@ class ClosedMonthBadge extends StatelessWidget {
     return Tooltip(
       message:
           'Месяц ${_monthText(year, month)} закрыт на сервере: правки в нём не '
-          'сохраняются. Открыть месяц может бухгалтер или администратор.',
+          'сохраняются. Открыть месяц может администратор.',
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -65,9 +65,8 @@ Future<bool> ensureMonthOpen(BuildContext context, int year, int month) async {
         width: 400,
         child: Text(
           'Месяц закрыт на сервере — табель, выплаты и расчёт за него '
-          'изменить нельзя. Если нужно исправление, попросите бухгалтера или '
-          'администратора открыть месяц; после синхронизации правки снова '
-          'станут доступны.',
+          'изменить нельзя. Если нужно исправление, попросите администратора '
+          'открыть месяц; после синхронизации правки снова станут доступны.',
         ),
       ),
       actions: [

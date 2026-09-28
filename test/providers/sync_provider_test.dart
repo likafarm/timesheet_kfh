@@ -344,6 +344,131 @@ void main() {
     expect(sync.phase, SyncPhase.ready, reason: 'первый вход не повторяется');
   });
 
+  group('закрытие месяцев (6.2)', () {
+    Future<SyncProvider> linked({String role = 'accountant'}) async {
+      server.role = role;
+      final sync = await signedIn();
+      await sync.link(await sync.analyzeLink());
+      return sync;
+    }
+
+    Future<String> addDay(DateTime day) async {
+      final repo = DriftRepositories(db);
+      final emp = await repo.employees.add(
+        Employee(
+          fullName: 'Петров Пётр',
+          position: 'Рабочий',
+          hireDate: DateTime(2025, 3, 1),
+          baseRate: 1000,
+          fieldRate: 1500,
+        ),
+      );
+      return repo.timesheet.add(
+        TimesheetRecord(
+          employeeId: emp,
+          date: day,
+          dayType: 'work',
+          days: 1,
+          workPlace: 'field',
+        ),
+      );
+    }
+
+    test('права: бухгалтер закрывает, открывает только админ', () async {
+      final sync = await linked();
+      expect((sync.canLockMonths, sync.canUnlockMonths), (true, false));
+      server.role = 'admin';
+      await sync.signIn('localhost:8080', 'ivan', 'secret-pass');
+      expect((sync.canLockMonths, sync.canUnlockMonths), (true, true));
+      await sync.signOut();
+      expect(sync.canLockMonths, isFalse, reason: 'без входа');
+    });
+
+    test('закрытие: сначала правки уходят, потом месяц закрыт и известен '
+        'здесь', () async {
+      final sync = await linked();
+      await addDay(DateTime(2026, 9, 3));
+      await sync.lockMonth(2026, 9, note: '  ведомость сдана ');
+      expect(
+        server.rows.keys.where((k) => k.startsWith('timesheet/')),
+        hasLength(1),
+        reason: 'день ушёл до закрытия',
+      );
+      expect(server.locks, [(2026, 9)]);
+      expect(server.lockNotes, ['ведомость сдана']);
+      expect(await LocalSyncStore(db).lockedMonths(), {
+        PeriodGuard.monthKey(2026, 9),
+      });
+      final info = (await sync.periodLocks()).single;
+      expect((info.lockedByName, info.lockedAt!.isUtc), ('Иван Иванов', true));
+
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('уже закрыт'),
+          ),
+        ),
+      );
+      await expectLater(
+        sync.unlockMonth(2026, 9),
+        throwsA(isA<SyncUserException>()),
+        reason: 'бухгалтер не открывает',
+      );
+    });
+
+    test('неотправленная правка в месяце — месяц не закрывается', () async {
+      final sync = await linked();
+      server.rejectTables.add('timesheet');
+      await addDay(DateTime(2026, 9, 3));
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('1 неотправл.'),
+          ),
+        ),
+      );
+      expect(server.locks, isEmpty);
+      // Другой месяц правка не задевает.
+      await sync.lockMonth(2026, 8);
+      expect(server.locks, [(2026, 8)]);
+    });
+
+    test('нет связи — месяц не закрывается, понятная причина', () async {
+      final sync = await linked();
+      server.online = false;
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('Нет связи'),
+          ),
+        ),
+      );
+    });
+
+    test('админ открывает месяц — отклонённые правки уходят снова', () async {
+      final sync = await linked(role: 'admin');
+      await sync.lockMonth(2026, 9);
+      server.rejectTables.add('timesheet');
+      await addDay(DateTime(2026, 9, 3));
+      await sync.syncNow();
+      expect(sync.rejected, 1);
+      server.rejectTables.clear();
+      await sync.unlockMonth(2026, 9);
+      expect(server.locks, isEmpty);
+      expect(await LocalSyncStore(db).lockedMonths(), isEmpty);
+      expect(sync.pending, 0, reason: 'отклонённая правка ушла');
+    });
+  });
+
   test('закрытые месяцы приходят с каждой синхронизацией', () async {
     final sync = await signedIn();
     server.locks.add((2026, 8));

@@ -20,6 +20,12 @@ class SyncTestServer {
   /// Закрытые месяцы `(год, месяц)`.
   final locks = <(int, int)>[];
 
+  /// Правки этих таблиц сервер отклоняет.
+  final rejectTables = <String>{};
+
+  /// Примечания, с которыми закрывали месяцы (по порядку).
+  final lockNotes = <String?>[];
+
   /// Сколько было запросов push и pull.
   int pushes = 0;
   int pulls = 0;
@@ -91,6 +97,14 @@ class SyncTestServer {
             for (final c in changes.cast<Map<String, Object?>>())
               () {
                 final key = '${c['table']}/${c['uuid']}';
+                if (rejectTables.contains(c['table'])) {
+                  return {
+                    'change_id': c['change_id'],
+                    'status': 'rejected',
+                    'code': 'invalid',
+                    'message': 'Не принято',
+                  };
+                }
                 // Как на сервере: побеждает более поздняя правка.
                 final existing = rows[key];
                 if (existing != null) {
@@ -114,10 +128,26 @@ class SyncTestServer {
               }(),
           ],
         });
+      case '/periods/locks' when r.method == 'POST':
+        if (role == 'operator') return _error(403, 'forbidden', 'Нельзя');
+        final body = jsonDecode(r.body) as Map<String, Object?>;
+        final month = (body['year'] as int, body['month'] as int);
+        if (locks.contains(month)) {
+          return _error(409, 'already_locked', 'Месяц уже закрыт');
+        }
+        locks.add(month);
+        lockNotes.add(body['note'] as String?);
+        return _json({'year': month.$1, 'month': month.$2}, 201);
       case '/periods/locks':
         return _json({
           'locks': [
-            for (final (y, m) in locks) {'year': y, 'month': m},
+            for (final (y, m) in locks)
+              {
+                'year': y,
+                'month': m,
+                'locked_by_name': 'Иван Иванов',
+                'locked_at': '2026-09-28T10:00:00.000Z',
+              },
           ],
         });
       case '/sync/pull':
@@ -130,6 +160,23 @@ class SyncTestServer {
           'has_more': false,
           'changes': [for (final k in keys) rows[k]],
         });
+    }
+    final unlock = RegExp(
+      r'^/periods/locks/(\d+)/(\d+)$',
+    ).firstMatch(r.url.path);
+    if (unlock != null && r.method == 'DELETE') {
+      if (role != 'admin') {
+        return _error(
+          403,
+          'forbidden',
+          'Открыть месяц может только администратор',
+        );
+      }
+      final month = (int.parse(unlock[1]!), int.parse(unlock[2]!));
+      if (!locks.remove(month)) {
+        return _error(404, 'not_found', 'Месяц не закрыт');
+      }
+      return http.Response('', 204);
     }
     return _error(404, 'not_found', 'Не найдено');
   }

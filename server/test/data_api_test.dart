@@ -543,9 +543,12 @@ void main() {
           body: {'year': 2026, 'month': 9});
       expect((s, json['error']['code']), (409, 'period_locked'));
 
-      (s, _) = await call('DELETE', '/periods/locks/2026/9');
+      (s, json) = await call('DELETE', '/periods/locks/2026/9');
+      expect((s, json['error']['code']), (403, 'forbidden'),
+          reason: 'открыть месяц может только админ');
+      (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
       expect(s, 204);
-      (s, _) = await call('DELETE', '/periods/locks/2026/9');
+      (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
       expect(s, 404);
       await push([day(ivan, '2026-09-25')]);
 
@@ -725,8 +728,9 @@ void main() {
     test('закрытый месяц не пересчитывается; после открытия — пересчитан',
         () async {
       await seed(); // без пересчёта: сохранённых расчётов нет
+      // Закрыт без пересчёта (как до 0.4.0) — зафиксированного расчёта нет.
       var (s, json) = await call('POST', '/periods/locks',
-          body: {'year': 2026, 'month': 9}, auto: true);
+          body: {'year': 2026, 'month': 9});
       expect(s, 201, reason: '$json');
       // Правка сотрудника задевает все месяцы.
       await push(auto: true, [
@@ -745,10 +749,22 @@ void main() {
       expect(oct[ivan]['starting_balance'], -1000.0,
           reason: 'за закрытый сентябрь ничего не зафиксировано');
 
-      (s, _) = await call('DELETE', '/periods/locks/2026/9', auto: true);
+      (s, _) = await call('DELETE', '/periods/locks/2026/9',
+          auto: true, role: Role.admin);
       expect(s, 204);
       expect((await month(9))[ivan]['saved']['total_salary'], 5650.0);
       expect((await month(10))[ivan]['starting_balance'], 4650.0);
+    }, skip: mysqlSkip);
+
+    test('закрытие сначала пересчитывает месяц — фиксируется свежий расчёт',
+        () async {
+      await seed(); // без пересчёта: расчёт сентября не сохранён
+      final (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9}, auto: true);
+      expect(s, 201, reason: '$json');
+      final sept = await month(9);
+      expect(sept[ivan]['saved']['total_salary'], 5650.0);
+      expect(sept.values.every((e) => e['up_to_date'] == true), isTrue);
     }, skip: mysqlSkip);
 
     test('полный пересчёт при запуске: только расхождения', () async {

@@ -126,6 +126,7 @@ void main() {
   late AuthService auth;
   late PeriodService periods;
   late User accountant;
+  late User admin;
   late _Pc pc1, pc2;
   final sep1 = DateTime(2026, 9, 1);
 
@@ -167,7 +168,7 @@ void main() {
         authApi,
       ),
     );
-    final admin = await auth.createFirstAdmin(
+    admin = await auth.createFirstAdmin(
       login: 'admin',
       fullName: 'Админ',
       password: 'admin-pass-1',
@@ -316,7 +317,7 @@ void main() {
         expect(pc1.journal.entries.single.message, contains('08.2026'));
         expect(await serverCount('timesheet'), 0);
 
-        await periods.unlock(accountant, '2026', '8');
+        await periods.unlock(admin, '2026', '8');
       expect(await pc1.api.lockedMonths(), isEmpty);
         final retry = await pc1.sync(retryRejected: true);
         expect(retry.pushed, 1);
