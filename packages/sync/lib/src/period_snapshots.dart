@@ -90,14 +90,40 @@ class UnlockPreview {
     year: json['year'] as int,
     month: json['month'] as int,
     lock: _lock(json['lock']),
-    changes: _months(json['changes'], (row) {
+    changes: _balanceChanges(json['changes']),
+  );
+}
+
+List<MonthRows<BalanceChange>> _balanceChanges(Object? json) =>
+    _months(json, (row) {
       if (row is! Map) throw ServerFailure('неверная строка изменений');
       return BalanceChange(
         MonthBalance.fromJson(row['before']),
         MonthBalance.fromJson(row['after']),
       );
-    }),
-  );
+    });
+
+/// Что изменилось со времени снимка: снимок против расчётов на сервере
+/// сейчас — только строки, где что-то стало другим.
+class SnapshotChanges {
+  final PeriodSnapshot snapshot;
+
+  /// Когда сервер сравнивал.
+  final DateTime? comparedAt;
+  final List<MonthRows<BalanceChange>> changes;
+
+  const SnapshotChanges({
+    required this.snapshot,
+    required this.comparedAt,
+    required this.changes,
+  });
+
+  factory SnapshotChanges.fromJson(Map<String, Object?> json) =>
+      SnapshotChanges(
+        snapshot: PeriodSnapshot.fromJson(json),
+        comparedAt: DateTime.tryParse('${json['compared_at']}'),
+        changes: _balanceChanges(json['changes']),
+      );
 }
 
 /// Снимок остатков, сохранённый сервером перед открытием месяца.

@@ -495,6 +495,9 @@ void main() {
       expect(await sync.unlockMonth(2026, 9), 1, reason: 'id снимка');
       final snapshot = (await sync.periodSnapshots()).single;
       expect((snapshot.year, snapshot.month), (2026, 9));
+      final changed = await sync.periodSnapshotChanges(snapshot.id);
+      expect(changed.snapshot.month, 9);
+      expect(changed.changes, isEmpty);
       expect(server.locks, isEmpty);
       expect(await LocalSyncStore(db).lockedMonths(), isEmpty);
       expect(sync.pending, 0, reason: 'отклонённая правка ушла');

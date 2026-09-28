@@ -317,6 +317,23 @@ void main() {
           ],
         });
       }
+      if (r.url.path.endsWith('/changes')) {
+        return _json({
+          'id': 7,
+          'year': 2026,
+          'month': 9,
+          'compared_at': '2026-09-29T08:00:00.000Z',
+          'changes': [
+            {
+              'year': 2026,
+              'month': 9,
+              'employees': [
+                {'before': row(2000, 0), 'after': row(2500, 0)},
+              ],
+            },
+          ],
+        });
+      }
       if (r.url.path == '/periods/snapshots') {
         return _json({
           'snapshots': [
@@ -361,6 +378,12 @@ void main() {
     final full = await api.periodSnapshot(7);
     expect(requests.last.url.path, '/periods/snapshots/7');
     expect(full.months.single.rows.single.closing, -1000.0);
+    final changes = await api.periodSnapshotChanges(7);
+    expect(requests.last.url.path, '/periods/snapshots/7/changes');
+    expect(changes.snapshot.id, 7);
+    expect(changes.comparedAt, DateTime.utc(2026, 9, 29, 8));
+    final c = changes.changes.single.rows.single;
+    expect((c.before.accrued, c.after.accrued), (2000.0, 2500.0));
   });
 
   group('HttpSyncTransport', () {

@@ -21,7 +21,9 @@ import 'responses.dart';
 ///   открывает только админ (ответ — `{snapshot_id}`: снимок остатков до
 ///   открытия); `GET /periods/locks/<year>/<month>/unlock-preview` — что
 ///   изменит открытие (админ); `GET /periods/snapshots`,
-///   `GET /periods/snapshots/<id>` — снимки (бухгалтер и админ);
+///   `GET /periods/snapshots/<id>` — снимки,
+///   `GET /periods/snapshots/<id>/changes` — что изменилось с тех пор
+///   (бухгалтер и админ);
 /// - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки;
 /// - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с
 ///   сохранённым (`up_to_date`), без записи;
@@ -54,6 +56,7 @@ class DataApi {
       ..get('/periods/locks/<year>/<month>/unlock-preview', _unlockPreview)
       ..get('/periods/snapshots', _snapshots)
       ..get('/periods/snapshots/<id>', _snapshot)
+      ..get('/periods/snapshots/<id>/changes', _snapshotChanges)
       ..get('/payroll', _payroll)
       ..get('/payroll/calculation', _calculation)
       ..post('/payroll/calculate', _calculate)
@@ -101,6 +104,11 @@ class DataApi {
   Future<Response> _snapshot(Request request, String id) async {
     await _accountant(request);
     return jsonResponse(await periods.snapshot(id));
+  }
+
+  Future<Response> _snapshotChanges(Request request, String id) async {
+    await _accountant(request);
+    return jsonResponse(await periods.snapshotChanges(id));
   }
 
   // -------------------------------------------------------------- расчёт

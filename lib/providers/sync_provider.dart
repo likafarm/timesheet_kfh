@@ -773,6 +773,10 @@ class SyncProvider extends ChangeNotifier {
   Future<PeriodSnapshot> periodSnapshot(int id) =>
       _ask(() => _api!.periodSnapshot(id));
 
+  /// Что изменилось со времени снимка (сравнивает сервер).
+  Future<SnapshotChanges> periodSnapshotChanges(int id) =>
+      _ask(() => _api!.periodSnapshotChanges(id));
+
   Future<T> _ask<T>(Future<T> Function() request) async {
     if (!canLockMonths) {
       throw const SyncUserException('Нужен вход бухгалтера или администратора');

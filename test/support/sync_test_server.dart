@@ -219,6 +219,23 @@ class SyncTestServer {
         ],
       });
     }
+    final changes = RegExp(
+      r'^/periods/snapshots/(\d+)/changes$',
+    ).firstMatch(r.url.path);
+    if (changes != null) {
+      final id = int.parse(changes[1]!);
+      if (id < 1 || id > snapshots.length) {
+        return _error(404, 'not_found', 'Нет такого снимка');
+      }
+      final (y, m) = snapshots[id - 1];
+      return _json({
+        'id': id,
+        'year': y,
+        'month': m,
+        'compared_at': '2026-09-29T08:00:00.000Z',
+        'changes': <Object?>[],
+      });
+    }
     if (r.url.path == '/periods/snapshots') {
       return _json({
         'snapshots': [

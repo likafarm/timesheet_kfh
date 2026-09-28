@@ -638,6 +638,35 @@ void main() {
       expect(ivanSnap['full_name'], 'Иванов Иван');
       expect((ivanSnap['accrued'], ivanSnap['paid'], ivanSnap['closing']),
           (0.0, 1000.0, -1000.0), reason: 'как было до открытия');
+      // Что изменилось: снимок против расчётов сейчас.
+      Future<Map<String, dynamic>> changed() async {
+        final (s, json) = await call('GET', '/periods/snapshots/$id/changes');
+        expect(s, 200, reason: '$json');
+        expect(json.containsKey('months'), isFalse);
+        expect(json['compared_at'], isNotNull);
+        return {
+          for (final m in json['changes'])
+            '${m['month']}': {
+              for (final e in m['employees']) e['employee_uuid']: e,
+            },
+        };
+      }
+
+      var diff = await changed();
+      expect(diff.keys, ['9', '10']);
+      expect(diff['9'][ivan]['before']['accrued'], 0.0);
+      expect(diff['9'][ivan]['after']['accrued'], 5650.0);
+      expect(diff['10'][ivan]['after']['starting'], 4650.0);
+      expect(diff['9'].containsKey(olga), isFalse, reason: 'не менялось');
+
+      // Правка после открытия тоже видна.
+      await push(auto: true, [day(ivan, '2026-09-22')]);
+      diff = await changed();
+      expect(diff['9'][ivan]['after']['accrued'], 5650.0 + 1800);
+      (s, _) = await call('GET', '/periods/snapshots/$id/changes',
+          role: Role.operator);
+      expect(s, 403);
+
       (s, _) = await call('GET', '/periods/snapshots/$id', role: Role.operator);
       expect(s, 403);
       (s, _) = await call('GET', '/periods/snapshots/999');

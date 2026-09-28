@@ -188,6 +188,36 @@ class PeriodService {
     };
   }
 
+  /// Что изменилось со времени снимка: те же месяцы по сохранённым
+  /// расчётам сейчас против снимка ([balanceChangesJson]) — только
+  /// сотрудники, у которых что-то стало другим. Учитывает и пересчёт при
+  /// открытии, и правки после него. Месяцы, которых в снимке не было
+  /// (появились позже), не сравниваются.
+  Future<Map<String, Object?>> snapshotChanges(Object? id) async {
+    final snap = await snapshot(id);
+    final before = <int, Map<String, EmployeeMonthBalance>>{
+      for (final m in snap['months'] as List)
+        PeriodGuard.monthKey((m as Map)['year'] as int, m['month'] as int): {
+          for (final e in m['employees'] as List)
+            (e as Map)['employee_uuid'] as String:
+                EmployeeMonthBalance.fromJson(e.cast<String, Object?>()),
+        },
+    };
+    final keys = before.keys.toList()..sort();
+    final from = keys.isEmpty
+        ? PeriodGuard.monthKey(snap['year'] as int, snap['month'] as int)
+        : keys.first;
+    final to = keys.isEmpty ? from : keys.last;
+    final now = await balanceTable(
+        db.execute, payroll ?? PayrollCalculator(db: db), from, to);
+    return {
+      for (final e in snap.entries)
+        if (e.key != 'months') e.key: e.value,
+      'compared_at': _now().toUtc().toIso8601String(),
+      'changes': balanceChangesJson(before, now),
+    };
+  }
+
   Map<String, Object?> _snapshotJson(ResultSetRow row) => {
         'id': row.intOf('id'),
         'year': row.intOf('year'),

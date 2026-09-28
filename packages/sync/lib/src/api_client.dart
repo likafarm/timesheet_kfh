@@ -166,6 +166,10 @@ class KfhApiClient {
   Future<PeriodSnapshot> periodSnapshot(int id) async =>
       PeriodSnapshot.fromJson(await getJson('/periods/snapshots/$id'));
 
+  /// Что изменилось со времени снимка (только изменившиеся строки).
+  Future<SnapshotChanges> periodSnapshotChanges(int id) async =>
+      SnapshotChanges.fromJson(await getJson('/periods/snapshots/$id/changes'));
+
   /// Версии программ (`GET /client/version`, без входа). Старый сервер без
   /// этого адреса — пустой список (обновлений не требуется).
   Future<ClientVersions> clientVersions() async {

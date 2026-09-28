@@ -139,7 +139,8 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
   (остаток на начало, начислено, выплачено, остаток на конец по каждому сотруднику и месяцу — с открываемого по
   последний с данными; ответ `DELETE` — `{snapshot_id}`). `GET /periods/locks/<год>/<месяц>/unlock-preview`
   (админ) — что изменит открытие: те же шаги в транзакции, которая откатывается. `GET /periods/snapshots`,
-  `GET /periods/snapshots/<id>` — снимки (бухгалтер и админ). Оба действия в аудите
+  `GET /periods/snapshots/<id>` — снимки, `GET /periods/snapshots/<id>/changes` (0.4.1) — снимок против расчётов
+  сейчас по тем же месяцам, только изменившиеся строки «было/стало» (бухгалтер и админ). Оба действия в аудите
   (`period_lock`, `period_unlock` с прежним закрытием). Закрытие ждёт незавершённые push (они читают
   `period_locks` с `FOR SHARE`).
 - Расчёт — бухгалтер и админ, тем же кодом, что в приложении (`calculateMonthlySalary`, `combineBalances`,
