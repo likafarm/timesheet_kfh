@@ -111,6 +111,10 @@ class AppProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Закрытые месяцы (ключи [PeriodGuard.monthKey]) — по последней
+  /// синхронизации.
+  Set<int> get lockedMonths => Set.unmodifiable(_lockedMonths);
+
   /// Месяц закрыт на сервере — правки в нём не записываются.
   bool isMonthLocked(int year, int month) =>
       _lockedMonths.contains(PeriodGuard.monthKey(year, month));
@@ -760,6 +764,49 @@ class AppProvider extends ChangeNotifier {
     };
     return [for (final k in keys.toList()..sort()) (k ~/ 12, k % 12 + 1)];
   }
+
+  /// Сводка главного экрана (6.8) на [today] (по умолчанию — сегодня).
+  /// Общее состояние провайдера (отчёт, выплаты, табель экранов) не меняет.
+  Future<DashboardSummary> dashboard({DateTime? today}) async {
+    final day = calendarDay(today ?? DateTime.now());
+    final previous = DateTime(day.year, day.month - 1, 1);
+    final monthEnd = DateTime(day.year, day.month + 1, 0);
+    return buildDashboard(
+      today: day,
+      employees: await _employeesRepo.all(),
+      records: await _timesheetRepo.inPeriod(previous, monthEnd),
+      current: await _payrollService.monthReport(
+        day.year,
+        day.month,
+        lockedMonths: _lockedMonths,
+      ),
+      previous: isMonthLocked(previous.year, previous.month)
+          ? null
+          : await _payrollService.monthReport(
+              previous.year,
+              previous.month,
+              lockedMonths: _lockedMonths,
+            ),
+      currentPayments: await _paymentsRepo.list(
+        start: DateTime(day.year, day.month, 1),
+        end: monthEnd,
+      ),
+      dataMonths: await dataMonths(),
+      lockedMonths: _lockedMonths,
+    );
+  }
+
+  /// Выплаты сотрудника за месяц без смены [payments] (окно расчёта из
+  /// сводки).
+  Future<List<Payment>> paymentsInMonth(
+    String employeeId,
+    int year,
+    int month,
+  ) => _paymentsRepo.list(
+    employeeId: employeeId,
+    start: DateTime(year, month, 1),
+    end: DateTime(year, month + 1, 0),
+  );
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
     String employeeId,

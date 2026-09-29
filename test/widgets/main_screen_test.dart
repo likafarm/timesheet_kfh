@@ -104,12 +104,15 @@ void main() {
   testWidgets('Windows 1024×768: боковая панель, все разделы', (tester) async {
     await pumpMain(tester, size: const Size(1024, 768), operator: false);
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.destinations, hasLength(5));
+    expect(rail.destinations, hasLength(6));
+    // Первый раздел — сводка (6.8).
+    expect(rail.selectedIndex, 0);
+    expect(find.text('Долг по зарплате на сегодня'), findsOneWidget);
     expect(find.byType(BottomNavigationBar), findsNothing);
 
     await tester.tap(find.text('Сотрудники'));
     await tester.pump();
-    expect(rail.destinations, hasLength(5));
+    expect(rail.destinations, hasLength(6));
     expect(tester.takeException(), isNull);
   });
 }

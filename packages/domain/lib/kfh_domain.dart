@@ -3,6 +3,7 @@
 library;
 
 export 'src/client_versions.dart';
+export 'src/dashboard.dart';
 export 'src/models/company_settings.dart';
 export 'src/models/employee.dart';
 export 'src/models/employee_rate.dart';

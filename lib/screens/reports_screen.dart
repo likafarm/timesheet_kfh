@@ -11,6 +11,7 @@ import '../widgets/excel_export_action.dart';
 import '../widgets/month_switcher.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
+import '../widgets/section_navigation.dart';
 import '../theme/app_theme.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -44,12 +45,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
   static const double _colBalance = 130;
   static const double _colActions = 50;
 
+  SectionNavigator? _sections;
+
   @override
   void initState() {
     super.initState();
+    _sections = context.read<SectionNavigator?>()?..addListener(_openRequested);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+  }
+
+  @override
+  void dispose() {
+    _sections?.removeListener(_openRequested);
+    super.dispose();
+  }
+
+  /// Сводка открыла отчёт за нужный месяц.
+  void _openRequested() {
+    final month = _sections!.takeMonth(AppSection.reports);
+    if (month == null || !mounted) return;
+    setState(() {
+      _selectedYear = month.year;
+      _selectedMonth = month.month;
+    });
+    _loadData();
   }
 
   @override

@@ -7,6 +7,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/month_switcher.dart';
+import '../widgets/section_navigation.dart';
 import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
@@ -27,15 +28,31 @@ class TimesheetScreen extends StatefulWidget {
 
 class _TimesheetScreenState extends State<TimesheetScreen> {
   DateTime _selectedMonth = DateTime.now();
+  SectionNavigator? _sections;
 
   @override
   void initState() {
     super.initState();
+    _sections = context.read<SectionNavigator?>()?..addListener(_openRequested);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
       provider.loadEmployees(activeOnly: true);
       _loadTimesheet();
     });
+  }
+
+  @override
+  void dispose() {
+    _sections?.removeListener(_openRequested);
+    super.dispose();
+  }
+
+  /// Сводка открыла табель на нужном месяце.
+  void _openRequested() {
+    final month = _sections!.takeMonth(AppSection.timesheet);
+    if (month == null || !mounted) return;
+    setState(() => _selectedMonth = month);
+    _loadTimesheet();
   }
 
   void _loadTimesheet() {
