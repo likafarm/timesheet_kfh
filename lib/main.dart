@@ -8,13 +8,28 @@ import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
 import 'services/platform.dart';
 import 'services/startup.dart';
+import 'services/window_front.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
 import 'widgets/auth_gate.dart';
 
-void main() async {
+/// Установщик после тихого обновления запускает программу с этой
+/// отметкой (installer.iss): окно нужно вывести наверх — само оно
+/// открывается позади остальных.
+const afterUpdateArgument = '--after-update';
+
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
+  if (args.contains(afterUpdateArgument)) {
+    // Окно показывается после первого кадра; ещё раз — на случай долгого
+    // запуска (перенос или проверка базы).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final ms in const [300, 1500]) {
+        Future<void>.delayed(Duration(milliseconds: ms), bringWindowToFront);
+      }
+    });
+  }
   await _start();
 }
 

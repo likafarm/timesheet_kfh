@@ -47,4 +47,6 @@ Name: "desktopicon"; Description: "Создать ярлык на &рабоче�
 [Run]
 Filename: "{app}\timesheet_kfh.exe"; Description: "Запустить Учёт рабочего времени КФХ"; Flags: nowait postinstall skipifsilent
 ; Обновление из программы — тихая установка: программа открывается снова сама.
-Filename: "{app}\timesheet_kfh.exe"; Flags: nowait; Check: WizardSilent
+; --after-update: программа выводит своё окно наверх (иначе Windows оставляет
+; окно, запущенное установщиком, позади остальных).
+Filename: "{app}\timesheet_kfh.exe"; Parameters: "--after-update"; Flags: nowait; Check: WizardSilent
