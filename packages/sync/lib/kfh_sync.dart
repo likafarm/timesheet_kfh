@@ -5,6 +5,7 @@
 library;
 
 export 'src/api_client.dart';
+export 'src/audit_log.dart';
 export 'src/backoff.dart';
 export 'src/failures.dart';
 export 'src/period_snapshots.dart';

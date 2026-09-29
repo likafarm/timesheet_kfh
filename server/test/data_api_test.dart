@@ -880,6 +880,67 @@ void main() {
     }, skip: mysqlSkip);
   });
 
+  group('журнал действий (6.7)', () {
+    Future<(int, dynamic)> audit(String query, {Role role = Role.admin}) =>
+        call('GET', '/audit$query', role: role);
+
+    test('отбор по сотруднику и виду, постранично, только админ', () async {
+      await seed();
+      await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 8, 'note': 'сдан'});
+
+      var (s, json) = await audit('');
+      expect(s, 200, reason: '$json');
+      final all = json['entries'] as List;
+      expect(all.first['action'], 'period_lock', reason: 'новые сверху');
+      expect(all.first['user_name'], 'Пользователь accountant');
+      expect(all.first['new']['note'], 'сдан');
+
+      // Иван: сотрудник, 2 ставки, 10 дней табеля, 2 выплаты.
+      (s, json) = await audit('?employee_uuid=$ivan&limit=200');
+      final ivans = json['entries'] as List;
+      expect(ivans, hasLength(15));
+      expect(ivans.every((e) => e['employee_uuid'] == ivan), isTrue);
+      expect(ivans.every((e) => e['employee_name'] == 'Иванов Иван'), isTrue);
+      final day = ivans.firstWhere((e) =>
+          e['entity'] == 'timesheet' && e['new']['date'] == '2026-09-02');
+      expect(day['action'], 'sync_insert');
+      expect(day['old'], isNull);
+      expect((day['new']['work_place'], day['device_id']), ('base', 'pc-1'));
+
+      (s, json) = await audit('?employee_uuid=$ivan&kind=payments');
+      expect([for (final e in json['entries']) e['new']['amount']],
+          unorderedEquals([1000.0, 2000.0]));
+      (s, json) = await audit('?kind=periods');
+      expect([for (final e in json['entries']) e['action']], ['period_lock']);
+      (s, json) = await audit('?kind=access');
+      expect({for (final e in json['entries']) e['action']}, contains('login'));
+
+      // Постранично: по 5, без повторов и пропусков.
+      final ids = <int>[];
+      int? before;
+      do {
+        (s, json) = await audit(
+            '?employee_uuid=$ivan&limit=5${before == null ? '' : '&before=$before'}');
+        ids.addAll([for (final e in json['entries']) e['id'] as int]);
+        before = json['next_before'] as int?;
+      } while (before != null);
+      expect(ids, [for (final e in ivans) e['id']]);
+
+      // По времени: будущее — пусто.
+      final later = DateTime.now().toUtc().add(const Duration(hours: 1));
+      (s, json) = await audit('?since=${later.toIso8601String()}');
+      expect(json['entries'], isEmpty);
+
+      (s, json) = await audit('', role: Role.accountant);
+      expect(s, 403);
+      (s, _) = await audit('?kind=nothing');
+      expect(s, 400);
+      (s, _) = await audit('?since=2026-09-01');
+      expect(s, 400, reason: 'нужен момент UTC с Z');
+    }, skip: mysqlSkip);
+  });
+
   group('чтение', () {
     test('сотрудники: все и работающие на дату; оператору — без ставок',
         () async {

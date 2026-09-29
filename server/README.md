@@ -153,6 +153,11 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
     `payroll_delete`), `edited_by = server`, `calculated_at` — UTC с `Z`, через `change_log` (под очередью записи)
     и аудит `payroll_save`; закрытый месяц — 409 `period_locked`;
   - `GET /payroll?year=&month=` — сохранённые расчёты (без пустых строк без выплат и остатка) и входящие остатки.
+- Журнал действий (0.5.0, 6.7): `GET /audit` — только админ; `since`/`until` — моменты UTC (ISO с Z), `user_uuid`,
+  `employee_uuid` (сам сотрудник или `employee_uuid` в данных записи), `kind` (`timesheet`, `payments`, `rates`,
+  `employees`, `payroll`, `settings`, `periods`, `access`), `before` — курсор (id), `limit` до 200. Ответ —
+  `{entries: [{id, at, user_*, device_id, action, entity, entity_uuid, employee_uuid, employee_name, old, new}],
+  next_before}`, новые сверху.
 - Автопересчёт (0.4.0, этап 6.1): сохранённые расчёты открытых месяцев всегда совпадают со свежим пересчётом.
   Push, в котором принята правка табеля, выплаты, ставки, расчёта или сотрудника, в той же транзакции
   пересчитывает открытые месяцы — с самого раннего задетого (`payrollImpactFrom`; сотрудник — все месяцы) по

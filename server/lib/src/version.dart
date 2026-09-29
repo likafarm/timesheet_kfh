@@ -1,2 +1,2 @@
 /// Версия сервера. Держать равной `version` в `server/pubspec.yaml`.
-const serverVersion = '0.4.1';
+const serverVersion = '0.5.0';

@@ -4,6 +4,7 @@ library;
 export 'src/admin/import_service.dart';
 export 'src/app.dart';
 export 'src/audit.dart';
+export 'src/audit_journal.dart';
 export 'src/auth/access_token.dart';
 export 'src/auth/auth_service.dart';
 export 'src/auth/login_throttle.dart';

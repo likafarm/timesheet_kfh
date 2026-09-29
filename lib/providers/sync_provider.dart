@@ -777,6 +777,38 @@ class SyncProvider extends ChangeNotifier {
   Future<SnapshotChanges> periodSnapshotChanges(int id) =>
       _ask(() => _api!.periodSnapshotChanges(id));
 
+  /// Журнал действий виден только админу (6.7).
+  bool get canReadAudit => canUnlockMonths;
+
+  /// Страница журнала действий (6.7). Ошибка — [SyncUserException].
+  Future<AuditPage> auditLog({
+    DateTime? since,
+    DateTime? until,
+    String? userUuid,
+    String? employeeUuid,
+    String? kind,
+    int? before,
+  }) {
+    if (!canReadAudit) {
+      throw const SyncUserException(
+        'Журнал действий доступен только администратору',
+      );
+    }
+    return _ask(
+      () => _api!.auditLog(
+        since: since,
+        until: until,
+        userUuid: userUuid,
+        employeeUuid: employeeUuid,
+        kind: kind,
+        before: before,
+      ),
+    );
+  }
+
+  /// Пользователи сервера — для отбора в журнале (только админ).
+  Future<List<SessionUser>> serverUsers() => _ask(() => _api!.users());
+
   Future<T> _ask<T>(Future<T> Function() request) async {
     if (!canLockMonths) {
       throw const SyncUserException('Нужен вход бухгалтера или администратора');

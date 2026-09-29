@@ -386,6 +386,62 @@ void main() {
     expect((c.before.accrued, c.after.accrued), (2000.0, 2500.0));
   });
 
+  test('журнал действий: параметры запроса и разбор; пользователи', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) => r.url.path == '/users'
+          ? _json({
+              'users': [
+                {
+                  'uuid': 'u1',
+                  'login': 'buh',
+                  'full_name': 'Бухгалтер',
+                  'role': 'accountant',
+                },
+              ],
+            })
+          : _json({
+              'entries': [
+                {
+                  'id': 42,
+                  'at': '2026-09-29T09:00:00.000Z',
+                  'user_name': 'Бухгалтер',
+                  'action': 'sync_update',
+                  'entity': 'timesheet',
+                  'employee_name': 'Иванов Иван',
+                  'old': {'day_type': 'work'},
+                  'new': {'day_type': 'sick'},
+                },
+              ],
+              'next_before': 42,
+            }),
+    );
+    final page = await api.auditLog(
+      since: DateTime.utc(2026, 9, 1),
+      employeeUuid: 'e1',
+      kind: 'timesheet',
+      before: 100,
+    );
+    final q = requests.last.url.queryParameters;
+    expect(requests.last.url.path, '/audit');
+    expect(q['since'], '2026-09-01T00:00:00.000Z');
+    expect(
+      (q['employee_uuid'], q['kind'], q['before'], q['limit']),
+      ('e1', 'timesheet', '100', '100'),
+    );
+    expect(q.containsKey('user_uuid'), isFalse);
+    final e = page.entries.single;
+    expect(
+      (e.id, e.action, e.employeeName),
+      (42, 'sync_update', 'Иванов Иван'),
+    );
+    expect((e.before!['day_type'], e.after!['day_type']), ('work', 'sick'));
+    expect(page.nextBefore, 42);
+
+    final users = await api.users();
+    expect((users.single.login, users.single.role), ('buh', 'accountant'));
+  });
+
   group('HttpSyncTransport', () {
     setUp(() => tokens.tokens = AuthTokens.fromJson(_pair('1')));
 

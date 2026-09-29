@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart';
 
+import 'audit_log.dart';
 import 'failures.dart';
 import 'period_snapshots.dart';
 import 'session.dart';
@@ -182,6 +183,43 @@ class KfhApiClient {
       throw ServerFailure(e.toString());
     }
   }
+
+  /// Пользователи сервера (только админ).
+  Future<List<SessionUser>> users() async {
+    final list = (await getJson('/users'))['users'];
+    if (list is! List) throw ServerFailure('нет списка пользователей');
+    return [
+      for (final u in list)
+        if (u is Map) SessionUser.fromJson(u.cast<String, Object?>()),
+    ];
+  }
+
+  /// Журнал действий сервера (6.7, только админ): [since]/[until] — моменты
+  /// (переводятся в UTC), [kind] — `timesheet`, `payments`, `rates`,
+  /// `employees`, `payroll`, `settings`, `periods`, `access`; [before] —
+  /// курсор предыдущей страницы.
+  Future<AuditPage> auditLog({
+    DateTime? since,
+    DateTime? until,
+    String? userUuid,
+    String? employeeUuid,
+    String? kind,
+    int? before,
+    int limit = 100,
+  }) async => AuditPage.fromJson(
+    await getJson(
+      '/audit',
+      query: {
+        if (since != null) 'since': since.toUtc().toIso8601String(),
+        if (until != null) 'until': until.toUtc().toIso8601String(),
+        'user_uuid': ?userUuid,
+        'employee_uuid': ?employeeUuid,
+        'kind': ?kind,
+        if (before != null) 'before': '$before',
+        'limit': '$limit',
+      },
+    ),
+  );
 
   /// Версия сервера (`GET /health`, без входа); null — не сообщает.
   Future<String?> serverVersion() async =>

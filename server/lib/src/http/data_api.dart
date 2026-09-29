@@ -12,6 +12,7 @@ import '../sync/sync_rows.dart';
 import 'auth_api.dart';
 import 'middleware.dart';
 import 'request_utils.dart';
+import '../audit_journal.dart';
 import 'responses.dart';
 
 /// Закрытые месяцы, расчёт ЗП и чтение данных (для веба и отчётов).
@@ -24,6 +25,7 @@ import 'responses.dart';
 ///   `GET /periods/snapshots/<id>` — снимки,
 ///   `GET /periods/snapshots/<id>/changes` — что изменилось с тех пор
 ///   (бухгалтер и админ);
+/// - `GET /audit` — журнал действий (6.7, только админ);
 /// - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки;
 /// - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с
 ///   сохранённым (`up_to_date`), без записи;
@@ -57,6 +59,7 @@ class DataApi {
       ..get('/periods/snapshots', _snapshots)
       ..get('/periods/snapshots/<id>', _snapshot)
       ..get('/periods/snapshots/<id>/changes', _snapshotChanges)
+      ..get('/audit', _auditLog)
       ..get('/payroll', _payroll)
       ..get('/payroll/calculation', _calculation)
       ..post('/payroll/calculate', _calculate)
@@ -104,6 +107,47 @@ class DataApi {
   Future<Response> _snapshot(Request request, String id) async {
     await _accountant(request);
     return jsonResponse(await periods.snapshot(id));
+  }
+
+  late final _audit = AuditJournal(db: db);
+
+  /// Журнал действий (6.7, только админ): `since`/`until` — моменты UTC
+  /// (ISO с Z), `user_uuid`, `employee_uuid`, `kind` ([auditKinds]),
+  /// `before` — курсор (id), `limit` до 200.
+  Future<Response> _auditLog(Request request) async {
+    final user = await auth.requireUser(request);
+    final q = request.url.queryParameters;
+    DateTime? moment(String name) {
+      final v = q[name];
+      if (v == null || v.isEmpty) return null;
+      final t = DateTime.tryParse(v);
+      if (t == null || !t.isUtc) {
+        throw ApiException(400, 'validation', '$name — момент UTC (ISO, с Z)');
+      }
+      return t;
+    }
+
+    int? number(String name) {
+      final v = q[name];
+      if (v == null || v.isEmpty) return null;
+      final n = int.tryParse(v);
+      if (n == null || n < 1) {
+        throw ApiException(400, 'validation', '$name — целое больше нуля');
+      }
+      return n;
+    }
+
+    final kind = q['kind'];
+    return jsonResponse(await _audit.read(
+      user,
+      since: moment('since'),
+      until: moment('until'),
+      userUuid: _uuidParam(request, 'user_uuid'),
+      employeeUuid: _uuidParam(request, 'employee_uuid'),
+      kind: kind == null || kind.isEmpty ? null : kind,
+      beforeId: number('before'),
+      limit: number('limit') ?? 100,
+    ));
   }
 
   Future<Response> _snapshotChanges(Request request, String id) async {

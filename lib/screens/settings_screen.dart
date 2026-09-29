@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
+import 'audit_screen.dart';
 import 'periods_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
@@ -308,6 +309,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const PeriodsScreen(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1),
+                        ],
+
+                        // Журнал действий — только админ (6.7).
+                        if (context.watch<SyncProvider>().canReadAudit) ...[
+                          ListTile(
+                            leading: const Icon(Icons.history),
+                            title: const Text('Журнал действий'),
+                            subtitle: const Text('Кто, когда и что изменил'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AuditScreen(),
                               ),
                             ),
                           ),
