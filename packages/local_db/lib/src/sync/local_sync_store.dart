@@ -370,6 +370,22 @@ class LocalSyncStore {
         );
       });
 
+  /// Стереть данные хозяйства перед приёмом базы с сервера заново (телефон,
+  /// вход человека другой роли, 6.9): все записи, кроме строки настроек
+  /// хозяйства, отметки синхронизации и привязку к серверу. Id устройства
+  /// остаётся. Неотправленное пропадает — проверять до вызова.
+  Future<void> eraseForRedownload() => db.transaction(() async {
+        for (final table in syncTables.reversed) {
+          if (table.name == 'company_settings') continue;
+          await db.customUpdate(
+            'DELETE FROM ${table.name}',
+            updates: {_tableInfo(table.name)},
+            updateKind: UpdateKind.delete,
+          );
+        }
+        await forgetServer();
+      });
+
   /// uuid всех записей по таблицам (и удалённых тоже).
   Future<Map<String, Set<String>>> localKeys() async => {
         for (final table in syncTables)

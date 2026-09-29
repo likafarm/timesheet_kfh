@@ -5,8 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/month_switcher.dart';
+import '../theme/app_theme.dart';
 import '../utils/string_utils.dart';
 
 /// Экран управления выплатами (табличный вид с фильтрацией по периоду и сотруднику)
@@ -91,7 +94,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   void _showAddPaymentDialog(BuildContext context) {
-    showDialog(
+    showAppDialog<void>(
       context: context,
       builder: (context) => _PaymentFormDialog(
         employeeId: _selectedEmployeeId,
@@ -110,7 +113,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       _showAddPaymentDialog(context);
       return;
     }
-    showDialog(
+    showAppDialog<void>(
       context: context,
       builder: (context) => _GroupPaymentFormDialog(
         onSave: (payments) async {
@@ -134,7 +137,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         !context.mounted) {
       return;
     }
-    showDialog(
+    showAppDialog<void>(
       context: context,
       builder: (context) => _PaymentFormDialog(
         employeeId: payment.employeeId,
@@ -187,8 +190,151 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
+  void _shiftMonth(int delta) {
+    setState(() {
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + delta,
+      );
+    });
+    _loadPayments();
+  }
+
+  /// Отбор по сотруднику.
+  Widget _employeeFilter(AppProvider provider) => AppDropdown<String?>(
+    value: _selectedEmployeeId,
+    items: [
+      const DropdownMenuItem<String?>(value: null, child: Text('Все')),
+      for (final e in provider.employees)
+        DropdownMenuItem<String?>(
+          value: e.id,
+          child: Text(StringUtils.getShortName(e.fullName)),
+        ),
+    ],
+    onChanged: (value) {
+      setState(() => _selectedEmployeeId = value);
+      _loadPayments();
+    },
+    labelText: 'Сотрудник',
+    prefixIcon: Icons.person,
+  );
+
+  Widget _addButton() => IconButton(
+    icon: Icon(
+      _selectedEmployeeId != null ? Icons.person_add : Icons.group_add,
+    ),
+    onPressed: () => _showGroupPaymentDialog(context),
+    tooltip: _selectedEmployeeId != null
+        ? 'Добавить выплату'
+        : 'Групповая выплата',
+  );
+
+  /// Телефон (6.9): переключатель месяца в заголовке, под ним — отбор и
+  /// итог, выплаты — карточками (широкая таблица на телефоне не читается).
+  Widget _buildCompact(BuildContext context) {
+    final money = NumberFormat('#,##0.00', 'ru');
+    return Scaffold(
+      appBar: monthAppBar(
+        context,
+        title: 'Выплаты',
+        switcher: MonthSwitcher(
+          month: _selectedMonth,
+          onPrevious: () => _shiftMonth(-1),
+          onNext: () => _shiftMonth(1),
+          onPick: _selectMonth,
+          onToday: _goToToday,
+        ),
+        actions: [_addButton()],
+      ),
+      body: Consumer<AppProvider>(
+        builder: (context, provider, child) {
+          final total = provider.payments.fold(0.0, (sum, p) => sum + p.amount);
+          final theme = Theme.of(context);
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: Row(
+                  children: [
+                    Expanded(child: _employeeFilter(provider)),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Всего', style: theme.textTheme.bodySmall),
+                        Text(
+                          '${money.format(total)} ₽',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: provider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : provider.payments.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Нет выплат за этот период',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: provider.payments.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final payment = provider.payments[i];
+                          final employee = provider.getEmployeeById(
+                            payment.employeeId,
+                          );
+                          final details = [
+                            DateFormat(
+                              'dd.MM.yyyy',
+                            ).format(payment.paymentDate),
+                            payment.paymentTypeName,
+                            if (payment.paymentMethod != null)
+                              payment.paymentMethodName,
+                            if (payment.documentNumber?.isNotEmpty ?? false)
+                              '№ ${payment.documentNumber}',
+                          ].join(' · ');
+                          return ListTile(
+                            title: Text(
+                              employee?.fullName ?? 'Неизвестно',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              payment.notes?.isNotEmpty ?? false
+                                  ? '$details\n${payment.notes}'
+                                  : details,
+                            ),
+                            trailing: Text(
+                              '${money.format(payment.amount)} ₽',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onTap: () =>
+                                _showEditPaymentDialog(context, payment),
+                            onLongPress: () => _confirmDelete(context, payment),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (MonthSwitcher.isCompact(context)) return _buildCompact(context);
     final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
     final capitalizedMonth =
         monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
@@ -654,7 +800,7 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
     final isEditing = widget.payment != null;
     final title = isEditing ? 'Редактирование выплаты' : 'Новая выплата';
 
-    return AlertDialog(
+    return AppDialog(
       title: Text(title),
       content: SizedBox(
         width: 400,
@@ -1040,17 +1186,19 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    // Телефон: список сотрудников — в пределах экрана (панель снизу).
+    final height = MediaQuery.sizeOf(context).height * 0.75;
+    return AppDialog(
       title: const Row(
         children: [
           Icon(Icons.group_add),
           SizedBox(width: 8),
-          Text('Групповая выплата'),
+          Flexible(child: Text('Групповая выплата')),
         ],
       ),
       content: SizedBox(
         width: 600,
-        height: 500,
+        height: height < 500 ? height : 500,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
@@ -1073,76 +1221,73 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
     );
   }
 
+  /// Два поля рядом; на телефоне — одно под другим.
+  Widget _pair(Widget a, Widget b) {
+    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
+      return Column(children: [a, const SizedBox(height: 12), b]);
+    }
+    return Row(
+      children: [
+        Expanded(child: a),
+        const SizedBox(width: 12),
+        Expanded(child: b),
+      ],
+    );
+  }
+
   Widget _buildCommonFields() {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: AppDropdown<String>(
-                value: _paymentType,
-                items: const [
-                  DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
-                  DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-                  DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-                  DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
-                  DropdownMenuItem(
-                    value: 'sick_leave',
-                    child: Text('Больничные'),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _paymentType = v!),
-                labelText: 'Тип выплаты',
-                prefixIcon: Icons.category,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: AppDropdown<String?>(
-                value: _paymentMethod,
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('— Не указано —')),
-                  DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                  DropdownMenuItem(value: 'card', child: Text('На карту')),
-                  DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
-                ],
-                onChanged: (v) => setState(() => _paymentMethod = v),
-                labelText: 'Способ оплаты',
-                prefixIcon: Icons.payment,
-              ),
-            ),
-          ],
+        _pair(
+          AppDropdown<String>(
+            value: _paymentType,
+            items: const [
+              DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
+              DropdownMenuItem(value: 'advance', child: Text('Аванс')),
+              DropdownMenuItem(value: 'bonus', child: Text('Премия')),
+              DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
+              DropdownMenuItem(value: 'sick_leave', child: Text('Больничные')),
+            ],
+            onChanged: (v) => setState(() => _paymentType = v!),
+            labelText: 'Тип выплаты',
+            prefixIcon: Icons.category,
+          ),
+          AppDropdown<String?>(
+            value: _paymentMethod,
+            items: const [
+              DropdownMenuItem(value: null, child: Text('— Не указано —')),
+              DropdownMenuItem(value: 'cash', child: Text('Наличные')),
+              DropdownMenuItem(value: 'card', child: Text('На карту')),
+              DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
+            ],
+            onChanged: (v) => setState(() => _paymentMethod = v),
+            labelText: 'Способ оплаты',
+            prefixIcon: Icons.payment,
+          ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Дата выплаты'),
-                subtitle: Text(DateFormat('dd.MM.yyyy').format(_date)),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _date,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) setState(() => _date = date);
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: AppTextField(
-                controller: _documentController,
-                labelText: 'Номер документа',
-                prefixIcon: Icons.description,
-                hintText: '№ расходного ордера',
-              ),
-            ),
-          ],
+        _pair(
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.calendar_today),
+            title: const Text('Дата выплаты'),
+            subtitle: Text(DateFormat('dd.MM.yyyy').format(_date)),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: _date,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              if (date != null) setState(() => _date = date);
+            },
+          ),
+          AppTextField(
+            controller: _documentController,
+            labelText: 'Номер документа',
+            prefixIcon: Icons.description,
+            hintText: '№ расходного ордера',
+          ),
         ),
       ],
     );

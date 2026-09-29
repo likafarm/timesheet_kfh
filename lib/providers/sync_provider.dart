@@ -67,6 +67,14 @@ class SyncProvider extends ChangeNotifier {
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
 
+  /// Ключ в `sync_state` (телефон, 6.9): для какой роли принята база —
+  /// `operator` (оператор получает не всё: ни выплат, ни ставок) или `full`.
+  /// Нет ключа — база принята до 6.9, когда на телефоне был только оператор.
+  static const dataRoleKey = 'sync_data_role';
+
+  static String _dataRole(SessionUser user) =>
+      user.isOperator ? 'operator' : 'full';
+
   /// Сервер на этом компьютере (стенд), а не рабочий. Для эмулятора
   /// Android компьютер разработчика — 10.0.2.2.
   static bool isLocalServer(String server) {
@@ -419,11 +427,78 @@ class SyncProvider extends ChangeNotifier {
       await _updatePhase();
       throw SyncUserException(refusal);
     }
+    await _prepareForRole(user);
     _user = user;
     _problem = null;
     _offline = false;
     await _updatePhase();
     await _watchSessionExpiry();
+  }
+
+  /// Телефон (6.9, решение владельца 2026-09-29): база принята для другой
+  /// роли — сначала отправить неотправленное (от имени вошедшего), затем
+  /// стереть данные телефона; первый вход примет базу с сервера заново.
+  /// Если отправить не вышло — отказ во входе, данные не трогаются.
+  Future<void> _prepareForRole(SessionUser user) async {
+    if (client != ClientKind.phone) return;
+    final linked = await _store.linkedServer();
+    if (linked == null) return;
+    final role = await _db.syncStateDao.getValue(dataRoleKey) ?? 'operator';
+    if (role == _dataRole(user)) return;
+
+    Future<Never> refuse(String reason) async {
+      await _api!.logout();
+      _user = null;
+      await _updatePhase();
+      throw SyncUserException(reason);
+    }
+
+    await refreshPending();
+    final rejectedBefore = _rejected;
+    if (_pending > _rejected) {
+      if (linked != _server) {
+        await refuse(
+          'На этом телефоне есть неотправленные правки прошлого '
+          'пользователя (${_pending - _rejected}) для сервера $linked. '
+          'Сначала отправьте их туда.',
+        );
+      }
+      try {
+        await _syncEngine.run();
+      } on SyncFailure catch (e) {
+        await refuse(
+          'На этом телефоне есть неотправленные правки прошлого '
+          'пользователя. Отправить их не удалось (${_explain(e)}) — войдите, '
+          'когда будет связь.',
+        );
+      }
+      await refreshPending();
+      if (_pending > _rejected || _rejected > rejectedBefore) {
+        final left = _pending - rejectedBefore;
+        // Отказ роли — не отказ по существу: правки остаются
+        // неотправленными для того, кто их вносил.
+        await _store.clearRejections();
+        await refreshPending();
+        await refuse(
+          'На этом телефоне остались неотправленные правки прошлого '
+          'пользователя ($left): от роли «${user.roleTitle}» сервер их не '
+          'принял. Пусть их отправит тот, кто вносил: войдёт на этом '
+          'телефоне и синхронизирует.',
+        );
+      }
+    }
+    await _store.eraseForRedownload();
+    for (final key in [dataRoleKey, lastSyncKey, relinkKey]) {
+      await _db.customUpdate(
+        'DELETE FROM sync_state WHERE key = ?',
+        variables: [Variable<String>(key)],
+      );
+    }
+    _lastSyncAt = null;
+    _lastReport = null;
+    await refreshPending();
+    await onLocksChanged?.call();
+    await onDataChanged();
   }
 
   /// Смена пароля (обязательная после выдачи администратором или по
@@ -509,6 +584,7 @@ class SyncProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final report = await _bootstrap().execute(plan, backup: backup);
+      await _db.syncStateDao.setValue(dataRoleKey, _dataRole(_user!));
       await _succeeded(report);
       await _updatePhase();
       return report;

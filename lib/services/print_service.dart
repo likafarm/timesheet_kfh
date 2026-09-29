@@ -8,6 +8,8 @@ import 'package:printing/printing.dart';
 
 import 'package:kfh_domain/kfh_domain.dart';
 import '../utils/string_utils.dart';
+import 'file_share.dart';
+import 'platform.dart';
 
 /// Формирование и вывод на печать табеля и детального отчёта по сотруднику.
 class PrintService {
@@ -183,9 +185,9 @@ class PrintService {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (_) => doc.save(),
-      name: 'Табель_$monthTitle',
+    await _output(
+      doc,
+      'Табель_$monthTitle',
       format: PdfPageFormat.a4.landscape,
     );
   }
@@ -330,9 +332,23 @@ class PrintService {
       ),
     );
 
+    await _output(doc, 'Отчёт_${employee.fullName}_$monthTitle');
+  }
+
+  /// Печать; на телефоне (6.9) — файл PDF в «Поделиться».
+  static Future<void> _output(
+    pw.Document doc,
+    String name, {
+    PdfPageFormat format = PdfPageFormat.a4,
+  }) async {
+    if (isAndroidApp) {
+      await shareFile('$name.pdf', await doc.save(), pdfMimeType);
+      return;
+    }
     await Printing.layoutPdf(
       onLayout: (_) => doc.save(),
-      name: 'Отчёт_${employee.fullName}_$monthTitle',
+      name: name,
+      format: format,
     );
   }
 

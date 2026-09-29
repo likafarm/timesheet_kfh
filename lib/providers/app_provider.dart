@@ -9,12 +9,23 @@ import '../services/platform.dart';
 
 class AppProvider extends ChangeNotifier {
   AppProvider(this._appDb, {this._backupService, bool? operatorMode})
-    : operatorMode = operatorMode ?? isAndroidApp;
+    : _operatorMode = operatorMode ?? isAndroidApp;
 
-  /// Программа оператора (телефон, этап 4): записывается только табель,
-  /// ставок, сумм, выплат и расчётов оператор не видит и не меняет. Сервер
-  /// те же правила проверяет сам — здесь правка просто не начинается.
-  final bool operatorMode;
+  /// Программа оператора (этап 4): записывается только табель, ставок,
+  /// сумм, выплат и расчётов оператор не видит и не меняет. Сервер те же
+  /// правила проверяет сам — здесь правка просто не начинается. С 6.9 —
+  /// по роли вошедшего (на телефоне работают и бухгалтер, и админ); до
+  /// входа — по устройству.
+  bool get operatorMode => _operatorMode;
+  bool _operatorMode;
+
+  set operatorMode(bool value) {
+    if (value == _operatorMode) return;
+    _operatorMode = value;
+    notifyListeners();
+    // Полной программе нужны текущие ставки — оператору их не загружали.
+    if (!value) loadEmployees();
+  }
 
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;

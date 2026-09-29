@@ -159,6 +159,50 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   void _select(int index) => setState(() => _selectedIndex = index);
 
+  /// Разделы с отдельной кнопкой внизу на телефоне (индексы
+  /// [_navigationItems]); остальные — в «Ещё».
+  List<int> _bottomItems() {
+    if (_navigationItems.length <= 5) {
+      return [for (var i = 0; i < _navigationItems.length; i++) i];
+    }
+    const primary = {
+      AppSection.home,
+      AppSection.timesheet,
+      AppSection.payments,
+      AppSection.reports,
+    };
+    return [
+      for (final (i, item) in _navigationItems.indexed)
+        if (primary.contains(item.section)) i,
+    ];
+  }
+
+  /// «Ещё»: разделы, не поместившиеся внизу.
+  Future<void> _showMore(List<int> bar) async {
+    final index = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (i, item) in _navigationItems.indexed)
+              if (!bar.contains(i))
+                ListTile(
+                  leading: Icon(
+                    i == _selectedIndex ? item.selectedIcon : item.icon,
+                  ),
+                  title: Text(item.label),
+                  selected: i == _selectedIndex,
+                  onTap: () => Navigator.pop(context, i),
+                ),
+          ],
+        ),
+      ),
+    );
+    if (index != null && mounted) _select(index);
+  }
+
   /// Переход из сводки ([SectionNavigator.open]).
   void _openRequested() {
     final section = _sections.takeSection();
@@ -184,6 +228,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
     final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
     if (compact) {
+      // Больше пяти пунктов внизу не помещаются (подписи обрезаются) —
+      // остальные разделы в «Ещё» (6.9).
+      final bar = _bottomItems();
+      final current = bar.indexOf(_selectedIndex);
       return Scaffold(
         body: content,
         bottomNavigationBar: Column(
@@ -192,15 +240,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             const SyncStatusBar(),
             BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
-              currentIndex: _selectedIndex,
-              onTap: _select,
-              items: _navigationItems.map((item) {
-                return BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  activeIcon: Icon(item.selectedIcon),
-                  label: item.label,
-                );
-              }).toList(),
+              currentIndex: current >= 0 ? current : bar.length,
+              onTap: (i) => i < bar.length ? _select(bar[i]) : _showMore(bar),
+              items: [
+                for (final i in bar)
+                  BottomNavigationBarItem(
+                    icon: Icon(_navigationItems[i].icon),
+                    activeIcon: Icon(_navigationItems[i].selectedIcon),
+                    label: _navigationItems[i].label,
+                  ),
+                if (bar.length < _navigationItems.length)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.more_horiz),
+                    label: 'Ещё',
+                  ),
+              ],
               selectedItemColor: Theme.of(context).colorScheme.primary,
               unselectedItemColor: Colors.grey,
               // Активный пункт крупнее (UI_REQUIREMENTS п. 2.1).

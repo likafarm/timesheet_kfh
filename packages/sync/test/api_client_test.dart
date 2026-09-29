@@ -69,7 +69,8 @@ void main() {
     final user = await api.login('ivan', 'secret-pass');
     expect(user.login, 'ivan');
     expect(user.canUseOn(ClientKind.desktop), isTrue);
-    expect(user.canUseOn(ClientKind.phone), isFalse);
+    // Телефон — все роли (6.9).
+    expect(user.canUseOn(ClientKind.phone), isTrue);
     expect(tokens.tokens!.accessToken, 'access-1');
     final r = requests.single;
     expect(r.method, 'POST');

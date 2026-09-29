@@ -145,21 +145,85 @@ void main() {
     expect(sync.pending, 0);
   });
 
-  test('телефон: администратору — отказ', () async {
+  test('телефон (6.9): бухгалтер входит, первый вход — только приём', () async {
+    server.role = 'accountant';
     final sync = provider(client: ClientKind.phone);
     await sync.init();
-    await expectLater(
-      sync.signIn('https://localhost', 'ivan', 'secret-pass'),
-      throwsA(
-        isA<SyncUserException>().having(
-          (e) => e.message,
-          'message',
-          contains('только для оператора'),
+    await sync.signIn('https://localhost', 'buh', 'secret-pass');
+    expect(sync.phase, SyncPhase.needsLink);
+    final plan = await sync.analyzeLink();
+    expect(plan.kind, BootstrapKind.download);
+    await sync.link(plan);
+    expect(sync.phase, SyncPhase.ready);
+  });
+
+  group('телефон: вход человека другой роли (6.9)', () {
+    Future<(SyncProvider, String)> operatorWithEdit() async {
+      server.role = 'operator';
+      final sync = provider(client: ClientKind.phone);
+      await sync.init();
+      await sync.signIn('https://localhost', 'oper', 'secret-pass');
+      await sync.link(await sync.analyzeLink());
+      final id = await DriftRepositories(db).employees.add(
+        Employee(
+          fullName: 'Петров Пётр',
+          position: 'Рабочий',
+          hireDate: DateTime(2025, 3, 1),
+          baseRate: 0,
+          fieldRate: 0,
         ),
-      ),
+      );
+      await sync.refreshPending();
+      expect(sync.pending, 1);
+      await sync.signOut();
+      return (sync, id);
+    }
+
+    test('неотправленное уходит, база принимается с сервера заново', () async {
+      final (sync, id) = await operatorWithEdit();
+      server.role = 'accountant';
+      reloads = 0;
+      await sync.signIn('https://localhost', 'buh', 'secret-pass');
+      expect(server.rows.keys, contains('employees/$id'));
+      // Данные телефона стёрты — первый вход заново, только приём.
+      expect(await DriftRepositories(db).employees.byId(id), isNull);
+      expect(reloads, greaterThan(0));
+      expect(sync.phase, SyncPhase.needsLink);
+      final plan = await sync.analyzeLink();
+      expect(plan.kind, BootstrapKind.download);
+      await sync.link(plan);
+      expect(sync.phase, SyncPhase.ready);
+      expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+
+      // Тот же бухгалтер снова — ничего не стирается.
+      await sync.signOut();
+      await sync.signIn('https://localhost', 'buh', 'secret-pass');
+      expect(sync.phase, SyncPhase.ready);
+    });
+
+    test(
+      'сервер не принял правки от новой роли — отказ, данные на месте',
+      () async {
+        final (sync, id) = await operatorWithEdit();
+        server.role = 'accountant';
+        server.rejectTables.add('employees');
+        await expectLater(
+          sync.signIn('https://localhost', 'buh', 'secret-pass'),
+          throwsA(
+            isA<SyncUserException>().having(
+              (e) => e.message,
+              'message',
+              contains('неотправленные правки прошлого пользователя (1)'),
+            ),
+          ),
+        );
+        expect(sync.phase, SyncPhase.signedOut);
+        expect(tokens.tokens, isNull);
+        expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+        // Правка снова ждёт отправки, а не числится отклонённой.
+        expect((sync.pending, sync.rejected), (1, 0));
+      },
     );
-    expect(sync.phase, SyncPhase.signedOut);
-    expect(tokens.tokens, isNull);
   });
 
   test('сохранённый вход чужой роли при запуске забывается', () async {

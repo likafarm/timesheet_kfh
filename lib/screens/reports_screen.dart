@@ -285,6 +285,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               ),
             )
+          : MonthSwitcher.isCompact(context)
+          ? _buildCompactList()
           : SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
@@ -304,8 +306,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     _buildMonthStatus(),
                     _buildTableHeader(),
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height - 212,
+                    Expanded(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
                         child: Column(
@@ -327,6 +328,59 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  /// Телефон (6.9): сотрудники карточками — остаток на конец крупно,
+  /// из чего он сложился — строкой ниже; касание — подробный расчёт.
+  Widget _buildCompactList() {
+    final provider = context.read<AppProvider>();
+    final money = NumberFormat('#,##0.00', 'ru');
+    final days = NumberFormat('#,##0.#', 'ru');
+    final status = StatusColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final rows = [
+      for (final r in _results)
+        if (provider.getEmployeeById(r.employeeId) case final e?) (r, e),
+    ];
+    return ListView.separated(
+      itemCount: rows.length + 1,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        if (i == 0) return _buildMonthStatus();
+        final (result, employee) = rows[i - 1];
+        final paid = _paymentsByEmployee[result.employeeId] ?? 0.0;
+        final bonus = _bonusByEmployee[result.employeeId] ?? 0.0;
+        final starting = provider.startingBalances[result.employeeId] ?? 0.0;
+        final balance = starting + result.totalSalary + bonus - paid;
+        final differs = _differs.contains(result.employeeId);
+        return ListTile(
+          tileColor: differs ? status.warningBackground : null,
+          title: Text(employee.fullName, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            [
+              'На начало ${money.format(starting)} · '
+                  '${days.format(result.baseDays + result.fieldDays)} дн.',
+              [
+                'начисл. ${money.format(result.totalSalary)}',
+                if (bonus > 0) 'премия ${money.format(bonus)}',
+                'выпл. ${money.format(paid)}',
+              ].join(' · '),
+              if (result.skippedWorkDays > 0)
+                'Без ставки: ${result.skippedWorkDays} дн.',
+            ].join('\n'),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+          trailing: Text(
+            '${money.format(balance)} ₽',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: balance > 0 ? status.positive : status.negative,
+            ),
+          ),
+          onTap: () => _showDetail(result, employee),
+        );
+      },
     );
   }
 
@@ -392,7 +446,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 12, color: color)),
+          Flexible(
+            child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+          ),
         ],
       ),
     );

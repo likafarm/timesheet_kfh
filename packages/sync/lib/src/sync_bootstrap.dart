@@ -160,6 +160,18 @@ class SyncBootstrap {
                   'браузера будет очищена.',
       );
     }
+    if (client == ClientKind.phone) {
+      // Телефон бухгалтера и админа (6.9) — тоже только приём: главная база
+      // хозяйства — на сервере, телефон её не выгружает и не привязывает.
+      return plan(
+        BootstrapKind.download,
+        refusal: localRows == 0
+            ? null
+            : 'На этом телефоне уже есть данные ($localRows записей), не '
+                  'связанные с сервером. Телефон принимает базу только в '
+                  'пустую — обратитесь к администратору.',
+      );
+    }
     if (serverRows == 0 && localRows == 0) return plan(BootstrapKind.fresh);
     if (serverRows == 0) {
       return plan(

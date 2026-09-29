@@ -545,6 +545,38 @@ void main() {
       );
     });
 
+    test(
+      'eraseForRedownload: остаются только настройки и id устройства',
+      () async {
+        final device = await a.db.deviceId();
+        final emp = await a.addEmployee('Иванов Иван');
+        await a.addWork(emp, DateTime(2026, 9, 1));
+        await a.repo.payments.add(
+          Payment(
+            employeeId: emp,
+            paymentDate: DateTime(2026, 9, 5),
+            amount: 100,
+          ),
+        );
+        await a.pushAll();
+        await a.store.saveCursor(const SyncCursor(9, 'e'));
+        await a.store.setLinkedServer('https://old.example.ru');
+
+        await a.store.eraseForRedownload();
+        final keys = await a.store.localKeys();
+        expect(
+          {
+            for (final e in keys.entries)
+              if (e.value.isNotEmpty) e.key,
+          },
+          {'company_settings'},
+        );
+        expect(await a.store.cursor(), SyncCursor.start);
+        expect(await a.store.linkedServer(), isNull);
+        expect(await a.db.deviceId(), device);
+      },
+    );
+
     test('localKeys — все записи, и удалённые', () async {
       final emp = await a.addEmployee('Иванов Иван');
       final day = await a.addWork(emp, DateTime(2026, 9, 1));

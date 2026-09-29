@@ -106,6 +106,13 @@ class _MyAppState extends State<MyApp> {
               platform.reloadPage?.call();
             },
     );
+    // Разделы программы — по роли вошедшего (6.9): на телефоне оператор
+    // видит только табель, бухгалтер и админ — полную программу. Слушатель
+    // добавлен раньше экранов — режим меняется до их перестройки.
+    _sync.addListener(() {
+      final user = _sync.user;
+      if (user != null) _app.operatorMode = user.isOperator;
+    });
     platform.guardPageClose?.call(() => _sync.pending > 0);
     _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;

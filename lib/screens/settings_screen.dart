@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
 import 'audit_screen.dart';
 import 'periods_screen.dart';
 import 'sync_screen.dart';
@@ -223,9 +224,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsCard(
                     child: Column(
                       children: [
-                        // Резервные копии — в файлах; в веб-версии их нет:
-                        // база браузера — копия данных сервера.
-                        if (context.read<AppProvider>().hasLocalBackups) ...[
+                        // Резервные копии — в файлах; в веб-версии и на
+                        // телефоне (6.9) их нет: база там — копия данных
+                        // сервера.
+                        if (context.read<AppProvider>().hasLocalBackups &&
+                            !isAndroidApp) ...[
                           // Резервное копирование
                           ListTile(
                             leading: const Icon(Icons.backup),
@@ -275,7 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const Divider(height: 1),
                         ],
-                        if (kDebugMode) ...[
+                        if (kDebugMode && !isAndroidApp) ...[
                           ListTile(
                             leading: const Icon(Icons.storage),
                             title: const Text('Просмотр базы данных'),

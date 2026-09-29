@@ -1,7 +1,7 @@
 name: kfx_time_tracking
 description: "Учёт рабочего времени в КФХ"
 publish_to: "none"
-version: 1.10.0+19
+version: 1.11.0+20
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -67,6 +67,7 @@ dependencies:
   # SHA-256: проверка скачанного обновления Windows (6.5) и сверка
   # web/sqlite3.wasm (test/web_assets_test.dart)
   crypto: ^3.0.7
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
