@@ -6,7 +6,7 @@
 # GET /client/version) i index.html (stranica https://<domen>/download/).
 # -Min - minimalnaya versiya: programmy starshe nee pokazyvayut ekran
 # "obnovite programmu" (po umolchaniyu - prezhnyaya minimalnaya ili eta zhe).
-# Versiya Windows v versions.json sokhranyaetsya kak byla.
+# Versiya Windows v versions.json i na stranice sokhranyaetsya kak byla.
 # Tolko s soglasiya vladelca.
 param(
     [Parameter(Mandatory = $true)][string]$Apk,
@@ -18,6 +18,7 @@ $ErrorActionPreference = "Stop"
 # ssh/scp/docker pishut progress v stderr - v PowerShell 5.1 pri "Stop" eto
 # oshibka posredi vykladki. Uspekh proveryaetsya po $LASTEXITCODE.
 $nativeErrors = "Continue"
+. (Join-Path $PSScriptRoot "download_page.ps1")
 
 $root = git rev-parse --show-toplevel
 if (-not $?) { throw "ne git-repozitoriy" }
@@ -45,23 +46,12 @@ $platforms['android'] = [ordered]@{
     min    = $Min
     url    = "https://$Domain/download/$name"
     sha256 = $hash
+    size   = (Get-Item $apkPath).Length
 }
 $json = @{ platforms = $platforms } | ConvertTo-Json -Depth 5
 
-$html = @"
-<!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tabel KFH</title>
-<style>body{font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem;color:#212121}
-a.btn{display:block;background:#2E7D32;color:#fff;text-align:center;padding:1rem;border-radius:8px;
-text-decoration:none;font-size:1.2rem}code{word-break:break-all;font-size:.8rem}</style></head>
-<body><h1>&#1058;&#1072;&#1073;&#1077;&#1083;&#1100; &#1050;&#1060;&#1061;</h1>
-<p>&#1055;&#1088;&#1086;&#1075;&#1088;&#1072;&#1084;&#1084;&#1072; &#1076;&#1083;&#1103; &#1090;&#1077;&#1083;&#1077;&#1092;&#1086;&#1085;&#1072; &#1086;&#1087;&#1077;&#1088;&#1072;&#1090;&#1086;&#1088;&#1072; (Android), &#1074;&#1077;&#1088;&#1089;&#1080;&#1103; $version, $sizeMb &#1052;&#1041;.</p>
-<p><a class="btn" href="$name">&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; $name</a></p>
-<p>SHA-256: <code>$hash</code></p>
-</body></html>
-"@
+# Stranica zagruzki - obshchaya s Windows (download_page.ps1).
+$html = New-DownloadPage $platforms $Domain
 
 $tmp = Join-Path $env:TEMP "kfh-apk"
 [System.IO.Directory]::CreateDirectory($tmp) | Out-Null

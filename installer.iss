@@ -25,6 +25,10 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
+; Обновление из программы (6.5): тихая установка закрывает ещё открытую
+; программу и запускает её снова (см. [Run], WizardSilent).
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -42,3 +46,5 @@ Name: "desktopicon"; Description: "Создать ярлык на &рабоче�
 
 [Run]
 Filename: "{app}\timesheet_kfh.exe"; Description: "Запустить Учёт рабочего времени КФХ"; Flags: nowait postinstall skipifsilent
+; Обновление из программы — тихая установка: программа открывается снова сама.
+Filename: "{app}\timesheet_kfh.exe"; Flags: nowait; Check: WizardSilent

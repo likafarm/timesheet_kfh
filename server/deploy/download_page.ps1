@@ -1,0 +1,35 @@
+# Stranica zagruzki https://<domen>/download/ (etapy 4.8, 6.5). Fail v ASCII:
+# kirillica - HTML-suschnostyami (PowerShell 5.1 chitaet UTF-8 bez BOM kak ANSI).
+# Podklyuchaetsya iz publish_apk.ps1 i publish_windows.ps1 (". $PSScriptRoot\download_page.ps1").
+# Stroit stranicu po spisku versiy: Windows, Android, veb.
+
+function Get-DownloadSection($entry, [string]$text) {
+    if ($null -eq $entry -or -not $entry.url) { return "" }
+    $file = [System.IO.Path]::GetFileName(([Uri]$entry.url).AbsolutePath)
+    $size = ""
+    if ($entry.size) { $size = ", " + [math]::Round([double]$entry.size / 1MB, 1) + " &#1052;&#1041;." } else { $size = "." }
+    return @"
+<h2>$text$($entry.latest)$size</h2>
+<p><a class="btn" href="$file">&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; $file</a></p>
+<p>SHA-256: <code>$($entry.sha256)</code></p>
+"@
+}
+
+function New-DownloadPage($platforms, [string]$Domain) {
+    $win = Get-DownloadSection $platforms['windows'] "&#1055;&#1088;&#1086;&#1075;&#1088;&#1072;&#1084;&#1084;&#1072; &#1076;&#1083;&#1103; Windows (&#1073;&#1091;&#1093;&#1075;&#1072;&#1083;&#1090;&#1077;&#1088;, &#1072;&#1076;&#1084;&#1080;&#1085;&#1080;&#1089;&#1090;&#1088;&#1072;&#1090;&#1086;&#1088;), &#1074;&#1077;&#1088;&#1089;&#1080;&#1103; "
+    if ($win) { $win += "<p>&#1059;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1085;&#1072;&#1103; &#1087;&#1088;&#1086;&#1075;&#1088;&#1072;&#1084;&#1084;&#1072; &#1086;&#1073;&#1085;&#1086;&#1074;&#1083;&#1103;&#1077;&#1090;&#1089;&#1103; &#1089;&#1072;&#1084;&#1072;: &#1074; &#1087;&#1086;&#1083;&#1086;&#1089;&#1077; &#171;&#1044;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1072; &#1085;&#1086;&#1074;&#1072;&#1103; &#1074;&#1077;&#1088;&#1089;&#1080;&#1103;&#187; &#8212; &#1082;&#1085;&#1086;&#1087;&#1082;&#1072; &#171;&#1059;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;&#187;.</p>`n" }
+    $and = Get-DownloadSection $platforms['android'] "&#1055;&#1088;&#1086;&#1075;&#1088;&#1072;&#1084;&#1084;&#1072; &#1076;&#1083;&#1103; &#1090;&#1077;&#1083;&#1077;&#1092;&#1086;&#1085;&#1072; &#1086;&#1087;&#1077;&#1088;&#1072;&#1090;&#1086;&#1088;&#1072; (Android), &#1074;&#1077;&#1088;&#1089;&#1080;&#1103; "
+    return @"
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabel KFH</title>
+<style>body{font-family:sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem;color:#212121}
+h2{font-size:1.05rem;margin-top:2rem}
+a.btn{display:block;background:#2E7D32;color:#fff;text-align:center;padding:1rem;border-radius:8px;
+text-decoration:none;font-size:1.1rem}code{word-break:break-all;font-size:.8rem}</style></head>
+<body><h1>&#1058;&#1072;&#1073;&#1077;&#1083;&#1100; &#1050;&#1060;&#1061;</h1>
+$win$and<h2>&#1042;&#1077;&#1073;-&#1074;&#1077;&#1088;&#1089;&#1080;&#1103; (&#1073;&#1091;&#1093;&#1075;&#1072;&#1083;&#1090;&#1077;&#1088;, &#1072;&#1076;&#1084;&#1080;&#1085;&#1080;&#1089;&#1090;&#1088;&#1072;&#1090;&#1086;&#1088;): <a href="https://$Domain/app/">https://$Domain/app/</a></h2>
+</body></html>
+"@
+}
