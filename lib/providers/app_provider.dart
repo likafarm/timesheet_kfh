@@ -517,6 +517,66 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// Пустые клетки нерабочих дней месяца по производственному календарю
+  /// (6.6) — у сотрудников, работающих в этот день (принят, не уволен):
+  /// (сотрудник, день). Заполненные клетки сюда не входят.
+  Future<List<(Employee, DateTime)>> emptyDaysOff(int year, int month) async {
+    final taken = {
+      for (final r in await _timesheetRepo.inPeriod(
+        DateTime(year, month, 1),
+        DateTime(year, month + 1, 0),
+      ))
+        (r.employeeId, r.date.day),
+    };
+    return [
+      for (final e in await _employeesRepo.all())
+        if (e.id != null)
+          for (final d in ProductionCalendar.daysOff(year, month))
+            if (!taken.contains((e.id, d)) &&
+                !calendarDay(e.hireDate).isAfter(DateTime(year, month, d)) &&
+                e.isActiveOn(DateTime(year, month, d)))
+              (e, DateTime(year, month, d)),
+    ];
+  }
+
+  /// «Отметить выходные» (6.6): «В» во все пустые клетки нерабочих дней
+  /// месяца ([emptyDaysOff]). Закрытый месяц — объяснение и 0. Возвращает,
+  /// сколько клеток отмечено.
+  Future<int> fillDaysOff(int year, int month) async {
+    if (!_dayAllowed('timesheet', null, DateTime(year, month, 1))) return 0;
+    var added = 0;
+    try {
+      for (final (e, day) in await emptyDaysOff(year, month)) {
+        try {
+          await _timesheetRepo.add(
+            TimesheetRecord(
+              employeeId: e.id!,
+              date: day,
+              dayType: 'dayoff',
+              days: 1,
+            ),
+          );
+          added++;
+        } on DuplicateEntryException {
+          // Клетку успели заполнить (например, пришло с сервера) — не трогаем.
+        }
+      }
+    } catch (e) {
+      _error = 'Ошибка отметки выходных: $e';
+    }
+    if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+      await loadTimesheet(
+        _currentPeriodStart!,
+        _currentPeriodEnd!,
+        employeeId: _currentTimesheetEmployee,
+      );
+    } else {
+      notifyListeners();
+    }
+    if (added > 0) setNeedRefreshReports(true);
+    return added;
+  }
+
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
     final old = _timesheetRecords.where((r) => r.id == record.id).firstOrNull;
     if (!_dayAllowed('timesheet', old?.date, record.date)) return;

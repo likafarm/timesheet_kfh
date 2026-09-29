@@ -1,6 +1,7 @@
 // lib/screens/timesheet_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
@@ -114,6 +115,80 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     }
   }
 
+  /// «Отметить выходные» (6.6): «В» во все пустые клетки нерабочих по
+  /// производственному календарю дней — после подтверждения.
+  Future<void> _fillDaysOff() async {
+    final month = _selectedMonth;
+    if (!await ensureMonthOpen(context, month.year, month.month) || !mounted) {
+      return;
+    }
+    final provider = context.read<AppProvider>();
+    final empty = await provider.emptyDaysOff(month.year, month.month);
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (empty.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Все нерабочие дни месяца уже заполнены')),
+      );
+      return;
+    }
+    final people = {for (final (e, _) in empty) e.id}.length;
+    final days = ProductionCalendar.daysOff(month.year, month.month);
+    final monthName = DateFormat('LLLL yyyy', 'ru').format(month);
+    final ok = await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        icon: const Icon(Icons.event_busy),
+        title: Text('Отметить выходные — $monthName?'),
+        content: SizedBox(
+          width: 440,
+          child: Text(
+            'Нерабочие дни по производственному календарю: '
+            '${_dayRanges(days)}.\n\n'
+            '«В» будет поставлено в ${empty.length} пустых клеток у '
+            '$people сотр. (только в дни, когда сотрудник работает в '
+            'хозяйстве). Заполненные клетки не меняются.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Отметить'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final added = await provider.fillDaysOff(month.year, month.month);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text('Отмечено выходных: $added')),
+    );
+  }
+
+  /// «1–11, 17, 18, 24, 25» — подряд идущие числа одним отрезком.
+  static String _dayRanges(List<int> days) {
+    final parts = <String>[];
+    var i = 0;
+    while (i < days.length) {
+      var j = i;
+      while (j + 1 < days.length && days[j + 1] == days[j] + 1) {
+        j++;
+      }
+      parts.add(
+        j - i >= 2
+            ? '${days[i]}–${days[j]}'
+            : days.sublist(i, j + 1).join(', '),
+      );
+      i = j + 1;
+    }
+    return parts.join(', ');
+  }
+
   Future<void> _exportTimesheet() async {
     final provider = context.read<AppProvider>();
     if (provider.companySettings == null) {
@@ -167,6 +242,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           onToday: _goToToday,
         ),
         menu: [
+          AppBarMenuItem(Icons.event_busy, 'Отметить выходные', _fillDaysOff),
           if (!operator) ...[
             AppBarMenuItem(Icons.print, 'Печать табеля', _printTimesheet),
             AppBarMenuItem(
@@ -253,8 +329,22 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           _legendItem('Б', c.sick, c),
           _legendItem('О', c.vacation, c),
           _legendItem('В', c.dayoff, c),
+          _monthNorm(c),
         ],
       ),
+    );
+  }
+
+  /// Норма месяца по производственному календарю РФ.
+  Widget _monthNorm(TimesheetColors c) {
+    final norm = ProductionCalendar.monthNorm(
+      _selectedMonth.year,
+      _selectedMonth.month,
+    );
+    return Text(
+      'Норма: ${norm.workdays} раб. дн.'
+      '${norm.shortDays > 0 ? ', из них ${norm.shortDays} сокращ. (*)' : ''}',
+      style: TextStyle(fontSize: 12, color: c.mutedText),
     );
   }
 
@@ -571,11 +661,15 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
   );
 
   Widget _dayHeader(DateTime date, DateTime now, double width, double height) {
-    final isWeekend =
-        date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+    // Нерабочий день — по производственному календарю РФ (праздники,
+    // переносы; рабочая суббота — обычный день).
+    final isWeekend = !ProductionCalendar.isWorkingDay(date);
+    final isShort =
+        ProductionCalendar.kindOf(date) == CalendarDayKind.shortWorkday;
+    final note = ProductionCalendar.note(date);
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
-    return Container(
+    final header = Container(
       width: width,
       height: height,
       padding: const EdgeInsets.all(2),
@@ -599,7 +693,8 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
             ),
           ),
           Text(
-            _getWeekdayShort(date.weekday),
+            // Сокращённый предпраздничный день — со звёздочкой.
+            '${_getWeekdayShort(date.weekday)}${isShort ? '*' : ''}',
             style: TextStyle(
               fontSize: 9,
               color: isWeekend ? _c.weekendText : _c.mutedText,
@@ -608,6 +703,7 @@ class _TimesheetGridState extends State<_TimesheetGrid> {
         ],
       ),
     );
+    return note == null ? header : Tooltip(message: note, child: header);
   }
 
   Widget _totalHeader(String text, Color color, double width, double height) =>

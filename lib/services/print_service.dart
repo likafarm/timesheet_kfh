@@ -429,9 +429,8 @@ class PrintService {
         ...List.generate(daysInMonth, (i) {
           final day = i + 1;
           final date = DateTime(month.year, month.month, day);
-          final isWeekend =
-              date.weekday == DateTime.saturday ||
-              date.weekday == DateTime.sunday;
+          // Нерабочий день — по производственному календарю РФ (6.6).
+          final isWeekend = !ProductionCalendar.isWorkingDay(date);
           return headerCell(
             '$day\n${_weekdays[date.weekday - 1]}',
             color: isWeekend ? PdfColor.fromInt(0xFFFFEBEE) : PdfColors.grey200,

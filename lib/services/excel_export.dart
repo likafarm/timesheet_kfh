@@ -75,7 +75,9 @@ XlsxWorkbook timesheetWorkbook({
   sheet.addRow([]);
 
   const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  bool weekend(int d) => DateTime(month.year, month.month, d).weekday >= 6;
+  // Нерабочий день — по производственному календарю РФ (6.6).
+  bool weekend(int d) =>
+      !ProductionCalendar.isWorkingDay(DateTime(month.year, month.month, d));
   XlsxStyle dayHead(int d) =>
       weekend(d) ? _head.copyWith(fill: _pink, color: _red) : _head;
   sheet.addRow([
