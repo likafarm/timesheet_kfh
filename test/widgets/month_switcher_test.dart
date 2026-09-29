@@ -79,7 +79,8 @@ void main() {
     expect(x('Предыдущий месяц'), lessThan(x('Следующий месяц')));
     expect(x('Следующий месяц'), lessThan(x('Текущий месяц')));
     expect(x('Текущий месяц'), lessThan(x('Печать табеля')));
-    expect(x('Печать табеля'), lessThan(x('Ввод за день')));
+    expect(x('Печать табеля'), lessThan(x('Выгрузить в Excel')));
+    expect(x('Выгрузить в Excel'), lessThan(x('Ввод за день')));
     // Отдельной полосы месяца под заголовком больше нет.
     expect(tester.widget<AppBar>(find.byType(AppBar)).bottom, isNull);
   });
@@ -88,7 +89,9 @@ void main() {
     await open(tester, const Size(640, 760));
     expect(tester.takeException(), isNull);
     expect(inAppBar(find.byType(MonthSwitcher)), findsOneWidget);
+    expect(inAppBar(find.text('Табель учёта времени')), findsOneWidget);
     expect(find.byTooltip('Ввод за день'), findsOneWidget);
+    expect(find.byTooltip('Ещё'), findsOneWidget, reason: 'печать — в меню');
   });
 
   testWidgets('телефон 360 px: месяц вместо заголовка, всё помещается', (
@@ -101,11 +104,18 @@ void main() {
       'Предыдущий месяц',
       'Следующий месяц',
       'Текущий месяц',
-      'Печать табеля',
       'Ввод за день',
     ]) {
       expect(find.byTooltip(t), findsOneWidget, reason: t);
     }
+    // Печать и выгрузка — в меню «⋮»: в строке не хватает места.
+    expect(find.byTooltip('Печать табеля'), findsNothing);
+    await tester.tap(find.byTooltip('Ещё'));
+    await tester.pumpAndSettle();
+    expect(find.text('Печать табеля'), findsOneWidget);
+    expect(find.text('Выгрузить в Excel'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 700)); // закрыть меню
+    await tester.pumpAndSettle();
     // Закрытый месяц на телефоне — только значок замка.
     expect(find.text('закрыт'), findsNothing);
     expect(inAppBar(find.byIcon(Icons.lock_outline)), findsOneWidget);

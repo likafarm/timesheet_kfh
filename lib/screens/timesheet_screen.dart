@@ -10,7 +10,9 @@ import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
 import '../widgets/daily_timesheet_dialog.dart';
+import '../services/excel_export.dart';
 import '../services/print_service.dart';
+import '../widgets/excel_export_action.dart';
 import '../theme/app_theme.dart';
 import 'daily_input_screen.dart';
 import '../widgets/adaptive_dialog.dart';
@@ -112,6 +114,25 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     }
   }
 
+  Future<void> _exportTimesheet() async {
+    final provider = context.read<AppProvider>();
+    if (provider.companySettings == null) {
+      await provider.loadCompanySettings();
+    }
+    if (!mounted) return;
+    final month = _selectedMonth;
+    await exportToExcel(
+      context,
+      fileName: excelFileName('Табель', month),
+      build: () async => timesheetWorkbook(
+        month: month,
+        employees: provider.employees,
+        records: provider.timesheetRecords,
+        companySettings: provider.companySettings,
+      ),
+    );
+  }
+
   void _shiftMonth(int delta) {
     setState(() {
       _selectedMonth = DateTime(
@@ -145,13 +166,17 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           onPick: _selectMonth,
           onToday: _goToToday,
         ),
-        actions: [
-          if (!operator)
-            IconButton(
-              icon: const Icon(Icons.print),
-              onPressed: _printTimesheet,
-              tooltip: 'Печать табеля',
+        menu: [
+          if (!operator) ...[
+            AppBarMenuItem(Icons.print, 'Печать табеля', _printTimesheet),
+            AppBarMenuItem(
+              Icons.table_view,
+              'Выгрузить в Excel',
+              _exportTimesheet,
             ),
+          ],
+        ],
+        actions: [
           IconButton(
             icon: const Icon(Icons.edit_calendar),
             onPressed: () => _showDailyInputDialog(context),

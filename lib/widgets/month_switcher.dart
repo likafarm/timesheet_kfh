@@ -32,6 +32,10 @@ class MonthSwitcher extends StatelessWidget {
   static bool isCompact(BuildContext context) =>
       MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
 
+  /// Окно, где второстепенные кнопки строки заголовка не помещаются рядом с
+  /// заголовком и переключателем (с учётом боковой панели) — они в меню «⋮».
+  static const menuWidth = 900.0;
+
   @override
   Widget build(BuildContext context) {
     final compact = isCompact(context);
@@ -96,26 +100,72 @@ class MonthSwitcher extends StatelessWidget {
   }
 }
 
+/// Второстепенное действие строки заголовка: на широком окне — кнопка, на
+/// телефоне — пункт меню «⋮» (в строке не хватает места).
+class AppBarMenuItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  const AppBarMenuItem(this.icon, this.label, this.onPressed);
+}
+
 /// Строка заголовка экрана с переключателем месяца: широкое окно —
-/// заголовок слева, переключатель и [actions] справа; телефон —
-/// переключатель вместо заголовка, [actions] справа.
+/// заголовок слева, переключатель, [menu] и [actions] справа; окно уже
+/// [MonthSwitcher.menuWidth] — [menu] уходит в меню «⋮»; телефон —
+/// переключатель вместо заголовка.
 AppBar monthAppBar(
   BuildContext context, {
   required String title,
   required MonthSwitcher switcher,
   List<Widget> actions = const [],
+  List<AppBarMenuItem> menu = const [],
 }) {
-  if (MonthSwitcher.isCompact(context)) {
+  final compact = MonthSwitcher.isCompact(context);
+  if (compact || MediaQuery.sizeOf(context).width < MonthSwitcher.menuWidth) {
     return AppBar(
-      titleSpacing: 0,
+      titleSpacing: compact ? 0 : null,
       centerTitle: false,
-      title: Align(alignment: Alignment.centerLeft, child: switcher),
-      actions: [...actions, const SizedBox(width: 4)],
+      title: compact
+          ? Align(alignment: Alignment.centerLeft, child: switcher)
+          : Text(title, overflow: TextOverflow.ellipsis),
+      actions: [
+        if (!compact) switcher,
+        ...actions,
+        if (menu.isNotEmpty)
+          PopupMenuButton<int>(
+            tooltip: 'Ещё',
+            itemBuilder: (context) => [
+              for (final (i, m) in menu.indexed)
+                PopupMenuItem(
+                  value: i,
+                  enabled: m.onPressed != null,
+                  child: ListTile(
+                    leading: Icon(m.icon),
+                    title: Text(m.label),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
+            onSelected: (i) => menu[i].onPressed?.call(),
+          ),
+        const SizedBox(width: 4),
+      ],
     );
   }
   return AppBar(
     title: Text(title),
     centerTitle: false,
-    actions: [switcher, ...actions, const SizedBox(width: 8)],
+    actions: [
+      switcher,
+      for (final m in menu)
+        IconButton(
+          icon: Icon(m.icon),
+          tooltip: m.label,
+          onPressed: m.onPressed,
+        ),
+      ...actions,
+      const SizedBox(width: 8),
+    ],
   );
 }

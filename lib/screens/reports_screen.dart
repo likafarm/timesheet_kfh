@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
+import '../services/excel_export.dart';
+import '../widgets/excel_export_action.dart';
 import '../widgets/month_switcher.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
@@ -112,6 +114,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
+  /// Отчёт в Excel — ровно то, что на экране (те же строки, остатки и
+  /// выплаты месяца).
+  Future<void> _exportReport() async {
+    final provider = context.read<AppProvider>();
+    final report = provider.payrollReport;
+    if (report == null) return;
+    if (provider.companySettings == null) {
+      await provider.loadCompanySettings();
+    }
+    // Выплаты именно этого месяца (экран выплат мог загрузить другой период).
+    await provider.loadAllPayments(
+      startDate: DateTime(report.year, report.month, 1),
+      endDate: DateTime(report.year, report.month + 1, 0),
+    );
+    if (!mounted) return;
+    await exportToExcel(
+      context,
+      fileName: excelFileName('Зарплата', DateTime(report.year, report.month)),
+      build: () async => payrollWorkbook(
+        report: report,
+        employees: {
+          for (final e in provider.employees)
+            if (e.id != null) e.id!: e,
+        },
+        payments: provider.payments,
+        companySettings: provider.companySettings,
+      ),
+    );
+  }
+
   void _shiftMonth(int delta) {
     final m = DateTime(_selectedYear, _selectedMonth + delta);
     setState(() {
@@ -191,14 +223,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
           onPick: _selectMonth,
           onToday: _goToToday,
         ),
-        actions: [
-          _buildLockButton(),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Обновить',
+        menu: [
+          AppBarMenuItem(
+            Icons.table_view,
+            'Выгрузить в Excel',
+            _isLoading ? null : _exportReport,
           ),
+          AppBarMenuItem(Icons.refresh, 'Обновить', _loadData),
         ],
+        actions: [_buildLockButton()],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
