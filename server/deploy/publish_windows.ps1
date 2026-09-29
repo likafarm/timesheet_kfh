@@ -93,7 +93,14 @@ Write-Host "Windows $name ($([math]::Round($size / 1MB, 1)) MB), min $Min, sha25
 $ErrorActionPreference = $nativeErrors
 scp -q $path (Join-Path $tmp "kfh-versions.json") (Join-Path $tmp "kfh-index.html") (Join-Path $tmp "kfh-win.sh") "${SshHost}:/tmp/"
 if ($LASTEXITCODE -ne 0) { throw "scp: oshibka" }
-ssh $SshHost "sh /tmp/kfh-win.sh; r=`$?; rm -f /tmp/kfh-win.sh; exit `$r"
+# Proksi SSH s etogo PK inogda rvet soedinenie do sshd (kod 255) - togda
+# povtor cherez pauzu; faily uzhe lezhat v /tmp.
+for ($try = 1; $try -le 5; $try++) {
+    ssh $SshHost "sh /tmp/kfh-win.sh; r=`$?; rm -f /tmp/kfh-win.sh; exit `$r"
+    if ($LASTEXITCODE -ne 255) { break }
+    Write-Host "ssh: soedinenie oborvano, povtor cherez 60 s ($try/5)"
+    Start-Sleep -Seconds 60
+}
 if ($LASTEXITCODE -ne 0) { throw "vykladka ustanovshika ne udalas" }
 foreach ($f in "kfh-versions.json", "kfh-index.html", "kfh-win.sh") {
     [System.IO.File]::Delete((Join-Path $tmp $f))
