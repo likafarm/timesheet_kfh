@@ -20,7 +20,15 @@ class ClosedMonthBadge extends StatelessWidget {
   final int year;
   final int month;
 
-  const ClosedMonthBadge({super.key, required this.year, required this.month});
+  /// Только значок замка (узкая строка заголовка на телефоне).
+  final bool compact;
+
+  const ClosedMonthBadge({
+    super.key,
+    required this.year,
+    required this.month,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,23 +40,31 @@ class ClosedMonthBadge extends StatelessWidget {
       message:
           'Месяц ${_monthText(year, month)} закрыт на сервере: правки в нём не '
           'сохраняются. Открыть месяц может администратор.',
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _closedColor),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline, size: 14, color: _closedColor),
-            SizedBox(width: 4),
-            Text('закрыт', style: TextStyle(fontSize: 12, color: _closedColor)),
-          ],
-        ),
-      ),
+      child: compact
+          ? const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.lock_outline, size: 16, color: _closedColor),
+            )
+          : Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _closedColor),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline, size: 14, color: _closedColor),
+                  SizedBox(width: 4),
+                  Text(
+                    'закрыт',
+                    style: TextStyle(fontSize: 12, color: _closedColor),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }

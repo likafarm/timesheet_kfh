@@ -1,11 +1,11 @@
 // lib/screens/timesheet_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/closed_month.dart';
+import '../widgets/month_switcher.dart';
 import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
@@ -124,9 +124,6 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthName = DateFormat('LLLL yyyy', 'ru').format(_selectedMonth);
-    final capitalizedMonth =
-        monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
     final daysInMonth = DateTime(
       _selectedMonth.year,
       _selectedMonth.month + 1,
@@ -136,75 +133,31 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     final operator = context.read<AppProvider>().operatorMode;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(compact ? 'Табель' : 'Табель учёта времени'),
-        centerTitle: false,
+      // Месяц — в строке заголовка, как в отчётах (на телефоне — вместо
+      // заголовка).
+      appBar: monthAppBar(
+        context,
+        title: 'Табель учёта времени',
+        switcher: MonthSwitcher(
+          month: _selectedMonth,
+          onPrevious: () => _shiftMonth(-1),
+          onNext: () => _shiftMonth(1),
+          onPick: _selectMonth,
+          onToday: _goToToday,
+        ),
         actions: [
-          if (!operator) ...[
+          if (!operator)
             IconButton(
               icon: const Icon(Icons.print),
               onPressed: _printTimesheet,
               tooltip: 'Печать табеля',
             ),
-          ],
           IconButton(
             icon: const Icon(Icons.edit_calendar),
             onPressed: () => _showDailyInputDialog(context),
             tooltip: 'Ввод за день',
           ),
-          const SizedBox(width: 8),
         ],
-        // Месяц — отдельной полосой: на телефоне в строку заголовка не
-        // помещается.
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                tooltip: 'Предыдущий месяц',
-                onPressed: () => _shiftMonth(-1),
-              ),
-              Expanded(
-                child: InkWell(
-                  onTap: _selectMonth,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            capitalizedMonth,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        ClosedMonthBadge(
-                          year: _selectedMonth.year,
-                          month: _selectedMonth.month,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                tooltip: 'Следующий месяц',
-                onPressed: () => _shiftMonth(1),
-              ),
-              IconButton(
-                icon: const Icon(Icons.today),
-                onPressed: _goToToday,
-                tooltip: 'Текущий месяц',
-              ),
-            ],
-          ),
-        ),
       ),
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {

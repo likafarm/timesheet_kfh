@@ -147,7 +147,11 @@ void main() {
     await tester.pumpWidget(wrap(const TimesheetScreen()));
     await settle(tester);
     expect(tester.takeException(), isNull);
-    expect(find.text('Табель'), findsOneWidget);
+    // Месяц — в строке заголовка вместо названия экрана (как в отчётах).
+    expect(find.text('Табель учёта времени'), findsNothing);
+    expect(find.byTooltip('Предыдущий месяц'), findsOneWidget);
+    expect(find.byTooltip('Текущий месяц'), findsOneWidget);
+    expect(find.byTooltip('Ввод за день'), findsOneWidget);
     // Оператору — без печати и расчёта ЗП.
     expect(find.byTooltip('Печать табеля'), findsNothing);
     expect(find.byTooltip('Рассчитать зарплату за месяц'), findsNothing);

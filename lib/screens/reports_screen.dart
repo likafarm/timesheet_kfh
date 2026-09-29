@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
-import '../widgets/closed_month.dart';
+import '../widgets/month_switcher.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
 import '../theme/app_theme.dart';
@@ -112,6 +112,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
+  void _shiftMonth(int delta) {
+    final m = DateTime(_selectedYear, _selectedMonth + delta);
+    setState(() {
+      _selectedYear = m.year;
+      _selectedMonth = m.month;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
   void _goToToday() {
     final now = DateTime.now();
     setState(() {
@@ -170,81 +181,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
         monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Отчёты по зарплате'),
-        centerTitle: false,
+      appBar: monthAppBar(
+        context,
+        title: 'Отчёты по зарплате',
+        switcher: MonthSwitcher(
+          month: DateTime(_selectedYear, _selectedMonth),
+          onPrevious: () => _shiftMonth(-1),
+          onNext: () => _shiftMonth(1),
+          onPick: _selectMonth,
+          onToday: _goToToday,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              setState(() {
-                if (_selectedMonth == 1) {
-                  _selectedMonth = 12;
-                  _selectedYear--;
-                } else {
-                  _selectedMonth--;
-                }
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _loadData();
-              });
-            },
-            tooltip: 'Предыдущий месяц',
-          ),
-          GestureDetector(
-            onTap: _selectMonth,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      capitalizedMonth,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ClosedMonthBadge(
-                      year: _selectedYear,
-                      month: _selectedMonth,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              setState(() {
-                if (_selectedMonth == 12) {
-                  _selectedMonth = 1;
-                  _selectedYear++;
-                } else {
-                  _selectedMonth++;
-                }
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _loadData();
-              });
-            },
-            tooltip: 'Следующий месяц',
-          ),
-          IconButton(
-            icon: const Icon(Icons.today),
-            onPressed: _goToToday,
-            tooltip: 'Текущий месяц',
-          ),
           _buildLockButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: 'Обновить',
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: _isLoading
