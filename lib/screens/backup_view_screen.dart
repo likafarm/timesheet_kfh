@@ -36,17 +36,19 @@ String _monthTitle((int, int) m) {
   return text[0].toUpperCase() + text.substring(1);
 }
 
-/// Отметка дня табеля коротко: Б, П, ½Б, ½П, Бл, О, В.
+/// Отметка дня в клетке — как в табеле программы: рабочий день — доля и
+/// место в две строки («1 / поле», «0.5 / база»), Б — больничный,
+/// О — отпуск, В — выходной.
 String timesheetCellCode(Map<String, Object?> d) {
   final days = (d['days'] as num?)?.toDouble() ?? 1;
-  final half = days == 0.5 ? '½' : '';
+  final place = switch (d['work_place']) {
+    'base' => 'база',
+    'field' => 'поле',
+    _ => '—',
+  };
   return switch (d['day_type']) {
-    'work' => switch (d['work_place']) {
-      'base' => '$halfБ',
-      'field' => '$halfП',
-      _ => '$halfР',
-    },
-    'sick' => 'Бл',
+    'work' => '${days == 0.5 ? '0.5' : '1'}\n$place',
+    'sick' => 'Б',
     'vacation' => 'О',
     'dayoff' => 'В',
     _ => '?',
@@ -308,7 +310,7 @@ class _BackupViewScreenState extends State<BackupViewScreen> {
     final ids = byEmployee.keys.toList()
       ..sort((a, b) => _name(a).compareTo(_name(b)));
     final days = DateTime(month.$1, month.$2 + 1, 0).day;
-    const nameWidth = 170.0, cell = 30.0, total = 56.0;
+    const nameWidth = 170.0, cell = 40.0, total = 56.0;
     final weekend = theme.colorScheme.surfaceContainerHighest;
     final border = BorderSide(color: theme.colorScheme.outlineVariant);
 
@@ -319,7 +321,7 @@ class _BackupViewScreenState extends State<BackupViewScreen> {
       Alignment align = Alignment.center,
     }) => Container(
       width: width,
-      height: 30,
+      height: 36,
       alignment: align,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
@@ -383,7 +385,10 @@ class _BackupViewScreenState extends State<BackupViewScreen> {
                             ? const SizedBox.shrink()
                             : Text(
                                 timesheetCellCode(byEmployee[id]![d]!),
+                                textAlign: TextAlign.center,
                                 style: small?.copyWith(
+                                  fontSize: 10,
+                                  height: 1.1,
                                   fontWeight: FontWeight.w600,
                                   color: _markColor(byEmployee[id]![d]!),
                                 ),
@@ -408,8 +413,8 @@ class _BackupViewScreenState extends State<BackupViewScreen> {
                 ),
               const SizedBox(height: 12),
               Text(
-                'Б — база, П — поле, ½ — полдня, Р — работа без места, '
-                'Бл — больничный, О — отпуск, В — выходной',
+                'Рабочий день — доля и место («1 поле», «0.5 база»; «—» — место '
+                'не указано), Б — больничный, О — отпуск, В — выходной',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

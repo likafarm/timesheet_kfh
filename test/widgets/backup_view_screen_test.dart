@@ -153,14 +153,14 @@ void main() {
     await pump(tester);
     await tab(tester, 'Табель');
     expect(find.text('Сентябрь 2026'), findsOneWidget);
+    expect(find.text('1\nбаза'), findsOneWidget);
+    expect(find.text('0.5\nполе'), findsOneWidget);
     expect(find.text('Б'), findsOneWidget);
-    expect(find.text('½П'), findsOneWidget);
-    expect(find.text('Бл'), findsOneWidget);
     await tester.tap(find.byTooltip('Предыдущий месяц'));
     await tester.pumpAndSettle();
     expect(find.text('Август 2026'), findsOneWidget);
-    expect(find.text('П'), findsOneWidget);
-    expect(find.text('Бл'), findsNothing);
+    expect(find.text('1\nполе'), findsOneWidget);
+    expect(find.text('Б'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

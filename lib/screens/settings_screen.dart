@@ -14,6 +14,7 @@ import 'periods_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
 import 'backups_screen.dart';
+import 'help_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -321,6 +322,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const SyncScreen(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: const Text('Справка'),
+                          subtitle: const Text(
+                            'Как работать с программой — по вашей роли',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HelpScreen(),
                             ),
                           ),
                         ),
