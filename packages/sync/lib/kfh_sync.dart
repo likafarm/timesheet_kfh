@@ -4,11 +4,13 @@
 /// `package:kfh_sync/file_journal.dart`).
 library;
 
+export 'src/age.dart';
 export 'src/api_client.dart';
 export 'src/audit_log.dart';
 export 'src/backoff.dart';
 export 'src/failures.dart';
 export 'src/period_snapshots.dart';
+export 'src/server_backups.dart';
 export 'src/session.dart';
 export 'src/sync_bootstrap.dart';
 export 'src/sync_engine.dart';

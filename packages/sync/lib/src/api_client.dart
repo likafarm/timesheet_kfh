@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart';
@@ -7,6 +8,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'audit_log.dart';
 import 'failures.dart';
 import 'period_snapshots.dart';
+import 'server_backups.dart';
 import 'session.dart';
 import 'timesheet_day.dart';
 
@@ -228,6 +230,20 @@ class KfhApiClient {
     ),
   );
 
+  /// Ежедневные выгрузки сервера для модуля «Резервные копии» (только
+  /// админ, сервер 0.8.0+), новые первыми.
+  Future<List<ServerBackup>> serverBackups() async {
+    final list = (await getJson('/admin/backups'))['backups'];
+    if (list is! List) throw ServerFailure('нет списка копий');
+    return [for (final b in list) ServerBackup.fromJson(b)];
+  }
+
+  /// Выгрузка сервера как есть — зашифрованная (age).
+  Future<Uint8List> downloadServerBackup(String name) => getBytes(
+    '/admin/backups/${Uri.encodeComponent(name)}',
+    timeout: const Duration(minutes: 2),
+  );
+
   /// Версия сервера (`GET /health`, без входа); null — не сообщает.
   Future<String?> serverVersion() async =>
       (await _send('GET', '/health'))['version'] as String?;
@@ -246,41 +262,55 @@ class KfhApiClient {
     Duration? timeout,
   }) => _authorized('POST', path, body: body, timeout: timeout);
 
+  /// Файл с сервера как есть (не JSON) — например, зашифрованная копия.
+  Future<Uint8List> getBytes(String path, {Duration? timeout}) =>
+      _withToken((access) async {
+        final response = await _sendRaw(
+          'GET',
+          path,
+          access: access,
+          timeout: timeout,
+          accept: 'application/octet-stream',
+        );
+        if (response.statusCode == 200) return response.bodyBytes;
+        _decode(response); // бросает ошибку API
+        throw ServerFailure('нет файла', status: response.statusCode);
+      });
+
   Future<Map<String, Object?>> _authorized(
     String method,
     String path, {
     Map<String, String>? query,
     Object? body,
     Duration? timeout,
-  }) async {
+  }) => _withToken(
+    (access) => _send(
+      method,
+      path,
+      query: query,
+      body: body,
+      access: access,
+      timeout: timeout,
+    ),
+  );
+
+  /// Запрос [call] с действующим access-токеном: токен обновляется заранее
+  /// и ещё раз — если сервер его не принял.
+  Future<T> _withToken<T>(Future<T> Function(String access) call) async {
     var pair = await tokens.read();
     if (pair == null) throw NotSignedIn();
     if (!pair.accessExpiresAt.isAfter(_now().toUtc().add(refreshMargin))) {
       pair = await _refresh(pair);
     }
     try {
-      return await _send(
-        method,
-        path,
-        query: query,
-        body: body,
-        access: pair.accessToken,
-        timeout: timeout,
-      );
+      return await call(pair.accessToken);
     } on ApiFailure catch (e) {
       if (e.status != 401 || e.code != 'token_invalid') rethrow;
     }
     // Токен не принят раньше срока (например, сервер сменил ключ) — ещё
     // одна попытка с новой парой.
     pair = await _refresh(pair);
-    return _send(
-      method,
-      path,
-      query: query,
-      body: body,
-      access: pair.accessToken,
-      timeout: timeout,
-    );
+    return call(pair.accessToken);
   }
 
   /// Обмен refresh-токена на новую пару. Параллельные вызовы ждут один
@@ -325,6 +355,25 @@ class KfhApiClient {
     Object? body,
     String? access,
     Duration? timeout,
+  }) async => _decode(
+    await _sendRaw(
+      method,
+      path,
+      query: query,
+      body: body,
+      access: access,
+      timeout: timeout,
+    ),
+  );
+
+  Future<http.Response> _sendRaw(
+    String method,
+    String path, {
+    Map<String, String>? query,
+    Object? body,
+    String? access,
+    Duration? timeout,
+    String accept = 'application/json',
   }) async {
     final wait = timeout ?? this.timeout;
     final base = baseUrl.path.endsWith('/')
@@ -336,7 +385,7 @@ class KfhApiClient {
     );
     final request = http.Request(method, uri)
       ..headers.addAll({
-        'accept': 'application/json',
+        'accept': accept,
         'x-device-id': deviceId,
         if (access != null) 'authorization': 'Bearer $access',
       });
@@ -354,7 +403,7 @@ class KfhApiClient {
     } on TimeoutException catch (e) {
       throw NetworkFailure(e);
     }
-    return _decode(response);
+    return response;
   }
 
   static Map<String, Object?> _decode(http.Response response) {

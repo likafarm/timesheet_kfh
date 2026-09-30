@@ -1,0 +1,4 @@
+# ТЕСТОВЫЙ ключ age: создан только для тестов расшифровки, ничего настоящего им не зашифровано.
+# created: 2026-09-30T17:07:09Z
+# public key: age1jpqaapxdd5pe8n4wllm58h9sterx6wp4448h5dkfkkpsx47dyerqedqdlz
+AGE-SECRET-KEY-1AMWNDTY4WCJLV2GY7W6U5W0GWJHT4MEE5LKXHVUAJ72NFUC20ZHS6SK8DJ
