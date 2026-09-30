@@ -37,6 +37,7 @@ flutter build web --release --base-href /app/ --no-web-resources-cdn   # веб-
 .\server\deploy\publish_web.ps1     # выкладка веб-версии на VPS; только с согласия владельца
 .\build_installer.ps1               # установщик Inno Setup → installer_output\
 .\server\deploy\publish.ps1         # выкладка сервера на VPS (копия базы → миграции → запуск → /health); только с согласия владельца
+.\server\deploy\publish_page.ps1      # только страница /download по текущим версиям; только с согласия владельца
 .\server\deploy\publish_windows.ps1 -Installer installer_output\KFH_TimeTracking_Setup_X.Y.Z.exe   # установщик Windows на /download (автообновление); только с согласия владельца
 # справка (шаг 4): снимки экранов → assets/help (после изменения экранов или добавления картинки в help_content.dart)
 KFH_HELP_SHOTS=assets/help flutter test test/help/help_screenshots_test.dart
