@@ -19,6 +19,7 @@ import '../providers/sync_provider.dart';
 import '../services/local_backups.dart';
 import '../services/server_backup_reader.dart';
 import '../theme/app_theme.dart';
+import 'backup_changes_screen.dart';
 import 'backup_list_screen.dart';
 import 'backup_view_screen.dart';
 
@@ -204,6 +205,14 @@ class _BackupsScreenState extends State<BackupsScreen> {
       takenAt: entry.info.takenAt,
       source: BackupSource.local,
       load: () => _backups.readSnapshot(entry.info.path),
+      // Записи старой копии при каждом чтении получают новые номера:
+      // сравнить их с текущими по записям нельзя.
+      compareUnavailable: entry.format == BackupFormat.v8
+          ? 'Копия старого формата (до перехода на новую базу 26.09.2026): '
+                'её можно посмотреть, но не сравнить с текущими данными и не '
+                'вернуть по записям. Вернуть её можно только целиком — меню ⋮ '
+                '→ «Заменить базу файлом копии целиком».'
+          : null,
     );
   }
 
@@ -228,6 +237,7 @@ class _BackupsScreenState extends State<BackupsScreen> {
     required DateTime takenAt,
     required BackupSource source,
     required Future<DataSnapshot> Function() load,
+    String? compareUnavailable,
   }) async {
     setState(() => _busy = true);
     DataSnapshot snapshot;
@@ -244,11 +254,24 @@ class _BackupsScreenState extends State<BackupsScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => BackupViewScreen(
+        builder: (view) => BackupViewScreen(
           title: title,
           takenAt: takenAt,
           source: source,
           snapshot: snapshot,
+          compareUnavailable: compareUnavailable,
+          onCompare: compareUnavailable != null
+              ? null
+              : () => Navigator.push(
+                  view,
+                  MaterialPageRoute(
+                    builder: (_) => BackupChangesScreen(
+                      title: title,
+                      takenAt: takenAt,
+                      snapshot: snapshot,
+                    ),
+                  ),
+                ),
         ),
       ),
     );
@@ -408,7 +431,8 @@ class _BackupsScreenState extends State<BackupsScreen> {
                           _moment.format(e.info.takenAt),
                           formatBackupSize(e.size),
                           if (e.format == BackupFormat.v8) 'старый формат',
-                          if (e.format == null) 'файл не читается',
+                          if (e.format == null)
+                            'не читается (копия старой версии программы?)',
                         ].join(' · '),
                       ),
                       trailing: Row(
@@ -604,6 +628,12 @@ class BackupsHelpScreen extends StatelessWidget {
               p(
                 '• Копии лежат в папке «Документы\\backups»; кнопка «Открыть '
                 'папку» покажет её.',
+              ),
+              p(
+                '• Копии старого формата (сделанные до перехода на новую '
+                'базу 26.09.2026) можно только посмотреть: сравнить их с '
+                'текущими данными по записям нельзя. Копии ещё более старой '
+                'программы (до августа 2026) не читаются.',
               ),
               h('Копии сервера'),
               p(

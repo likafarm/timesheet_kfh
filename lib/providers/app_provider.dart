@@ -1059,6 +1059,30 @@ class AppProvider extends ChangeNotifier {
     return count;
   }
 
+  // ==========================================================================
+  // МОДУЛЬ «РЕЗЕРВНЫЕ КОПИИ»: СРАВНЕНИЕ И ВОЗВРАТ ЗАПИСЕЙ
+  // ==========================================================================
+
+  /// Все записи текущей базы — для сравнения с копией.
+  Future<DataSnapshot> currentSnapshot() => readSnapshot(_appDb.db);
+
+  /// Возврат записей из копии обычными правками (план — `planRestore`):
+  /// сначала копия текущего состояния `backup_before_rollback_…` (не вышла —
+  /// исключение, ничего не меняется), затем правки одной транзакцией; они
+  /// уходят на сервер синхронизацией. Возвращает путь копии «до возврата».
+  /// Данные изменились после построения плана — [RestoreException].
+  Future<String> restoreFromSnapshot(List<RestoreEdit> edits) async {
+    final safety = await backupService.createSafetyBackup(
+      _appDb.db,
+      prefix: 'backup_before_rollback',
+    );
+    await SnapshotRestorer(_appDb.db).apply(edits);
+    await loadAllData();
+    setNeedRefreshReports(true);
+    notifyListeners();
+    return safety;
+  }
+
   /// Закрыть базу: перед установкой обновления (6.5) — чтобы все записи
   /// были на диске до закрытия программы; в тестах. После — только выход.
   Future<void> closeDatabase() => _appDb.close();

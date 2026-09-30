@@ -6,15 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kfh_domain/kfh_domain.dart';
+import 'package:kfh_local_db/native.dart' show legacyV8Schema;
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/providers/sync_provider.dart';
+import 'package:kfx_time_tracking/screens/backup_changes_screen.dart';
 import 'package:kfx_time_tracking/screens/backup_view_screen.dart';
 import 'package:kfx_time_tracking/screens/backups_screen.dart';
 import 'package:kfx_time_tracking/services/backup_service.dart';
 import 'package:kfx_time_tracking/services/database_files.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
 import '../support/sync_test_server.dart';
 
@@ -150,6 +153,12 @@ void main() {
     expect(find.byType(BackupViewScreen), findsOneWidget);
     expect(countOf(tester, 'Сотрудники'), 1);
     expect(countOf(tester, 'Дни табеля'), 2);
+    await tester.tap(find.text('Что изменилось с тех пор'));
+    await waitFor(tester, find.byType(BackupChangesScreen));
+    await waitFor(tester, find.text('С момента копии ничего не изменилось'));
+    expect(find.text('С момента копии ничего не изменилось'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     await settle(tester);
@@ -159,6 +168,38 @@ void main() {
     expect(find.textContaining('Копия сервера на '), findsOneWidget);
     expect(countOf(tester, 'Дни табеля'), 1);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('копия старого формата — только просмотр', (tester) async {
+    await pumpScreen(tester);
+    await tester.runAsync(() async {
+      final b = sql.sqlite3.open(
+        p.join(root.path, 'backups', 'backup_v8_2026-09-26_07-54-54.db'),
+      );
+      for (final statement in legacyV8Schema) {
+        b.execute(statement);
+      }
+      b.execute('PRAGMA user_version = 8');
+      b.execute(
+        "INSERT INTO company_settings (id, company_name) VALUES (1, 'КФХ')",
+      );
+      b.execute(
+        "INSERT INTO employees (full_name, position, hire_date) "
+        "VALUES ('Сидоров Сидор', 'Рабочий', '2025-01-01')",
+      );
+      b.close();
+    });
+    await tester.tap(find.text('Создать копию'));
+    await waitFor(tester, find.textContaining('старый формат'));
+    final tile = find.ancestor(
+      of: find.text('Старая база (до 26.09.2026)'),
+      matching: find.byType(ListTile),
+    );
+    await tester.tap(find.descendant(of: tile, matching: find.text('Открыть')));
+    await waitFor(tester, find.byType(BackupViewScreen));
+    expect(find.textContaining('Копия старого формата'), findsOneWidget);
+    expect(find.text('Что изменилось с тех пор'), findsNothing);
+    expect(countOf(tester, 'Сотрудники'), 1);
   });
 
   testWidgets('создать и удалить копию', (tester) async {

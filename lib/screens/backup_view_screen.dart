@@ -62,6 +62,10 @@ class BackupViewScreen extends StatefulWidget {
   /// Кнопка «Что изменилось с тех пор» (3.7); null — без неё.
   final VoidCallback? onCompare;
 
+  /// Почему копию нельзя сравнить и вернуть по записям (показывается в
+  /// обзоре); null — можно.
+  final String? compareUnavailable;
+
   const BackupViewScreen({
     super.key,
     required this.title,
@@ -69,6 +73,7 @@ class BackupViewScreen extends StatefulWidget {
     required this.source,
     required this.snapshot,
     this.onCompare,
+    this.compareUnavailable,
   });
 
   @override
@@ -171,6 +176,13 @@ class _BackupViewScreenState extends State<BackupViewScreen> {
           ' на ${_moment.format(widget.takenAt)}',
           style: theme.textTheme.titleMedium,
         ),
+        if (widget.compareUnavailable != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            widget.compareUnavailable!,
+            style: TextStyle(color: StatusColors.of(context).warningText),
+          ),
+        ],
         const SizedBox(height: 12),
         Card(
           child: Column(
