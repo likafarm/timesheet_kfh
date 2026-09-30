@@ -12,12 +12,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:kfh_domain/kfh_domain.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 import 'backup_format.dart';
 import 'database.dart';
 import 'migration/v8_converter.dart';
 import 'schema_info.dart';
+import 'sync/snapshot_restore.dart';
 
 /// Формат копии; неизвестный или повреждённый файл — [RestoreException].
 BackupFormat detectBackupFormat(String path) {
@@ -114,6 +117,42 @@ Future<ConversionReport?> prepareFullRestore({
     final file = File(targetPath);
     if (file.existsSync()) file.deleteSync();
     rethrow;
+  }
+}
+
+/// Снимок данных из файла копии любого формата — для просмотра и сравнения
+/// (модуль «Резервные копии»). Файл копии открывается только на чтение;
+/// копия старого формата v8 сначала переводится конвертером во временный
+/// файл в [tempDir] (он удаляется).
+Future<DataSnapshot> readSnapshotFile(
+  String backupPath, {
+  required Directory tempDir,
+}) async {
+  final format = detectBackupFormat(backupPath);
+  if (format == BackupFormat.v2) return _readV2Snapshot(backupPath);
+  final temp = File(
+    '${tempDir.path}${Platform.pathSeparator}'
+    'kfh_snapshot_${DateTime.now().microsecondsSinceEpoch}.db',
+  );
+  try {
+    await convertV8ToV2(sourcePath: backupPath, targetPath: temp.path);
+    return await _readV2Snapshot(temp.path);
+  } finally {
+    for (final suffix in ['', '.tmp', '-journal', '-wal', '-shm']) {
+      final file = File('${temp.path}$suffix');
+      if (file.existsSync()) file.deleteSync();
+    }
+  }
+}
+
+Future<DataSnapshot> _readV2Snapshot(String path) async {
+  final db = LocalDatabase(
+    NativeDatabase.opened(sql.sqlite3.open(path, mode: sql.OpenMode.readOnly)),
+  );
+  try {
+    return await readSnapshot(db);
+  } finally {
+    await db.close();
   }
 }
 
