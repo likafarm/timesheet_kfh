@@ -57,9 +57,6 @@ class DailyInputScreen extends StatefulWidget {
   State<DailyInputScreen> createState() => _DailyInputScreenState();
 }
 
-/// Ответ окна «Сохранить отметки?».
-enum DraftDecision { save, discard, stay }
-
 class _DailyInputScreenState extends State<DailyInputScreen> {
   late DateTime _date;
   late DayDraft _draft;

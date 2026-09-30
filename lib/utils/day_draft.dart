@@ -77,6 +77,10 @@ class DayMark {
             '${r.dayType == 'work' ? r.workPlace ?? '' : ''}';
 }
 
+/// Ответ окна «Сохранить отметки?» (телефон) и «Сохранить изменения за …?»
+/// (групповой ввод Windows).
+enum DraftDecision { save, discard, stay }
+
 /// Правка черновика для окна подтверждения.
 class DayDraftChange {
   final String employeeId;
