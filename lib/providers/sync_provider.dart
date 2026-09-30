@@ -870,6 +870,39 @@ class SyncProvider extends ChangeNotifier {
   /// Журнал действий виден только админу (6.7).
   bool get canReadAudit => canUnlockMonths;
 
+  /// Модуль «Резервные копии» — только админ (решение владельца
+  /// 2026-09-30); копии сервера — при входе.
+  bool get canUseBackups => canUnlockMonths;
+
+  /// Ежедневные выгрузки сервера, новые первыми. Ошибка —
+  /// [SyncUserException].
+  Future<List<ServerBackup>> serverBackups() =>
+      _serverBackupCall(() => _api!.serverBackups());
+
+  /// Выгрузка сервера как есть (зашифрованная).
+  Future<Uint8List> downloadServerBackup(String name) =>
+      _serverBackupCall(() => _api!.downloadServerBackup(name));
+
+  Future<T> _serverBackupCall<T>(Future<T> Function() request) async {
+    if (!canUseBackups) {
+      throw const SyncUserException(
+        'Копии сервера доступны только администратору после входа',
+      );
+    }
+    try {
+      return await request();
+    } on ApiFailure catch (e) {
+      if (e.code == 'not_found' && e.message == 'Нет такого адреса API') {
+        throw const SyncUserException(
+          'Сервер пока не отдаёт копии — нужна версия сервера 0.8.0',
+        );
+      }
+      throw SyncUserException(_explain(e));
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
+
   /// Страница журнала действий (6.7). Ошибка — [SyncUserException].
   Future<AuditPage> auditLog({
     DateTime? since,

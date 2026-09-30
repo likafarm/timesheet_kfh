@@ -4,6 +4,7 @@
 // для Windows и Android ([BackupService]). В веб-версии их нет: база
 // браузера — копия данных сервера, а сервер копируется сам (этап 2.8).
 
+import 'package:kfh_domain/kfh_domain.dart' show DataSnapshot;
 import 'package:kfh_local_db/kfh_local_db.dart';
 
 import 'app_database.dart';
@@ -26,12 +27,20 @@ class BackupInfo {
   final DateTime created;
   final BackupType type;
 
+  /// Когда файл записан последний раз (ежедневная копия за день
+  /// перезаписывается — это и есть момент снимка).
+  final DateTime? modified;
+
   BackupInfo({
     required this.path,
     required this.fileName,
     required this.created,
     required this.type,
+    this.modified,
   });
+
+  /// Момент снимка: время записи файла, если известно.
+  DateTime get takenAt => modified ?? created;
 
   @override
   String toString() => fileName;
@@ -54,6 +63,17 @@ abstract interface class LocalBackups {
   Future<List<BackupInfo>> getBackups();
 
   Future<void> deleteBackup(String path);
+
+  /// Папка копий.
+  Future<String> folderPath();
+
+  /// Открыть папку копий в проводнике.
+  Future<void> openFolder();
+
+  /// Все записи копии (любого формата) — для просмотра и сравнения;
+  /// копия открывается только на чтение. Неизвестный или повреждённый
+  /// файл — [RestoreException].
+  Future<DataSnapshot> readSnapshot(String backupPath);
 
   /// Размер файла копии в байтах.
   int backupSize(String path);
