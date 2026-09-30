@@ -41,7 +41,7 @@ flutter build web --release --base-href /app/ --no-web-resources-cdn   # веб-
 .\server\deploy\publish_windows.ps1 -Installer installer_output\KFH_TimeTracking_Setup_X.Y.Z.exe   # установщик Windows на /download (автообновление); только с согласия владельца
 # справка (шаг 4): снимки экранов → assets/help (после изменения экранов или добавления картинки в help_content.dart)
 KFH_HELP_SHOTS=assets/help flutter test test/help/help_screenshots_test.dart
-# инструкции PDF по ролям для /download
+# инструкции PDF по ролям для /download (затем .serverdeploypublish_help.ps1 — только с согласия владельца)
 KFH_HELP_PDF=installer_output flutter test test/help/help_pdf_test.dart
 ```
 
