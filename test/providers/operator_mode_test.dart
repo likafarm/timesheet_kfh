@@ -66,7 +66,6 @@ void main() {
     await app.addPayment(
       Payment(employeeId: emp, amount: 100, paymentDate: DateTime(2026, 9, 5)),
     );
-    await app.calculatePayrollForMonth(2026, 9);
     await app.updateCompanySettings(
       (await repos.settings.get()).copyWith(companyName: 'Чужое'),
     );

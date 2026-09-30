@@ -7,6 +7,10 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
+import '../services/platform.dart';
+import 'about_screen.dart';
+import 'audit_screen.dart';
+import 'periods_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
 import 'backup_list_screen.dart';
@@ -221,9 +225,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsCard(
                     child: Column(
                       children: [
-                        // Резервные копии — в файлах; в веб-версии их нет:
-                        // база браузера — копия данных сервера.
-                        if (context.read<AppProvider>().hasLocalBackups) ...[
+                        // Резервные копии — в файлах; в веб-версии и на
+                        // телефоне (6.9) их нет: база там — копия данных
+                        // сервера.
+                        if (context.read<AppProvider>().hasLocalBackups &&
+                            !isAndroidApp) ...[
                           // Резервное копирование
                           ListTile(
                             leading: const Icon(Icons.backup),
@@ -273,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const Divider(height: 1),
                         ],
-                        if (kDebugMode) ...[
+                        if (kDebugMode && !isAndroidApp) ...[
                           ListTile(
                             leading: const Icon(Icons.storage),
                             title: const Text('Просмотр базы данных'),
@@ -290,6 +296,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               );
                             },
+                          ),
+                          const Divider(height: 1),
+                        ],
+
+                        // Закрытие месяцев — бухгалтер и админ (6.2).
+                        if (context.watch<SyncProvider>().canLockMonths) ...[
+                          ListTile(
+                            leading: const Icon(Icons.lock_clock),
+                            title: const Text('Закрытие месяцев'),
+                            subtitle: const Text(
+                              'Зафиксировать расчёт и запретить правки',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PeriodsScreen(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1),
+                        ],
+
+                        // Журнал действий — только админ (6.7).
+                        if (context.watch<SyncProvider>().canReadAudit) ...[
+                          ListTile(
+                            leading: const Icon(Icons.history),
+                            title: const Text('Журнал действий'),
+                            subtitle: const Text('Кто, когда и что изменил'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AuditScreen(),
+                              ),
+                            ),
                           ),
                           const Divider(height: 1),
                         ],
@@ -318,33 +360,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           leading: const Icon(Icons.info_outline),
                           title: const Text('О программе'),
                           subtitle: Text('Версия $_version'),
-                          onTap: () {
-                            final dbPath = context
+                          onTap: () => openAbout(
+                            context,
+                            version: _version,
+                            databasePath: context
                                 .read<AppProvider>()
-                                .databasePath;
-                            showAboutDialog(
-                              context: context,
-                              applicationName: 'Учёт рабочего времени КФХ',
-                              applicationVersion: _version,
-                              applicationIcon: const Icon(
-                                Icons.agriculture,
-                                size: 48,
-                              ),
-                              children: [
-                                const Text(
-                                  'Программа для ведения табеля учёта рабочего времени, '
-                                  'расчёта зарплаты и формирования отчётов в КФХ.',
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Правообладатель: Иван Лопатин.\n'
-                                  'Контакты: iilopatin@ya.ru',
-                                ),
-                                const SizedBox(height: 12),
-                                SelectableText('База данных:\n$dbPath'),
-                              ],
-                            );
-                          },
+                                .databasePath,
+                          ),
                         ),
                       ],
                     ),

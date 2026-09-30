@@ -225,6 +225,30 @@ class SyncEngine {
     }
   }
 
+  /// Принять [tables] с сервера с нуля, не трогая курсор (6.10): телефон
+  /// после оператора — у бухгалтера или админа. Пока работал оператор,
+  /// сервер не присылал ему выплат, ставок, расчётов (а сотрудников — без
+  /// ставок), курсор же ушёл вперёд — обычный приём их уже не вернёт.
+  /// Записи с тем же временем, но другими данными (ставки нулями)
+  /// заменяются серверными. Возвращает, сколько записей принято.
+  Future<int> refetch(Set<String> tables) async {
+    while (_running != null) {
+      await _running;
+    }
+    var cursor = SyncCursor.start;
+    var received = 0;
+    while (true) {
+      final at = cursor;
+      final page = await _retrying(
+        () => transport.pull(at, limit: pullLimit, tables: tables),
+      );
+      final applied = await store.applyRemote(page.changes);
+      received += applied.applied;
+      cursor = SyncCursor(page.cursor, page.epoch);
+      if (!page.hasMore) return received;
+    }
+  }
+
   Future<void> _startOver(SyncReport report, String reason) async {
     report.resynced = true;
     await store.resetCursor();

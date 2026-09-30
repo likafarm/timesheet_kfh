@@ -9,12 +9,23 @@ import '../services/platform.dart';
 
 class AppProvider extends ChangeNotifier {
   AppProvider(this._appDb, {this._backupService, bool? operatorMode})
-    : operatorMode = operatorMode ?? isAndroidApp;
+    : _operatorMode = operatorMode ?? isAndroidApp;
 
-  /// Программа оператора (телефон, этап 4): записывается только табель,
-  /// ставок, сумм, выплат и расчётов оператор не видит и не меняет. Сервер
-  /// те же правила проверяет сам — здесь правка просто не начинается.
-  final bool operatorMode;
+  /// Программа оператора (этап 4): записывается только табель, ставок,
+  /// сумм, выплат и расчётов оператор не видит и не меняет. Сервер те же
+  /// правила проверяет сам — здесь правка просто не начинается. С 6.9 —
+  /// по роли вошедшего (на телефоне работают и бухгалтер, и админ); до
+  /// входа — по устройству.
+  bool get operatorMode => _operatorMode;
+  bool _operatorMode;
+
+  set operatorMode(bool value) {
+    if (value == _operatorMode) return;
+    _operatorMode = value;
+    notifyListeners();
+    // Полной программе нужны текущие ставки — оператору их не загружали.
+    if (!value) loadEmployees();
+  }
 
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;
@@ -49,7 +60,6 @@ class AppProvider extends ChangeNotifier {
   RateRepository get _ratesRepo => _appDb.repos.rates;
   TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
   PaymentRepository get _paymentsRepo => _appDb.repos.payments;
-  PayrollRepository get _payrollRepo => _appDb.repos.payroll;
   SettingsRepository get _settingsRepo => _appDb.repos.settings;
   PayrollService get _payrollService => _appDb.repos.payrollService;
 
@@ -61,8 +71,7 @@ class AppProvider extends ChangeNotifier {
 
   /// Ставки, действующие сегодня, по сотрудникам (null — ставки нет).
   Map<String, EmployeeRate?> _currentRates = {};
-  List<PayrollResult> _payrollResults = [];
-  Map<String, double> _startingBalances = {};
+  PayrollMonthReport? _payrollReport;
   CompanySettings? _companySettings;
 
   // Состояние загрузки
@@ -103,11 +112,19 @@ class AppProvider extends ChangeNotifier {
   /// Ставка сотрудника, действующая сегодня (null — нет ставки на сегодня;
   /// оператор ставок не видит).
   EmployeeRate? currentRate(String employeeId) => _currentRates[employeeId];
-  List<PayrollResult> get payrollResults => _payrollResults;
-  Map<String, double> get startingBalances => _startingBalances;
+
+  /// Последний загруженный отчёт ([loadPayrollReport]).
+  PayrollMonthReport? get payrollReport => _payrollReport;
+  List<PayrollResult> get payrollResults => _payrollReport?.results ?? const [];
+  Map<String, double> get startingBalances =>
+      _payrollReport?.startingBalances ?? const {};
   CompanySettings? get companySettings => _companySettings;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// Закрытые месяцы (ключи [PeriodGuard.monthKey]) — по последней
+  /// синхронизации.
+  Set<int> get lockedMonths => Set.unmodifiable(_lockedMonths);
 
   /// Месяц закрыт на сервере — правки в нём не записываются.
   bool isMonthLocked(int year, int month) =>
@@ -151,7 +168,7 @@ class AppProvider extends ChangeNotifier {
     );
     if (locked == null) return null;
     return '${PeriodLockedException(locked.$1, locked.$2).message}. '
-        'Открыть месяц может бухгалтер или администратор.';
+        'Открыть месяц может администратор.';
   }
 
   /// Оператору доступен только табель: иначе — сообщение и false.
@@ -172,12 +189,6 @@ class AppProvider extends ChangeNotifier {
       after == null ? null : {column: formatDateIso(after)},
     );
   }
-
-  bool _monthAllowed(int year, int month) => _allowedInOpenPeriod(
-    'payroll_results',
-    null,
-    {'year': year, 'month': month},
-  );
 
   bool _rateAllowed(DateTime start) => _allowedInOpenPeriod(
     'employee_rates',
@@ -466,6 +477,60 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// Отметки дня из черновика (6.10) одной транзакцией: [marks] —
+  /// сотрудник → новая запись (null — снять отметку). Закрытый месяц —
+  /// объяснение в [takeNotice] и false.
+  Future<bool> saveDayMarks(
+    DateTime date,
+    Map<String, TimesheetRecord?> marks,
+  ) async {
+    if (marks.isEmpty) return true;
+    if (!_dayAllowed('timesheet', null, date)) return false;
+    try {
+      await _appDb.db.transaction(() async {
+        for (final MapEntry(key: id, value: record) in marks.entries) {
+          final existing = await _timesheetRepo.on(id, date);
+          if (record == null) {
+            if (existing?.id != null) {
+              await _timesheetRepo.delete(existing!.id!);
+            }
+          } else if (existing == null) {
+            await _timesheetRepo.add(record);
+          } else {
+            // Не copyWith: `workPlace: null` в нём значит «не менять».
+            await _timesheetRepo.update(
+              TimesheetRecord(
+                id: existing.id,
+                employeeId: existing.employeeId,
+                date: existing.date,
+                dayType: record.dayType,
+                days: record.days,
+                workPlace: record.workPlace,
+                notes: existing.notes,
+                createdAt: existing.createdAt,
+              ),
+            );
+          }
+        }
+      });
+    } catch (e) {
+      _notice = 'Отметки не сохранены: $e';
+      notifyListeners();
+      return false;
+    }
+    if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+      await loadTimesheet(
+        _currentPeriodStart!,
+        _currentPeriodEnd!,
+        employeeId: _currentTimesheetEmployee,
+      );
+    } else {
+      notifyListeners();
+    }
+    setNeedRefreshReports(true);
+    return true;
+  }
+
   Future<void> saveTimesheetRecord(TimesheetRecord record) async {
     if (!_dayAllowed('timesheet', null, record.date)) return;
     try {
@@ -519,6 +584,66 @@ class AppProvider extends ChangeNotifier {
       _error = 'Ошибка добавления записи: $e';
       notifyListeners();
     }
+  }
+
+  /// Пустые клетки нерабочих дней месяца по производственному календарю
+  /// (6.6) — у сотрудников, работающих в этот день (принят, не уволен):
+  /// (сотрудник, день). Заполненные клетки сюда не входят.
+  Future<List<(Employee, DateTime)>> emptyDaysOff(int year, int month) async {
+    final taken = {
+      for (final r in await _timesheetRepo.inPeriod(
+        DateTime(year, month, 1),
+        DateTime(year, month + 1, 0),
+      ))
+        (r.employeeId, r.date.day),
+    };
+    return [
+      for (final e in await _employeesRepo.all())
+        if (e.id != null)
+          for (final d in ProductionCalendar.daysOff(year, month))
+            if (!taken.contains((e.id, d)) &&
+                !calendarDay(e.hireDate).isAfter(DateTime(year, month, d)) &&
+                e.isActiveOn(DateTime(year, month, d)))
+              (e, DateTime(year, month, d)),
+    ];
+  }
+
+  /// «Отметить выходные» (6.6): «В» во все пустые клетки нерабочих дней
+  /// месяца ([emptyDaysOff]). Закрытый месяц — объяснение и 0. Возвращает,
+  /// сколько клеток отмечено.
+  Future<int> fillDaysOff(int year, int month) async {
+    if (!_dayAllowed('timesheet', null, DateTime(year, month, 1))) return 0;
+    var added = 0;
+    try {
+      for (final (e, day) in await emptyDaysOff(year, month)) {
+        try {
+          await _timesheetRepo.add(
+            TimesheetRecord(
+              employeeId: e.id!,
+              date: day,
+              dayType: 'dayoff',
+              days: 1,
+            ),
+          );
+          added++;
+        } on DuplicateEntryException {
+          // Клетку успели заполнить (например, пришло с сервера) — не трогаем.
+        }
+      }
+    } catch (e) {
+      _error = 'Ошибка отметки выходных: $e';
+    }
+    if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+      await loadTimesheet(
+        _currentPeriodStart!,
+        _currentPeriodEnd!,
+        employeeId: _currentTimesheetEmployee,
+      );
+    } else {
+      notifyListeners();
+    }
+    if (added > 0) setNeedRefreshReports(true);
+    return added;
   }
 
   Future<void> updateTimesheetRecord(TimesheetRecord record) async {
@@ -645,13 +770,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadStartingBalances(int year, int month) async {
-    _startingBalances = await _payrollService.startingBalances(
-      DateTime(year, month, 1),
-    );
-    notifyListeners();
-  }
-
   // ==========================================================================
   // ОТЧЁТЫ
   // ==========================================================================
@@ -672,54 +790,88 @@ class AppProvider extends ChangeNotifier {
   // PAYROLL
   // ==========================================================================
 
-  /// Расчёты месяца для отчёта — без сотрудников, у которых в месяце нет ни
-  /// начислений, ни выплат.
-  Future<void> loadPayrollResultsForMonth(int year, int month) async {
+  /// Отчёт месяца ([PayrollService.monthReport]): открытый месяц — свежий
+  /// пересчёт по данным этой базы (сразу видны и неотправленные правки),
+  /// закрытый — расчёт, зафиксированный сервером, с отметкой расхождений.
+  /// Приложение расчёты не сохраняет: сохранённые расчёты ведёт сервер,
+  /// пересчитывая открытые месяцы после каждой принятой правки.
+  Future<void> loadPayrollReport(int year, int month) async {
     _setLoading(true);
     try {
-      _payrollResults = await _payrollService.resultsForReport(year, month);
+      _payrollReport = await _payrollService.monthReport(
+        year,
+        month,
+        lockedMonths: _lockedMonths,
+      );
       _error = null;
     } catch (e) {
-      _error = 'Ошибка загрузки результатов расчёта: $e';
+      _error = 'Ошибка загрузки расчёта: $e';
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<void> calculatePayrollForMonth(int year, int month) async {
-    if (!_notOperator()) return;
-    if (!_monthAllowed(year, month)) return;
-    _setLoading(true);
-    try {
-      // Сотрудники без начислений и выплат за месяц в расчёт не входят.
-      await _payrollService.saveMonth(year, month);
-      await loadPayrollResultsForMonth(year, month);
-      _error = null;
-      setNeedRefreshReports(true);
-    } catch (e) {
-      _error = 'Ошибка массового расчёта зарплаты: $e';
-      notifyListeners();
-    } finally {
-      _setLoading(false);
-    }
+  /// Отчёт за месяц без смены [payrollReport] (для окна закрытия месяца).
+  Future<PayrollMonthReport> payrollReportFor(int year, int month) =>
+      _payrollService.monthReport(year, month, lockedMonths: _lockedMonths);
+
+  /// Месяцы `(год, месяц)`, где в этой базе есть табель или выплаты, по
+  /// возрастанию.
+  Future<List<(int, int)>> dataMonths() async {
+    final keys = <int>{
+      for (final r in await _timesheetRepo.inPeriod(
+        DateTime(1900),
+        DateTime(2200),
+      ))
+        PeriodGuard.monthKey(r.date.year, r.date.month),
+      for (final p in await _paymentsRepo.list())
+        PeriodGuard.monthKey(p.paymentDate.year, p.paymentDate.month),
+    };
+    return [for (final k in keys.toList()..sort()) (k ~/ 12, k % 12 + 1)];
   }
 
-  Future<bool> isPayrollUpToDate(String employeeId, int year, int month) async {
-    final result = await _payrollRepo.resultFor(employeeId, year, month);
-    if (result == null) return false;
-    final current = await _payrollService.calculateMonth(
-      employeeId,
-      year,
-      month,
+  /// Сводка главного экрана (6.8) на [today] (по умолчанию — сегодня).
+  /// Общее состояние провайдера (отчёт, выплаты, табель экранов) не меняет.
+  Future<DashboardSummary> dashboard({DateTime? today}) async {
+    final day = calendarDay(today ?? DateTime.now());
+    final previous = DateTime(day.year, day.month - 1, 1);
+    final monthEnd = DateTime(day.year, day.month + 1, 0);
+    return buildDashboard(
+      today: day,
+      employees: await _employeesRepo.all(),
+      records: await _timesheetRepo.inPeriod(previous, monthEnd),
+      current: await _payrollService.monthReport(
+        day.year,
+        day.month,
+        lockedMonths: _lockedMonths,
+      ),
+      previous: isMonthLocked(previous.year, previous.month)
+          ? null
+          : await _payrollService.monthReport(
+              previous.year,
+              previous.month,
+              lockedMonths: _lockedMonths,
+            ),
+      currentPayments: await _paymentsRepo.list(
+        start: DateTime(day.year, day.month, 1),
+        end: monthEnd,
+      ),
+      dataMonths: await dataMonths(),
+      lockedMonths: _lockedMonths,
     );
-    const epsilon = 0.001;
-    return (result.baseDays - current.baseDays).abs() < epsilon &&
-        (result.fieldDays - current.fieldDays).abs() < epsilon &&
-        (result.sickDays - current.sickDays).abs() < epsilon &&
-        (result.vacationDays - current.vacationDays).abs() < epsilon &&
-        (result.totalSalary - current.totalSalary).abs() < epsilon &&
-        result.skippedWorkDays == current.skippedWorkDays;
   }
+
+  /// Выплаты сотрудника за месяц без смены [payments] (окно расчёта из
+  /// сводки).
+  Future<List<Payment>> paymentsInMonth(
+    String employeeId,
+    int year,
+    int month,
+  ) => _paymentsRepo.list(
+    employeeId: employeeId,
+    start: DateTime(year, month, 1),
+    end: DateTime(year, month + 1, 0),
+  );
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
     String employeeId,
@@ -731,18 +883,6 @@ class AppProvider extends ChangeNotifier {
       year,
       month,
     )).toMap();
-  }
-
-  Future<void> recalculateSingleEmployee(
-    String employeeId,
-    int year,
-    int month,
-  ) async {
-    if (!_notOperator()) return;
-    if (!_monthAllowed(year, month)) return;
-    // Если начислений и выплат не осталось — прежний расчёт удаляется.
-    await _payrollService.saveMonth(year, month, employeeId: employeeId);
-    setNeedRefreshReports(true);
   }
 
   // ==========================================================================
@@ -892,8 +1032,8 @@ class AppProvider extends ChangeNotifier {
     return count;
   }
 
-  /// Закрыть базу (тесты; программа закрывает её вместе с процессом).
-  @visibleForTesting
+  /// Закрыть базу: перед установкой обновления (6.5) — чтобы все записи
+  /// были на диске до закрытия программы; в тестах. После — только выход.
   Future<void> closeDatabase() => _appDb.close();
 
   // ==========================================================================

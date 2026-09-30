@@ -2,7 +2,9 @@
 //
 // Полоса над содержимым (шаг 4.8): программа старее минимальной версии
 // сервера — обновиться обязательно (синхронизация на паузе); есть версия
-// новее — можно обновиться. Ссылка — со страницы загрузки на сервере.
+// новее — можно обновиться. Windows — «Установить»: программа сама скачает
+// и поставит новую версию (6.5); телефон — ссылка со страницы загрузки;
+// веб — перезагрузка страницы.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/sync_provider.dart';
 import '../services/page_reload.dart';
 import '../services/platform.dart';
+import 'update_install.dart';
 
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key});
@@ -54,6 +57,11 @@ class UpdateBanner extends StatelessWidget {
                 TextButton(
                   onPressed: reloadPage,
                   child: const Text('Обновить страницу'),
+                )
+              else if (canInstallFrom(v))
+                FilledButton.tonal(
+                  onPressed: () => installUpdate(context, v),
+                  child: const Text('Установить'),
                 )
               else if (url != null)
                 TextButton(

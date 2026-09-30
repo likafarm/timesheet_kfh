@@ -9,7 +9,8 @@ import 'dart:async';
 import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:kfh_domain/kfh_domain.dart' show PlatformVersion;
+import 'package:kfh_domain/kfh_domain.dart'
+    show PlatformVersion, compareVersions, syncTables;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -65,6 +66,15 @@ class SyncProvider extends ChangeNotifier {
   /// Ключ в `sync_state`: база восстановлена из копии, следующая удачная
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
+
+  /// Ключ в `sync_state` (телефон, 6.9): для какой роли сейчас принимается
+  /// база — `operator` (оператор получает не всё: ни выплат, ни ставок) или
+  /// `full`. Нет ключа — база принята до 6.9, когда на телефоне был только
+  /// оператор.
+  static const dataRoleKey = 'sync_data_role';
+
+  static String _dataRole(SessionUser user) =>
+      user.isOperator ? 'operator' : 'full';
 
   /// Сервер на этом компьютере (стенд), а не рабочий. Для эмулятора
   /// Android компьютер разработчика — 10.0.2.2.
@@ -418,11 +428,91 @@ class SyncProvider extends ChangeNotifier {
       await _updatePhase();
       throw SyncUserException(refusal);
     }
+    await _prepareForRole(user);
     _user = user;
     _problem = null;
     _offline = false;
     await _updatePhase();
     await _watchSessionExpiry();
+  }
+
+  /// Таблицы, которые оператор не получает или получает не полностью
+  /// (сотрудники — без ставок): их догружает бухгалтер или админ.
+  static final _hiddenFromOperator = {
+    for (final t in syncTables)
+      if (t.name != 'timesheet') t.name,
+  };
+
+  /// Телефон (6.9; 6.10 — решение владельца 2026-09-30): база принималась
+  /// для другой роли — сначала отправить неотправленное (от имени
+  /// вошедшего). Данные телефона не стираются: после бухгалтера или админа
+  /// оператору закрытое просто не показывается; после оператора бухгалтеру
+  /// или админу с нуля догружаются таблицы, которых оператор не получал
+  /// ([SyncEngine.refetch]). Не вышло отправить или догрузить — отказ во
+  /// входе, данные на месте (догрузка повторится при следующем входе).
+  Future<void> _prepareForRole(SessionUser user) async {
+    if (client != ClientKind.phone) return;
+    final linked = await _store.linkedServer();
+    if (linked == null) return;
+    final role = await _db.syncStateDao.getValue(dataRoleKey) ?? 'operator';
+    if (role == _dataRole(user)) return;
+
+    Future<Never> refuse(String reason) async {
+      await _api!.logout();
+      _user = null;
+      await _updatePhase();
+      throw SyncUserException(reason);
+    }
+
+    await refreshPending();
+    final rejectedBefore = _rejected;
+    if (_pending > _rejected) {
+      if (linked != _server) {
+        await refuse(
+          'На этом телефоне есть неотправленные правки прошлого '
+          'пользователя (${_pending - _rejected}) для сервера $linked. '
+          'Сначала отправьте их туда.',
+        );
+      }
+      try {
+        await _syncEngine.run();
+      } on SyncFailure catch (e) {
+        await refuse(
+          'На этом телефоне есть неотправленные правки прошлого '
+          'пользователя. Отправить их не удалось (${_explain(e)}) — войдите, '
+          'когда будет связь.',
+        );
+      }
+      await refreshPending();
+      if (_pending > _rejected || _rejected > rejectedBefore) {
+        final left = _pending - rejectedBefore;
+        // Отказ роли — не отказ по существу: правки остаются
+        // неотправленными для того, кто их вносил.
+        await _store.clearRejections();
+        await refreshPending();
+        await refuse(
+          'На этом телефоне остались неотправленные правки прошлого '
+          'пользователя ($left): от роли «${user.roleTitle}» сервер их не '
+          'принял. Пусть их отправит тот, кто вносил: войдёт на этом '
+          'телефоне и синхронизирует.',
+        );
+      }
+    }
+    if (!user.isOperator) {
+      try {
+        await _syncEngine.refetch(_hiddenFromOperator);
+      } on SyncFailure catch (e) {
+        await refuse(
+          'Не удалось принять с сервера ставки и выплаты, которых на этом '
+          'телефоне не было у оператора (${_explain(e)}). Войдите, когда '
+          'будет связь.',
+        );
+      }
+    }
+    await _db.syncStateDao.setValue(dataRoleKey, _dataRole(user));
+    await refreshPending();
+    await onLocksChanged?.call();
+    await onDataChanged();
   }
 
   /// Смена пароля (обязательная после выдачи администратором или по
@@ -508,6 +598,7 @@ class SyncProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final report = await _bootstrap().execute(plan, backup: backup);
+      await _db.syncStateDao.setValue(dataRoleKey, _dataRole(_user!));
       await _succeeded(report);
       await _updatePhase();
       return report;
@@ -640,6 +731,199 @@ class SyncProvider extends ChangeNotifier {
       '${e.message}:\n${d.take(10).join('\n')}',
     _ => e.message,
   };
+
+  // ------------------------------------------------------------- закрытие месяцев
+
+  /// Закрывать месяцы могут бухгалтер и админ (нужен вход и связь).
+  bool get canLockMonths =>
+      _phase == SyncPhase.ready && _user != null && !_user!.isOperator;
+
+  /// Открывать закрытые месяцы — только админ (решение владельца
+  /// 2026-09-28).
+  bool get canUnlockMonths => canLockMonths && _user!.isAdmin;
+
+  /// Закрытые месяцы с сервера: кто и когда закрыл. Ошибка —
+  /// [SyncUserException].
+  Future<List<PeriodLockInfo>> periodLocks() async {
+    if (_phase != SyncPhase.ready) {
+      throw const SyncUserException('Нужен вход на сервер');
+    }
+    try {
+      return await _api!.periodLocks();
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
+
+  /// Неотправленные правки этой базы, задевающие месяц.
+  Future<int> pendingInMonth(int year, int month) async =>
+      (await _store.pendingInMonth(year, month)).length;
+
+  /// Закрыть месяц: сначала синхронизация (правки этого компьютера должны
+  /// дойти до сервера — после закрытия он их не примет), затем закрытие
+  /// (сервер фиксирует свежий расчёт), затем снова синхронизация — список
+  /// закрытых месяцев и расчёт приходят сюда. Ошибка — [SyncUserException].
+  Future<void> lockMonth(int year, int month, {String? note}) async {
+    if (!canLockMonths) {
+      throw const SyncUserException(
+        'Закрывать месяцы могут бухгалтер и администратор',
+      );
+    }
+    await _requirePeriodServer();
+    await syncNow();
+    final problem = _problem;
+    if (problem != null) {
+      throw SyncUserException(
+        'Месяц не закрыт: сначала нужна синхронизация.\n$problem',
+      );
+    }
+    final unsent = await pendingInMonth(year, month);
+    if (unsent > 0) {
+      throw SyncUserException(
+        'Месяц не закрыт: в нём $unsent неотправл. правок этого компьютера '
+        '(сервер их не принял — см. «Сервер синхронизации»). После закрытия '
+        'они были бы потеряны.',
+      );
+    }
+    final t = note?.trim();
+    try {
+      await _api!.lockMonth(
+        year,
+        month,
+        note: t == null || t.isEmpty ? null : t,
+      );
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await syncNow();
+  }
+
+  /// Что изменит открытие месяца (только админ): сервер проделывает
+  /// пересчёт и откатывает его. Ошибка — [SyncUserException].
+  Future<UnlockPreview> unlockPreview(int year, int month) async {
+    _requireUnlock();
+    await _requirePeriodServer();
+    try {
+      return await _api!.unlockPreview(year, month);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
+
+  /// Открыть закрытый месяц (только админ). Сервер сохраняет снимок
+  /// остатков до открытия и пересчитывает расчёты по текущим данным;
+  /// отклонённые ранее правки уходят ещё раз. Возвращает id снимка.
+  Future<int?> unlockMonth(int year, int month) async {
+    _requireUnlock();
+    await _requirePeriodServer();
+    final int? snapshot;
+    try {
+      snapshot = await _api!.unlockMonth(year, month);
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    await syncNow(retryRejected: true);
+    return snapshot;
+  }
+
+  /// Сервер, который перед закрытием пересчитывает месяц, а при открытии
+  /// показывает изменения и хранит снимок, — с версии 0.4.0. Со старым
+  /// закрытие зафиксировало бы устаревший расчёт.
+  static const periodServerVersion = '0.4.0';
+
+  Future<void> _requirePeriodServer() async {
+    final String? version;
+    try {
+      version = await _api!.serverVersion();
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+    if (version == null || compareVersions(version, periodServerVersion) < 0) {
+      throw SyncUserException(
+        'На сервере версия ${version ?? 'неизвестна'}: закрывать и открывать '
+        'месяцы из программы можно после обновления сервера до '
+        '$periodServerVersion.',
+      );
+    }
+  }
+
+  void _requireUnlock() {
+    if (!canUnlockMonths) {
+      throw const SyncUserException(
+        'Открыть закрытый месяц может только администратор',
+      );
+    }
+  }
+
+  /// Снимки остатков до открытия месяцев (без данных), новые сверху.
+  Future<List<PeriodSnapshot>> periodSnapshots() =>
+      _ask(() => _api!.periodSnapshots());
+
+  /// Снимок целиком.
+  Future<PeriodSnapshot> periodSnapshot(int id) =>
+      _ask(() => _api!.periodSnapshot(id));
+
+  /// Что изменилось со времени снимка (сравнивает сервер).
+  Future<SnapshotChanges> periodSnapshotChanges(int id) =>
+      _ask(() => _api!.periodSnapshotChanges(id));
+
+  /// Журнал действий виден только админу (6.7).
+  bool get canReadAudit => canUnlockMonths;
+
+  /// Страница журнала действий (6.7). Ошибка — [SyncUserException].
+  Future<AuditPage> auditLog({
+    DateTime? since,
+    DateTime? until,
+    String? userUuid,
+    String? employeeUuid,
+    String? kind,
+    int? before,
+  }) {
+    if (!canReadAudit) {
+      throw const SyncUserException(
+        'Журнал действий доступен только администратору',
+      );
+    }
+    return _ask(
+      () => _api!.auditLog(
+        since: since,
+        until: until,
+        userUuid: userUuid,
+        employeeUuid: employeeUuid,
+        kind: kind,
+        before: before,
+      ),
+    );
+  }
+
+  /// Табель дня с авторами отметок (6.10, напоминание). null — нет входа,
+  /// связи или сервер старее 0.6.0 (тогда — обычное напоминание).
+  Future<TimesheetDayInfo?> timesheetDay(DateTime day) async {
+    final api = _api;
+    if (api == null || _phase != SyncPhase.ready) return null;
+    try {
+      return await api.timesheetDay(day).timeout(const Duration(seconds: 15));
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Id этого устройства (для проверки напоминания без окна программы).
+  Future<String> deviceId() => _db.deviceId();
+
+  /// Пользователи сервера — для отбора в журнале (только админ).
+  Future<List<SessionUser>> serverUsers() => _ask(() => _api!.users());
+
+  Future<T> _ask<T>(Future<T> Function() request) async {
+    if (!canLockMonths) {
+      throw const SyncUserException('Нужен вход бухгалтера или администратора');
+    }
+    try {
+      return await request();
+    } on SyncFailure catch (e) {
+      throw SyncUserException(_explain(e));
+    }
+  }
 
   // ------------------------------------------------------------- очередь
 

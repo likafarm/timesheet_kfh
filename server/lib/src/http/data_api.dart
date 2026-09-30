@@ -12,19 +12,30 @@ import '../sync/sync_rows.dart';
 import 'auth_api.dart';
 import 'middleware.dart';
 import 'request_utils.dart';
+import '../audit_journal.dart';
+import '../timesheet_day.dart';
 import 'responses.dart';
 
 /// Закрытые месяцы, расчёт ЗП и чтение данных (для веба и отчётов).
 ///
 /// - `GET /periods/locks` — все; `POST /periods/locks` `{year, month, note?}`,
-///   `DELETE /periods/locks/<year>/<month>` — бухгалтер и админ;
+///   `DELETE /periods/locks/<year>/<month>` — закрывают бухгалтер и админ,
+///   открывает только админ (ответ — `{snapshot_id}`: снимок остатков до
+///   открытия); `GET /periods/locks/<year>/<month>/unlock-preview` — что
+///   изменит открытие (админ); `GET /periods/snapshots`,
+///   `GET /periods/snapshots/<id>` — снимки,
+///   `GET /periods/snapshots/<id>/changes` — что изменилось с тех пор
+///   (бухгалтер и админ);
+/// - `GET /audit` — журнал действий (6.7, только админ);
 /// - `GET /payroll?year=&month=` — сохранённые расчёты и входящие остатки;
 /// - `GET /payroll/calculation?year=&month=` — свежий расчёт рядом с
 ///   сохранённым (`up_to_date`), без записи;
 /// - `POST /payroll/calculate` `{year, month}` — посчитать и сохранить;
 /// - `GET /employees?active_on=`, `GET /timesheet?year=&month=&employee_uuid=`,
 ///   `GET /rates?employee_uuid=`, `GET /payments?from=&to=&employee_uuid=`,
-///   `GET /settings`.
+///   `GET /settings`;
+/// - `GET /timesheet/day?date=` — табель дня с авторами отметок и числом
+///   работающих (6.10, напоминание «табель внесён»).
 ///
 /// Права на чтение — как у синхронизации (`readableTables`): оператор видит
 /// сотрудников (без ставок) и табель; расчёт — бухгалтер и админ.
@@ -47,11 +58,17 @@ class DataApi {
       ..get('/periods/locks', _locks)
       ..post('/periods/locks', _lock)
       ..delete('/periods/locks/<year>/<month>', _unlock)
+      ..get('/periods/locks/<year>/<month>/unlock-preview', _unlockPreview)
+      ..get('/periods/snapshots', _snapshots)
+      ..get('/periods/snapshots/<id>', _snapshot)
+      ..get('/periods/snapshots/<id>/changes', _snapshotChanges)
+      ..get('/audit', _auditLog)
       ..get('/payroll', _payroll)
       ..get('/payroll/calculation', _calculation)
       ..post('/payroll/calculate', _calculate)
       ..get('/employees', _employees)
       ..get('/timesheet', _timesheet)
+      ..get('/timesheet/day', _timesheetDay)
       ..get('/rates', _rates)
       ..get('/payments', _payments)
       ..get('/settings', _settings);
@@ -75,9 +92,71 @@ class DataApi {
 
   Future<Response> _unlock(Request request, String year, String month) async {
     final user = await auth.requireUser(request);
-    await periods.unlock(user, year, month,
+    final snapshot = await periods.unlock(user, year, month,
         requestId: requestIdOf(request), deviceId: deviceIdOf(request));
-    return Response(204);
+    return jsonResponse({'snapshot_id': snapshot});
+  }
+
+  Future<Response> _unlockPreview(
+      Request request, String year, String month) async {
+    final user = await auth.requireUser(request);
+    return jsonResponse(await periods.unlockPreview(user, year, month));
+  }
+
+  Future<Response> _snapshots(Request request) async {
+    await _accountant(request);
+    return jsonResponse({'snapshots': await periods.snapshots()});
+  }
+
+  Future<Response> _snapshot(Request request, String id) async {
+    await _accountant(request);
+    return jsonResponse(await periods.snapshot(id));
+  }
+
+  late final _audit = AuditJournal(db: db);
+
+  /// Журнал действий (6.7, только админ): `since`/`until` — моменты UTC
+  /// (ISO с Z), `user_uuid`, `employee_uuid`, `kind` ([auditKinds]),
+  /// `before` — курсор (id), `limit` до 200.
+  Future<Response> _auditLog(Request request) async {
+    final user = await auth.requireUser(request);
+    final q = request.url.queryParameters;
+    DateTime? moment(String name) {
+      final v = q[name];
+      if (v == null || v.isEmpty) return null;
+      final t = DateTime.tryParse(v);
+      if (t == null || !t.isUtc) {
+        throw ApiException(400, 'validation', '$name — момент UTC (ISO, с Z)');
+      }
+      return t;
+    }
+
+    int? number(String name) {
+      final v = q[name];
+      if (v == null || v.isEmpty) return null;
+      final n = int.tryParse(v);
+      if (n == null || n < 1) {
+        throw ApiException(400, 'validation', '$name — целое больше нуля');
+      }
+      return n;
+    }
+
+    final kind = q['kind'];
+    return jsonResponse(await _audit.read(
+      user,
+      since: moment('since'),
+      until: moment('until'),
+      userUuid: _uuidParam(request, 'user_uuid'),
+      employeeUuid: _uuidParam(request, 'employee_uuid'),
+      kind: kind == null || kind.isEmpty ? null : kind,
+      beforeId: number('before'),
+      limit: number('limit') ?? 100,
+    ));
+  }
+
+  Future<Response> _snapshotChanges(Request request, String id) async {
+    await _accountant(request);
+    return jsonResponse(await periods.snapshotChanges(id));
   }
 
   // -------------------------------------------------------------- расчёт
@@ -165,6 +244,17 @@ class DataApi {
         },
         orderBy: 'date, employee_uuid');
     return jsonResponse({'timesheet': [for (final r in rows) _json(user, r)]});
+  }
+
+  late final _day = TimesheetDay(db: db);
+
+  Future<Response> _timesheetDay(Request request) async {
+    await _reader(request, 'timesheet');
+    final date = _dateParam(request, 'date');
+    if (date == null) {
+      throw ApiException(400, 'validation', 'date — день в формате гггг-мм-дд');
+    }
+    return jsonResponse(await _day.day(date));
   }
 
   Future<Response> _rates(Request request) async {

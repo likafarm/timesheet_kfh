@@ -175,6 +175,22 @@ class LocalSyncStore {
     return result;
   }
 
+  /// Неотправленные записи (вместе с отклонёнными), которые задевают месяц
+  /// по правилам закрытия ([PeriodGuard]): закрыть его на сервере сейчас —
+  /// значит отказать этим правкам.
+  Future<List<PendingChange>> pendingInMonth(int year, int month) async {
+    final guard = PeriodGuard({PeriodGuard.monthKey(year, month)});
+    return [
+      for (final p in await pendingChanges(
+        limit: 1 << 30,
+        includeRejected: true,
+      ))
+        // Удалённая запись задевает месяц, где была, — берём её данные.
+        if (guard.violation(p.table, null, false, p.change.data, false) != null)
+          p,
+    ];
+  }
+
   /// Число неотправленных записей (вместе с отклонёнными).
   Future<int> pendingCount() async {
     final union = syncTables
@@ -352,6 +368,22 @@ class LocalSyncStore {
           updates: {db.syncState},
           updateKind: UpdateKind.delete,
         );
+      });
+
+  /// Стереть данные хозяйства перед приёмом базы с сервера заново (телефон,
+  /// вход человека другой роли, 6.9): все записи, кроме строки настроек
+  /// хозяйства, отметки синхронизации и привязку к серверу. Id устройства
+  /// остаётся. Неотправленное пропадает — проверять до вызова.
+  Future<void> eraseForRedownload() => db.transaction(() async {
+        for (final table in syncTables.reversed) {
+          if (table.name == 'company_settings') continue;
+          await db.customUpdate(
+            'DELETE FROM ${table.name}',
+            updates: {_tableInfo(table.name)},
+            updateKind: UpdateKind.delete,
+          );
+        }
+        await forgetServer();
       });
 
   /// uuid всех записей по таблицам (и удалённых тоже).

@@ -94,9 +94,16 @@ class AppDialog extends StatelessWidget {
                 style: theme.textTheme.titleLarge!,
                 child: title!,
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            // Отступ внутри прокрутки: надпись первого поля выступает над
+            // его рамкой, иначе её верх срезает край (6.10).
             if (content != null)
-              Flexible(child: SingleChildScrollView(child: content!)),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: content!,
+                ),
+              ),
             if (actions != null && actions!.isNotEmpty) ...[
               const SizedBox(height: 16),
               OverflowBar(

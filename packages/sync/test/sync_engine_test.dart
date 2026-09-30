@@ -355,5 +355,9 @@ class _Failing implements SyncTransport {
   Future<List<PushOutcome>> push(List<SyncChange> changes) => throw failure;
 
   @override
-  Future<PullPage> pull(SyncCursor cursor, {int limit = 500}) => throw failure;
+  Future<PullPage> pull(
+    SyncCursor cursor, {
+    int limit = 500,
+    Set<String>? tables,
+  }) => throw failure;
 }

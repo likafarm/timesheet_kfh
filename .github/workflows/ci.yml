@@ -1,0 +1,93 @@
+# Проверки на каждый push и pull request (этап 6.3): анализ кода и тесты.
+# Сборки (установщик Windows, APK, веб) — только локально: ключ подписи APK
+# в GitHub не выносится (решение владельца 2026-09-28).
+#
+# Приложение — на Windows: это основная платформа, и часть тестов (токены
+# через DPAPI, пути AppData) работает только там. Пакеты и сервер — на Linux:
+# тестам сервера нужен MySQL, служебный контейнер есть только там.
+# Часовой пояс — как у владельца (Москва): тесты с датами идут в тех же
+# условиях, что и локально.
+name: Проверки
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.8
+
+jobs:
+  app:
+    name: Приложение (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Часовой пояс — Москва
+        run: tzutil /s "Russian Standard Time"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  packages:
+    name: Пакеты и сервер (Linux, MySQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: Europe/Moscow
+    services:
+      # Как стенд server/docker-compose.dev.yml; пароли — учебные, только
+      # для тестов.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: dev-root
+          MYSQL_DATABASE: kfh
+          MYSQL_USER: kfh_api
+          MYSQL_PASSWORD: dev-api
+          TZ: UTC
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pdev-root"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v5
+      # Корневой pubspec — приложение Flutter, пакеты — члены его workspace:
+      # зависимости ставятся через flutter pub get.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+
+      - name: domain — анализ и тесты
+        working-directory: packages/domain
+        run: dart analyze && dart test
+      - name: local_db — анализ и тесты
+        working-directory: packages/local_db
+        run: dart analyze && dart test
+      - name: sync — анализ и тесты
+        working-directory: packages/sync
+        run: dart analyze && dart test
+      - name: сервер — анализ и тесты (MySQL)
+        working-directory: server
+        env:
+          KFH_TEST_MYSQL: "1"
+        run: dart analyze && dart test

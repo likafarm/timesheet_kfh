@@ -5,9 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
-import '../widgets/closed_month.dart';
-import '../widgets/common_widgets.dart';
+import '../providers/sync_provider.dart';
+import '../services/excel_export.dart';
+import '../widgets/excel_export_action.dart';
+import '../widgets/month_switcher.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/payroll_detail_dialog.dart';
+import '../widgets/period_lock_dialogs.dart';
+import '../widgets/section_navigation.dart';
 import '../theme/app_theme.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -23,10 +28,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<PayrollResult> _results = [];
   Map<String, double> _paymentsByEmployee = {};
   Map<String, double> _bonusByEmployee = {};
-  Map<String, bool> _upToDateStatus = {};
+
+  /// Месяц закрыт — показан зафиксированный расчёт.
+  bool _locked = false;
+
+  /// Закрытый месяц: у кого зафиксированный расчёт расходится с данными.
+  Set<String> _differs = {};
   bool _isLoading = false;
-  bool _isCalculatingAll = false;
-  final Set<String> _calculatingSingle = {};
 
   static const double _colNum = 40;
   static const double _colEmployee = 220;
@@ -38,12 +46,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
   static const double _colBalance = 130;
   static const double _colActions = 50;
 
+  SectionNavigator? _sections;
+
   @override
   void initState() {
     super.initState();
+    _sections = context.read<SectionNavigator?>()?..addListener(_openRequested);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+  }
+
+  @override
+  void dispose() {
+    _sections?.removeListener(_openRequested);
+    super.dispose();
+  }
+
+  /// Сводка открыла отчёт за нужный месяц.
+  void _openRequested() {
+    final month = _sections!.takeMonth(AppSection.reports);
+    if (month == null || !mounted) return;
+    setState(() {
+      _selectedYear = month.year;
+      _selectedMonth = month.month;
+    });
+    _loadData();
   }
 
   @override
@@ -70,13 +98,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (provider.employees.isEmpty) {
         await provider.loadEmployees(activeOnly: false);
       }
-      await provider.loadPayrollResultsForMonth(_selectedYear, _selectedMonth);
-      await provider.loadStartingBalances(_selectedYear, _selectedMonth);
+      await provider.loadPayrollReport(_selectedYear, _selectedMonth);
+      final report = provider.payrollReport;
       setState(() {
         _results = provider.payrollResults;
+        _locked = report?.locked ?? false;
+        _differs = report?.differs ?? const {};
       });
       await _loadPayments();
-      await _checkAllStatus();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -107,20 +136,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
-  Future<void> _checkAllStatus() async {
+  /// Отчёт в Excel — ровно то, что на экране (те же строки, остатки и
+  /// выплаты месяца).
+  Future<void> _exportReport() async {
     final provider = context.read<AppProvider>();
-    final Map<String, bool> status = {};
-    for (var result in _results) {
-      final isUpToDate = await provider.isPayrollUpToDate(
-        result.employeeId,
-        _selectedYear,
-        _selectedMonth,
-      );
-      status[result.employeeId] = isUpToDate;
+    final report = provider.payrollReport;
+    if (report == null) return;
+    if (provider.companySettings == null) {
+      await provider.loadCompanySettings();
     }
+    // Выплаты именно этого месяца (экран выплат мог загрузить другой период).
+    await provider.loadAllPayments(
+      startDate: DateTime(report.year, report.month, 1),
+      endDate: DateTime(report.year, report.month + 1, 0),
+    );
     if (!mounted) return;
+    await exportToExcel(
+      context,
+      fileName: excelFileName('Зарплата', DateTime(report.year, report.month)),
+      build: () async => payrollWorkbook(
+        report: report,
+        employees: {
+          for (final e in provider.employees)
+            if (e.id != null) e.id!: e,
+        },
+        payments: provider.payments,
+        companySettings: provider.companySettings,
+      ),
+    );
+  }
+
+  void _shiftMonth(int delta) {
+    final m = DateTime(_selectedYear, _selectedMonth + delta);
     setState(() {
-      _upToDateStatus = status;
+      _selectedYear = m.year;
+      _selectedMonth = m.month;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
     });
   }
 
@@ -155,97 +208,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _calculateAll() async {
-    if (_isCalculatingAll) return;
-    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
-        !mounted) {
-      return;
-    }
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Массовый расчёт зарплаты'),
-        content: Text(
-          'Рассчитать зарплату для всех сотрудников за ${DateFormat('LLLL yyyy', 'ru').format(DateTime(_selectedYear, _selectedMonth))}?',
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppButton(
-            label: 'Рассчитать',
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    setState(() => _isCalculatingAll = true);
-    if (!mounted) return;
-    try {
-      final provider = context.read<AppProvider>();
-      await provider.calculatePayrollForMonth(_selectedYear, _selectedMonth);
-      await _loadData();
-      if (!mounted) return;
-      final skipped = _results.where((r) => r.skippedWorkDays > 0).length;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            skipped > 0
-                ? 'Зарплата рассчитана. У $skipped сотр. есть рабочие дни без ставки — сумма занижена.'
-                : 'Зарплата рассчитана для всех сотрудников',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка расчёта: $e')));
-    } finally {
-      if (mounted) setState(() => _isCalculatingAll = false);
-    }
-  }
-
-  Future<void> _recalculateSingle(String employeeId) async {
-    if (_calculatingSingle.contains(employeeId)) return;
-    if (!await ensureMonthOpen(context, _selectedYear, _selectedMonth) ||
-        !mounted) {
-      return;
-    }
-    setState(() => _calculatingSingle.add(employeeId));
-    try {
-      final provider = context.read<AppProvider>();
-      await provider.recalculateSingleEmployee(
-        employeeId,
-        _selectedYear,
-        _selectedMonth,
-      );
-      await _loadData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Сотрудник пересчитан')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка пересчёта: $e')));
-    } finally {
-      if (mounted) setState(() => _calculatingSingle.remove(employeeId));
-    }
-  }
-
   void _showDetail(PayrollResult result, Employee employee) {
     final provider = context.read<AppProvider>();
     final employeePayments = provider.payments
         .where((p) => p.employeeId == employee.id)
         .toList();
     final startingBalance = provider.startingBalances[employee.id] ?? 0.0;
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => PayrollDetailDialog(
         employee: employee,
@@ -266,86 +235,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
         monthName.substring(0, 1).toUpperCase() + monthName.substring(1);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Отчёты по зарплате'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              setState(() {
-                if (_selectedMonth == 1) {
-                  _selectedMonth = 12;
-                  _selectedYear--;
-                } else {
-                  _selectedMonth--;
-                }
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _loadData();
-              });
-            },
-            tooltip: 'Предыдущий месяц',
+      appBar: monthAppBar(
+        context,
+        title: 'Отчёты по зарплате',
+        switcher: MonthSwitcher(
+          month: DateTime(_selectedYear, _selectedMonth),
+          onPrevious: () => _shiftMonth(-1),
+          onNext: () => _shiftMonth(1),
+          onPick: _selectMonth,
+          onToday: _goToToday,
+        ),
+        menu: [
+          AppBarMenuItem(
+            Icons.table_view,
+            'Выгрузить в Excel',
+            _isLoading ? null : _exportReport,
           ),
-          GestureDetector(
-            onTap: _selectMonth,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      capitalizedMonth,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ClosedMonthBadge(
-                      year: _selectedYear,
-                      month: _selectedMonth,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              setState(() {
-                if (_selectedMonth == 12) {
-                  _selectedMonth = 1;
-                  _selectedYear++;
-                } else {
-                  _selectedMonth++;
-                }
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _loadData();
-              });
-            },
-            tooltip: 'Следующий месяц',
-          ),
-          IconButton(
-            icon: const Icon(Icons.today),
-            onPressed: _goToToday,
-            tooltip: 'Текущий месяц',
-          ),
-          IconButton(
-            icon: const Icon(Icons.calculate),
-            onPressed: _isCalculatingAll ? null : _calculateAll,
-            tooltip: 'Рассчитать зарплату за месяц',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Обновить',
-          ),
-          const SizedBox(width: 8),
+          AppBarMenuItem(Icons.refresh, 'Обновить', _loadData),
         ],
+        actions: [_buildLockButton()],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -366,12 +274,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Нажмите "Рассчитать" для расчёта',
+                    _locked
+                        ? 'Месяц закрыт без зафиксированного расчёта'
+                        : 'Нет начислений, выплат и остатков',
                     style: TextStyle(color: Colors.grey[500]),
                   ),
+                  if (_differs.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildMonthStatus(),
+                  ],
                 ],
               ),
             )
+          : MonthSwitcher.isCompact(context)
+          ? _buildCompactList()
           : SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
@@ -389,9 +305,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildMonthStatus(),
                     _buildTableHeader(),
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
+                    Expanded(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
                         child: Column(
@@ -413,6 +329,129 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  /// Телефон (6.9): сотрудники карточками — остаток на конец крупно,
+  /// из чего он сложился — строкой ниже; касание — подробный расчёт.
+  Widget _buildCompactList() {
+    final provider = context.read<AppProvider>();
+    final money = NumberFormat('#,##0.00', 'ru');
+    final days = NumberFormat('#,##0.#', 'ru');
+    final status = StatusColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final rows = [
+      for (final r in _results)
+        if (provider.getEmployeeById(r.employeeId) case final e?) (r, e),
+    ];
+    return ListView.separated(
+      itemCount: rows.length + 1,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        if (i == 0) return _buildMonthStatus();
+        final (result, employee) = rows[i - 1];
+        final paid = _paymentsByEmployee[result.employeeId] ?? 0.0;
+        final bonus = _bonusByEmployee[result.employeeId] ?? 0.0;
+        final starting = provider.startingBalances[result.employeeId] ?? 0.0;
+        final balance = starting + result.totalSalary + bonus - paid;
+        final differs = _differs.contains(result.employeeId);
+        return ListTile(
+          tileColor: differs ? status.warningBackground : null,
+          title: Text(employee.fullName, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            [
+              'На начало ${money.format(starting)} · '
+                  '${days.format(result.baseDays + result.fieldDays)} дн.',
+              [
+                'начисл. ${money.format(result.totalSalary)}',
+                if (bonus > 0) 'премия ${money.format(bonus)}',
+                'выпл. ${money.format(paid)}',
+              ].join(' · '),
+              if (result.skippedWorkDays > 0)
+                'Без ставки: ${result.skippedWorkDays} дн.',
+            ].join('\n'),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+          trailing: Text(
+            '${money.format(balance)} ₽',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: balance > 0 ? status.positive : status.negative,
+            ),
+          ),
+          onTap: () => _showDetail(result, employee),
+        );
+      },
+    );
+  }
+
+  /// Закрыть выбранный месяц (бухгалтер, админ) или открыть (админ).
+  Widget _buildLockButton() {
+    final sync = context.watch<SyncProvider>();
+    final locked = context.select<AppProvider, bool>(
+      (p) => p.isMonthLocked(_selectedYear, _selectedMonth),
+    );
+    if (!locked && sync.canLockMonths) {
+      return IconButton(
+        icon: const Icon(Icons.lock_outline),
+        tooltip: 'Закрыть месяц',
+        onPressed: () async {
+          if (await closeMonth(context, _selectedYear, _selectedMonth)) {
+            await _loadData();
+          }
+        },
+      );
+    }
+    if (locked && sync.canUnlockMonths) {
+      return IconButton(
+        icon: const Icon(Icons.lock_open),
+        tooltip: 'Открыть месяц',
+        onPressed: () async {
+          if (await openMonth(context, _selectedYear, _selectedMonth)) {
+            await _loadData();
+          }
+        },
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// Строка о том, откуда цифры: открытый месяц — расчёт по текущим
+  /// данным, закрытый — зафиксированный (и расходится ли он с данными).
+  Widget _buildMonthStatus() {
+    final status = StatusColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final (IconData icon, String text, Color color) = !_locked
+        ? (
+            Icons.autorenew,
+            'Месяц открыт — расчёт по текущим данным табеля, ставок и выплат',
+            scheme.onSurfaceVariant,
+          )
+        : _differs.isEmpty
+        ? (
+            Icons.lock_outline,
+            'Месяц закрыт — показан зафиксированный расчёт',
+            scheme.onSurfaceVariant,
+          )
+        : (
+            Icons.warning_amber,
+            'Месяц закрыт — зафиксированный расчёт расходится с текущими '
+                'данными у ${_differs.length} сотр. Пересчитать его можно, '
+                'открыв месяц.',
+            status.warningText,
+          );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -498,7 +537,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildRow(int index, PayrollResult result, Employee employee) {
     final provider = context.read<AppProvider>();
-    final isUpToDate = _upToDateStatus[result.employeeId] ?? false;
+    final differs = _differs.contains(result.employeeId);
     final totalPaid = _paymentsByEmployee[result.employeeId] ?? 0.0;
     final bonus = _bonusByEmployee[result.employeeId] ?? 0.0;
     final totalDays = result.baseDays + result.fieldDays;
@@ -517,9 +556,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-          // Расчёт устарел — полупрозрачный фон: текст читается и в тёмной
-          // теме.
-          color: isUpToDate ? null : status.warningBackground,
+          // Зафиксированный расчёт расходится с данными — полупрозрачный
+          // фон: текст читается и в тёмной теме.
+          color: differs ? status.warningBackground : null,
         ),
         child: Row(
           children: [
@@ -629,39 +668,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!isUpToDate)
-                    IconButton(
-                      icon: _calculatingSingle.contains(result.employeeId)
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.refresh,
-                              size: 18,
-                              color: status.warningText,
-                            ),
-                      onPressed: _calculatingSingle.contains(result.employeeId)
-                          ? null
-                          : () => _recalculateSingle(result.employeeId),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Пересчитать',
+                  if (differs)
+                    Tooltip(
+                      message:
+                          'Зафиксированный расчёт расходится с текущими данными',
+                      child: Icon(
+                        Icons.warning_amber,
+                        size: 18,
+                        color: status.warningText,
+                      ),
                     ),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.only(left: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: !_upToDateStatus.containsKey(result.employeeId)
-                          ? Colors.grey
-                          : isUpToDate
-                          ? Colors.green
-                          : Colors.orange,
-                    ),
-                  ),
                 ],
               ),
             ),

@@ -6,15 +6,31 @@ import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
+import 'services/app_keys.dart';
 import 'services/platform.dart';
 import 'services/startup.dart';
+import 'services/window_front.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
 import 'widgets/auth_gate.dart';
 
-void main() async {
+/// Установщик после тихого обновления запускает программу с этой
+/// отметкой (installer.iss): окно нужно вывести наверх — само оно
+/// открывается позади остальных.
+const afterUpdateArgument = '--after-update';
+
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
+  if (args.contains(afterUpdateArgument)) {
+    // Окно показывается после первого кадра; ещё раз — на случай долгого
+    // запуска (перенос или проверка базы).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final ms in const [300, 1500]) {
+        Future<void>.delayed(Duration(milliseconds: ms), bringWindowToFront);
+      }
+    });
+  }
   await _start();
 }
 
@@ -91,6 +107,13 @@ class _MyAppState extends State<MyApp> {
               platform.reloadPage?.call();
             },
     );
+    // Разделы программы — по роли вошедшего (6.9): на телефоне оператор
+    // видит только табель, бухгалтер и админ — полную программу. Слушатель
+    // добавлен раньше экранов — режим меняется до их перестройки.
+    _sync.addListener(() {
+      final user = _sync.user;
+      if (user != null) _app.operatorMode = user.isOperator;
+    });
     platform.guardPageClose?.call(() => _sync.pending > 0);
     _app.beforeDatabaseReplaced = _sync.suspend;
     _generation = _app.databaseGeneration;
@@ -137,6 +160,8 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider.value(value: _sync),
       ],
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
+        scaffoldMessengerKey: appMessengerKey,
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         locale: const Locale('ru', 'RU'),

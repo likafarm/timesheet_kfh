@@ -98,11 +98,25 @@ void main() {
     expect(plan.refusal, contains('оператор'));
   });
 
-  test('на телефоне — только оператор', () async {
+  test('админ на телефоне (6.9): только приём в пустую базу', () async {
     final b = bootstrap('https://a', client: ClientKind.phone);
-    final plan = await b.analyze(_admin);
+    // Сервер пуст — всё равно приём, а не выгрузка.
+    var plan = await b.analyze(_admin);
+    expect(plan.kind, BootstrapKind.download);
+    expect(plan.allowed, isTrue);
+
+    await DriftRepositories(db).employees.add(
+      Employee(
+        fullName: 'Иванов Иван',
+        position: 'Рабочий',
+        hireDate: DateTime(2025, 3, 1),
+        baseRate: 1000,
+        fieldRate: 1500,
+      ),
+    );
+    plan = await b.analyze(_admin);
     expect(plan.allowed, isFalse);
-    expect(plan.refusal, contains('только для оператора'));
+    expect(plan.refusal, contains('только в пустую'));
   });
 
   test('оператор на телефоне: пустая база — приём, ничего не уходит', () async {

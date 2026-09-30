@@ -56,8 +56,13 @@ abstract class SyncTransport {
   Future<List<PushOutcome>> push(List<SyncChange> changes);
 
   /// Ошибка `ApiFailure` с кодом `resync_required` — курсор устарел
-  /// (сервер восстановлен из копии).
-  Future<PullPage> pull(SyncCursor cursor, {int limit = 500});
+  /// (сервер восстановлен из копии). [tables] — только эти таблицы
+  /// (сервер 0.6.0+; старый отдаёт все — это лишь медленнее).
+  Future<PullPage> pull(
+    SyncCursor cursor, {
+    int limit = 500,
+    Set<String>? tables,
+  });
 }
 
 /// Обмен по HTTP через [KfhApiClient].
@@ -79,13 +84,18 @@ class HttpSyncTransport implements SyncTransport {
   }
 
   @override
-  Future<PullPage> pull(SyncCursor cursor, {int limit = 500}) async {
+  Future<PullPage> pull(
+    SyncCursor cursor, {
+    int limit = 500,
+    Set<String>? tables,
+  }) async {
     final json = await api.getJson(
       '/sync/pull',
       query: {
         'cursor': '${cursor.seq}',
         'epoch': ?cursor.epoch,
         'limit': '$limit',
+        if (tables != null) 'tables': tables.join(','),
       },
     );
     final epoch = json['epoch'], next = json['cursor'];

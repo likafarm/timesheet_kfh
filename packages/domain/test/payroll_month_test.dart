@@ -116,6 +116,7 @@ Employee _employee(String id, {DateTime? dismissed}) => Employee(
     );
 
 void main() {
+  final sept = PeriodGuard.monthKey(2026, 9);
   late _Payroll payroll;
   late List<TimesheetRecord> days;
   late List<Payment> payments;
@@ -183,6 +184,13 @@ void main() {
     ]);
   });
 
+  Future<List<String>> reportIds(int year, int month) async => [
+        for (final r in (await service.monthReport(year, month,
+                lockedMonths: {}))
+            .results)
+          r.employeeId,
+      ];
+
   test('правило: нужен при начислениях, выплатах или входящем остатке', () {
     bool needed(bool empty, bool paid, double balance) => payrollNeeded(
         emptyPayroll: empty, paidInMonth: paid, startingBalance: balance);
@@ -205,14 +213,12 @@ void main() {
     final september = await payroll.resultFor('уволен', 2026, 9);
     expect(september, isNotNull);
     expect(september!.totalSalary, 0);
-    expect((await service.resultsForReport(2026, 9)).map((r) => r.employeeId),
-        contains('уволен'));
+    expect(await reportIds(2026, 9), contains('уволен'));
 
     // Долг погашен в августе — в сентябре остаток ноль, строка уходит.
     payments.add(Payment(
         employeeId: 'уволен', paymentDate: DateTime(2026, 8, 31), amount: 1500));
-    expect((await service.resultsForReport(2026, 9)).map((r) => r.employeeId),
-        isNot(contains('уволен')));
+    expect(await reportIds(2026, 9), isNot(contains('уволен')));
     final again = await service.saveMonth(2026, 9, employeeId: 'уволен');
     expect((again.saved, again.removed), (0, 1));
   });
@@ -251,7 +257,7 @@ void main() {
     expect((await service.saveMonth(2026, 9, employeeId: 'больничный')).removed, 0);
   });
 
-  test('отчёт скрывает пустые строки, оставшиеся от старых расчётов',
+  test('закрытый месяц: отчёт скрывает пустые строки старых расчётов',
       () async {
     // Как в базе до исправления: сохранены нулевые расчёты всех.
     for (final id in ['только выходные', 'уволен', 'только выплата']) {
@@ -266,8 +272,86 @@ void main() {
           totalSalary: 0));
     }
     await service.saveMonth(2026, 9, employeeId: 'работал');
-    final report = await service.resultsForReport(2026, 9);
-    expect(report.map((r) => r.employeeId).toSet(), {'работал', 'только выплата'});
+    final report = await service.monthReport(2026, 9, lockedMonths: {sept});
+    // «уволен» — по остатку за открытый август (1500), его нулевая строка
+    // нужна.
+    expect(report.results.map((r) => r.employeeId).toSet(),
+        {'работал', 'только выплата', 'уволен'});
+    // Нужные «без ставки» и «больничный» не зафиксированы — расхождение.
+    expect(report.differs, {'без ставки', 'больничный'});
+  });
+
+  group('отчёт по правилу 6.1', () {
+    PayrollResult savedResult(String id, int month, double total) =>
+        PayrollResult(
+            employeeId: id,
+            year: 2026,
+            month: month,
+            baseDays: 0,
+            fieldDays: 1,
+            sickDays: 0,
+            vacationDays: 0,
+            totalSalary: total);
+
+    test('открытый месяц — свежий пересчёт, сохранённое не важно', () async {
+      await payroll.save(savedResult('работал', 9, 99999));
+      final report = await service.monthReport(2026, 9, lockedMonths: {});
+      expect(report.locked, isFalse);
+      expect(report.differs, isEmpty);
+      expect(report.results.map((r) => r.employeeId).toList(),
+          ['работал', 'только выплата', 'без ставки', 'больничный', 'уволен'],
+          reason: 'порядок — как список сотрудников (по ФИО)');
+      final worked =
+          report.results.firstWhere((r) => r.employeeId == 'работал');
+      expect(worked.totalSalary, 1500);
+      expect(worked.id, isNull, reason: 'не сохранённый, а свежий расчёт');
+    });
+
+    test('закрытый месяц — зафиксированное и отметка расхождения', () async {
+      await service.saveMonth(2026, 8);
+      await service.saveMonth(2026, 9);
+      var report = await service.monthReport(2026, 9, lockedMonths: {sept});
+      expect(report.locked, isTrue);
+      expect(report.differs, isEmpty);
+      expect(report.results.every((r) => r.id != null), isTrue);
+
+      // Данные изменились после фиксации (например, месяц закрыли с
+      // устаревшим расчётом): показывается зафиксированное, отмечено
+      // расхождение.
+      days.add(TimesheetRecord(
+          employeeId: 'работал',
+          date: DateTime(2026, 9, 2),
+          dayType: 'work',
+          days: 1,
+          workPlace: 'base'));
+      report = await service.monthReport(2026, 9, lockedMonths: {sept});
+      expect(report.results.firstWhere((r) => r.employeeId == 'работал')
+          .totalSalary, 1500);
+      expect(report.differs, {'работал'});
+    });
+
+    test('остаток: закрытые месяцы — зафиксированное, открытые — пересчёт',
+        () async {
+      // Август: «уволен» работал 31.08 — пересчёт даёт 1500.
+      var balances =
+          await service.currentBalances(2026, 10, lockedMonths: {});
+      expect(balances['уволен'], 1500);
+      expect(balances['работал'], 1500, reason: 'сентябрь открыт — пересчёт');
+      expect(balances['только выплата'], -500);
+
+      // Август закрыт с зафиксированным 1000 — берётся оно.
+      await payroll.save(savedResult('уволен', 8, 1000));
+      balances = await service.currentBalances(2026, 10,
+          lockedMonths: {PeriodGuard.monthKey(2026, 8)});
+      expect(balances['уволен'], 1000);
+      // Сохранённый расчёт открытого месяца на остаток не влияет.
+      await payroll.save(savedResult('работал', 9, 7));
+      balances = await service.currentBalances(2026, 10, lockedMonths: {});
+      expect(balances['работал'], 1500);
+      // Месяц отчёта и позже в остаток не входят.
+      expect((await service.currentBalances(2026, 9, lockedMonths: {}))['работал'],
+          isNull);
+    });
   });
 
   test('выплата 30-го числа — в сентябре, 1-го октября — уже нет', () async {

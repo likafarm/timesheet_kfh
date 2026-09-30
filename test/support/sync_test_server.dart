@@ -20,9 +20,24 @@ class SyncTestServer {
   /// Закрытые месяцы `(год, месяц)`.
   final locks = <(int, int)>[];
 
+  /// Открытые месяцы, по которым сохранён снимок (id = номер + 1).
+  final snapshots = <(int, int)>[];
+
+  /// Версия сервера в `/health`.
+  String serverVersion = '0.4.0';
+
+  /// Правки этих таблиц сервер отклоняет.
+  final rejectTables = <String>{};
+
+  /// Примечания, с которыми закрывали месяцы (по порядку).
+  final lockNotes = <String?>[];
+
   /// Сколько было запросов push и pull.
   int pushes = 0;
   int pulls = 0;
+
+  /// Приём (pull) отказывает — ошибка без повторов.
+  bool failPull = false;
 
   http.Response _json(Object? body, [int status = 200]) => http.Response(
     jsonEncode(body),
@@ -57,6 +72,8 @@ class SyncTestServer {
   Future<http.Response> handle(http.Request r) async {
     if (!online) throw http.ClientException('нет сети', r.url);
     switch (r.url.path) {
+      case '/health':
+        return _json({'status': 'ok', 'version': serverVersion});
       case '/auth/login':
         final body = jsonDecode(r.body) as Map<String, Object?>;
         if (body['password'] != 'secret-pass') {
@@ -91,6 +108,14 @@ class SyncTestServer {
             for (final c in changes.cast<Map<String, Object?>>())
               () {
                 final key = '${c['table']}/${c['uuid']}';
+                if (rejectTables.contains(c['table'])) {
+                  return {
+                    'change_id': c['change_id'],
+                    'status': 'rejected',
+                    'code': 'invalid',
+                    'message': 'Не принято',
+                  };
+                }
                 // Как на сервере: побеждает более поздняя правка.
                 final existing = rows[key];
                 if (existing != null) {
@@ -114,22 +139,136 @@ class SyncTestServer {
               }(),
           ],
         });
+      case '/periods/locks' when r.method == 'POST':
+        if (role == 'operator') return _error(403, 'forbidden', 'Нельзя');
+        final body = jsonDecode(r.body) as Map<String, Object?>;
+        final month = (body['year'] as int, body['month'] as int);
+        if (locks.contains(month)) {
+          return _error(409, 'already_locked', 'Месяц уже закрыт');
+        }
+        locks.add(month);
+        lockNotes.add(body['note'] as String?);
+        return _json({'year': month.$1, 'month': month.$2}, 201);
       case '/periods/locks':
         return _json({
           'locks': [
-            for (final (y, m) in locks) {'year': y, 'month': m},
+            for (final (y, m) in locks)
+              {
+                'year': y,
+                'month': m,
+                'locked_by_name': 'Иван Иванов',
+                'locked_at': '2026-09-28T10:00:00.000Z',
+              },
           ],
         });
       case '/sync/pull':
         pulls++;
+        if (failPull) return _error(400, 'bad_request', 'Приём недоступен');
         final cursor = int.parse(r.url.queryParameters['cursor'] ?? '0');
+        // Как сервер: оператор получает только сотрудников (без ставок) и
+        // табель; `tables` — отбор таблиц (6.10).
+        final tables = r.url.queryParameters['tables']?.split(',').toSet();
+        bool readable(String table) =>
+            (role != 'operator' ||
+                table == 'employees' ||
+                table == 'timesheet') &&
+            (tables == null || tables.contains(table));
         final keys = log.skip(cursor).toSet();
+        Map<String, Object?> hide(Map<String, Object?> row) =>
+            role == 'operator' && row['table'] == 'employees'
+            ? {
+                ...row,
+                'data': {
+                  ...(row['data'] as Map<String, Object?>),
+                  'base_rate': 0.0,
+                  'field_rate': 0.0,
+                },
+              }
+            : row;
         return _json({
           'epoch': 'e1',
           'cursor': log.length,
           'has_more': false,
-          'changes': [for (final k in keys) rows[k]],
+          'changes': [
+            for (final k in keys)
+              if (readable(rows[k]!['table'] as String)) hide(rows[k]!),
+          ],
         });
+    }
+    final unlock = RegExp(
+      r'^/periods/locks/(\d+)/(\d+)$',
+    ).firstMatch(r.url.path);
+    if (unlock != null && r.method == 'DELETE') {
+      if (role != 'admin') {
+        return _error(
+          403,
+          'forbidden',
+          'Открыть месяц может только администратор',
+        );
+      }
+      final month = (int.parse(unlock[1]!), int.parse(unlock[2]!));
+      if (!locks.remove(month)) {
+        return _error(404, 'not_found', 'Месяц не закрыт');
+      }
+      snapshots.add(month);
+      return _json({'snapshot_id': snapshots.length});
+    }
+    final preview = RegExp(
+      r'^/periods/locks/(\d+)/(\d+)/unlock-preview$',
+    ).firstMatch(r.url.path);
+    if (preview != null) {
+      if (role != 'admin') return _error(403, 'forbidden', 'Только админ');
+      final month = (int.parse(preview[1]!), int.parse(preview[2]!));
+      if (!locks.contains(month)) {
+        return _error(404, 'not_found', 'Месяц не закрыт');
+      }
+      Map<String, Object?> row(double accrued) => {
+        'employee_uuid': 'e1',
+        'full_name': 'Иванов Иван',
+        'starting': 0,
+        'accrued': accrued,
+        'paid': 0,
+        'closing': accrued,
+      };
+      return _json({
+        'year': month.$1,
+        'month': month.$2,
+        'lock': {'year': month.$1, 'month': month.$2},
+        'changes': [
+          {
+            'year': month.$1,
+            'month': month.$2,
+            'employees': [
+              {'before': row(1000), 'after': row(1500)},
+            ],
+          },
+        ],
+      });
+    }
+    final changes = RegExp(
+      r'^/periods/snapshots/(\d+)/changes$',
+    ).firstMatch(r.url.path);
+    if (changes != null) {
+      final id = int.parse(changes[1]!);
+      if (id < 1 || id > snapshots.length) {
+        return _error(404, 'not_found', 'Нет такого снимка');
+      }
+      final (y, m) = snapshots[id - 1];
+      return _json({
+        'id': id,
+        'year': y,
+        'month': m,
+        'compared_at': '2026-09-29T08:00:00.000Z',
+        'changes': <Object?>[],
+      });
+    }
+    if (r.url.path == '/periods/snapshots') {
+      return _json({
+        'snapshots': [
+          for (final (i, (y, m)) in snapshots.indexed.toList().reversed)
+            {'id': i + 1, 'year': y, 'month': m},
+        ],
+      });
     }
     return _error(404, 'not_found', 'Не найдено');
   }

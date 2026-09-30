@@ -145,21 +145,146 @@ void main() {
     expect(sync.pending, 0);
   });
 
-  test('телефон: администратору — отказ', () async {
+  test('телефон (6.9): бухгалтер входит, первый вход — только приём', () async {
+    server.role = 'accountant';
     final sync = provider(client: ClientKind.phone);
     await sync.init();
-    await expectLater(
-      sync.signIn('https://localhost', 'ivan', 'secret-pass'),
-      throwsA(
-        isA<SyncUserException>().having(
-          (e) => e.message,
-          'message',
-          contains('только для оператора'),
+    await sync.signIn('https://localhost', 'buh', 'secret-pass');
+    expect(sync.phase, SyncPhase.needsLink);
+    final plan = await sync.analyzeLink();
+    expect(plan.kind, BootstrapKind.download);
+    await sync.link(plan);
+    expect(sync.phase, SyncPhase.ready);
+  });
+
+  group('телефон: вход человека другой роли (6.9, 6.10)', () {
+    Future<(SyncProvider, String)> operatorWithEdit() async {
+      server.role = 'operator';
+      final sync = provider(client: ClientKind.phone);
+      await sync.init();
+      await sync.signIn('https://localhost', 'oper', 'secret-pass');
+      await sync.link(await sync.analyzeLink());
+      final id = await DriftRepositories(db).employees.add(
+        Employee(
+          fullName: 'Петров Пётр',
+          position: 'Рабочий',
+          hireDate: DateTime(2025, 3, 1),
+          baseRate: 0,
+          fieldRate: 0,
         ),
-      ),
+      );
+      await sync.refreshPending();
+      expect(sync.pending, 1);
+      await sync.signOut();
+      return (sync, id);
+    }
+
+    test(
+      'неотправленное уходит; база не стирается, закрытое догружается',
+      () async {
+        final (sync, id) = await operatorWithEdit();
+        final repos = DriftRepositories(db);
+        server.role = 'operator';
+        await sync.signIn('https://localhost', 'oper', 'secret-pass');
+        await sync.syncNow();
+        // Пока телефон был у оператора, бухгалтер на другом ПК поменял
+        // сотруднику ставку — оператору она приходит нулём.
+        final rows = Map.of(server.rows['employees/$id']!);
+        server.rows['employees/$id'] = {
+          ...rows,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+          'data': {
+            ...(rows['data'] as Map<String, Object?>),
+            'base_rate': 1500.0,
+            'field_rate': 2000.0,
+          },
+        };
+        server.log.add('employees/$id');
+        await sync.syncNow();
+        // Оператору ставка пришла нулём — так и должно быть.
+        expect((await repos.employees.byId(id))!.baseRate, 0);
+        await sync.signOut();
+
+        server.role = 'accountant';
+        reloads = 0;
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        expect(server.rows.keys, contains('employees/$id'));
+        // Приёма заново нет: сразу работа, данные на месте, ставка догружена.
+        expect(sync.phase, SyncPhase.ready);
+        final e = await repos.employees.byId(id);
+        expect(e, isNotNull);
+        expect(e!.baseRate, 1500.0);
+        expect(e.fieldRate, 2000.0);
+        expect(reloads, greaterThan(0));
+
+        // Снова оператор — ничего не стирается и не догружается.
+        await sync.signOut();
+        server.role = 'operator';
+        await sync.signIn('https://localhost', 'oper', 'secret-pass');
+        expect(sync.phase, SyncPhase.ready);
+        expect((await repos.employees.byId(id))!.baseRate, 1500.0);
+
+        // Тот же бухгалтер дважды подряд — без догрузки.
+        await sync.signOut();
+        server.role = 'accountant';
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        final pulls = server.pulls;
+        await sync.signOut();
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        expect(server.pulls, pulls);
+        expect(sync.phase, SyncPhase.ready);
+      },
     );
-    expect(sync.phase, SyncPhase.signedOut);
-    expect(tokens.tokens, isNull);
+
+    test('нет связи для догрузки — отказ во входе, данные на месте', () async {
+      final (sync, id) = await operatorWithEdit();
+      server.role = 'operator';
+      await sync.signIn('https://localhost', 'oper', 'secret-pass');
+      await sync.syncNow();
+      await sync.signOut();
+      server.role = 'accountant';
+      server.failPull = true;
+      await expectLater(
+        sync.signIn('https://localhost', 'buh', 'secret-pass'),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('Не удалось принять с сервера ставки и выплаты'),
+          ),
+        ),
+      );
+      expect(sync.phase, SyncPhase.signedOut);
+      expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+      // Связь появилась — догрузка при следующем входе.
+      server.failPull = false;
+      await sync.signIn('https://localhost', 'buh', 'secret-pass');
+      expect(sync.phase, SyncPhase.ready);
+    });
+
+    test(
+      'сервер не принял правки от новой роли — отказ, данные на месте',
+      () async {
+        final (sync, id) = await operatorWithEdit();
+        server.role = 'accountant';
+        server.rejectTables.add('employees');
+        await expectLater(
+          sync.signIn('https://localhost', 'buh', 'secret-pass'),
+          throwsA(
+            isA<SyncUserException>().having(
+              (e) => e.message,
+              'message',
+              contains('неотправленные правки прошлого пользователя (1)'),
+            ),
+          ),
+        );
+        expect(sync.phase, SyncPhase.signedOut);
+        expect(tokens.tokens, isNull);
+        expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+        // Правка снова ждёт отправки, а не числится отклонённой.
+        expect((sync.pending, sync.rejected), (1, 0));
+      },
+    );
   });
 
   test('сохранённый вход чужой роли при запуске забывается', () async {
@@ -342,6 +467,166 @@ void main() {
     expect(sync.phase, SyncPhase.signedOut);
     await sync.signIn('localhost:8080', 'ivan', 'secret-pass');
     expect(sync.phase, SyncPhase.ready, reason: 'первый вход не повторяется');
+  });
+
+  group('закрытие месяцев (6.2)', () {
+    Future<SyncProvider> linked({String role = 'accountant'}) async {
+      server.role = role;
+      final sync = await signedIn();
+      await sync.link(await sync.analyzeLink());
+      return sync;
+    }
+
+    Future<String> addDay(DateTime day) async {
+      final repo = DriftRepositories(db);
+      final emp = await repo.employees.add(
+        Employee(
+          fullName: 'Петров Пётр',
+          position: 'Рабочий',
+          hireDate: DateTime(2025, 3, 1),
+          baseRate: 1000,
+          fieldRate: 1500,
+        ),
+      );
+      return repo.timesheet.add(
+        TimesheetRecord(
+          employeeId: emp,
+          date: day,
+          dayType: 'work',
+          days: 1,
+          workPlace: 'field',
+        ),
+      );
+    }
+
+    test('права: бухгалтер закрывает, открывает только админ', () async {
+      final sync = await linked();
+      expect((sync.canLockMonths, sync.canUnlockMonths), (true, false));
+      server.role = 'admin';
+      await sync.signIn('localhost:8080', 'ivan', 'secret-pass');
+      expect((sync.canLockMonths, sync.canUnlockMonths), (true, true));
+      await sync.signOut();
+      expect(sync.canLockMonths, isFalse, reason: 'без входа');
+    });
+
+    test('закрытие: сначала правки уходят, потом месяц закрыт и известен '
+        'здесь', () async {
+      final sync = await linked();
+      await addDay(DateTime(2026, 9, 3));
+      await sync.lockMonth(2026, 9, note: '  ведомость сдана ');
+      expect(
+        server.rows.keys.where((k) => k.startsWith('timesheet/')),
+        hasLength(1),
+        reason: 'день ушёл до закрытия',
+      );
+      expect(server.locks, [(2026, 9)]);
+      expect(server.lockNotes, ['ведомость сдана']);
+      expect(await LocalSyncStore(db).lockedMonths(), {
+        PeriodGuard.monthKey(2026, 9),
+      });
+      final info = (await sync.periodLocks()).single;
+      expect((info.lockedByName, info.lockedAt!.isUtc), ('Иван Иванов', true));
+
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('уже закрыт'),
+          ),
+        ),
+      );
+      await expectLater(
+        sync.unlockMonth(2026, 9),
+        throwsA(isA<SyncUserException>()),
+        reason: 'бухгалтер не открывает',
+      );
+      await expectLater(
+        sync.unlockPreview(2026, 9),
+        throwsA(isA<SyncUserException>()),
+      );
+    });
+
+    test('неотправленная правка в месяце — месяц не закрывается', () async {
+      final sync = await linked();
+      server.rejectTables.add('timesheet');
+      await addDay(DateTime(2026, 9, 3));
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('1 неотправл.'),
+          ),
+        ),
+      );
+      expect(server.locks, isEmpty);
+      // Другой месяц правка не задевает.
+      await sync.lockMonth(2026, 8);
+      expect(server.locks, [(2026, 8)]);
+    });
+
+    test('старый сервер — закрывать и открывать нельзя', () async {
+      final sync = await linked(role: 'admin');
+      server.serverVersion = '0.3.0';
+      for (final action in [
+        () => sync.lockMonth(2026, 9),
+        () => sync.unlockPreview(2026, 9),
+        () => sync.unlockMonth(2026, 9),
+      ]) {
+        await expectLater(
+          action(),
+          throwsA(
+            isA<SyncUserException>().having(
+              (e) => e.message,
+              'message',
+              contains('0.4.0'),
+            ),
+          ),
+        );
+      }
+      expect(server.locks, isEmpty);
+    });
+
+    test('нет связи — месяц не закрывается, понятная причина', () async {
+      final sync = await linked();
+      server.online = false;
+      await expectLater(
+        sync.lockMonth(2026, 9),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('Нет связи'),
+          ),
+        ),
+      );
+    });
+
+    test('админ открывает месяц — отклонённые правки уходят снова', () async {
+      final sync = await linked(role: 'admin');
+      await sync.lockMonth(2026, 9);
+      server.rejectTables.add('timesheet');
+      await addDay(DateTime(2026, 9, 3));
+      await sync.syncNow();
+      expect(sync.rejected, 1);
+      server.rejectTables.clear();
+      final preview = await sync.unlockPreview(2026, 9);
+      final change = preview.changes.single.rows.single;
+      expect((change.before.accrued, change.after.accrued), (1000.0, 1500.0));
+      expect(server.locks, [(2026, 9)], reason: 'предпросмотр не открывает');
+      expect(await sync.unlockMonth(2026, 9), 1, reason: 'id снимка');
+      final snapshot = (await sync.periodSnapshots()).single;
+      expect((snapshot.year, snapshot.month), (2026, 9));
+      final changed = await sync.periodSnapshotChanges(snapshot.id);
+      expect(changed.snapshot.month, 9);
+      expect(changed.changes, isEmpty);
+      expect(server.locks, isEmpty);
+      expect(await LocalSyncStore(db).lockedMonths(), isEmpty);
+      expect(sync.pending, 0, reason: 'отклонённая правка ушла');
+    });
   });
 
   test('закрытые месяцы приходят с каждой синхронизацией', () async {

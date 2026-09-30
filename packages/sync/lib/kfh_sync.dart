@@ -5,11 +5,14 @@
 library;
 
 export 'src/api_client.dart';
+export 'src/audit_log.dart';
 export 'src/backoff.dart';
 export 'src/failures.dart';
+export 'src/period_snapshots.dart';
 export 'src/session.dart';
 export 'src/sync_bootstrap.dart';
 export 'src/sync_engine.dart';
 export 'src/sync_journal.dart';
 export 'src/sync_scheduler.dart';
 export 'src/sync_transport.dart';
+export 'src/timesheet_day.dart';

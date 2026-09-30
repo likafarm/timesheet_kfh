@@ -18,6 +18,12 @@ void main() {
   late Map<Role, String> tokens;
   late SyncService sync;
   late User accountant;
+  late User operator;
+
+  /// Как на боевом сервере: приём правок и открытие месяца пересчитывают
+  /// открытые месяцы.
+  late SyncService autoSync;
+  late Handler autoHandler;
 
   setUp(() async {
     if (!mysqlEnabled) return;
@@ -44,6 +50,20 @@ void main() {
         payroll: PayrollCalculator(db: testDb.db),
       ),
     );
+    final payroll = PayrollCalculator(db: testDb.db);
+    autoSync = SyncService(db: testDb.db, logger: logger, payroll: payroll);
+    autoHandler = buildHandler(
+      db: testDb.db,
+      logger: logger,
+      authApi: authApi,
+      syncApi: SyncApi(autoSync, authApi),
+      dataApi: DataApi(
+        db: testDb.db,
+        auth: authApi,
+        periods: PeriodService(db: testDb.db, payroll: payroll),
+        payroll: payroll,
+      ),
+    );
     final admin = await auth.createFirstAdmin(
         login: 'admin', fullName: 'Админ', password: 'admin-pass-1');
     tokens = {
@@ -62,6 +82,7 @@ void main() {
           await auth.login(role.name, 'real-pass-1', const RequestInfo());
       tokens[role] = pair.accessToken;
       if (role == Role.accountant) accountant = pair.user;
+      if (role == Role.operator) operator = pair.user;
     }
   });
 
@@ -70,8 +91,8 @@ void main() {
   });
 
   Future<(int, dynamic)> call(String method, String path,
-      {Object? body, Role role = Role.accountant}) async {
-    final response = await handler(Request(
+      {Object? body, Role role = Role.accountant, bool auto = false}) async {
+    final response = await (auto ? autoHandler : handler)(Request(
       method,
       Uri.parse('http://localhost$path'),
       body: body == null ? null : jsonEncode(body),
@@ -158,8 +179,8 @@ void main() {
         'created_at': '2026-09-01T10:00:00',
       });
 
-  Future<void> push(List<SyncChange> changes) async {
-    final results = await sync.push(
+  Future<void> push(List<SyncChange> changes, {bool auto = false}) async {
+    final results = await (auto ? autoSync : sync).push(
         accountant, 'pc-1', [for (final c in changes) c.toJson()]);
     expect(results.map((r) => r.status).toSet(), {'applied'},
         reason: [for (final r in results) '${r.code}: ${r.message}'].join('; '));
@@ -177,8 +198,8 @@ void main() {
   /// - Пётр: ставка с 10.09 (удалённая ставка с 01.09 не считается);
   ///   01.09 поле — без ставки, 10.09 поле;
   /// - Ольга уволена 31.08, начислений и выплат нет — в расчёт не входит.
-  Future<void> seed() async {
-    await push([
+  Future<void> seed({bool auto = false}) async {
+    await push(auto: auto, [
       employee(ivan, 'Иванов Иван'),
       employee(petr, 'Петров Пётр'),
       employee(olga, 'Ольгина Ольга', dismissed: '2026-08-31'),
@@ -524,9 +545,12 @@ void main() {
           body: {'year': 2026, 'month': 9});
       expect((s, json['error']['code']), (409, 'period_locked'));
 
-      (s, _) = await call('DELETE', '/periods/locks/2026/9');
-      expect(s, 204);
-      (s, _) = await call('DELETE', '/periods/locks/2026/9');
+      (s, json) = await call('DELETE', '/periods/locks/2026/9');
+      expect((s, json['error']['code']), (403, 'forbidden'),
+          reason: 'открыть месяц может только админ');
+      (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
+      expect(s, 200);
+      (s, _) = await call('DELETE', '/periods/locks/2026/9', role: Role.admin);
       expect(s, 404);
       await push([day(ivan, '2026-09-25')]);
 
@@ -552,6 +576,105 @@ void main() {
       expect(s, 400);
     }, skip: mysqlSkip);
 
+    test('открытие: предпросмотр ничего не меняет, снимок хранит «до»',
+        () async {
+      await seed(); // без пересчёта: расчёты не сохранены
+      var (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9, 'note': 'сдан'});
+      expect(s, 201);
+      Future<int> count(String table) async => (await testDb.db
+              .execute('SELECT COUNT(*) AS c FROM $table'))
+          .rows
+          .single
+          .intOf('c');
+      final logBefore = await count('change_log');
+
+      (s, json) = await call('GET', '/periods/locks/2026/9/unlock-preview');
+      expect((s, json['error']['code']), (403, 'forbidden'));
+      (s, json) = await call('GET', '/periods/locks/2026/9/unlock-preview',
+          role: Role.admin, auto: true);
+      expect(s, 200, reason: '$json');
+      expect(json['lock']['note'], 'сдан');
+      final months = {
+        for (final m in json['changes']) '${m['month']}': m['employees'],
+      };
+      expect(months.keys, ['9', '10']);
+      final ivanSept = months['9']
+          .firstWhere((e) => e['employee_uuid'] == ivan);
+      expect((ivanSept['before']['accrued'], ivanSept['after']['accrued']),
+          (0.0, 5650.0));
+      final ivanOct = months['10']
+          .firstWhere((e) => e['employee_uuid'] == ivan);
+      // Остаток на 1.10: было 0 − 1000, станет 5650 − 1000.
+      expect((ivanOct['before']['starting'], ivanOct['after']['starting']),
+          (-1000.0, 4650.0));
+      expect(ivanOct['after']['closing'], 4650.0 + 1800 - 2000);
+
+      // Предпросмотр откатился: месяц закрыт, расчётов и журнала нет.
+      expect(await count('period_locks'), 1);
+      expect(await count('payroll_results'), 0);
+      expect(await count('change_log'), logBefore);
+      expect(await count('period_snapshots'), 0);
+
+      (s, json) = await call('DELETE', '/periods/locks/2026/9',
+          role: Role.admin, auto: true);
+      expect(s, 200);
+      final id = json['snapshot_id'] as int;
+      expect(await count('payroll_results'), 4);
+
+      (s, json) = await call('GET', '/periods/snapshots');
+      expect(s, 200);
+      final listed = json['snapshots'].single;
+      expect((listed['id'], listed['year'], listed['month'], listed['reason']),
+          (id, 2026, 9, 'unlock'));
+      expect(listed['created_by_name'], 'Админ');
+      expect(listed['lock']['locked_by_name'], 'Пользователь accountant');
+      expect(listed.containsKey('months'), isFalse);
+
+      (s, json) = await call('GET', '/periods/snapshots/$id');
+      expect(s, 200);
+      final snapSept = json['months'].first;
+      expect((snapSept['year'], snapSept['month']), (2026, 9));
+      final ivanSnap =
+          snapSept['employees'].firstWhere((e) => e['employee_uuid'] == ivan);
+      expect(ivanSnap['full_name'], 'Иванов Иван');
+      expect((ivanSnap['accrued'], ivanSnap['paid'], ivanSnap['closing']),
+          (0.0, 1000.0, -1000.0), reason: 'как было до открытия');
+      // Что изменилось: снимок против расчётов сейчас.
+      Future<Map<String, dynamic>> changed() async {
+        final (s, json) = await call('GET', '/periods/snapshots/$id/changes');
+        expect(s, 200, reason: '$json');
+        expect(json.containsKey('months'), isFalse);
+        expect(json['compared_at'], isNotNull);
+        return {
+          for (final m in json['changes'])
+            '${m['month']}': {
+              for (final e in m['employees']) e['employee_uuid']: e,
+            },
+        };
+      }
+
+      var diff = await changed();
+      expect(diff.keys, ['9', '10']);
+      expect(diff['9'][ivan]['before']['accrued'], 0.0);
+      expect(diff['9'][ivan]['after']['accrued'], 5650.0);
+      expect(diff['10'][ivan]['after']['starting'], 4650.0);
+      expect(diff['9'].containsKey(olga), isFalse, reason: 'не менялось');
+
+      // Правка после открытия тоже видна.
+      await push(auto: true, [day(ivan, '2026-09-22')]);
+      diff = await changed();
+      expect(diff['9'][ivan]['after']['accrued'], 5650.0 + 1800);
+      (s, _) = await call('GET', '/periods/snapshots/$id/changes',
+          role: Role.operator);
+      expect(s, 403);
+
+      (s, _) = await call('GET', '/periods/snapshots/$id', role: Role.operator);
+      expect(s, 403);
+      (s, _) = await call('GET', '/periods/snapshots/999');
+      expect(s, 404);
+    }, skip: mysqlSkip);
+
     test('закрытие ждёт незавершённый приём изменений', () async {
       final release = Completer<void>();
       final reading = Completer<void>();
@@ -573,6 +696,250 @@ void main() {
       release.complete();
       await pushLike;
       expect((await locking).$1, 201);
+    }, skip: mysqlSkip);
+  });
+
+  group('автопересчёт открытых месяцев', () {
+    /// Расчёт месяца по сотрудникам: свежий и сохранённый рядом.
+    Future<Map<String, dynamic>> month(int m) async {
+      final (s, json) =
+          await call('GET', '/payroll/calculation?year=2026&month=$m');
+      expect(s, 200, reason: '$json');
+      return {for (final e in json['employees']) e['employee_uuid']: e};
+    }
+
+    Future<int> auditCount(String action) async {
+      final r = await testDb.db.execute(
+          'SELECT COUNT(*) AS c FROM audit_log WHERE action = :a', {'a': action});
+      return r.rows.single.intOf('c');
+    }
+
+    Future<SyncChange> current(String table, String id) async =>
+        (await const SyncRows()
+            .read(testDb.db.execute, syncTableByName(table)!, id))!;
+
+    test('приём правок сохраняет расчёты всех месяцев с данными', () async {
+      final start = await autoSync.pull(accountant, cursor: 0);
+      await seed(auto: true);
+      final sept = await month(9), oct = await month(10);
+      expect(sept.keys.toSet(), {ivan, petr});
+      expect(oct.keys.toSet(), {ivan, petr},
+          reason: 'Пётр — по входящему остатку');
+      for (final e in [...sept.values, ...oct.values]) {
+        expect(e['up_to_date'], isTrue, reason: '${e['full_name']}');
+      }
+      expect(sept[ivan]['saved']['total_salary'], 5650.0);
+      expect(oct[ivan]['saved']['total_salary'], 1800.0);
+      expect(await auditCount('payroll_auto_save'), 4);
+
+      final pulled = await autoSync.pull(accountant,
+          cursor: start.cursor, epoch: start.epoch);
+      final results =
+          pulled.changes.where((c) => c.table == 'payroll_results').toList();
+      expect(results, hasLength(4));
+      expect(results.every((c) => c.editedBy == 'server'), isTrue);
+
+      // Повтор той же пачки — дубликаты, расчёты не переписываются.
+      await autoSync.push(accountant, 'pc-1', [
+        for (final c in pulled.changes)
+          if (c.table != 'payroll_results') c.toJson(),
+      ]);
+      expect(await auditCount('payroll_auto_save'), 4);
+    }, skip: mysqlSkip);
+
+    test('правка в сентябре обновляет сентябрь и остаток октября', () async {
+      await seed(auto: true);
+      final petrSept = (await month(9))[petr]['saved'];
+      await push(auto: true, [day(ivan, '2026-09-22')]); // +1800 поле
+      final sept = await month(9);
+      expect(sept[ivan]['saved']['total_salary'], 7450.0);
+      expect(sept[petr]['saved']['updated_at'], petrSept['updated_at'],
+          reason: 'расчёт Петра не менялся — не переписан');
+      final (_, oct) = await call('GET', '/payroll?year=2026&month=10');
+      // 7450 − выплачено до 01.10 1000.
+      expect(oct['starting_balances'][ivan], 6450.0);
+      expect((await month(10))[ivan]['up_to_date'], isTrue);
+    }, skip: mysqlSkip);
+
+    test('перенос дня между месяцами пересчитывает оба', () async {
+      await seed(auto: true);
+      final octDay = await testDb.db.execute(
+          "SELECT uuid FROM timesheet WHERE date = '2026-10-01'");
+      final moved = await current('timesheet', octDay.rows.single.textOf('uuid'));
+      await push(auto: true, [
+        SyncChange(
+            table: 'timesheet',
+            uuid: moved.uuid,
+            updatedAt: DateTime.now().toUtc(),
+            deleted: false,
+            data: {...moved.data, 'date': '2026-09-25'}),
+      ]);
+      expect((await month(9))[ivan]['saved']['total_salary'], 5650.0 + 1800);
+      final oct = await month(10);
+      expect(oct[ivan]['calculation']['total_salary'], 0.0);
+      expect(oct[ivan]['up_to_date'], isTrue);
+      expect(oct[ivan]['saved']['total_salary'], 0.0,
+          reason: 'в октябре у Ивана выплата — строка остаётся');
+    }, skip: mysqlSkip);
+
+    test('удалили все дни месяца — расчёт месяца удаляется', () async {
+      await seed(auto: true);
+      final petrDays = await testDb.db.execute(
+          'SELECT uuid FROM timesheet WHERE employee_uuid = :e', {'e': petr});
+      await push(auto: true, [
+        for (final r in petrDays.rows)
+          SyncChange(
+              table: 'timesheet',
+              uuid: r.textOf('uuid'),
+              updatedAt: DateTime.now().toUtc(),
+              deleted: true,
+              data: (await current('timesheet', r.textOf('uuid'))).data),
+      ]);
+      expect((await month(9)).keys, isNot(contains(petr)));
+      expect((await month(10)).keys, isNot(contains(petr)));
+      expect(await auditCount('payroll_auto_delete'), 2);
+    }, skip: mysqlSkip);
+
+    test('устаревший расчёт от старого клиента исправляется тем же приёмом',
+        () async {
+      await seed(auto: true);
+      final saved = (await month(9))[ivan]['saved'];
+      // Часы клиента спешат на 2 минуты — версия сервера всё равно новее.
+      final clientStamp = DateTime.now().toUtc().add(const Duration(minutes: 2));
+      final results = await autoSync.push(accountant, 'pc-1', [
+        SyncChange(
+          table: 'payroll_results',
+          uuid: saved['uuid'],
+          updatedAt: clientStamp,
+          deleted: false,
+          data: {
+            for (final e in (saved as Map<String, dynamic>).entries)
+              if (e.key != 'uuid' && e.key != 'updated_at') e.key: e.value,
+            'total_salary': 1.0,
+          },
+        ).toJson(),
+      ]);
+      expect(results.single.status, 'applied');
+      final after = await current('payroll_results', saved['uuid']);
+      expect(after.data['total_salary'], 5650.0);
+      expect(after.updatedAt.isAfter(clientStamp), isTrue);
+      expect(after.editedBy, 'server');
+    }, skip: mysqlSkip);
+
+    test('закрытый месяц не пересчитывается; после открытия — пересчитан',
+        () async {
+      await seed(); // без пересчёта: сохранённых расчётов нет
+      // Закрыт без пересчёта (как до 0.4.0) — зафиксированного расчёта нет.
+      var (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9});
+      expect(s, 201, reason: '$json');
+      // Правка сотрудника задевает все месяцы.
+      await push(auto: true, [
+        SyncChange(
+            table: 'employees',
+            uuid: petr,
+            updatedAt: DateTime.now().toUtc(),
+            deleted: false,
+            data: employee(petr, 'Петров Пётр Петрович').data),
+      ]);
+      final sept = await month(9);
+      expect(sept.values.every((e) => e['saved'] == null), isTrue,
+          reason: 'сентябрь закрыт — не трогается');
+      final oct = await month(10);
+      expect(oct[ivan]['up_to_date'], isTrue);
+      expect(oct[ivan]['starting_balance'], -1000.0,
+          reason: 'за закрытый сентябрь ничего не зафиксировано');
+
+      (s, _) = await call('DELETE', '/periods/locks/2026/9',
+          auto: true, role: Role.admin);
+      expect(s, 200);
+      expect((await month(9))[ivan]['saved']['total_salary'], 5650.0);
+      expect((await month(10))[ivan]['starting_balance'], 4650.0);
+    }, skip: mysqlSkip);
+
+    test('закрытие сначала пересчитывает месяц — фиксируется свежий расчёт',
+        () async {
+      await seed(); // без пересчёта: расчёт сентября не сохранён
+      final (s, json) = await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 9}, auto: true);
+      expect(s, 201, reason: '$json');
+      final sept = await month(9);
+      expect(sept[ivan]['saved']['total_salary'], 5650.0);
+      expect(sept.values.every((e) => e['up_to_date'] == true), isTrue);
+    }, skip: mysqlSkip);
+
+    test('полный пересчёт при запуске: только расхождения', () async {
+      await seed();
+      final payroll = PayrollCalculator(db: testDb.db);
+      Future<int> run() => testDb.db.transaction((conn) async {
+            await const ChangeLog().lock(conn.execute);
+            return payroll.recalculateOpenMonths(conn.execute);
+          });
+      expect(await run(), 4);
+      expect(await run(), 0);
+      expect(await payroll.dataMonths(testDb.db.execute),
+          (first: 2026 * 12 + 8, last: 2026 * 12 + 9));
+    }, skip: mysqlSkip);
+  });
+
+  group('журнал действий (6.7)', () {
+    Future<(int, dynamic)> audit(String query, {Role role = Role.admin}) =>
+        call('GET', '/audit$query', role: role);
+
+    test('отбор по сотруднику и виду, постранично, только админ', () async {
+      await seed();
+      await call('POST', '/periods/locks',
+          body: {'year': 2026, 'month': 8, 'note': 'сдан'});
+
+      var (s, json) = await audit('');
+      expect(s, 200, reason: '$json');
+      final all = json['entries'] as List;
+      expect(all.first['action'], 'period_lock', reason: 'новые сверху');
+      expect(all.first['user_name'], 'Пользователь accountant');
+      expect(all.first['new']['note'], 'сдан');
+
+      // Иван: сотрудник, 2 ставки, 10 дней табеля, 2 выплаты.
+      (s, json) = await audit('?employee_uuid=$ivan&limit=200');
+      final ivans = json['entries'] as List;
+      expect(ivans, hasLength(15));
+      expect(ivans.every((e) => e['employee_uuid'] == ivan), isTrue);
+      expect(ivans.every((e) => e['employee_name'] == 'Иванов Иван'), isTrue);
+      final day = ivans.firstWhere((e) =>
+          e['entity'] == 'timesheet' && e['new']['date'] == '2026-09-02');
+      expect(day['action'], 'sync_insert');
+      expect(day['old'], isNull);
+      expect((day['new']['work_place'], day['device_id']), ('base', 'pc-1'));
+
+      (s, json) = await audit('?employee_uuid=$ivan&kind=payments');
+      expect([for (final e in json['entries']) e['new']['amount']],
+          unorderedEquals([1000.0, 2000.0]));
+      (s, json) = await audit('?kind=periods');
+      expect([for (final e in json['entries']) e['action']], ['period_lock']);
+      (s, json) = await audit('?kind=access');
+      expect({for (final e in json['entries']) e['action']}, contains('login'));
+
+      // Постранично: по 5, без повторов и пропусков.
+      final ids = <int>[];
+      int? before;
+      do {
+        (s, json) = await audit(
+            '?employee_uuid=$ivan&limit=5${before == null ? '' : '&before=$before'}');
+        ids.addAll([for (final e in json['entries']) e['id'] as int]);
+        before = json['next_before'] as int?;
+      } while (before != null);
+      expect(ids, [for (final e in ivans) e['id']]);
+
+      // По времени: будущее — пусто.
+      final later = DateTime.now().toUtc().add(const Duration(hours: 1));
+      (s, json) = await audit('?since=${later.toIso8601String()}');
+      expect(json['entries'], isEmpty);
+
+      (s, json) = await audit('', role: Role.accountant);
+      expect(s, 403);
+      (s, _) = await audit('?kind=nothing');
+      expect(s, 400);
+      (s, _) = await audit('?since=2026-09-01');
+      expect(s, 400, reason: 'нужен момент UTC с Z');
     }, skip: mysqlSkip);
   });
 
@@ -604,6 +971,47 @@ void main() {
           '/timesheet?year=2026&month=9&employee_uuid=$petr');
       expect([for (final d in json['timesheet']) d['date']],
           ['2026-09-01', '2026-09-10']);
+    }, skip: mysqlSkip);
+
+    test('табель дня (6.10): отметки, кто внёс, сколько работает', () async {
+      await seed();
+      // Оператор отметил Ивана 04.09 и Петра 01.09 — поверх бухгалтера.
+      final results = await sync.push(operator, 'phone-1', [
+        day(ivan, '2026-09-04', place: 'base').toJson(),
+      ]);
+      expect(results.single.status, 'applied');
+
+      var (s, json) = await call('GET', '/timesheet/day?date=2026-09-01',
+          role: Role.operator);
+      expect(s, 200);
+      expect(json['date'], '2026-09-01');
+      expect(json['active_employees'], 2, reason: 'Ольга уволена 31.08');
+      expect([for (final r in json['records']) r['employee_name']],
+          ['Иванов Иван', 'Петров Пётр']);
+      expect(json['records'].first['user_login'], 'accountant');
+      expect(json['records'].first['user_role'], 'accountant');
+      expect(json['records'].first['at'], isNotNull);
+
+      (s, json) = await call('GET', '/timesheet/day?date=2026-09-04',
+          role: Role.admin);
+      final r = json['records'].single;
+      expect(r['user_login'], 'operator');
+      expect(r['user_name'], 'Пользователь operator');
+      expect(r['day_type'], 'work');
+      expect(r['days'], 1.0);
+      expect(r['work_place'], 'base');
+
+      // Удалённая отметка (21.09) не показывается; пустой день — пусто.
+      (s, json) = await call('GET', '/timesheet/day?date=2026-09-21');
+      expect(json['records'], isEmpty);
+      // День увольнения уже нерабочий.
+      (s, json) = await call('GET', '/timesheet/day?date=2026-08-31');
+      expect(json['active_employees'], 2);
+
+      (s, json) = await call('GET', '/timesheet/day');
+      expect(s, 400);
+      (s, json) = await call('GET', '/timesheet/day?date=2026-9-1');
+      expect(s, 400);
     }, skip: mysqlSkip);
 
     test('ставки, выплаты, реквизиты — только бухгалтер и админ', () async {

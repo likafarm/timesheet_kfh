@@ -206,6 +206,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Windows: с контрольной суммой — «Установить» из программы', (
+    tester,
+  ) async {
+    await setUpSync(tester);
+    server.versions = {
+      'platforms': {
+        'windows': {
+          'latest': '9.0.0',
+          'min': '1.0.0',
+          'url':
+              'https://tab.example.ru/download/KFH_TimeTracking_Setup_9.0.0.exe',
+          'sha256': 'a' * 64,
+        },
+      },
+    };
+    await tester.pumpWidget(
+      app(const Scaffold(body: Column(children: [UpdateBanner()]))),
+    );
+    await tester.runAsync(sync.checkVersion);
+    await tester.pump();
+    expect(
+      find.textContaining('Доступна новая версия программы — 9.0.0'),
+      findsOneWidget,
+    );
+    // Тесты идут в Windows (так же и CI): установка — из программы.
+    expect(find.text('Установить'), findsOneWidget);
+    expect(find.text('Скачать'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   group('без входа программа не запускается', () {
     Widget gated() => app(
       const AuthGate(

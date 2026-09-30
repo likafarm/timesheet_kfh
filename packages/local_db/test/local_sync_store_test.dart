@@ -545,6 +545,38 @@ void main() {
       );
     });
 
+    test(
+      'eraseForRedownload: остаются только настройки и id устройства',
+      () async {
+        final device = await a.db.deviceId();
+        final emp = await a.addEmployee('Иванов Иван');
+        await a.addWork(emp, DateTime(2026, 9, 1));
+        await a.repo.payments.add(
+          Payment(
+            employeeId: emp,
+            paymentDate: DateTime(2026, 9, 5),
+            amount: 100,
+          ),
+        );
+        await a.pushAll();
+        await a.store.saveCursor(const SyncCursor(9, 'e'));
+        await a.store.setLinkedServer('https://old.example.ru');
+
+        await a.store.eraseForRedownload();
+        final keys = await a.store.localKeys();
+        expect(
+          {
+            for (final e in keys.entries)
+              if (e.value.isNotEmpty) e.key,
+          },
+          {'company_settings'},
+        );
+        expect(await a.store.cursor(), SyncCursor.start);
+        expect(await a.store.linkedServer(), isNull);
+        expect(await a.db.deviceId(), device);
+      },
+    );
+
     test('localKeys — все записи, и удалённые', () async {
       final emp = await a.addEmployee('Иванов Иван');
       final day = await a.addWork(emp, DateTime(2026, 9, 1));
@@ -591,6 +623,26 @@ void main() {
       expect(await a.store.saveLockedMonths([(2025, 12), (2026, 8)]), isFalse);
       expect(await a.store.saveLockedMonths([]), isTrue);
       expect(await a.store.lockedMonths(), isEmpty);
+    });
+
+    test('неотправленные правки, задевающие месяц', () async {
+      final emp = await a.addEmployee('Иванов Иван');
+      final sep = await a.addWork(emp, DateTime(2026, 9, 3));
+      await a.addWork(emp, DateTime(2026, 10, 1));
+      await a.pushAll();
+      expect(await a.store.pendingInMonth(2026, 9), isEmpty);
+
+      a.tick();
+      await a.repo.timesheet.delete(sep); // удаление — тоже правка сентября
+      await a.addWork(emp, DateTime(2026, 10, 2));
+      await a.repo.employees.update(
+        (await a.repo.employees.byId(emp))!.copyWith(position: 'Тракторист'),
+      ); // сотрудник к месяцам не привязан
+      expect(
+        [for (final p in await a.store.pendingInMonth(2026, 9)) p.uuid],
+        [sep],
+      );
+      expect(await a.store.pendingInMonth(2026, 10), hasLength(1));
     });
 
     test('смена сервера сбрасывает список', () async {

@@ -69,7 +69,8 @@ void main() {
     final user = await api.login('ivan', 'secret-pass');
     expect(user.login, 'ivan');
     expect(user.canUseOn(ClientKind.desktop), isTrue);
-    expect(user.canUseOn(ClientKind.phone), isFalse);
+    // Телефон — все роли (6.9).
+    expect(user.canUseOn(ClientKind.phone), isTrue);
     expect(tokens.tokens!.accessToken, 'access-1');
     final r = requests.single;
     expect(r.method, 'POST');
@@ -247,6 +248,199 @@ void main() {
     );
     expect(await api.lockedMonths(), [(2026, 8), (2026, 7)]);
     expect(requests.single.url.path, '/periods/locks');
+  });
+
+  test('закрытые месяцы: кто закрыл, закрыть и открыть', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) => r.method == 'GET'
+          ? _json({
+              'locks': [
+                {
+                  'year': 2026,
+                  'month': 8,
+                  'locked_by_name': 'Бухгалтер',
+                  'locked_at': '2026-09-27T10:00:00.000Z',
+                  'note': 'сдан',
+                },
+              ],
+            })
+          : r.method == 'POST'
+          ? _json({'year': 2026, 'month': 9}, 201)
+          : http.Response('', 204),
+    );
+    final lock = (await api.periodLocks()).single;
+    expect(
+      (lock.year, lock.month, lock.lockedByName, lock.note),
+      (2026, 8, 'Бухгалтер', 'сдан'),
+    );
+    expect(lock.lockedAt, DateTime.utc(2026, 9, 27, 10));
+
+    await api.lockMonth(2026, 9, note: 'ведомость');
+    expect(requests[1].url.path, '/periods/locks');
+    expect(jsonDecode(requests[1].body), {
+      'year': 2026,
+      'month': 9,
+      'note': 'ведомость',
+    });
+    await api.unlockMonth(2026, 8);
+    expect(
+      (requests[2].method, requests[2].url.path),
+      ('DELETE', '/periods/locks/2026/8'),
+    );
+  });
+
+  test('открытие месяца: предпросмотр, снимок, id снимка', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    Map<String, Object?> row(double accrued, double starting) => {
+      'employee_uuid': 'e1',
+      'full_name': 'Иванов Иван',
+      'starting': starting,
+      'accrued': accrued,
+      'paid': 1000,
+      'closing': starting + accrued - 1000,
+    };
+    final api = client((r) {
+      if (r.method == 'DELETE') return _json({'snapshot_id': 7});
+      if (r.url.path.endsWith('/unlock-preview')) {
+        return _json({
+          'year': 2026,
+          'month': 9,
+          'lock': {'year': 2026, 'month': 9, 'locked_by_name': 'Бухгалтер'},
+          'changes': [
+            {
+              'year': 2026,
+              'month': 9,
+              'employees': [
+                {'before': row(0, 0), 'after': row(5650, 0)},
+              ],
+            },
+          ],
+        });
+      }
+      if (r.url.path.endsWith('/changes')) {
+        return _json({
+          'id': 7,
+          'year': 2026,
+          'month': 9,
+          'compared_at': '2026-09-29T08:00:00.000Z',
+          'changes': [
+            {
+              'year': 2026,
+              'month': 9,
+              'employees': [
+                {'before': row(2000, 0), 'after': row(2500, 0)},
+              ],
+            },
+          ],
+        });
+      }
+      if (r.url.path == '/periods/snapshots') {
+        return _json({
+          'snapshots': [
+            {
+              'id': 7,
+              'year': 2026,
+              'month': 9,
+              'created_at': '2026-09-28T10:00:00.000Z',
+              'created_by_name': 'Админ',
+              'lock': null,
+            },
+          ],
+        });
+      }
+      return _json({
+        'id': 7,
+        'year': 2026,
+        'month': 9,
+        'months': [
+          {
+            'year': 2026,
+            'month': 9,
+            'employees': [row(0, 0)],
+          },
+        ],
+      });
+    });
+    final preview = await api.unlockPreview(2026, 9);
+    expect(requests.last.url.path, '/periods/locks/2026/9/unlock-preview');
+    expect(preview.lock!.lockedByName, 'Бухгалтер');
+    final change = preview.changes.single.rows.single;
+    expect(
+      (change.fullName, change.before.accrued, change.after.accrued),
+      ('Иванов Иван', 0.0, 5650.0),
+    );
+    expect(change.after.closing, 4650.0);
+
+    expect(await api.unlockMonth(2026, 9), 7);
+    final listed = (await api.periodSnapshots()).single;
+    expect((listed.id, listed.createdByName), (7, 'Админ'));
+    expect(listed.months, isEmpty);
+    final full = await api.periodSnapshot(7);
+    expect(requests.last.url.path, '/periods/snapshots/7');
+    expect(full.months.single.rows.single.closing, -1000.0);
+    final changes = await api.periodSnapshotChanges(7);
+    expect(requests.last.url.path, '/periods/snapshots/7/changes');
+    expect(changes.snapshot.id, 7);
+    expect(changes.comparedAt, DateTime.utc(2026, 9, 29, 8));
+    final c = changes.changes.single.rows.single;
+    expect((c.before.accrued, c.after.accrued), (2000.0, 2500.0));
+  });
+
+  test('журнал действий: параметры запроса и разбор; пользователи', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) => r.url.path == '/users'
+          ? _json({
+              'users': [
+                {
+                  'uuid': 'u1',
+                  'login': 'buh',
+                  'full_name': 'Бухгалтер',
+                  'role': 'accountant',
+                },
+              ],
+            })
+          : _json({
+              'entries': [
+                {
+                  'id': 42,
+                  'at': '2026-09-29T09:00:00.000Z',
+                  'user_name': 'Бухгалтер',
+                  'action': 'sync_update',
+                  'entity': 'timesheet',
+                  'employee_name': 'Иванов Иван',
+                  'old': {'day_type': 'work'},
+                  'new': {'day_type': 'sick'},
+                },
+              ],
+              'next_before': 42,
+            }),
+    );
+    final page = await api.auditLog(
+      since: DateTime.utc(2026, 9, 1),
+      employeeUuid: 'e1',
+      kind: 'timesheet',
+      before: 100,
+    );
+    final q = requests.last.url.queryParameters;
+    expect(requests.last.url.path, '/audit');
+    expect(q['since'], '2026-09-01T00:00:00.000Z');
+    expect(
+      (q['employee_uuid'], q['kind'], q['before'], q['limit']),
+      ('e1', 'timesheet', '100', '100'),
+    );
+    expect(q.containsKey('user_uuid'), isFalse);
+    final e = page.entries.single;
+    expect(
+      (e.id, e.action, e.employeeName),
+      (42, 'sync_update', 'Иванов Иван'),
+    );
+    expect((e.before!['day_type'], e.after!['day_type']), ('work', 'sick'));
+    expect(page.nextBefore, 42);
+
+    final users = await api.users();
+    expect((users.single.login, users.single.role), ('buh', 'accountant'));
   });
 
   group('HttpSyncTransport', () {

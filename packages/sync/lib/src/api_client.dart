@@ -4,14 +4,36 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart';
 
+import 'audit_log.dart';
 import 'failures.dart';
+import 'period_snapshots.dart';
 import 'session.dart';
+import 'timesheet_day.dart';
 
 /// Клиент API сервера: вход, токены, JSON-запросы.
 ///
 /// Access-токен живёт 15 минут: клиент обновляет его заранее и ещё раз,
 /// если сервер всё же ответил `token_invalid`. Refresh-токен одноразовый
 /// (сервер выдаёт новую пару), поэтому обновление идёт строго по одному.
+/// Закрытый на сервере месяц.
+class PeriodLockInfo {
+  final int year;
+  final int month;
+
+  /// Кто закрыл (ФИО пользователя; null — пользователь удалён).
+  final String? lockedByName;
+  final DateTime? lockedAt;
+  final String? note;
+
+  const PeriodLockInfo({
+    required this.year,
+    required this.month,
+    this.lockedByName,
+    this.lockedAt,
+    this.note,
+  });
+}
+
 class KfhApiClient {
   final Uri baseUrl;
   final String deviceId;
@@ -95,16 +117,66 @@ class KfhApiClient {
   }
 
   /// Закрытые на сервере месяцы `(год, месяц)`.
-  Future<List<(int, int)>> lockedMonths() async {
+  Future<List<(int, int)>> lockedMonths() async => [
+    for (final l in await periodLocks()) (l.year, l.month),
+  ];
+
+  /// Табель дня с авторами отметок (6.10, сервер 0.6.0+).
+  Future<TimesheetDayInfo> timesheetDay(DateTime day) async =>
+      TimesheetDayInfo.fromJson(
+        await getJson('/timesheet/day', query: {'date': formatDateIso(day)}),
+      );
+
+  /// Закрытые месяцы со сведениями, кто и когда закрыл (новые сверху).
+  Future<List<PeriodLockInfo>> periodLocks() async {
     final json = await getJson('/periods/locks');
     final locks = json['locks'];
     if (locks is! List) throw ServerFailure('нет списка закрытых месяцев');
     return [
       for (final l in locks)
         if (l is Map && l['year'] is int && l['month'] is int)
-          (l['year'] as int, l['month'] as int),
+          PeriodLockInfo(
+            year: l['year'] as int,
+            month: l['month'] as int,
+            lockedByName: l['locked_by_name'] as String?,
+            lockedAt: DateTime.tryParse('${l['locked_at']}'),
+            note: l['note'] as String?,
+          ),
     ];
   }
+
+  /// Закрыть месяц (бухгалтер и админ). Сервер до закрытия пересчитывает
+  /// его расчёт; уже закрыт — [ApiFailure] `already_locked`.
+  Future<void> lockMonth(int year, int month, {String? note}) =>
+      postJson('/periods/locks', {'year': year, 'month': month, 'note': ?note});
+
+  /// Открыть закрытый месяц (только админ). Сервер сохраняет снимок
+  /// остатков до открытия и пересчитывает расчёты; возвращает id снимка.
+  Future<int?> unlockMonth(int year, int month) async {
+    final json = await _authorized('DELETE', '/periods/locks/$year/$month');
+    return json['snapshot_id'] as int?;
+  }
+
+  /// Что изменит открытие месяца — без изменений на сервере (только админ).
+  Future<UnlockPreview> unlockPreview(int year, int month) async =>
+      UnlockPreview.fromJson(
+        await getJson('/periods/locks/$year/$month/unlock-preview'),
+      );
+
+  /// Снимки остатков перед открытием месяцев, новые сверху (без данных).
+  Future<List<PeriodSnapshot>> periodSnapshots() async {
+    final list = (await getJson('/periods/snapshots'))['snapshots'];
+    if (list is! List) throw ServerFailure('нет списка снимков');
+    return [for (final s in list) PeriodSnapshot.fromJson(s)];
+  }
+
+  /// Снимок целиком.
+  Future<PeriodSnapshot> periodSnapshot(int id) async =>
+      PeriodSnapshot.fromJson(await getJson('/periods/snapshots/$id'));
+
+  /// Что изменилось со времени снимка (только изменившиеся строки).
+  Future<SnapshotChanges> periodSnapshotChanges(int id) async =>
+      SnapshotChanges.fromJson(await getJson('/periods/snapshots/$id/changes'));
 
   /// Версии программ (`GET /client/version`, без входа). Старый сервер без
   /// этого адреса — пустой список (обновлений не требуется).
@@ -118,6 +190,47 @@ class KfhApiClient {
       throw ServerFailure(e.toString());
     }
   }
+
+  /// Пользователи сервера (только админ).
+  Future<List<SessionUser>> users() async {
+    final list = (await getJson('/users'))['users'];
+    if (list is! List) throw ServerFailure('нет списка пользователей');
+    return [
+      for (final u in list)
+        if (u is Map) SessionUser.fromJson(u.cast<String, Object?>()),
+    ];
+  }
+
+  /// Журнал действий сервера (6.7, только админ): [since]/[until] — моменты
+  /// (переводятся в UTC), [kind] — `timesheet`, `payments`, `rates`,
+  /// `employees`, `payroll`, `settings`, `periods`, `access`; [before] —
+  /// курсор предыдущей страницы.
+  Future<AuditPage> auditLog({
+    DateTime? since,
+    DateTime? until,
+    String? userUuid,
+    String? employeeUuid,
+    String? kind,
+    int? before,
+    int limit = 100,
+  }) async => AuditPage.fromJson(
+    await getJson(
+      '/audit',
+      query: {
+        if (since != null) 'since': since.toUtc().toIso8601String(),
+        if (until != null) 'until': until.toUtc().toIso8601String(),
+        'user_uuid': ?userUuid,
+        'employee_uuid': ?employeeUuid,
+        'kind': ?kind,
+        if (before != null) 'before': '$before',
+        'limit': '$limit',
+      },
+    ),
+  );
+
+  /// Версия сервера (`GET /health`, без входа); null — не сообщает.
+  Future<String?> serverVersion() async =>
+      (await _send('GET', '/health'))['version'] as String?;
 
   // ------------------------------------------------------------- запросы
 
