@@ -53,8 +53,11 @@ services:
       MIGRATE_ON_START: "false"
       # Версии программ для GET /client/version (пишет publish_apk.ps1).
       CLIENT_VERSIONS_FILE: /downloads/versions.json
+      # Зашифрованные ежедневные выгрузки для GET /admin/backups (пишет backup.sh).
+      BACKUP_EXPORT_DIR: /snapshots
     volumes:
       - /opt/kfh/downloads:/downloads:ro
+      - /opt/kfh/snapshots:/snapshots:ro
     secrets:
       - mysql_password
       - jwt_secret

@@ -6,6 +6,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'database.dart';
 import 'http/admin_api.dart';
 import 'http/auth_api.dart';
+import 'http/backups_api.dart';
 import 'http/client_api.dart';
 import 'http/data_api.dart';
 import 'http/middleware.dart';
@@ -27,6 +28,7 @@ Handler buildHandler({
   DataApi? dataApi,
   AdminApi? adminApi,
   ClientApi? clientApi,
+  BackupsApi? backupsApi,
   Set<String> corsOrigins = const {},
 }) {
   final router = Router(notFoundHandler: _notFound)
@@ -36,6 +38,7 @@ Handler buildHandler({
   dataApi?.addRoutes(router);
   adminApi?.addRoutes(router);
   clientApi?.addRoutes(router);
+  backupsApi?.addRoutes(router);
 
   return const Pipeline()
       .addMiddleware(requestId())

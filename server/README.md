@@ -203,6 +203,13 @@ docker compose -f server/docker-compose.dev.yml run --rm api set-password <ло�
 - На VPS: `/opt/kfh/kfh.env` (`KFH_DOMAIN`, `KFH_BACKUP_BUCKET`, `KFH_BACKUP_AGE_RECIPIENT`), `/opt/kfh/secrets/`
   (пароли MySQL, ключ JWT, `s3.env` — ключ Object Storage). Команды compose:
   `docker compose -p kfh --env-file /opt/kfh/kfh.env -f /opt/kfh/src/server/deploy/docker-compose.prod.yml …`.
+- **Выгрузки для модуля «Резервные копии»** (0.8.0): после дампа `backup.sh` делает снимок всех записей
+  (`api export` — JSON `SnapshotFile` из `kfh_domain` в stdout, журнал — в stderr), сжимает и шифрует тем же
+  ключом age: `kfh-ГГГГММДД-ЧЧММСС.json.gz.age` — в бакет рядом с дампом и в `/opt/kfh/snapshots` (сроки как в
+  бакете: 8 дней, воскресные — 57, за 1-е число — 366). Папка смонтирована в API (`BACKUP_EXPORT_DIR`):
+  `GET /admin/backups` → `{backups: [{name, size, created_at}]}`, `GET /admin/backups/<имя>` — файл как есть;
+  только админ, скачивание пишется в журнал действий (`backup_download`). Сервер расшифровать выгрузку не
+  может — это делает программа на ПК владельца его ключом.
 - **Бэкап вне VPS** — `backup.sh` по таймеру `kfh-backup.timer` (00:30 UTC): `mysqldump` → gzip → проверка →
   шифрование `age` → Yandex Object Storage, бакет `kfh-backups-likafarm`: `daily/` (8 дней), `weekly/` (воскресенье,
   57 дней), `monthly/` (1-е число, 366 дней). Ротацию делают правила жизненного цикла бакета, в бакете включено

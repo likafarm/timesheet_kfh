@@ -39,6 +39,12 @@ class SyncRows {
     return [for (final row in r.rows) fromRow(table, row)];
   }
 
+  /// Все записи таблицы, включая удалённые (снимок для модуля копий).
+  Future<List<SyncChange>> all(SqlExecutor sql, SyncTable table) async {
+    final r = await sql('${_select(table)} ORDER BY uuid');
+    return [for (final row in r.rows) fromRow(table, row)];
+  }
+
   /// Живые (не удалённые) записи по условию. [where] и [orderBy] пишет
   /// только серверный код — значения передаются параметрами.
   Future<List<SyncChange>> live(SqlExecutor sql, SyncTable table,

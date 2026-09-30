@@ -17,6 +17,7 @@
 #                         s3.env — ключ Object Storage (кладёт владелец)
 #   /opt/kfh/src/         текущие исходники (src.prev — предыдущие)
 #   /opt/kfh/backups/pre-deploy/  копия базы перед каждой выкладкой (последние 10)
+#   /opt/kfh/snapshots/   зашифрованные выгрузки для модуля копий программы (backup.sh)
 #
 # Откат кода: образ kfh-api:previous. Откат схемы — только восстановлением
 # копии из backups/pre-deploy (DDL в MySQL не откатывается).
@@ -46,6 +47,8 @@ install -d -m 700 "$ROOT/backups" "$BACKUPS"
 install -d -m 755 "$ROOT/downloads"
 # Веб-версия (этап 5): releases/<выпуск> и ссылка app — пишет publish_web.ps1.
 install -d -m 755 "$ROOT/web" "$ROOT/web/releases"
+# Зашифрованные выгрузки для модуля копий программы — пишет backup.sh, читает API.
+install -d -m 755 "$SNAPSHOTS"
 db_volume_exists=false
 docker volume inspect kfh_mysql-data >/dev/null 2>&1 && db_volume_exists=true
 for name in mysql_root_password mysql_password jwt_secret; do
