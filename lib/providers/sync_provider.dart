@@ -10,7 +10,7 @@ import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart'
-    show PlatformVersion, compareVersions;
+    show PlatformVersion, compareVersions, syncTables;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -67,9 +67,10 @@ class SyncProvider extends ChangeNotifier {
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
 
-  /// Ключ в `sync_state` (телефон, 6.9): для какой роли принята база —
-  /// `operator` (оператор получает не всё: ни выплат, ни ставок) или `full`.
-  /// Нет ключа — база принята до 6.9, когда на телефоне был только оператор.
+  /// Ключ в `sync_state` (телефон, 6.9): для какой роли сейчас принимается
+  /// база — `operator` (оператор получает не всё: ни выплат, ни ставок) или
+  /// `full`. Нет ключа — база принята до 6.9, когда на телефоне был только
+  /// оператор.
   static const dataRoleKey = 'sync_data_role';
 
   static String _dataRole(SessionUser user) =>
@@ -435,10 +436,20 @@ class SyncProvider extends ChangeNotifier {
     await _watchSessionExpiry();
   }
 
-  /// Телефон (6.9, решение владельца 2026-09-29): база принята для другой
-  /// роли — сначала отправить неотправленное (от имени вошедшего), затем
-  /// стереть данные телефона; первый вход примет базу с сервера заново.
-  /// Если отправить не вышло — отказ во входе, данные не трогаются.
+  /// Таблицы, которые оператор не получает или получает не полностью
+  /// (сотрудники — без ставок): их догружает бухгалтер или админ.
+  static final _hiddenFromOperator = {
+    for (final t in syncTables)
+      if (t.name != 'timesheet') t.name,
+  };
+
+  /// Телефон (6.9; 6.10 — решение владельца 2026-09-30): база принималась
+  /// для другой роли — сначала отправить неотправленное (от имени
+  /// вошедшего). Данные телефона не стираются: после бухгалтера или админа
+  /// оператору закрытое просто не показывается; после оператора бухгалтеру
+  /// или админу с нуля догружаются таблицы, которых оператор не получал
+  /// ([SyncEngine.refetch]). Не вышло отправить или догрузить — отказ во
+  /// входе, данные на месте (догрузка повторится при следующем входе).
   Future<void> _prepareForRole(SessionUser user) async {
     if (client != ClientKind.phone) return;
     final linked = await _store.linkedServer();
@@ -487,15 +498,18 @@ class SyncProvider extends ChangeNotifier {
         );
       }
     }
-    await _store.eraseForRedownload();
-    for (final key in [dataRoleKey, lastSyncKey, relinkKey]) {
-      await _db.customUpdate(
-        'DELETE FROM sync_state WHERE key = ?',
-        variables: [Variable<String>(key)],
-      );
+    if (!user.isOperator) {
+      try {
+        await _syncEngine.refetch(_hiddenFromOperator);
+      } on SyncFailure catch (e) {
+        await refuse(
+          'Не удалось принять с сервера ставки и выплаты, которых на этом '
+          'телефоне не было у оператора (${_explain(e)}). Войдите, когда '
+          'будет связь.',
+        );
+      }
     }
-    _lastSyncAt = null;
-    _lastReport = null;
+    await _db.syncStateDao.setValue(dataRoleKey, _dataRole(user));
     await refreshPending();
     await onLocksChanged?.call();
     await onDataChanged();
@@ -881,6 +895,21 @@ class SyncProvider extends ChangeNotifier {
       ),
     );
   }
+
+  /// Табель дня с авторами отметок (6.10, напоминание). null — нет входа,
+  /// связи или сервер старее 0.6.0 (тогда — обычное напоминание).
+  Future<TimesheetDayInfo?> timesheetDay(DateTime day) async {
+    final api = _api;
+    if (api == null || _phase != SyncPhase.ready) return null;
+    try {
+      return await api.timesheetDay(day).timeout(const Duration(seconds: 15));
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Id этого устройства (для проверки напоминания без окна программы).
+  Future<String> deviceId() => _db.deviceId();
 
   /// Пользователи сервера — для отбора в журнале (только админ).
   Future<List<SessionUser>> serverUsers() => _ask(() => _api!.users());

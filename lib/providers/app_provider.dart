@@ -477,6 +477,60 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// Отметки дня из черновика (6.10) одной транзакцией: [marks] —
+  /// сотрудник → новая запись (null — снять отметку). Закрытый месяц —
+  /// объяснение в [takeNotice] и false.
+  Future<bool> saveDayMarks(
+    DateTime date,
+    Map<String, TimesheetRecord?> marks,
+  ) async {
+    if (marks.isEmpty) return true;
+    if (!_dayAllowed('timesheet', null, date)) return false;
+    try {
+      await _appDb.db.transaction(() async {
+        for (final MapEntry(key: id, value: record) in marks.entries) {
+          final existing = await _timesheetRepo.on(id, date);
+          if (record == null) {
+            if (existing?.id != null) {
+              await _timesheetRepo.delete(existing!.id!);
+            }
+          } else if (existing == null) {
+            await _timesheetRepo.add(record);
+          } else {
+            // Не copyWith: `workPlace: null` в нём значит «не менять».
+            await _timesheetRepo.update(
+              TimesheetRecord(
+                id: existing.id,
+                employeeId: existing.employeeId,
+                date: existing.date,
+                dayType: record.dayType,
+                days: record.days,
+                workPlace: record.workPlace,
+                notes: existing.notes,
+                createdAt: existing.createdAt,
+              ),
+            );
+          }
+        }
+      });
+    } catch (e) {
+      _notice = 'Отметки не сохранены: $e';
+      notifyListeners();
+      return false;
+    }
+    if (_currentPeriodStart != null && _currentPeriodEnd != null) {
+      await loadTimesheet(
+        _currentPeriodStart!,
+        _currentPeriodEnd!,
+        employeeId: _currentTimesheetEmployee,
+      );
+    } else {
+      notifyListeners();
+    }
+    setNeedRefreshReports(true);
+    return true;
+  }
+
   Future<void> saveTimesheetRecord(TimesheetRecord record) async {
     if (!_dayAllowed('timesheet', null, record.date)) return;
     try {

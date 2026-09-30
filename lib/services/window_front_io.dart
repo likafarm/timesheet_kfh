@@ -14,7 +14,7 @@ const _windowClass = 'FLUTTER_RUNNER_WIN32_WINDOW';
 void bringWindowToFront() {
   if (!Platform.isWindows) return;
   try {
-    final hwnd = _ownWindow();
+    final hwnd = ownFlutterWindow();
     if (hwnd == null) return;
     if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
     final foreground = GetForegroundWindow();
@@ -39,8 +39,9 @@ void bringWindowToFront() {
   }
 }
 
-/// Главное окно этой программы: окно класса Flutter с нашим id процесса.
-HWND? _ownWindow() => using((arena) {
+/// Главное окно этой программы: окно класса Flutter с нашим id процесса
+/// (null — не нашлось).
+HWND? ownFlutterWindow() => using((arena) {
   final pid = GetCurrentProcessId();
   final cls = _windowClass.toPcwstr(allocator: arena);
   final owner = arena<Uint32>();

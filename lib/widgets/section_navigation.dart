@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 
 enum AppSection {
   home,
-  day,
   timesheet,
   employees,
   payments,

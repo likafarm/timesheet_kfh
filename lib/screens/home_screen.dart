@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
 import '../widgets/section_navigation.dart';
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
           vacationDays: 0,
           totalSalary: 0,
         );
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
       builder: (_) => PayrollDetailDialog(
         employee: employee,

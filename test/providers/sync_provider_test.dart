@@ -157,7 +157,7 @@ void main() {
     expect(sync.phase, SyncPhase.ready);
   });
 
-  group('телефон: вход человека другой роли (6.9)', () {
+  group('телефон: вход человека другой роли (6.9, 6.10)', () {
     Future<(SyncProvider, String)> operatorWithEdit() async {
       server.role = 'operator';
       final sync = provider(client: ClientKind.phone);
@@ -179,24 +179,85 @@ void main() {
       return (sync, id);
     }
 
-    test('неотправленное уходит, база принимается с сервера заново', () async {
-      final (sync, id) = await operatorWithEdit();
-      server.role = 'accountant';
-      reloads = 0;
-      await sync.signIn('https://localhost', 'buh', 'secret-pass');
-      expect(server.rows.keys, contains('employees/$id'));
-      // Данные телефона стёрты — первый вход заново, только приём.
-      expect(await DriftRepositories(db).employees.byId(id), isNull);
-      expect(reloads, greaterThan(0));
-      expect(sync.phase, SyncPhase.needsLink);
-      final plan = await sync.analyzeLink();
-      expect(plan.kind, BootstrapKind.download);
-      await sync.link(plan);
-      expect(sync.phase, SyncPhase.ready);
-      expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+    test(
+      'неотправленное уходит; база не стирается, закрытое догружается',
+      () async {
+        final (sync, id) = await operatorWithEdit();
+        final repos = DriftRepositories(db);
+        server.role = 'operator';
+        await sync.signIn('https://localhost', 'oper', 'secret-pass');
+        await sync.syncNow();
+        // Пока телефон был у оператора, бухгалтер на другом ПК поменял
+        // сотруднику ставку — оператору она приходит нулём.
+        final rows = Map.of(server.rows['employees/$id']!);
+        server.rows['employees/$id'] = {
+          ...rows,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+          'data': {
+            ...(rows['data'] as Map<String, Object?>),
+            'base_rate': 1500.0,
+            'field_rate': 2000.0,
+          },
+        };
+        server.log.add('employees/$id');
+        await sync.syncNow();
+        // Оператору ставка пришла нулём — так и должно быть.
+        expect((await repos.employees.byId(id))!.baseRate, 0);
+        await sync.signOut();
 
-      // Тот же бухгалтер снова — ничего не стирается.
+        server.role = 'accountant';
+        reloads = 0;
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        expect(server.rows.keys, contains('employees/$id'));
+        // Приёма заново нет: сразу работа, данные на месте, ставка догружена.
+        expect(sync.phase, SyncPhase.ready);
+        final e = await repos.employees.byId(id);
+        expect(e, isNotNull);
+        expect(e!.baseRate, 1500.0);
+        expect(e.fieldRate, 2000.0);
+        expect(reloads, greaterThan(0));
+
+        // Снова оператор — ничего не стирается и не догружается.
+        await sync.signOut();
+        server.role = 'operator';
+        await sync.signIn('https://localhost', 'oper', 'secret-pass');
+        expect(sync.phase, SyncPhase.ready);
+        expect((await repos.employees.byId(id))!.baseRate, 1500.0);
+
+        // Тот же бухгалтер дважды подряд — без догрузки.
+        await sync.signOut();
+        server.role = 'accountant';
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        final pulls = server.pulls;
+        await sync.signOut();
+        await sync.signIn('https://localhost', 'buh', 'secret-pass');
+        expect(server.pulls, pulls);
+        expect(sync.phase, SyncPhase.ready);
+      },
+    );
+
+    test('нет связи для догрузки — отказ во входе, данные на месте', () async {
+      final (sync, id) = await operatorWithEdit();
+      server.role = 'operator';
+      await sync.signIn('https://localhost', 'oper', 'secret-pass');
+      await sync.syncNow();
       await sync.signOut();
+      server.role = 'accountant';
+      server.failPull = true;
+      await expectLater(
+        sync.signIn('https://localhost', 'buh', 'secret-pass'),
+        throwsA(
+          isA<SyncUserException>().having(
+            (e) => e.message,
+            'message',
+            contains('Не удалось принять с сервера ставки и выплаты'),
+          ),
+        ),
+      );
+      expect(sync.phase, SyncPhase.signedOut);
+      expect(await DriftRepositories(db).employees.byId(id), isNotNull);
+      // Связь появилась — догрузка при следующем входе.
+      server.failPull = false;
       await sync.signIn('https://localhost', 'buh', 'secret-pass');
       expect(sync.phase, SyncPhase.ready);
     });

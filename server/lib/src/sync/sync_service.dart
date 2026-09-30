@@ -320,13 +320,24 @@ class SyncService {
   /// [epoch] — эпоха, которую клиент получил вместе со своим курсором;
   /// другая эпоха или курсор дальше конца журнала — 409 `resync_required`:
   /// база сервера восстановлена из копии, нужна синхронизация с нуля.
+  ///
+  /// [tables] — только эти таблицы (из доступных роли); null — все.
   Future<PullResult> pull(User user,
-      {required int cursor, String? epoch, int limit = 500}) async {
+      {required int cursor,
+      String? epoch,
+      int limit = 500,
+      Set<String>? tables}) async {
     if (cursor < 0) {
       throw const ApiException.badRequest('cursor не может быть отрицательным');
     }
+    final unknown = tables?.where((t) => syncTableByName(t) == null);
+    if (unknown != null && unknown.isNotEmpty) {
+      throw ApiException.badRequest('Неизвестные таблицы: ${unknown.join(', ')}');
+    }
     final n = limit.clamp(1, maxPullLimit);
-    final readable = readableTables(user.role);
+    final readable = tables == null
+        ? readableTables(user.role)
+        : readableTables(user.role).intersection(tables);
     return db.transaction((conn) async {
       final sql = conn.execute;
       final current = await _log.epoch(sql);

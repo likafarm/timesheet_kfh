@@ -18,6 +18,7 @@ void main() {
   late Map<Role, String> tokens;
   late SyncService sync;
   late User accountant;
+  late User operator;
 
   /// Как на боевом сервере: приём правок и открытие месяца пересчитывают
   /// открытые месяцы.
@@ -81,6 +82,7 @@ void main() {
           await auth.login(role.name, 'real-pass-1', const RequestInfo());
       tokens[role] = pair.accessToken;
       if (role == Role.accountant) accountant = pair.user;
+      if (role == Role.operator) operator = pair.user;
     }
   });
 
@@ -969,6 +971,47 @@ void main() {
           '/timesheet?year=2026&month=9&employee_uuid=$petr');
       expect([for (final d in json['timesheet']) d['date']],
           ['2026-09-01', '2026-09-10']);
+    }, skip: mysqlSkip);
+
+    test('табель дня (6.10): отметки, кто внёс, сколько работает', () async {
+      await seed();
+      // Оператор отметил Ивана 04.09 и Петра 01.09 — поверх бухгалтера.
+      final results = await sync.push(operator, 'phone-1', [
+        day(ivan, '2026-09-04', place: 'base').toJson(),
+      ]);
+      expect(results.single.status, 'applied');
+
+      var (s, json) = await call('GET', '/timesheet/day?date=2026-09-01',
+          role: Role.operator);
+      expect(s, 200);
+      expect(json['date'], '2026-09-01');
+      expect(json['active_employees'], 2, reason: 'Ольга уволена 31.08');
+      expect([for (final r in json['records']) r['employee_name']],
+          ['Иванов Иван', 'Петров Пётр']);
+      expect(json['records'].first['user_login'], 'accountant');
+      expect(json['records'].first['user_role'], 'accountant');
+      expect(json['records'].first['at'], isNotNull);
+
+      (s, json) = await call('GET', '/timesheet/day?date=2026-09-04',
+          role: Role.admin);
+      final r = json['records'].single;
+      expect(r['user_login'], 'operator');
+      expect(r['user_name'], 'Пользователь operator');
+      expect(r['day_type'], 'work');
+      expect(r['days'], 1.0);
+      expect(r['work_place'], 'base');
+
+      // Удалённая отметка (21.09) не показывается; пустой день — пусто.
+      (s, json) = await call('GET', '/timesheet/day?date=2026-09-21');
+      expect(json['records'], isEmpty);
+      // День увольнения уже нерабочий.
+      (s, json) = await call('GET', '/timesheet/day?date=2026-08-31');
+      expect(json['active_employees'], 2);
+
+      (s, json) = await call('GET', '/timesheet/day');
+      expect(s, 400);
+      (s, json) = await call('GET', '/timesheet/day?date=2026-9-1');
+      expect(s, 400);
     }, skip: mysqlSkip);
 
     test('ставки, выплаты, реквизиты — только бухгалтер и админ', () async {

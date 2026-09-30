@@ -8,6 +8,7 @@ import 'audit_log.dart';
 import 'failures.dart';
 import 'period_snapshots.dart';
 import 'session.dart';
+import 'timesheet_day.dart';
 
 /// Клиент API сервера: вход, токены, JSON-запросы.
 ///
@@ -119,6 +120,12 @@ class KfhApiClient {
   Future<List<(int, int)>> lockedMonths() async => [
     for (final l in await periodLocks()) (l.year, l.month),
   ];
+
+  /// Табель дня с авторами отметок (6.10, сервер 0.6.0+).
+  Future<TimesheetDayInfo> timesheetDay(DateTime day) async =>
+      TimesheetDayInfo.fromJson(
+        await getJson('/timesheet/day', query: {'date': formatDateIso(day)}),
+      );
 
   /// Закрытые месяцы со сведениями, кто и когда закрыл (новые сверху).
   Future<List<PeriodLockInfo>> periodLocks() async {

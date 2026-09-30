@@ -19,7 +19,7 @@ const _excel = XTypeGroup(
 /// если человек передумал. На телефоне (6.9) — «Поделиться», null.
 Future<String?> saveExcelFile(String suggestedName, Uint8List bytes) async {
   if (Platform.isAndroid) {
-    await shareFile(suggestedName, bytes, xlsxMimeType);
+    await deliverFile(suggestedName, bytes, xlsxMimeType);
     return null;
   }
   final location = await getSaveLocation(

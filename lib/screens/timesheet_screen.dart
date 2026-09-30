@@ -17,6 +17,10 @@ import '../services/print_service.dart';
 import '../widgets/excel_export_action.dart';
 import '../theme/app_theme.dart';
 import 'daily_input_screen.dart';
+import 'reminder_screen.dart';
+import '../services/platform.dart';
+import '../services/reminder.dart';
+import '../utils/day_draft.dart';
 import '../widgets/adaptive_dialog.dart';
 
 class TimesheetScreen extends StatefulWidget {
@@ -30,10 +34,15 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   DateTime _selectedMonth = DateTime.now();
   SectionNavigator? _sections;
 
+  /// Несохранённые отметки ввода за день (6.10) — остались после закрытия
+  /// программы системой.
+  DayDraft? _pendingDraft;
+
   @override
   void initState() {
     super.initState();
     _sections = context.read<SectionNavigator?>()?..addListener(_openRequested);
+    _checkPendingDraft();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
       provider.loadEmployees(activeOnly: true);
@@ -85,16 +94,25 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     }
   }
 
+  Future<void> _checkPendingDraft() async {
+    final draft = await DayDraftStore.load();
+    if (mounted) setState(() => _pendingDraft = draft);
+  }
+
   void _showDailyInputDialog(BuildContext context) {
     // Телефон — отдельный экран с крупными кнопками, Windows — окно.
-    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
+    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth ||
+        _pendingDraft != null) {
       Navigator.of(context)
           .push(
             MaterialPageRoute(
               builder: (_) => const DailyInputScreen(standalone: true),
             ),
           )
-          .then((_) => _loadTimesheet());
+          .then((_) {
+            _loadTimesheet();
+            _checkPendingDraft();
+          });
       return;
     }
     showDialog(
@@ -260,6 +278,12 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         ),
         menu: [
           AppBarMenuItem(Icons.event_busy, 'Отметить выходные', _fillDaysOff),
+          if (isAndroidApp && Reminders.instance.available)
+            AppBarMenuItem(
+              Icons.alarm,
+              'Напоминание о табеле',
+              () => showReminderSettings(context),
+            ),
           if (!operator) ...[
             AppBarMenuItem(Icons.print, 'Печать табеля', _printTimesheet),
             AppBarMenuItem(
@@ -299,8 +323,31 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
             );
           }
 
+          final pending = _pendingDraft;
           return Column(
             children: [
+              if (pending != null)
+                MaterialBanner(
+                  leading: const Icon(Icons.edit_note),
+                  content: Text(
+                    'Есть несохранённые отметки за '
+                    '${DateFormat('d MMMM', 'ru').format(pending.date)} '
+                    '(${pending.length})',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () async {
+                        await DayDraftStore.clear();
+                        _checkPendingDraft();
+                      },
+                      child: const Text('Отбросить'),
+                    ),
+                    TextButton(
+                      onPressed: () => _showDailyInputDialog(context),
+                      child: const Text('Продолжить'),
+                    ),
+                  ],
+                ),
               Expanded(
                 child: _TimesheetGrid(
                   employees: provider.employees,

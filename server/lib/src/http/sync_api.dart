@@ -12,8 +12,10 @@ import 'responses.dart';
 /// - `POST /sync/push` `{changes: [SyncChange…]}` (до 500, заголовок
 ///   `X-Device-Id` обязателен) → `{results: [{change_id, uuid, status,
 ///   code?, message?, conflict_uuid?}]}` в порядке запроса;
-/// - `GET /sync/pull?cursor=&epoch=&limit=` → `{epoch, cursor, has_more,
-///   changes}`. Первый раз — `cursor=0` без эпохи.
+/// - `GET /sync/pull?cursor=&epoch=&limit=&tables=` → `{epoch, cursor,
+///   has_more, changes}`. Первый раз — `cursor=0` без эпохи. `tables` (через
+///   запятую) — только эти таблицы: телефон после смены оператора на
+///   бухгалтера догружает с нуля то, чего оператор не получал (6.10).
 class SyncApi {
   final SyncService sync;
   final AuthApi auth;
@@ -54,10 +56,14 @@ class SyncApi {
           (throw ApiException.badRequest('$name — целое число'));
     }
 
+    final tables = query['tables'];
     final result = await sync.pull(user,
         cursor: intParam('cursor', 0),
         epoch: query['epoch'],
-        limit: intParam('limit', 500));
+        limit: intParam('limit', 500),
+        tables: tables == null || tables.isEmpty
+            ? null
+            : tables.split(',').map((t) => t.trim()).toSet());
     return jsonResponse(result.toJson());
   }
 }

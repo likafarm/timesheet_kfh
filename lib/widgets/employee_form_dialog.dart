@@ -6,12 +6,46 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../screens/employee_rate_history_screen.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
+
+/// Карточка сотрудника ([employee] = null — новый). 6.10: на телефоне — на
+/// весь экран, иначе — окно; оператору — только просмотр.
+Future<void> openEmployeeCard(BuildContext context, {Employee? employee}) {
+  final readOnly = context.read<AppProvider>().operatorMode;
+  if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => EmployeeFormDialog(
+          employee: employee,
+          fullScreen: true,
+          readOnly: readOnly,
+        ),
+      ),
+    );
+  }
+  return showDialog<void>(
+    context: context,
+    builder: (_) => EmployeeFormDialog(employee: employee, readOnly: readOnly),
+  );
+}
 
 class EmployeeFormDialog extends StatefulWidget {
   final Employee? employee;
 
-  const EmployeeFormDialog({super.key, this.employee});
+  /// Страница на весь экран (телефон), а не окно.
+  final bool fullScreen;
+
+  /// Только просмотр (оператор).
+  final bool readOnly;
+
+  const EmployeeFormDialog({
+    super.key,
+    this.employee,
+    this.fullScreen = false,
+    this.readOnly = false,
+  });
 
   @override
   State<EmployeeFormDialog> createState() => _EmployeeFormDialogState();
@@ -63,39 +97,43 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.employee != null;
-
-    return AlertDialog(
-      title: Text(isEditing ? 'Редактирование сотрудника' : 'Новый сотрудник'),
-      content: SizedBox(
-        width: 400,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppTextField(
-                  controller: _nameController,
-                  labelText: 'ФИО *',
-                  prefixIcon: Icons.person,
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  controller: _positionController,
-                  labelText: 'Должность *',
-                  prefixIcon: Icons.work,
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Обязательное поле' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  controller: _hireDateController,
-                  labelText: 'Дата приёма *',
-                  prefixIcon: Icons.calendar_today,
-                  readOnly: true,
-                  onTap: () async {
+    final readOnly = widget.readOnly;
+    final title = readOnly
+        ? 'Сотрудник'
+        : isEditing
+        ? 'Редактирование сотрудника'
+        : 'Новый сотрудник';
+    final form = Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppTextField(
+            controller: _nameController,
+            labelText: 'ФИО *',
+            prefixIcon: Icons.person,
+            readOnly: readOnly,
+            validator: (v) =>
+                v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+          ),
+          const SizedBox(height: 12),
+          AppTextField(
+            controller: _positionController,
+            labelText: 'Должность *',
+            prefixIcon: Icons.work,
+            readOnly: readOnly,
+            validator: (v) =>
+                v?.trim().isEmpty == true ? 'Обязательное поле' : null,
+          ),
+          const SizedBox(height: 12),
+          AppTextField(
+            controller: _hireDateController,
+            labelText: 'Дата приёма *',
+            prefixIcon: Icons.calendar_today,
+            readOnly: true,
+            onTap: readOnly
+                ? null
+                : () async {
                     final date = await showDatePicker(
                       context: context,
                       initialDate: _hireDate,
@@ -117,34 +155,73 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                       });
                     }
                   },
-                  validator: (v) =>
-                      v?.isEmpty == true ? 'Обязательное поле' : null,
+            validator: (v) => v?.isEmpty == true ? 'Обязательное поле' : null,
+          ),
+          const SizedBox(height: 12),
+          // Ставки меняются в истории ставок (добавление, правка,
+          // удаление с любой даты); при добавлении сотрудника —
+          // первая ставка.
+          if (readOnly) ...[
+            if (widget.employee?.dismissalDate != null)
+              AppTextField(
+                controller: TextEditingController(
+                  text: DateFormat(
+                    'dd.MM.yyyy',
+                  ).format(widget.employee!.dismissalDate!),
                 ),
-                const SizedBox(height: 12),
-                // Ставки меняются в истории ставок (добавление, правка,
-                // удаление с любой даты); при добавлении сотрудника —
-                // первая ставка.
-                if (isEditing)
-                  _CurrentRates(employee: widget.employee!)
-                else
-                  ..._firstRateFields(),
-              ],
-            ),
+                labelText: 'Дата увольнения',
+                prefixIcon: Icons.event_busy,
+                readOnly: true,
+              ),
+          ] else if (isEditing)
+            _CurrentRates(employee: widget.employee!)
+          else
+            ..._firstRateFields(),
+        ],
+      ),
+    );
+    if (widget.fullScreen) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(title),
+          centerTitle: false,
+          leading: IconButton(
+            tooltip: readOnly ? 'Закрыть' : 'Отмена',
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            if (!readOnly)
+              TextButton(
+                onPressed: _isSaving ? null : _save,
+                child: Text(isEditing ? 'Сохранить' : 'Добавить'),
+              ),
+          ],
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: form,
           ),
         ),
-      ),
+      );
+    }
+    return AlertDialog(
+      title: Text(title),
+      content: SizedBox(width: 400, child: SingleChildScrollView(child: form)),
       actions: [
         AppButton(
-          label: 'Отмена',
+          label: readOnly ? 'Закрыть' : 'Отмена',
           isText: true,
           width: 100,
           onPressed: () => Navigator.pop(context),
         ),
-        AppButton(
-          label: isEditing ? 'Сохранить' : 'Добавить',
-          width: 100,
-          onPressed: _isSaving ? null : _save,
-        ),
+        if (!readOnly)
+          AppButton(
+            label: isEditing ? 'Сохранить' : 'Добавить',
+            width: 100,
+            onPressed: _isSaving ? null : _save,
+          ),
       ],
     );
   }

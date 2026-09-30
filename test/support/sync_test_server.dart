@@ -36,6 +36,9 @@ class SyncTestServer {
   int pushes = 0;
   int pulls = 0;
 
+  /// Приём (pull) отказывает — ошибка без повторов.
+  bool failPull = false;
+
   http.Response _json(Object? body, [int status = 200]) => http.Response(
     jsonEncode(body),
     status,
@@ -160,13 +163,36 @@ class SyncTestServer {
         });
       case '/sync/pull':
         pulls++;
+        if (failPull) return _error(400, 'bad_request', 'Приём недоступен');
         final cursor = int.parse(r.url.queryParameters['cursor'] ?? '0');
+        // Как сервер: оператор получает только сотрудников (без ставок) и
+        // табель; `tables` — отбор таблиц (6.10).
+        final tables = r.url.queryParameters['tables']?.split(',').toSet();
+        bool readable(String table) =>
+            (role != 'operator' ||
+                table == 'employees' ||
+                table == 'timesheet') &&
+            (tables == null || tables.contains(table));
         final keys = log.skip(cursor).toSet();
+        Map<String, Object?> hide(Map<String, Object?> row) =>
+            role == 'operator' && row['table'] == 'employees'
+            ? {
+                ...row,
+                'data': {
+                  ...(row['data'] as Map<String, Object?>),
+                  'base_rate': 0.0,
+                  'field_rate': 0.0,
+                },
+              }
+            : row;
         return _json({
           'epoch': 'e1',
           'cursor': log.length,
           'has_more': false,
-          'changes': [for (final k in keys) rows[k]],
+          'changes': [
+            for (final k in keys)
+              if (readable(rows[k]!['table'] as String)) hide(rows[k]!),
+          ],
         });
     }
     final unlock = RegExp(

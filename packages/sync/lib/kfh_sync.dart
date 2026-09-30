@@ -15,3 +15,4 @@ export 'src/sync_engine.dart';
 export 'src/sync_journal.dart';
 export 'src/sync_scheduler.dart';
 export 'src/sync_transport.dart';
+export 'src/timesheet_day.dart';

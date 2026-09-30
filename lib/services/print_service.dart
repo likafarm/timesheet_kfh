@@ -342,7 +342,7 @@ class PrintService {
     PdfPageFormat format = PdfPageFormat.a4,
   }) async {
     if (isAndroidApp) {
-      await shareFile('$name.pdf', await doc.save(), pdfMimeType);
+      await deliverFile('$name.pdf', await doc.save(), pdfMimeType);
       return;
     }
     await Printing.layoutPdf(

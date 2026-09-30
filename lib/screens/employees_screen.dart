@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../theme/app_theme.dart';
 import '../providers/app_provider.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/employee_form_dialog.dart';
 import 'employee_rate_history_screen.dart';
@@ -109,6 +110,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
             );
           }
 
+          if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
+            return _compactList(context, provider);
+          }
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SizedBox(
@@ -236,180 +240,130 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                             final scheme = Theme.of(context).colorScheme;
                             final status = StatusColors.of(context);
 
-                            return Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: scheme.outlineVariant,
-                                  ),
+                            return InkWell(
+                              onLongPress: () =>
+                                  openEmployeeCard(context, employee: employee),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
                                 ),
-                                color: isActive
-                                    ? null
-                                    : scheme.surfaceContainerHighest.withValues(
-                                        alpha: 0.5,
-                                      ),
-                              ),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 40,
-                                    child: Text(
-                                      '$index',
-                                      style: const TextStyle(fontSize: 12),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: scheme.outlineVariant,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 200,
-                                    child: Text(
-                                      employee.fullName,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        decoration: isActive
-                                            ? null
-                                            : TextDecoration.lineThrough,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 120,
-                                    child: Text(
-                                      employee.position,
-                                      style: const TextStyle(fontSize: 12),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 120,
-                                    child: Text(
-                                      DateFormat(
-                                        'dd.MM.yyyy',
-                                      ).format(employee.hireDate),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 100,
-                                    child: Text(
-                                      rate == null
-                                          ? 'нет ставки'
-                                          : '${formatter.format(rate.baseRate)} ₽',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: rate == null
-                                            ? status.negative
-                                            : null,
-                                      ),
-                                      textAlign: TextAlign.right,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 100,
-                                    child: Text(
-                                      rate == null
-                                          ? '—'
-                                          : '${formatter.format(rate.fieldRate)} ₽',
-                                      style: const TextStyle(fontSize: 12),
-                                      textAlign: TextAlign.right,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 80,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? status.positive.withValues(
-                                                alpha: 0.16,
-                                              )
-                                            : scheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                  color: isActive
+                                      ? null
+                                      : scheme.surfaceContainerHighest
+                                            .withValues(alpha: 0.5),
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 40,
                                       child: Text(
-                                        isActive ? 'Активен' : 'Уволен',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: isActive
-                                              ? status.positive
-                                              : scheme.onSurfaceVariant,
-                                        ),
-                                        textAlign: TextAlign.center,
+                                        '$index',
+                                        style: const TextStyle(fontSize: 12),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 48,
-                                    child: PopupMenuButton<String>(
-                                      onSelected: (value) {
-                                        if (value == 'edit') {
-                                          _showEmployeeDialog(
-                                            context,
-                                            employee: employee,
-                                          );
-                                        } else if (value == 'dismiss') {
-                                          _showDismissDialog(context, employee);
-                                        } else if (value == 'reinstate') {
-                                          _confirmReinstate(context, employee);
-                                        } else if (value == 'history') {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  EmployeeRateHistoryScreen(
-                                                    employeeId: employee.id!,
-                                                    employeeName:
-                                                        employee.fullName,
-                                                  ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (context) {
-                                        final items = <PopupMenuItem<String>>[];
-                                        items.add(
-                                          const PopupMenuItem(
-                                            value: 'edit',
-                                            child: Text('Редактировать'),
-                                          ),
-                                        );
-                                        if (isActive) {
-                                          items.add(
-                                            const PopupMenuItem(
-                                              value: 'dismiss',
-                                              child: Text('Уволить'),
-                                            ),
-                                          );
-                                        } else {
-                                          items.add(
-                                            const PopupMenuItem(
-                                              value: 'reinstate',
-                                              child: Text('Восстановить'),
-                                            ),
-                                          );
-                                        }
-                                        items.add(
-                                          const PopupMenuItem(
-                                            value: 'history',
-                                            child: Text('Ставки'),
-                                          ),
-                                        );
-                                        return items;
-                                      },
-                                      icon: const Icon(Icons.more_vert),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 200,
+                                      child: Text(
+                                        employee.fullName,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          decoration: isActive
+                                              ? null
+                                              : TextDecoration.lineThrough,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 120,
+                                      child: Text(
+                                        employee.position,
+                                        style: const TextStyle(fontSize: 12),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 120,
+                                      child: Text(
+                                        DateFormat(
+                                          'dd.MM.yyyy',
+                                        ).format(employee.hireDate),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        rate == null
+                                            ? 'нет ставки'
+                                            : '${formatter.format(rate.baseRate)} ₽',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: rate == null
+                                              ? status.negative
+                                              : null,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        rate == null
+                                            ? '—'
+                                            : '${formatter.format(rate.fieldRate)} ₽',
+                                        style: const TextStyle(fontSize: 12),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isActive
+                                              ? status.positive.withValues(
+                                                  alpha: 0.16,
+                                                )
+                                              : scheme.surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          isActive ? 'Активен' : 'Уволен',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isActive
+                                                ? status.positive
+                                                : scheme.onSurfaceVariant,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 48,
+                                      child: _menu(context, employee),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           }).toList(),
@@ -427,104 +381,247 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 
   void _showEmployeeDialog(BuildContext context, {Employee? employee}) {
-    showDialog(
-      context: context,
-      builder: (context) => EmployeeFormDialog(employee: employee),
+    openEmployeeCard(context, employee: employee);
+  }
+
+  /// Меню сотрудника: карточка, увольнение или восстановление, ставки.
+  Widget _menu(BuildContext context, Employee employee) =>
+      PopupMenuButton<String>(
+        tooltip: 'Действия',
+        icon: const Icon(Icons.more_vert),
+        onSelected: (value) {
+          switch (value) {
+            case 'edit':
+              _showEmployeeDialog(context, employee: employee);
+            case 'dismiss':
+              _showDismissDialog(context, employee);
+            case 'reinstate':
+              _confirmReinstate(context, employee);
+            case 'history':
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EmployeeRateHistoryScreen(
+                    employeeId: employee.id!,
+                    employeeName: employee.fullName,
+                  ),
+                ),
+              );
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(value: 'edit', child: Text('Редактировать')),
+          if (employee.isActive)
+            const PopupMenuItem(value: 'dismiss', child: Text('Уволить'))
+          else
+            const PopupMenuItem(
+              value: 'reinstate',
+              child: Text('Восстановить'),
+            ),
+          const PopupMenuItem(value: 'history', child: Text('Ставки')),
+        ],
+      );
+
+  /// Телефон (6.10): список вместо широкой таблицы; карточка — долгим
+  /// нажатием.
+  Widget _compactList(BuildContext context, AppProvider provider) {
+    final money = NumberFormat('#,##0', 'ru');
+    final scheme = Theme.of(context).colorScheme;
+    final status = StatusColors.of(context);
+    return ListView.separated(
+      padding: EdgeInsets.only(
+        bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
+      itemCount: provider.employees.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final e = provider.employees[i];
+        final rate = provider.currentRate(e.id!);
+        final dismissal = e.dismissalDate;
+        return ListTile(
+          contentPadding: const EdgeInsets.only(left: 16, right: 4),
+          title: Text(
+            e.fullName,
+            style: TextStyle(
+              decoration: e.isActive ? null : TextDecoration.lineThrough,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                [
+                  if (e.position.isNotEmpty) e.position,
+                  'с ${DateFormat('dd.MM.yyyy').format(e.hireDate)}',
+                  if (dismissal != null)
+                    'уволен ${DateFormat('dd.MM.yyyy').format(dismissal)}',
+                ].join(' · '),
+              ),
+              Text(
+                rate == null
+                    ? 'нет ставки'
+                    : 'база ${money.format(rate.baseRate)} ₽ · '
+                          'поле ${money.format(rate.fieldRate)} ₽',
+                style: TextStyle(
+                  color: rate == null
+                      ? status.negative
+                      : scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          trailing: _menu(context, e),
+          onTap: () => showLongPressHint(context),
+          onLongPress: () => openEmployeeCard(context, employee: e),
+        );
+      },
     );
   }
 
   void _showDismissDialog(BuildContext context, Employee employee) {
-    final dateController = TextEditingController(
-      text: DateFormat('dd.MM.yyyy').format(DateTime.now()),
-    );
-    final reasonController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
-
-    showDialog(
+    showAppDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Увольнение ${employee.fullName}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Дата увольнения'),
-              subtitle: Text(DateFormat('dd.MM.yyyy').format(selectedDate)),
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now(),
-                );
-                if (date != null) {
-                  selectedDate = date;
-                  dateController.text = DateFormat('dd.MM.yyyy').format(date);
-                }
-              },
-            ),
-            AppTextField(
-              controller: reasonController,
-              labelText: 'Причина увольнения',
-              prefixIcon: Icons.description,
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            width: 100,
-            onPressed: () => Navigator.pop(context),
-          ),
-          AppButton(
-            label: 'Уволить',
-            width: 100,
-            onPressed: () {
-              if (reasonController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Укажите причину увольнения')),
-                );
-                return;
-              }
-              final updated = employee.copyWith(dismissalDate: selectedDate);
-              context.read<AppProvider>().updateEmployee(updated);
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
+      builder: (_) => _DismissDialog(employee: employee),
     );
   }
 
   void _confirmReinstate(BuildContext context, Employee employee) {
-    showDialog(
+    showAppDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AppDialog(
         title: Text('Восстановление ${employee.fullName}'),
         content: const Text(
           'Восстановить сотрудника? Он снова станет активным.',
         ),
         actions: [
-          AppButton(
-            label: 'Отмена',
-            isText: true,
-            width: 100,
-            onPressed: () => Navigator.pop(context),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Отмена'),
           ),
-          AppButton(
-            label: 'Восстановить',
-            width: 100,
+          FilledButton(
             onPressed: () {
               final updated = employee.copyWith(clearDismissalDate: true);
               context.read<AppProvider>().updateEmployee(updated);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
+            child: const Text('Восстановить'),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Подсказка на касание строки сотрудника: карточка — долгим нажатием.
+void showLongPressHint(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('Удерживайте строку, чтобы открыть карточку'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+}
+
+/// Увольнение (6.10: в стиле окна выплаты — на телефоне панель снизу).
+class _DismissDialog extends StatefulWidget {
+  final Employee employee;
+
+  const _DismissDialog({required this.employee});
+
+  @override
+  State<_DismissDialog> createState() => _DismissDialogState();
+}
+
+class _DismissDialogState extends State<_DismissDialog> {
+  DateTime _date = DateTime.now();
+  final _reason = TextEditingController();
+  String? _reasonError;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final hired = calendarDay(widget.employee.hireDate);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _date.isBefore(hired) ? hired : _date,
+      firstDate: hired,
+      lastDate: DateTime.now(),
+      helpText: 'Дата увольнения',
+    );
+    if (date != null) setState(() => _date = date);
+  }
+
+  void _dismiss() {
+    if (_reason.text.trim().isEmpty) {
+      setState(() => _reasonError = 'Укажите причину увольнения');
+      return;
+    }
+    context.read<AppProvider>().updateEmployee(
+      widget.employee.copyWith(dismissalDate: _date),
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: Text('Увольнение ${widget.employee.fullName}'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(4),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Дата увольнения',
+                  prefixIcon: Icon(Icons.calendar_today),
+                  border: OutlineInputBorder(),
+                ),
+                child: Text(DateFormat('dd.MM.yyyy').format(_date)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _reason,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Причина увольнения',
+                prefixIcon: const Icon(Icons.description),
+                border: const OutlineInputBorder(),
+                errorText: _reasonError,
+              ),
+              onChanged: (_) {
+                if (_reasonError != null) setState(() => _reasonError = null);
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'День увольнения уже нерабочий.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(onPressed: _dismiss, child: const Text('Уволить')),
+      ],
     );
   }
 }
@@ -575,6 +672,8 @@ class _OperatorEmployeeList extends StatelessWidget {
                 final e = employees[i];
                 final dismissal = e.dismissalDate;
                 return ListTile(
+                  onTap: () => showLongPressHint(context),
+                  onLongPress: () => openEmployeeCard(context, employee: e),
                   title: Text(
                     e.fullName,
                     style: TextStyle(

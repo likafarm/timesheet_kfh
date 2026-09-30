@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/sync_provider.dart';
 import 'screens/main_screen.dart';
+import 'services/app_keys.dart';
 import 'services/platform.dart';
 import 'services/startup.dart';
 import 'services/window_front.dart';
@@ -159,6 +160,8 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider.value(value: _sync),
       ],
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
+        scaffoldMessengerKey: appMessengerKey,
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         locale: const Locale('ru', 'RU'),

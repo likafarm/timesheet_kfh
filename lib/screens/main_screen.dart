@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'daily_input_screen.dart';
 import 'home_screen.dart';
+import 'reminder_screen.dart';
 import 'employees_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
@@ -9,14 +12,17 @@ import 'reports_screen.dart';
 import 'settings_screen.dart';
 import 'sync_screen.dart';
 import '../providers/app_provider.dart';
+import '../providers/sync_provider.dart';
+import '../services/reminder.dart';
 import '../theme/app_theme.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/section_navigation.dart';
 import '../widgets/sync_status_bar.dart';
 import '../widgets/update_banner.dart';
 
 /// Главный экран: узкий экран (телефон) — нижняя навигация, широкий —
 /// тёмная боковая панель (UI_REQUIREMENTS п. 2.2). Набор разделов зависит
-/// от программы: оператору — только ввод за день, табель, сотрудники и вход на сервер.
+/// от программы: оператору — только табель, сотрудники и вход на сервер.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -66,15 +72,9 @@ class MainScreen extends StatefulWidget {
     ),
   ];
 
-  /// Разделы программы оператора (телефон): главный — ввод за день.
+  /// Разделы программы оператора (телефон). 6.10: первый — табель, ввод
+  /// за день — кнопкой в его заголовке, как в полной программе.
   static List<NavigationItem> operatorSections() => [
-    NavigationItem(
-      section: AppSection.day,
-      icon: Icons.edit_calendar_outlined,
-      selectedIcon: Icons.edit_calendar,
-      label: 'День',
-      screen: const DailyInputScreen(),
-    ),
     NavigationItem(
       section: AppSection.timesheet,
       icon: Icons.calendar_today_outlined,
@@ -106,6 +106,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
 
   late final AppProvider _app;
+  late final SyncProvider? _sync = context.read<SyncProvider?>();
   late final List<NavigationItem> _navigationItems;
   final _sections = SectionNavigator();
 
@@ -119,6 +120,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         : MainScreen.fullSections();
     _app.addListener(_showNotice);
     _sections.addListener(_openRequested);
+    // Напоминание о табеле (6.10): по роли вошедшего; на телефоне окно —
+    // по сигналу Android, на Windows и в вебе — плашка с переходом в табель.
+    final reminders = Reminders.instance
+      ..onOpenTimesheet = () => _sections.open(AppSection.timesheet);
+    reminders.requests.addListener(_showReminder);
+    if (_sync case final sync?) reminders.attach(sync);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await reminders.takePending()) _showReminder();
+    });
   }
 
   @override
@@ -126,6 +136,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _sections.removeListener(_openRequested);
     _sections.dispose();
     _app.removeListener(_showNotice);
+    Reminders.instance.requests.removeListener(_showReminder);
+    if (_sync case final sync?) Reminders.instance.detach(sync);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -158,6 +170,52 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _select(int index) => setState(() => _selectedIndex = index);
+
+  bool _reminderOpen = false;
+
+  /// Окно напоминания; «Открыть программу» — ввод за день в программе.
+  Future<void> _showReminder() async {
+    if (_reminderOpen || !mounted) return;
+    _reminderOpen = true;
+    final navigator = Navigator.of(context);
+    final exit = await navigator.push<ReminderExit>(
+      MaterialPageRoute(builder: (_) => const ReminderScreen()),
+    );
+    _reminderOpen = false;
+    final openApp = exit == ReminderExit.openApp;
+    await Reminders.instance.done(leave: !openApp);
+    if (openApp && mounted) {
+      await navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const DailyInputScreen(standalone: true),
+        ),
+      );
+    }
+  }
+
+  Future<bool> _confirmExit() async {
+    final ok = await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: const Text('Выйти из программы?'),
+        content: const Text(
+          'Всё сохранённое останется на телефоне; неотправленное уйдёт на '
+          'сервер при следующем запуске.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Остаться'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Выйти'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
 
   /// Разделы с отдельной кнопкой внизу на телефоне (индексы
   /// [_navigationItems]); остальные — в «Ещё».
@@ -232,7 +290,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // остальные разделы в «Ещё» (6.9).
       final bar = _bottomItems();
       final current = bar.indexOf(_selectedIndex);
-      return Scaffold(
+      final scaffold = Scaffold(
         body: content,
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
@@ -266,6 +324,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
+      );
+      // Android (6.10): «Назад» на главном окне — выход только после
+      // вопроса.
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+        return scaffold;
+      }
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (!didPop && await _confirmExit()) SystemNavigator.pop();
+        },
+        child: scaffold,
       );
     }
     return Scaffold(

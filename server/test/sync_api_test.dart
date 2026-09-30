@@ -350,6 +350,23 @@ void main() {
       // Курсор всё равно дошёл до конца журнала.
       expect(pulled['cursor'], (await pull())['cursor']);
     }, skip: mysqlSkip);
+
+    test('только нужные таблицы (6.10): бухгалтер догружает с нуля',
+        () async {
+      final emp = uuid();
+      await push([employee(emp), day(uuid(), emp, '2026-09-06')]);
+      var (s, j) = await call('GET',
+          '/sync/pull?cursor=0&tables=employees,employee_rates,payments');
+      expect(s, 200);
+      expect((j['changes'] as List).map((c) => c['table']), ['employees']);
+      expect(j['changes'].first['data']['base_rate'], 1500.5);
+      // Оператору отбор не открывает закрытого.
+      (s, j) = await call('GET', '/sync/pull?cursor=0&tables=payments',
+          role: Role.operator);
+      expect(j['changes'], isEmpty);
+      (s, j) = await call('GET', '/sync/pull?cursor=0&tables=users');
+      expect(s, 400);
+    }, skip: mysqlSkip);
   });
 
   group('закрытые месяцы', () {

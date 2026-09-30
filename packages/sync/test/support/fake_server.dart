@@ -168,7 +168,7 @@ class FakeSyncServer {
 
   // ------------------------------------------------------------- pull
 
-  PullPage pull(SyncCursor cursor, int limit) {
+  PullPage pull(SyncCursor cursor, int limit, [Set<String>? tables]) {
     pullCalls++;
     _checkNetwork();
     final maxSeq = _log.isEmpty ? 0 : _log.last.$1;
@@ -177,7 +177,8 @@ class FakeSyncServer {
     }
     final entries = _log.where((e) => e.$1 > cursor.seq).take(limit).toList();
     final lastSeq = <(String, String), int>{
-      for (final e in entries) (e.$2, e.$3): e.$1,
+      for (final e in entries)
+        if (tables == null || tables.contains(e.$2)) (e.$2, e.$3): e.$1,
     };
     final keys = lastSeq.keys.toList()
       ..sort((a, b) {
@@ -204,6 +205,9 @@ class _Client implements SyncTransport {
       server.push(await deviceId(), changes);
 
   @override
-  Future<PullPage> pull(SyncCursor cursor, {int limit = 500}) async =>
-      server.pull(cursor, limit);
+  Future<PullPage> pull(
+    SyncCursor cursor, {
+    int limit = 500,
+    Set<String>? tables,
+  }) async => server.pull(cursor, limit, tables);
 }

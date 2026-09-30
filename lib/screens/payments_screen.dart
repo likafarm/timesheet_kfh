@@ -30,7 +30,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   static const double _colType = 90;
   static const double _colAmount = 120;
   static const double _colMethod = 100;
-  static const double _colDocument = 120;
   static const double _colNotes = 150;
   static const double _colActions = 60;
   final double _tableWidth =
@@ -39,7 +38,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       _colType +
       _colAmount +
       _colMethod +
-      _colDocument +
       _colNotes +
       _colActions +
       64;
@@ -158,9 +156,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         !context.mounted) {
       return;
     }
-    showDialog(
+    showAppDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: const Text('Удаление выплаты'),
         content: Text(
           'Удалить выплату ${payment.paymentTypeName} на ${NumberFormat('#,##0.00', 'ru').format(payment.amount)} ₽?',
@@ -299,8 +297,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             payment.paymentTypeName,
                             if (payment.paymentMethod != null)
                               payment.paymentMethodName,
-                            if (payment.documentNumber?.isNotEmpty ?? false)
-                              '№ ${payment.documentNumber}',
                           ].join(' · ');
                           return ListTile(
                             title: Text(
@@ -557,10 +553,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           SizedBox(
-            width: _colDocument,
-            child: Text('Документ', style: headerStyle()),
-          ),
-          SizedBox(
             width: _colNotes,
             child: Text('Примечания', style: headerStyle()),
           ),
@@ -625,14 +617,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 payment.paymentMethodName,
                 style: const TextStyle(fontSize: 12),
               ),
-            ),
-          ),
-          SizedBox(
-            width: _colDocument,
-            child: Text(
-              payment.documentNumber ?? '—',
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           SizedBox(
@@ -702,7 +686,6 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
   String _paymentType = 'salary';
   String? _paymentMethod;
   DateTime _date = DateTime.now();
-  final _documentController = TextEditingController();
   final _notesController = TextEditingController();
 
   @override
@@ -716,7 +699,6 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
       _paymentType = p.paymentType;
       _paymentMethod = p.paymentMethod;
       _date = p.paymentDate;
-      _documentController.text = p.documentNumber ?? '';
       _notesController.text = p.notes ?? '';
     }
     _formatControllerText(_amountController);
@@ -790,7 +772,6 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
   void dispose() {
     _amountController.dispose();
     _amountFocusNode.dispose();
-    _documentController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -956,13 +937,6 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  controller: _documentController,
-                  labelText: 'Номер документа',
-                  prefixIcon: Icons.description,
-                  hintText: '№ расходного ордера',
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
                   controller: _notesController,
                   labelText: 'Примечания',
                   prefixIcon: Icons.notes,
@@ -1004,9 +978,9 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
               amount: amount,
               paymentType: _paymentType,
               paymentMethod: _paymentMethod,
-              documentNumber: _documentController.text.isEmpty
-                  ? null
-                  : _documentController.text,
+              // Номер документа больше не вводится (6.10), прежний —
+              // сохраняется.
+              documentNumber: widget.payment?.documentNumber,
               notes: _notesController.text.isEmpty
                   ? null
                   : _notesController.text,
@@ -1038,7 +1012,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   DateTime _date = DateTime.now();
   String _paymentType = 'salary';
   String? _paymentMethod;
-  final _documentController = TextEditingController();
 
   List<Employee> _employees = [];
   late final Map<String, bool> _selected;
@@ -1088,7 +1061,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
     for (var controller in _amountControllers.values) {
       controller.dispose();
     }
-    _documentController.dispose();
     super.dispose();
   }
 
@@ -1102,9 +1074,9 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   }
 
   void _fillAllAmounts() {
-    showDialog(
+    showAppDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: const Text('Заполнить сумму'),
         content: AppTextField(
           labelText: 'Сумма для всех (₽)',
@@ -1164,9 +1136,6 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
           amount: amount,
           paymentType: _paymentType,
           paymentMethod: _paymentMethod,
-          documentNumber: _documentController.text.trim().isEmpty
-              ? null
-              : _documentController.text.trim(),
         );
         payments.add(payment);
       }
@@ -1187,7 +1156,7 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   @override
   Widget build(BuildContext context) {
     // Телефон: список сотрудников — в пределах экрана (панель снизу).
-    final height = MediaQuery.sizeOf(context).height * 0.75;
+    final height = MediaQuery.sizeOf(context).height * 0.8;
     return AppDialog(
       title: const Row(
         children: [
@@ -1198,13 +1167,17 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
       ),
       content: SizedBox(
         width: 600,
-        height: height < 500 ? height : 500,
+        height:
+            MediaQuery.sizeOf(context).width < AppTheme.compactWidth ||
+                height < 500
+            ? height
+            : 500,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
                   _buildCommonFields(),
-                  const Divider(height: 24),
+                  const Divider(height: 16),
                   Expanded(child: _buildEmployeesList()),
                 ],
               ),
@@ -1221,74 +1194,84 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
     );
   }
 
-  /// Два поля рядом; на телефоне — одно под другим.
-  Widget _pair(Widget a, Widget b) {
-    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth) {
-      return Column(children: [a, const SizedBox(height: 12), b]);
+  /// Общие поля групповой выплаты — компактно (6.10): тип и способ в
+  /// одну строку, дата — под ними; на экране остаётся больше сотрудников.
+  Widget _buildCommonFields() {
+    final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
+    final type = AppDropdown<String>(
+      value: _paymentType,
+      items: const [
+        DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
+        DropdownMenuItem(value: 'advance', child: Text('Аванс')),
+        DropdownMenuItem(value: 'bonus', child: Text('Премия')),
+        DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
+        DropdownMenuItem(value: 'sick_leave', child: Text('Больничные')),
+      ],
+      onChanged: (v) => setState(() => _paymentType = v!),
+      labelText: 'Тип выплаты',
+      prefixIcon: compact ? null : Icons.category,
+    );
+    final method = AppDropdown<String?>(
+      value: _paymentMethod,
+      items: const [
+        DropdownMenuItem(value: null, child: Text('Не указано')),
+        DropdownMenuItem(value: 'cash', child: Text('Наличные')),
+        DropdownMenuItem(value: 'card', child: Text('На карту')),
+        DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
+      ],
+      onChanged: (v) => setState(() => _paymentMethod = v),
+      labelText: 'Способ оплаты',
+      prefixIcon: compact ? null : Icons.payment,
+    );
+    final date = InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.defaultRadius),
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: _date,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+        );
+        if (date != null) setState(() => _date = date);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Дата выплаты',
+          prefixIcon: const Icon(Icons.calendar_today, size: 20),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.defaultRadius),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          isDense: true,
+        ),
+        child: Text(DateFormat('dd.MM.yyyy').format(_date)),
+      ),
+    );
+    if (compact) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: type),
+              const SizedBox(width: 8),
+              Expanded(child: method),
+            ],
+          ),
+          const SizedBox(height: 8),
+          date,
+        ],
+      );
     }
     return Row(
       children: [
-        Expanded(child: a),
+        Expanded(child: type),
         const SizedBox(width: 12),
-        Expanded(child: b),
-      ],
-    );
-  }
-
-  Widget _buildCommonFields() {
-    return Column(
-      children: [
-        _pair(
-          AppDropdown<String>(
-            value: _paymentType,
-            items: const [
-              DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
-              DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-              DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-              DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
-              DropdownMenuItem(value: 'sick_leave', child: Text('Больничные')),
-            ],
-            onChanged: (v) => setState(() => _paymentType = v!),
-            labelText: 'Тип выплаты',
-            prefixIcon: Icons.category,
-          ),
-          AppDropdown<String?>(
-            value: _paymentMethod,
-            items: const [
-              DropdownMenuItem(value: null, child: Text('— Не указано —')),
-              DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-              DropdownMenuItem(value: 'card', child: Text('На карту')),
-              DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
-            ],
-            onChanged: (v) => setState(() => _paymentMethod = v),
-            labelText: 'Способ оплаты',
-            prefixIcon: Icons.payment,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _pair(
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.calendar_today),
-            title: const Text('Дата выплаты'),
-            subtitle: Text(DateFormat('dd.MM.yyyy').format(_date)),
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _date,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-              );
-              if (date != null) setState(() => _date = date);
-            },
-          ),
-          AppTextField(
-            controller: _documentController,
-            labelText: 'Номер документа',
-            prefixIcon: Icons.description,
-            hintText: '№ расходного ордера',
-          ),
-        ),
+        Expanded(child: method),
+        const SizedBox(width: 12),
+        Expanded(child: date),
       ],
     );
   }
@@ -1302,7 +1285,11 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
       children: [
         Row(
           children: [
-            Checkbox(value: _allSelected, onChanged: _toggleSelectAll),
+            Checkbox(
+              value: _allSelected,
+              onChanged: _toggleSelectAll,
+              visualDensity: VisualDensity.compact,
+            ),
             const Expanded(
               child: Text('ФИО', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
@@ -1314,6 +1301,7 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
               ),
             ),
             IconButton(
+              visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.copy, size: 18),
               onPressed: _fillAllAmounts,
               tooltip: 'Заполнить сумму для всех выбранных',

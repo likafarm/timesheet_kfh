@@ -13,6 +13,7 @@ import 'auth_api.dart';
 import 'middleware.dart';
 import 'request_utils.dart';
 import '../audit_journal.dart';
+import '../timesheet_day.dart';
 import 'responses.dart';
 
 /// Закрытые месяцы, расчёт ЗП и чтение данных (для веба и отчётов).
@@ -32,7 +33,9 @@ import 'responses.dart';
 /// - `POST /payroll/calculate` `{year, month}` — посчитать и сохранить;
 /// - `GET /employees?active_on=`, `GET /timesheet?year=&month=&employee_uuid=`,
 ///   `GET /rates?employee_uuid=`, `GET /payments?from=&to=&employee_uuid=`,
-///   `GET /settings`.
+///   `GET /settings`;
+/// - `GET /timesheet/day?date=` — табель дня с авторами отметок и числом
+///   работающих (6.10, напоминание «табель внесён»).
 ///
 /// Права на чтение — как у синхронизации (`readableTables`): оператор видит
 /// сотрудников (без ставок) и табель; расчёт — бухгалтер и админ.
@@ -65,6 +68,7 @@ class DataApi {
       ..post('/payroll/calculate', _calculate)
       ..get('/employees', _employees)
       ..get('/timesheet', _timesheet)
+      ..get('/timesheet/day', _timesheetDay)
       ..get('/rates', _rates)
       ..get('/payments', _payments)
       ..get('/settings', _settings);
@@ -240,6 +244,17 @@ class DataApi {
         },
         orderBy: 'date, employee_uuid');
     return jsonResponse({'timesheet': [for (final r in rows) _json(user, r)]});
+  }
+
+  late final _day = TimesheetDay(db: db);
+
+  Future<Response> _timesheetDay(Request request) async {
+    await _reader(request, 'timesheet');
+    final date = _dateParam(request, 'date');
+    if (date == null) {
+      throw ApiException(400, 'validation', 'date — день в формате гггг-мм-дд');
+    }
+    return jsonResponse(await _day.day(date));
   }
 
   Future<Response> _rates(Request request) async {

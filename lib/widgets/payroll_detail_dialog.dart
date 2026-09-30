@@ -7,6 +7,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../services/print_service.dart';
 import '../theme/app_theme.dart';
+import 'adaptive_dialog.dart';
 
 class PayrollDetailDialog extends StatelessWidget {
   final Employee employee;
@@ -44,7 +45,7 @@ class PayrollDetailDialog extends StatelessWidget {
     );
     final balance = startingBalance + totalAccrued - totalPaid;
 
-    return AlertDialog(
+    return AppDialog(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -52,7 +53,10 @@ class PayrollDetailDialog extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${employee.position} · $capitalizedMonth',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -156,21 +160,30 @@ class PayrollDetailDialog extends StatelessWidget {
 
     return _buildSection(
       'Начисления',
+      // Таблица — по ширине окна (телефон, 6.10): текст переносится,
+      // числа — целиком и по правому краю.
       Table(
+        columnWidths: const {0: FlexColumnWidth()},
         defaultColumnWidth: const IntrinsicColumnWidth(),
         children: [
-          _headerRow(['Вид', 'Дни', 'Ставка', 'Сумма']),
+          _headerRow(['Вид', 'Дни', 'Ставка', 'Сумма'], numeric: {1, 2, 3}),
           ...rows.map(
-            (r) => _row([
-              r.name,
-              days.format(double.tryParse(r.days) ?? 0),
-              r.rate != null
-                  ? currency.format(double.tryParse(r.rate!) ?? 0)
-                  : '—',
-              currency.format(double.tryParse(r.amount) ?? 0),
-            ]),
+            (r) => _row(
+              [
+                r.name,
+                days.format(double.tryParse(r.days) ?? 0),
+                r.rate != null
+                    ? currency.format(double.tryParse(r.rate!) ?? 0)
+                    : '—',
+                currency.format(double.tryParse(r.amount) ?? 0),
+              ],
+              numeric: {1, 2, 3},
+            ),
           ),
-          _footerRow(['ИТОГО', '', '', currency.format(result.totalSalary)]),
+          _footerRow(
+            ['ИТОГО', '', '', currency.format(result.totalSalary)],
+            numeric: {3},
+          ),
         ],
       ),
     );
@@ -180,82 +193,82 @@ class PayrollDetailDialog extends StatelessWidget {
     return _buildSection(
       'Выплаты',
       Table(
+        columnWidths: const {1: FlexColumnWidth(), 2: FlexColumnWidth()},
         defaultColumnWidth: const IntrinsicColumnWidth(),
         children: [
-          _headerRow(['Дата', 'Вид', 'Способ', 'Сумма']),
+          _headerRow(['Дата', 'Вид', 'Способ', 'Сумма'], numeric: {3}),
           ...items.map(
-            (p) => _row([
-              DateFormat('dd.MM.yyyy').format(p.paymentDate),
-              p.paymentTypeName,
-              p.paymentMethodName,
-              currency.format(p.amount),
-            ]),
+            (p) => _row(
+              [
+                DateFormat('dd.MM.yyyy').format(p.paymentDate),
+                p.paymentTypeName,
+                p.paymentMethodName,
+                currency.format(p.amount),
+              ],
+              numeric: {3},
+            ),
           ),
-          _footerRow([
-            'ИТОГО',
-            '',
-            '',
-            currency.format(items.fold<double>(0, (s, i) => s + i.amount)),
-          ]),
+          _footerRow(
+            [
+              'ИТОГО',
+              '',
+              '',
+              currency.format(items.fold<double>(0, (s, i) => s + i.amount)),
+            ],
+            numeric: {3},
+          ),
         ],
       ),
     );
   }
 
-  TableRow _headerRow(List<String> cells) {
+  /// Ячейки строки таблицы; [numeric] — номера столбцов с числами (по
+  /// правому краю).
+  List<Widget> _cells(
+    List<String> cells,
+    TextStyle style, {
+    Set<int> numeric = const {},
+  }) => [
+    for (final (i, t) in cells.indexed)
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+        child: Text(
+          t,
+          style: style,
+          textAlign: numeric.contains(i) ? TextAlign.right : TextAlign.left,
+        ),
+      ),
+  ];
+
+  TableRow _headerRow(List<String> cells, {Set<int> numeric = const {}}) {
     return TableRow(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey)),
       ),
-      children: cells
-          .map(
-            (t) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                t,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      children: _cells(
+        cells,
+        const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        numeric: numeric,
+      ),
     );
   }
 
-  TableRow _row(List<String> cells) {
+  TableRow _row(List<String> cells, {Set<int> numeric = const {}}) {
     return TableRow(
-      children: cells
-          .map(
-            (t) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(t, style: const TextStyle(fontSize: 13)),
-            ),
-          )
-          .toList(),
+      children: _cells(cells, const TextStyle(fontSize: 13), numeric: numeric),
     );
   }
 
-  TableRow _footerRow(List<String> cells) {
+  TableRow _footerRow(List<String> cells, {Set<int> numeric = const {}}) {
     return TableRow(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Colors.grey)),
       ),
-      children: cells
-          .map(
-            (t) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                t,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      children: _cells(
+        cells,
+        const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        numeric: numeric,
+      ),
     );
   }
 
@@ -264,11 +277,16 @@ class PayrollDetailDialog extends StatelessWidget {
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'К выплате на конец месяца:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          // Надпись переносится, сумма — всегда целиком.
+          const Expanded(
+            child: Text(
+              'К выплате на конец месяца:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
+          const SizedBox(width: 8),
           Text(
             '${currency.format(balance)} ₽',
             style: TextStyle(
@@ -287,11 +305,16 @@ class PayrollDetailDialog extends StatelessWidget {
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'К выплате на начало месяца:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          // Надпись переносится, сумма — всегда целиком.
+          const Expanded(
+            child: Text(
+              'К выплате на начало месяца:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
+          const SizedBox(width: 8),
           Text(
             '${currency.format(startingBalance)} ₽',
             style: TextStyle(

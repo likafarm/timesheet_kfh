@@ -91,19 +91,17 @@ void main() {
     }
   }
 
-  testWidgets('оператор на телефоне: нижняя навигация, четыре раздела', (
+  testWidgets('оператор на телефоне: нижняя навигация, первый — табель', (
     tester,
   ) async {
     await pumpMain(tester, size: const Size(390, 844), operator: true);
     final bar = tester.widget<BottomNavigationBar>(
       find.byType(BottomNavigationBar),
     );
-    expect(bar.items.map((i) => i.label), [
-      'День',
-      'Табель',
-      'Сотрудники',
-      'Сервер',
-    ]);
+    // 6.10: раздела «День» нет — ввод за день кнопкой в заголовке табеля.
+    expect(bar.items.map((i) => i.label), ['Табель', 'Сотрудники', 'Сервер']);
+    expect(bar.currentIndex, 0);
+    expect(find.byTooltip('Ввод за день'), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Выплаты'), findsNothing);
     final ex = tester.takeException();

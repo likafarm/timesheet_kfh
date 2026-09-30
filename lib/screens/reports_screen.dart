@@ -9,6 +9,7 @@ import '../providers/sync_provider.dart';
 import '../services/excel_export.dart';
 import '../widgets/excel_export_action.dart';
 import '../widgets/month_switcher.dart';
+import '../widgets/adaptive_dialog.dart';
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
 import '../widgets/section_navigation.dart';
@@ -213,7 +214,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         .where((p) => p.employeeId == employee.id)
         .toList();
     final startingBalance = provider.startingBalances[employee.id] ?? 0.0;
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => PayrollDetailDialog(
         employee: employee,
