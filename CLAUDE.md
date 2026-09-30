@@ -39,6 +39,10 @@ flutter build web --release --base-href /app/ --no-web-resources-cdn   # веб-
 .\build_installer.ps1               # установщик Inno Setup → installer_output\
 .\server\deploy\publish.ps1         # выкладка сервера на VPS (копия базы → миграции → запуск → /health); только с согласия владельца
 .\server\deploy\publish_windows.ps1 -Installer installer_output\KFH_TimeTracking_Setup_X.Y.Z.exe   # установщик Windows на /download (автообновление); только с согласия владельца
+# справка (шаг 4): снимки экранов → assets/help (после изменения экранов или добавления картинки в help_content.dart)
+KFH_HELP_SHOTS=assets/help flutter test test/help/help_screenshots_test.dart
+# инструкции PDF по ролям для /download
+KFH_HELP_PDF=installer_output flutter test test/help/help_pdf_test.dart
 ```
 
 На VPS всё в `/opt/kfh` (`kfh.env`, `secrets/`, `src/`, `backups/pre-deploy/`), compose-проект `kfh` (`server/deploy/`), бэкап — `kfh-backup.timer`; подробности — раздел «VPS» в `server/README.md`. ssh — из PowerShell (Windows OpenSSH): ssh из Git Bash не находит `~/.ssh` из-за кириллицы в пути профиля.
@@ -66,6 +70,7 @@ Inno Setup стоит в `C:\Program Files (x86)\Inno Setup 6\`, но не в PA
 - `lib/services/backup_service.dart` — копии в `Документы\backups` (debug-сборка — `Документы\backups (debug)`), снимок открытой базы через `VACUUM INTO`, авто-копия при запуске, хранится 5 ежедневных. Копии читаются через `sqlite3` только на чтение. В папке могут лежать копии обоих форматов (v8 — до 26.09.2026).
 - `lib/utils/cell_format.dart` — показ значений в экранах просмотра базы и копий (день ISO → `дд.мм.гггг`, момент UTC → местное время) и разбор ввода при правке. Экран просмотра базы — только в debug-сборке (`kDebugMode` в настройках).
 - Автообновление Windows (6.5): `lib/services/update_download.dart` (`downloadVerified` — загрузка и сверка SHA-256), `lib/services/updater.dart` (Windows — `updater_io.dart`: установщик во `%TEMP%\kfh_update`, запуск `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /SP-`, выход), окно — `lib/widgets/update_install.dart` (`installUpdate`), кнопка «Установить» — в `UpdateBanner`, если у версии есть `url` и `sha256`. После тихой установки установщик запускает программу с `--after-update` — `main` выводит окно наверх (`lib/services/window_front.dart`). Выкладка установщика — `.\server\deploy\publish_windows.ps1 -Installer installer_output\KFH_TimeTracking_Setup_X.Y.Z.exe [-Min …]` (только с согласия владельца); страница `/download` — общая с APK (`download_page.ps1`).
+- Справка (шаг 4 «Дальнейших работ»): текст — только `lib/help/help_content.dart` (разделы и абзацы с ролями `HelpRole`), экран — `lib/screens/help_screen.dart` («Настройки → Справка», у оператора — «?» на «Сервере»), PDF — `lib/help/help_pdf.dart` (кнопка «Печать / PDF»; в Roboto программы нет «→» — в PDF заменяется на «›»). Картинки `assets/help/*.png` снимает тест на вымышленных данных с настоящими шрифтами; тест справки падает, если картинки из текста нет. Текст сверять с экранами: табель показывает рабочий день как «1 поле»/«0.5 база», «Б» — больничный.
 - Тема — только `lib/theme/app_theme.dart`. Версия — только `pubspec.yaml` (её читают exe, «О программе» через `package_info_plus` и установщик).
 
 ## Доменные правила

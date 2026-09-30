@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../help/help_content.dart';
 import '../providers/sync_provider.dart';
+import '../services/print_service.dart';
 import '../theme/app_theme.dart';
 
 /// Роль вошедшего для справки (без входа — бухгалтер).
@@ -39,7 +40,16 @@ class _HelpScreenState extends State<HelpScreen> {
     final chapters = helpFor(_role);
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Справка')),
+      appBar: AppBar(
+        title: const Text('Справка'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Печать / PDF',
+            onPressed: () => PrintService.printHelp(_role),
+          ),
+        ],
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(

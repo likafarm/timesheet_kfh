@@ -2,11 +2,14 @@
 
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import 'package:kfh_domain/kfh_domain.dart';
+import '../help/help_content.dart';
+import '../help/help_pdf.dart';
 import '../utils/string_utils.dart';
 import 'file_share.dart';
 import 'platform.dart';
@@ -333,6 +336,23 @@ class PrintService {
     );
 
     await _output(doc, 'Отчёт_${employee.fullName}_$monthTitle');
+  }
+
+  /// Инструкция для [role] (шаг 4.3): печать или PDF; на телефоне — файл
+  /// в «Поделиться».
+  static Future<void> printHelp(HelpRole role) async {
+    final version = (await PackageInfo.fromPlatform()).version;
+    final bytes = await buildHelpPdf(
+      role,
+      asset: rootBundle.load,
+      version: version,
+    );
+    final name = 'Инструкция для ${role.genitive}';
+    if (isAndroidApp) {
+      await deliverFile('$name.pdf', bytes, pdfMimeType);
+      return;
+    }
+    await Printing.layoutPdf(onLayout: (_) async => bytes, name: name);
   }
 
   /// Печать; на телефоне (6.9) — файл PDF в «Поделиться».
