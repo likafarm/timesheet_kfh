@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
@@ -20,6 +21,7 @@ import '../support/sync_test_server.dart';
 /// Модуль «Резервные копии» (3.5): копии этого компьютера и сервера.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  setUpAll(() => initializeDateFormatting('ru'));
 
   const serverName = 'kfh-20260930-003000.json.gz.age';
   const keyPath = 'packages/sync/test/fixtures/age/key.txt';
