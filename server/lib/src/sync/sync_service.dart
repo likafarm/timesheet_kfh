@@ -195,6 +195,16 @@ class SyncService {
             _sameData(change.data, existing.data);
         return same ? result('duplicate') : result('stale');
       }
+      final problem = change.table == 'timesheet' && !change.deleted
+          ? timesheetRowProblem(change.data)
+          : null;
+      if (problem != null) {
+        await sql('RELEASE SAVEPOINT sync_change');
+        return result('rejected',
+            code: 'invalid_mark',
+            message: 'Табель за ${_humanDay(change.data['date'])}: $problem. '
+                'Исправьте отметку этого дня');
+      }
       final locked = guard.violation(change.table, existing?.data,
           existing?.deleted ?? false, change.data, change.deleted);
       if (locked != null) {
@@ -389,3 +399,7 @@ class SyncService {
         },
       );
 }
+
+/// День ISO `гггг-мм-дд` → `дд.мм.гггг` для сообщений.
+String _humanDay(Object? iso) =>
+    iso is String ? iso.split('-').reversed.join('.') : '$iso';

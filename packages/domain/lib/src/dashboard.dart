@@ -12,6 +12,7 @@ import 'payroll.dart';
 import 'payroll_service.dart';
 import 'production_calendar.dart';
 import 'sync/period_guard.dart';
+import 'timesheet_rules.dart';
 import 'utils/date_utils.dart';
 
 /// С какого числа напоминать, что прошлый месяц не закрыт (решение
@@ -88,6 +89,10 @@ class DashboardSummary {
   /// Неоплачиваемые дни без ставки — прошлый (если открыт) и текущий месяц.
   final List<UnpaidWorkDays> unpaidDays;
 
+  /// Рабочие дни с ошибкой отметки (без места работы или с неверной долей
+  /// дня) за всё время — по дате. Решение по каждому — за человеком.
+  final List<TimesheetRecord> invalidDays;
+
   final MonthTotals month;
 
   /// Все сотрудники (и уволенные) по id — для имён в сводке.
@@ -100,6 +105,7 @@ class DashboardSummary {
     required this.openPastMonths,
     required this.missingDays,
     required this.unpaidDays,
+    this.invalidDays = const [],
     required this.month,
   });
 
@@ -130,7 +136,8 @@ class DashboardSummary {
 /// если он открыт (null — закрыт: его дни и ставки уже не поправить).
 /// [records] — табель прошлого и текущего месяца, [currentPayments] —
 /// выплаты текущего месяца, [dataMonths] — месяцы с табелем или выплатами,
-/// [lockedMonths] — ключи [PeriodGuard.monthKey] закрытых месяцев.
+/// [lockedMonths] — ключи [PeriodGuard.monthKey] закрытых месяцев,
+/// [allRecords] — весь табель (для дней с ошибкой отметки).
 DashboardSummary buildDashboard({
   required DateTime today,
   required List<Employee> employees,
@@ -140,6 +147,7 @@ DashboardSummary buildDashboard({
   required List<Payment> currentPayments,
   required List<(int, int)> dataMonths,
   required Set<int> lockedMonths,
+  Iterable<TimesheetRecord> allRecords = const [],
 }) {
   final day = calendarDay(today);
 
@@ -219,6 +227,7 @@ DashboardSummary buildDashboard({
     openPastMonths: openPast,
     missingDays: missing,
     unpaidDays: unpaid,
+    invalidDays: invalidTimesheetRecords(allRecords),
     month: MonthTotals(
       accrued: accrued.values.fold(0.0, (s, v) => s + v),
       paid: paid.values.fold(0.0, (s, v) => s + v),

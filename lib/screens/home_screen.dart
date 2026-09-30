@@ -310,6 +310,24 @@ class _Reminders extends StatelessWidget {
       );
     }
 
+    final invalid = summary.invalidDays;
+    if (invalid.isNotEmpty) {
+      final list = [
+        for (final r in invalid.take(4))
+          '${summary.employees[r.employeeId]?.fullName ?? 'Сотрудник'} '
+              '${DateFormat('dd.MM.yyyy').format(r.date)}',
+      ].join(', ');
+      final more = invalid.length > 4 ? ' и ещё ${invalid.length - 4}' : '';
+      items.add(
+        _Item(
+          icon: Icons.place_outlined,
+          title: 'Дни без места работы: ${invalid.length}',
+          subtitle: '$list$more — укажите место (база или поле) или долю дня',
+          onTap: () => open(AppSection.timesheet, month: invalid.first.date),
+        ),
+      );
+    }
+
     for (final u in summary.unpaidDays) {
       final employee = summary.employees[u.employeeId];
       final name = employee?.fullName ?? 'Сотрудник';

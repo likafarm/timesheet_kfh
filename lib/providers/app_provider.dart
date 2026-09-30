@@ -1,6 +1,7 @@
 // lib/providers/app_provider.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import '../services/app_database.dart';
@@ -188,6 +189,21 @@ class AppProvider extends ChangeNotifier {
       before == null ? null : {column: formatDateIso(before)},
       after == null ? null : {column: formatDateIso(after)},
     );
+  }
+
+  /// Отметки табеля по правилу `kfh_domain` (у рабочего дня — место и доля
+  /// 1 или ½). Нарушение — объяснение в [takeNotice] и false: такую запись
+  /// не принял бы и сервер.
+  bool _marksAllowed(Iterable<TimesheetRecord> records) {
+    for (final r in records) {
+      final problem = timesheetRecordProblem(r);
+      if (problem == null) continue;
+      _notice =
+          'Не сохранено: $problem (${DateFormat('dd.MM.yyyy').format(r.date)})';
+      notifyListeners();
+      return false;
+    }
+    return true;
   }
 
   bool _rateAllowed(DateTime start) => _allowedInOpenPeriod(
@@ -443,6 +459,7 @@ class AppProvider extends ChangeNotifier {
     DateTime date,
   ) async {
     if (!_dayAllowed('timesheet', null, date)) return;
+    if (!_marksAllowed(records)) return;
     try {
       final existing = await _timesheetRepo.inPeriod(date, date);
       for (var record in records) {
@@ -454,11 +471,17 @@ class AppProvider extends ChangeNotifier {
           }
         }
         if (existingRecord != null) {
-          final updated = existingRecord.copyWith(
+          // Не copyWith: `workPlace: null` в нём значит «не менять», и у
+          // выходного вместо рабочего дня оставалось бы прежнее место.
+          final updated = TimesheetRecord(
+            id: existingRecord.id,
+            employeeId: existingRecord.employeeId,
+            date: existingRecord.date,
             dayType: record.dayType,
             days: record.days,
             workPlace: record.workPlace,
-            notes: record.notes,
+            notes: record.notes ?? existingRecord.notes,
+            createdAt: existingRecord.createdAt,
           );
           await _timesheetRepo.update(updated);
         } else {
@@ -486,6 +509,7 @@ class AppProvider extends ChangeNotifier {
   ) async {
     if (marks.isEmpty) return true;
     if (!_dayAllowed('timesheet', null, date)) return false;
+    if (!_marksAllowed(marks.values.nonNulls)) return false;
     try {
       await _appDb.db.transaction(() async {
         for (final MapEntry(key: id, value: record) in marks.entries) {
@@ -533,6 +557,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> saveTimesheetRecord(TimesheetRecord record) async {
     if (!_dayAllowed('timesheet', null, record.date)) return;
+    if (!_marksAllowed([record])) return;
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
@@ -566,6 +591,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addTimesheetRecord(TimesheetRecord record) async {
     if (!_dayAllowed('timesheet', null, record.date)) return;
+    if (!_marksAllowed([record])) return;
     try {
       final existing = await _timesheetRepo.on(record.employeeId, record.date);
       if (existing != null) {
@@ -858,6 +884,7 @@ class AppProvider extends ChangeNotifier {
       ),
       dataMonths: await dataMonths(),
       lockedMonths: _lockedMonths,
+      allRecords: await _timesheetRepo.inPeriod(DateTime(1900), DateTime(2200)),
     );
   }
 

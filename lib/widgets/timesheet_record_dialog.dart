@@ -227,9 +227,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
                     ),
                   ),
                 ),
-                if (_showRates &&
-                    _dayType == 'work' &&
-                    _workPlace != null) ...[
+                if (_showRates && _dayType == 'work' && _workPlace != null) ...[
                   const SizedBox(height: 6),
                   Text(
                     _workPlace == 'base'
@@ -304,7 +302,7 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
           const SizedBox(height: 4),
           Text(
             'Ставки: база ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
-          ' · поле ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
+            ' · поле ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
             style: TextStyle(color: Colors.grey[700], fontSize: 12),
           ),
         ],
@@ -340,7 +338,12 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
     setState(() => _workPlaceError = null);
 
     // Валидация места работы
-    if (_dayType == 'work' && _workPlace == null) {
+    if (timesheetMarkProblem(
+          dayType: _dayType,
+          days: _days,
+          workPlace: _workPlace,
+        ) !=
+        null) {
       setState(() {
         _workPlaceError = 'Обязательное поле';
       });

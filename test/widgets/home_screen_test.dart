@@ -37,7 +37,8 @@ void main() {
   );
 
   /// Сотрудник «Иванов» со ставкой 1000 работал на базе все рабочие дни
-  /// 1–24 сентября, получил 5000; «Петров» без ставки работал 28-го.
+  /// 1–24 сентября, получил 5000; «Петров» без ставки работал 28-го, а
+  /// 2 июня 2025 г. у него рабочий день без места (старая ошибка ввода).
   Future<int> seed(LocalDatabase db) async {
     final repos = DriftRepositories(db);
     Employee emp(String name) => Employee(
@@ -78,6 +79,9 @@ void main() {
         days: 1,
         workPlace: 'base',
       ),
+    );
+    await repos.timesheet.add(
+      TimesheetRecord(employeeId: petrov, date: DateTime(2025, 6, 2), days: 1),
     );
     await repos.payments.add(
       Payment(
@@ -159,6 +163,12 @@ void main() {
     await tester.pump();
     expect(navigator.takeSection(), AppSection.timesheet);
     expect(navigator.takeMonth(AppSection.timesheet), DateTime(2026, 9));
+
+    expect(find.textContaining('Петров 02.06.2025'), findsOneWidget);
+    await tester.tap(find.text('Дни без места работы: 1'));
+    await tester.pump();
+    expect(navigator.takeSection(), AppSection.timesheet);
+    expect(navigator.takeMonth(AppSection.timesheet), DateTime(2025, 6));
 
     await tester.tap(find.text('Иванов'));
     await settle(tester);

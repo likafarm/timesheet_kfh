@@ -19,4 +19,5 @@ export 'src/sync/period_guard.dart';
 export 'src/sync/sync_change.dart';
 export 'src/sync/sync_export.dart';
 export 'src/sync/sync_tables.dart';
+export 'src/timesheet_rules.dart';
 export 'src/utils/date_utils.dart';
