@@ -259,4 +259,40 @@ void main() {
     expect((s.month.baseDays, s.month.fieldDays), (4, 2));
     expect(s.month.normDays, ProductionCalendar.monthNorm(2026, 10).workdays);
   });
+
+  test('дни с ошибкой отметки — за всё время, по дате', () {
+    final bad1 = TimesheetRecord(
+      employeeId: 'a',
+      date: DateTime(2026, 9, 3),
+      days: 1,
+    );
+    final bad0 = TimesheetRecord(
+      employeeId: 'b',
+      date: DateTime(2025, 1, 10),
+      days: 0.25,
+      workPlace: 'base',
+    );
+    final s = buildDashboard(
+      today: DateTime(2026, 10, 1),
+      employees: const [],
+      records: const [],
+      current: _report(2026, 10),
+      currentPayments: const [],
+      dataMonths: const [],
+      lockedMonths: const {},
+      allRecords: [
+        bad1,
+        _day('a', DateTime(2026, 9, 4)),
+        TimesheetRecord(
+          employeeId: 'a',
+          date: DateTime(2026, 9, 5),
+          dayType: 'dayoff',
+          days: 1,
+          workPlace: 'field',
+        ),
+        bad0,
+      ],
+    );
+    expect(s.invalidDays, [bad0, bad1]);
+  });
 }

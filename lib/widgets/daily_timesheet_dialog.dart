@@ -561,7 +561,12 @@ class _DailyTimesheetDialogState extends State<DailyTimesheetDialog> {
         final days = _dayCounts[id]!;
         final workPlace = _workPlaces[id];
 
-        if (dayType == 'work' && workPlace == null) {
+        if (timesheetMarkProblem(
+              dayType: dayType,
+              days: days,
+              workPlace: workPlace,
+            ) !=
+            null) {
           hasError = true;
           setState(() {
             _workPlaceErrors[id] = 'Укажите место';

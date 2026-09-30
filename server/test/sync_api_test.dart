@@ -128,7 +128,8 @@ void main() {
           {DateTime? updatedAt,
           bool deleted = false,
           String? notes,
-          double days = 1}) =>
+          double days = 1,
+          String? workPlace = 'field'}) =>
       SyncChange(
         table: 'timesheet',
         uuid: id,
@@ -141,7 +142,7 @@ void main() {
           'date': date,
           'day_type': 'work',
           'days': days,
-          'work_place': 'field',
+          'work_place': workPlace,
           'notes': notes,
           'created_at': '2026-09-01T10:00:00.123456',
         },
@@ -288,6 +289,28 @@ void main() {
       // Удалённая запись день не занимает.
       await push([day(d1, emp, '2026-09-04', updatedAt: at(1), deleted: true)]);
       expect(statuses(await push([day(d2, emp, '2026-09-04')])), ['applied']);
+    }, skip: mysqlSkip);
+
+    test('рабочий день без места или с долей не 1/½ — invalid_mark', () async {
+      final emp = uuid(), old = uuid();
+      await push([employee(emp)]);
+      final results = await push([
+        day(uuid(), emp, '2026-09-03', workPlace: null),
+        day(uuid(), emp, '2026-09-04', days: 0.25),
+        day(old, emp, '2026-09-05'),
+      ]);
+      expect(statuses(results), ['rejected', 'rejected', 'applied']);
+      expect(results[0]['code'], 'invalid_mark');
+      expect(results[0]['message'], contains('03.09.2026'));
+      expect(results[0]['message'], contains('место работы'));
+      expect(results[1]['code'], 'invalid_mark');
+      // Удалить можно и такую запись.
+      expect(
+          statuses(await push([
+            day(old, emp, '2026-09-05',
+                updatedAt: at(9), workPlace: null, deleted: true)
+          ])),
+          ['applied']);
     }, skip: mysqlSkip);
 
     test('время из будущего — clock_skew', () async {
