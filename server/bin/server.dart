@@ -12,6 +12,8 @@ const _usage = '''
   migrate                      применить миграции и выйти
   create-admin <логин> <ФИО>   первый администратор (пока админов нет)
   set-password <логин>         задать пароль пользователю из консоли
+  export                       снимок всех записей в JSON в stdout (для
+                               ежедневной выгрузки backup.sh; журнал — в stderr)
   healthcheck                  проверка для Docker (код 0 — всё в порядке)
 Пароль команды спрашивают в консоли (или читают первую строку stdin).''';
 
@@ -27,7 +29,7 @@ const _usage = '''
 Future<void> main(List<String> args) async {
   final command = args.isEmpty ? 'serve' : args.first;
   if (command == 'healthcheck') exit(await _healthcheck());
-  final known = {'serve', 'migrate', 'create-admin', 'set-password'};
+  final known = {'serve', 'migrate', 'create-admin', 'set-password', 'export'};
   if (!known.contains(command) ||
       (command == 'create-admin' && args.length < 3) ||
       (command == 'set-password' && args.length != 2)) {
@@ -35,7 +37,9 @@ Future<void> main(List<String> args) async {
     exit(64); // EX_USAGE
   }
 
-  final logger = Logger();
+  // У export stdout занят самим снимком — журнал уходит в stderr.
+  final logger =
+      command == 'export' ? Logger(write: stderr.writeln) : Logger();
   final ServerConfig config;
   final List<Migration> migrations;
   try {
@@ -85,6 +89,20 @@ Future<void> main(List<String> args) async {
   if (command == 'create-admin' || command == 'set-password') {
     exit(await _consoleCommand(command, args, db, logger));
   }
+  if (command == 'export') {
+    try {
+      final snapshot = await exportSnapshot(db);
+      stdout.write(jsonEncode(snapshot.toJson()));
+      await stdout.flush();
+      logger.info('снимок выгружен', {'rows': snapshot.rows.length});
+      await db.close();
+      exit(0);
+    } catch (e, st) {
+      logger.error('выгрузка снимка не удалась', error: e, stackTrace: st);
+      await db.close();
+      exit(1);
+    }
+  }
 
   // Расчёты открытых месяцев — по текущим данным (после выкладки новой
   // версии или восстановления базы из копии). Совпадающие не переписываются.
@@ -129,6 +147,8 @@ Future<void> main(List<String> args) async {
       versionsFile: config.clientVersionsFile,
       logger: logger,
     ),
+    backupsApi:
+        BackupsApi(dir: config.backupExportDir, db: db, auth: authApi),
   );
   final server =
       await shelf_io.serve(handler, InternetAddress.anyIPv4, config.port);

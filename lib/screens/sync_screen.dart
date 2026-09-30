@@ -11,6 +11,7 @@ import 'package:kfh_local_db/kfh_local_db.dart' show RejectedChange;
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:provider/provider.dart';
 
+import 'help_screen.dart';
 import '../providers/sync_provider.dart';
 import '../services/platform.dart';
 import '../widgets/adaptive_dialog.dart';
@@ -56,7 +57,20 @@ class _SyncScreenState extends State<SyncScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _load());
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Сервер синхронизации')),
+      appBar: AppBar(
+        title: const Text('Сервер синхронизации'),
+        actions: [
+          // У оператора настроек нет — справка открывается отсюда.
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Справка',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HelpScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

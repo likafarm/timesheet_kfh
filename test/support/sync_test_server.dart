@@ -32,6 +32,9 @@ class SyncTestServer {
   /// Примечания, с которыми закрывали месяцы (по порядку).
   final lockNotes = <String?>[];
 
+  /// Выгрузки для модуля копий: имя → зашифрованный файл (сервер 0.8.0).
+  final backupFiles = <String, List<int>>{};
+
   /// Сколько было запросов push и pull.
   int pushes = 0;
   int pulls = 0;
@@ -261,6 +264,30 @@ class SyncTestServer {
         'compared_at': '2026-09-29T08:00:00.000Z',
         'changes': <Object?>[],
       });
+    }
+    if (r.url.path == '/admin/backups') {
+      if (role != 'admin') return _error(403, 'forbidden', 'Только админ');
+      final names = backupFiles.keys.toList()..sort((a, b) => b.compareTo(a));
+      return _json({
+        'backups': [
+          for (final name in names)
+            {
+              'name': name,
+              'size': backupFiles[name]!.length,
+              'created_at': '2026-09-30T00:30:00.000Z',
+            },
+        ],
+      });
+    }
+    if (r.url.path.startsWith('/admin/backups/')) {
+      if (role != 'admin') return _error(403, 'forbidden', 'Только админ');
+      final file = backupFiles[r.url.pathSegments.last];
+      if (file == null) return _error(404, 'not_found', 'Такой копии нет');
+      return http.Response.bytes(
+        file,
+        200,
+        headers: {'content-type': 'application/octet-stream'},
+      );
     }
     if (r.url.path == '/periods/snapshots') {
       return _json({

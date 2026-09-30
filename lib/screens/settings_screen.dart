@@ -13,7 +13,8 @@ import 'audit_screen.dart';
 import 'periods_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
-import 'backup_list_screen.dart';
+import 'backups_screen.dart';
+import 'help_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -225,57 +226,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsCard(
                     child: Column(
                       children: [
-                        // Резервные копии — в файлах; в веб-версии и на
-                        // телефоне (6.9) их нет: база там — копия данных
-                        // сервера.
+                        // Модуль «Резервные копии» — только Windows и только
+                        // админ (решение владельца 2026-09-30). В веб-версии
+                        // и на телефоне копий нет: база там — копия данных
+                        // сервера. Автоматические копии при запуске
+                        // делаются у всех.
                         if (context.read<AppProvider>().hasLocalBackups &&
-                            !isAndroidApp) ...[
-                          // Резервное копирование
+                            !isAndroidApp &&
+                            context.watch<SyncProvider>().canUseBackups) ...[
                           ListTile(
                             leading: const Icon(Icons.backup),
-                            title: const Text('Резервное копирование'),
+                            title: const Text('Резервные копии'),
                             subtitle: const Text(
-                              'Создать ежедневную резервную копию сейчас',
+                              'Копии этого компьютера и сервера: посмотреть, '
+                              'сравнить, вернуть записи',
                             ),
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              final provider = context.read<AppProvider>();
-                              final path = await provider.createBackup();
-                              if (!context.mounted) return;
-                              if (path != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Резервная копия создана'),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Ошибка создания копии'),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          const Divider(height: 1),
-
-                          // Восстановление
-                          ListTile(
-                            leading: const Icon(Icons.restore),
-                            title: const Text('Восстановление'),
-                            subtitle: const Text(
-                              'Восстановить данные из копии',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BackupsScreen(),
+                              ),
                             ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const BackupListScreen(),
-                                ),
-                              );
-                            },
                           ),
                           const Divider(height: 1),
                         ],
@@ -350,6 +322,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const SyncScreen(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: const Text('Справка'),
+                          subtitle: const Text(
+                            'Как работать с программой — по вашей роли',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HelpScreen(),
                             ),
                           ),
                         ),

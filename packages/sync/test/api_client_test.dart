@@ -553,4 +553,48 @@ void main() {
       );
     });
   });
+
+  test('копии сервера: список и файл как есть', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final bytes = [0, 1, 2, 250, 255];
+    final api = client(
+      (r) => r.url.path == '/admin/backups'
+          ? _json({
+              'backups': [
+                {
+                  'name': 'kfh-20260930-003000.json.gz.age',
+                  'size': 5,
+                  'created_at': '2026-09-30T00:30:00.000Z',
+                },
+              ],
+            })
+          : http.Response.bytes(
+              bytes,
+              200,
+              headers: {'content-type': 'application/octet-stream'},
+            ),
+    );
+    final list = await api.serverBackups();
+    expect(list.single.name, 'kfh-20260930-003000.json.gz.age');
+    expect(list.single.createdAt, DateTime.utc(2026, 9, 30, 0, 30));
+    expect(await api.downloadServerBackup(list.single.name), bytes);
+    expect(
+      requests.last.url.path,
+      '/admin/backups/kfh-20260930-003000.json.gz.age',
+    );
+    expect(requests.last.headers['authorization'], 'Bearer access-1');
+    expect(requests.last.headers['accept'], 'application/octet-stream');
+  });
+
+  test('копии сервера: бухгалтеру — ошибка API', () async {
+    tokens.tokens = AuthTokens.fromJson(_pair('1'));
+    final api = client(
+      (r) =>
+          _error(403, 'forbidden', 'Копии сервера — только для администратора'),
+    );
+    await expectLater(
+      api.downloadServerBackup('kfh-20260930-003000.json.gz.age'),
+      throwsA(isA<ApiFailure>().having((e) => e.code, 'code', 'forbidden')),
+    );
+  });
 }

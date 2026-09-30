@@ -44,6 +44,15 @@ const auditKindLabels = <String, String>{
   'access': 'Входы и пользователи',
 };
 
+/// Подписи полей записи [table] для человека (поля не из списка —
+/// служебные).
+Map<String, String> recordFieldLabels(String table) =>
+    _fields[table] ?? const {};
+
+/// Значение поля для человека: день — `дд.мм.гггг`, деньги — `1 000,00 ₽`,
+/// виды — словами; пустое — null.
+String? formatRecordValue(String field, Object? value) => _format(field, value);
+
 const _entity = {
   'timesheet': 'табель',
   'payments': 'выплата',
@@ -93,6 +102,19 @@ const _fields = <String, Map<String, String>>{
     'vacation_days': 'Отпуск',
     'skipped_work_days': 'Дней без ставки',
     'total_salary': 'Начислено',
+  },
+  'sick_leave': {
+    'start_date': 'С',
+    'end_date': 'По',
+    'days_count': 'Дней',
+    'notes': 'Примечание',
+  },
+  'vacation': {
+    'start_date': 'С',
+    'end_date': 'По',
+    'vacation_type': 'Вид',
+    'days_count': 'Дней',
+    'notes': 'Примечание',
   },
   'company_settings': {
     'company_name': 'Название',

@@ -356,15 +356,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               color: AppTheme.navigationForeground,
               size: 22,
             ),
-            selectedLabelTextStyle: const TextStyle(
-              color: AppTheme.navigationSelected,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelTextStyle: const TextStyle(
-              color: AppTheme.navigationForeground,
-              fontSize: 12,
-            ),
+            // От стиля темы: иначе у подписей нет шрифта темы (в вебе —
+            // Roboto), и они рисуются шрифтом по умолчанию.
+            selectedLabelTextStyle: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(
+                  color: AppTheme.navigationSelected,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+            unselectedLabelTextStyle: Theme.of(context).textTheme.labelMedium
+                ?.copyWith(color: AppTheme.navigationForeground, fontSize: 12),
             destinations: _navigationItems.map((item) {
               return NavigationRailDestination(
                 icon: Icon(item.icon),

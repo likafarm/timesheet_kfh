@@ -51,7 +51,9 @@ class DbConfig {
 /// - `TRUST_PROXY` — сервер за своим прокси (Caddy): адрес клиента брать из
 ///   `X-Forwarded-For` (по умолчанию `false`);
 /// - `CLIENT_VERSIONS_FILE` — файл версий программ для `GET /client/version`
-///   (не задан — обновлений не требуется).
+///   (не задан — обновлений не требуется);
+/// - `BACKUP_EXPORT_DIR` — папка ежедневных зашифрованных выгрузок для
+///   `GET /admin/backups` (не задана — список пуст).
 class ServerConfig {
   final int port;
   final DbConfig db;
@@ -60,6 +62,7 @@ class ServerConfig {
   final String? jwtSecret;
   final bool trustProxy;
   final String? clientVersionsFile;
+  final String? backupExportDir;
 
   /// Адреса страниц, которым браузер разрешит обращаться к API (CORS):
   /// только отладка веб-версии на localhost. На VPS — пусто.
@@ -73,6 +76,7 @@ class ServerConfig {
     this.jwtSecret,
     this.trustProxy = false,
     this.clientVersionsFile,
+    this.backupExportDir,
     this.corsOrigins = const {},
   });
 
@@ -186,6 +190,9 @@ class ServerConfig {
       clientVersionsFile: (env['CLIENT_VERSIONS_FILE']?.trim() ?? '').isEmpty
           ? null
           : env['CLIENT_VERSIONS_FILE']!.trim(),
+      backupExportDir: (env['BACKUP_EXPORT_DIR']?.trim() ?? '').isEmpty
+          ? null
+          : env['BACKUP_EXPORT_DIR']!.trim(),
       corsOrigins: corsOrigins,
     );
   }

@@ -7,6 +7,7 @@ import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 import 'package:flutter/foundation.dart';
+import 'package:kfh_domain/kfh_domain.dart' show DataSnapshot;
 import 'package:kfh_local_db/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
@@ -209,6 +210,7 @@ class BackupService implements LocalBackups {
           fileName: fileName,
           created: created,
           type: type,
+          modified: (await file.stat()).modified,
         ),
       );
     }
@@ -221,6 +223,26 @@ class BackupService implements LocalBackups {
   Future<void> deleteBackup(String path) async {
     final file = File(path);
     if (await file.exists()) await file.delete();
+  }
+
+  @override
+  Future<String> folderPath() async => (await _getBackupDirectory()).path;
+
+  @override
+  Future<void> openFolder() async {
+    final path = await folderPath();
+    if (Platform.isWindows) {
+      await Process.start('explorer.exe', [path]);
+    }
+  }
+
+  @override
+  Future<DataSnapshot> readSnapshot(String backupPath) async {
+    detectBackupFormat(backupPath); // понятная ошибка до изолята
+    final temp = Directory.systemTemp.path;
+    return Isolate.run(
+      () => readSnapshotFile(backupPath, tempDir: Directory(temp)),
+    );
   }
 
   /// Таблицы копии (без служебных sqlite_*). Копия открывается только

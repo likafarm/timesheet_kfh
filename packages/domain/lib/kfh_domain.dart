@@ -2,6 +2,7 @@
 /// Чистый Dart — без Flutter и без хранилища.
 library;
 
+export 'src/backups/snapshot.dart';
 export 'src/client_versions.dart';
 export 'src/dashboard.dart';
 export 'src/models/company_settings.dart';

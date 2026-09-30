@@ -8,6 +8,8 @@ ROOT=/opt/kfh
 SRC=$ROOT/src
 ENV_FILE=$ROOT/kfh.env
 SECRETS=$ROOT/secrets
+# Зашифрованные выгрузки для модуля копий программы: пишет backup.sh, читает API.
+SNAPSHOTS=$ROOT/snapshots
 COMPOSE=(docker compose -p kfh --env-file "$ENV_FILE" -f "$SRC/server/deploy/docker-compose.prod.yml")
 
 log() { echo "[${LOG_TAG:-kfh} $(date -u +%FT%TZ)] $*"; }

@@ -6,3 +6,5 @@ server/deploy/systemd/* text eol=lf
 # Собранные файлы веб-версии (tool/web_assets.ps1) — как есть, без правки строк.
 web/drift_worker.js -text -diff
 web/sqlite3.wasm binary
+# Зашифрованные файлы age (тесты расшифровки) — как есть, без перевода строк.
+*.age binary
