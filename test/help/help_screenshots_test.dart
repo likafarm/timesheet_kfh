@@ -64,8 +64,15 @@ void main() {
     await shots.openSection('Табель');
     await shots.save('timesheet');
     await shots.tapTooltip('Ввод за день');
+    for (final (i, mark) in ['Поле', 'Поле', 'База'].indexed) {
+      await tester.tap(find.widgetWithText(OutlinedButton, mark).at(i));
+      await tester.pump();
+    }
+    await shots.settle();
     await shots.save('daily_dialog');
-    await shots.tapText('Отмена');
+    await tester.tap(find.text('Отменить'));
+    await shots.settle();
+    await shots.back();
 
     await shots.openSection('Сотрудники');
     await shots.save('employees');

@@ -357,12 +357,14 @@ void main() {
     // Оператору — без ставок: ни в шапке, ни в списке мест работы.
     expect(find.textContaining('Ставк'), findsNothing);
     expect(find.textContaining('₽'), findsNothing);
-    final places = tester
-        .widget<DropdownButton<String?>>(find.byType(DropdownButton<String?>))
-        .items!
-        .map((i) => (i.child as Text).data)
-        .toList();
-    expect(places, ['База', 'Поле']);
+    // Отметка — кнопками, как во «Вводе за день».
+    expect(find.byType(DropdownButton<String?>), findsNothing);
+    for (final mark in DayMark.all) {
+      expect(find.widgetWithText(OutlinedButton, mark.label), findsOneWidget);
+    }
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Поле'));
+    await settle(tester);
+    expect(find.widgetWithText(FilledButton, 'Поле'), findsOneWidget);
     expect(find.textContaining('₽'), findsNothing);
     expect(tester.takeException(), isNull);
   });
