@@ -11,7 +11,6 @@ import '../widgets/section_navigation.dart';
 import '../widgets/timesheet_record_dialog.dart';
 import '../widgets/common_widgets.dart';
 import '../utils/string_utils.dart';
-import '../widgets/daily_timesheet_dialog.dart';
 import '../services/excel_export.dart';
 import '../services/print_service.dart';
 import '../widgets/excel_export_action.dart';
@@ -100,28 +99,18 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 
   void _showDailyInputDialog(BuildContext context) {
-    // Телефон — отдельный экран с крупными кнопками, Windows — окно.
-    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth ||
-        _pendingDraft != null) {
-      Navigator.of(context)
-          .push(
-            MaterialPageRoute(
-              builder: (_) => const DailyInputScreen(standalone: true),
-            ),
-          )
-          .then((_) {
-            _loadTimesheet();
-            _checkPendingDraft();
-          });
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (context) => DailyTimesheetDialog(
-        initialDate: DateTime.now(),
-        onSaved: _loadTimesheet,
-      ),
-    );
+    // Телефон, компьютер и браузер — один экран: кнопки отметок вместо
+    // выпадающих списков (решение владельца 2026-10-06).
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => const DailyInputScreen(standalone: true),
+          ),
+        )
+        .then((_) {
+          _loadTimesheet();
+          _checkPendingDraft();
+        });
   }
 
   Future<void> _printTimesheet() async {

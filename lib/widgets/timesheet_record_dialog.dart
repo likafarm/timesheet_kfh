@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
+import '../utils/day_draft.dart';
 import '../utils/string_utils.dart';
 import 'common_widgets.dart';
 import 'adaptive_dialog.dart';
+import 'day_mark_button.dart';
 
 class TimesheetRecordDialog extends StatefulWidget {
   final Employee employee;
@@ -29,13 +31,13 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   final _formKey = GlobalKey<FormState>();
 
   DateTime _date = DateTime.now();
-  String _dayType = 'work';
-  double _days = 1.0;
-  String? _workPlace;
+
+  /// Выбранная отметка; null — не выбрана (новая ячейка или старая запись
+  /// без места работы).
+  DayMark? _mark;
   final _notesController = TextEditingController();
 
-  // Для ошибок
-  String? _workPlaceError;
+  String? _markError;
   bool _isSaving = false;
   EmployeeRate? _rateAtDate;
 
@@ -46,16 +48,8 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
 
     if (widget.record != null) {
       final r = widget.record!;
-      _dayType = r.dayType;
-      _days = r.days;
-      _workPlace = r.workPlace;
+      _mark = DayMark.of(r);
       _notesController.text = r.notes ?? '';
-      if (_dayType != 'work' && _days == 0) {
-        _days = 1.0;
-      }
-      if (_dayType == 'work' && _days != 0.5 && _days != 1.0) {
-        _days = 1.0;
-      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadRateAtDate());
   }
@@ -97,147 +91,51 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
               _buildEmployeeHeader(),
               const Divider(height: 24),
 
-              // Тип дня
-              InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Тип дня',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _dayType,
-                    isDense: true,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'work',
-                        child: Text('Рабочий день'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'sick',
-                        child: Text('Больничный'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'vacation',
-                        child: Text('Отпуск'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'dayoff',
-                        child: Text('Выходной'),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      setState(() {
-                        _dayType = v!;
-                        _workPlaceError = null;
-                        if (_dayType == 'work') {
-                          if (_days != 0.5 && _days != 1.0) {
-                            _days = 1.0;
-                          }
-                        } else {
-                          _days = 1.0;
-                          _workPlace = null;
-                        }
-                      });
-                    },
-                  ),
+              // Отметка дня — кнопками, как в «Вводе за день» (решение
+              // владельца 2026-10-06).
+              Text(
+                'Отметка',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Количество дней (только для рабочего дня)
-              if (_dayType == 'work') ...[
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Количество дней',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final mark in DayMark.all)
+                    DayMarkButton(
+                      mark: mark,
+                      selected: _mark == mark,
+                      onPressed: () => setState(() {
+                        _mark = mark;
+                        _markError = null;
+                      }),
                     ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<double>(
-                      value: _days,
-                      isDense: true,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(value: 0.5, child: Text('0.5 дня')),
-                        DropdownMenuItem(value: 1.0, child: Text('1 день')),
-                      ],
-                      onChanged: (v) => setState(() => _days = v!),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Место работы с подсветкой ошибки
-                InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Место работы *',
-                    border: OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    errorText: _workPlaceError,
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _workPlace,
-                      isDense: true,
-                      isExpanded: true,
-                      hint: const Text('Выберите место'),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'base',
-                          child: Text(
-                            StringUtils.workPlaceLabel(
-                              'base',
-                              withRates: _showRates,
-                              baseRate:
-                                  _rateAtDate?.baseRate ??
-                                  widget.employee.baseRate,
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'field',
-                          child: Text(
-                            StringUtils.workPlaceLabel(
-                              'field',
-                              withRates: _showRates,
-                              fieldRate:
-                                  _rateAtDate?.fieldRate ??
-                                  widget.employee.fieldRate,
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        setState(() {
-                          _workPlace = v;
-                          _workPlaceError = null;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                if (_showRates && _dayType == 'work' && _workPlace != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    _workPlace == 'base'
-                        ? 'Ставка на базе: ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
-                        : 'Ставка в поле: ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  ),
                 ],
-                const SizedBox(height: 12),
+              ),
+              if (_markError != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _markError!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
               ],
+              if (_showRates && _mark?.workPlace != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _mark!.workPlace == 'base'
+                      ? 'Ставка на базе: ${StringUtils.formatDayRate(_rateAtDate?.baseRate ?? widget.employee.baseRate)}'
+                      : 'Ставка в поле: ${StringUtils.formatDayRate(_rateAtDate?.fieldRate ?? widget.employee.fieldRate)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+              ],
+              const SizedBox(height: 12),
 
               // Примечания
               TextField(
@@ -334,36 +232,9 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
   }
 
   Future<void> _save() async {
-    // Сброс ошибки
-    setState(() => _workPlaceError = null);
-
-    // Валидация места работы
-    if (timesheetMarkProblem(
-          dayType: _dayType,
-          days: _days,
-          workPlace: _workPlace,
-        ) !=
-        null) {
-      setState(() {
-        _workPlaceError = 'Обязательное поле';
-      });
-      // Показываем предупреждение поверх диалога
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Ошибка'),
-          content: const Text(
-            'Для рабочего дня укажите место работы (база или поле).',
-          ),
-          actions: [
-            AppButton(
-              label: 'OK',
-              isText: true,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      );
+    final mark = _mark;
+    if (mark == null) {
+      setState(() => _markError = 'Выберите отметку дня');
       return;
     }
 
@@ -392,9 +263,9 @@ class _TimesheetRecordDialogState extends State<TimesheetRecordDialog> {
       id: widget.record?.id,
       employeeId: widget.employee.id!,
       date: _date,
-      dayType: _dayType,
-      days: _dayType == 'work' ? _days : 1.0,
-      workPlace: _dayType == 'work' ? _workPlace : null,
+      dayType: mark.dayType,
+      days: mark.days,
+      workPlace: mark.workPlace,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 

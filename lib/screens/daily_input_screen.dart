@@ -1,8 +1,10 @@
 // lib/screens/daily_input_screen.dart
 //
-// Ввод табеля за день на телефоне (шаг 4.4): список работающих сотрудников,
-// у каждого — крупные кнопки отметок; удобно одной рукой. Сумм и ставок
-// здесь нет.
+// Ввод табеля за день (шаг 4.4): список работающих сотрудников, у каждого —
+// кнопки отметок. На телефоне — карточки с крупными кнопками, удобно одной
+// рукой; на компьютере и в браузере (решение владельца 2026-10-06) — тот же
+// экран строками: ФИО и кнопки в одну линию, клавиши 1–7, ↑/↓, Delete,
+// Ctrl+S. «Всем без отметки» ставит выбранную отметку всем, у кого её нет.
 //
 // 6.10 (решение владельца 2026-09-30): касание меняет черновик
 // ([DayDraft]), в базу — по «Сохранить» одной транзакцией. Уход с дня с
@@ -11,6 +13,7 @@
 // восстанавливается, если программу закрыла система.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +24,7 @@ import '../utils/day_draft.dart';
 import '../utils/string_utils.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/closed_month.dart';
+import '../widgets/day_mark_button.dart';
 
 export '../utils/day_draft.dart' show DayMark;
 
@@ -57,14 +61,37 @@ class DailyInputScreen extends StatefulWidget {
   State<DailyInputScreen> createState() => _DailyInputScreenState();
 }
 
+/// Высота строки сотрудника на широком экране (строки одной высоты —
+/// клавиши ↑/↓ прокручивают список без замеров).
+const double _rowExtent = 60;
+
+/// Клавиши отметок: 1–7 в порядке [DayMark.all].
+const _markKeys = [
+  [LogicalKeyboardKey.digit1, LogicalKeyboardKey.numpad1],
+  [LogicalKeyboardKey.digit2, LogicalKeyboardKey.numpad2],
+  [LogicalKeyboardKey.digit3, LogicalKeyboardKey.numpad3],
+  [LogicalKeyboardKey.digit4, LogicalKeyboardKey.numpad4],
+  [LogicalKeyboardKey.digit5, LogicalKeyboardKey.numpad5],
+  [LogicalKeyboardKey.digit6, LogicalKeyboardKey.numpad6],
+  [LogicalKeyboardKey.digit7, LogicalKeyboardKey.numpad7],
+];
+
 class _DailyInputScreenState extends State<DailyInputScreen> {
   late DateTime _date;
   late DayDraft _draft;
 
   /// Записи дня в базе.
   Map<String, TimesheetRecord> _records = {};
+
+  /// Ставки на день (не оператору): подсказка над кнопками на компьютере.
+  Map<String, EmployeeRate?> _rates = {};
   bool _saving = false;
   late final AppProvider _app;
+
+  /// Строка, к которой относятся клавиши (номер в списке дня).
+  int? _cursor;
+  final _keys = FocusNode(debugLabel: 'Ввод за день');
+  final _scroll = ScrollController();
 
   @override
   void initState() {
@@ -85,6 +112,8 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
   @override
   void dispose() {
     _app.removeListener(_refresh);
+    _keys.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -110,8 +139,17 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
   Future<void> _refresh() async {
     final date = _date;
     final list = await _app.getTimesheetForDate(date);
+    final rates = <String, EmployeeRate?>{};
+    if (!_app.operatorMode) {
+      for (final e in _app.employees) {
+        rates[e.id!] = await _app.getEmployeeRateAtDate(e.id!, date);
+      }
+    }
     if (!mounted || date != _date) return;
-    setState(() => _records = {for (final r in list) r.employeeId: r});
+    setState(() {
+      _records = {for (final r in list) r.employeeId: r};
+      _rates = rates;
+    });
   }
 
   void _setDate(DateTime d) {
@@ -119,6 +157,7 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
       _date = DateTime(d.year, d.month, d.day);
       _draft = DayDraft(_date);
       _records = {};
+      _rates = {};
     });
     _refresh();
   }
@@ -143,6 +182,26 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
     final id = e.id!;
     setState(() => _draft.set(id, mark, _records[id]));
     DayDraftStore.save(_draft);
+  }
+
+  /// Есть ли у сотрудника отметка с учётом черновика.
+  bool _marked(Employee e) => _draft.changes(e.id!)
+      ? _draft.markOf(e.id!) != null
+      : _records.containsKey(e.id);
+
+  /// «Всем без отметки»: [mark] — каждому, у кого отметки нет.
+  void _fillUnmarked(List<Employee> employees, DayMark mark) {
+    final targets = employees.where((e) => !_marked(e)).toList();
+    if (targets.isEmpty) return;
+    setState(() {
+      for (final e in targets) {
+        _draft.set(e.id!, mark, _records[e.id]);
+      }
+    });
+    DayDraftStore.save(_draft);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('«${mark.label}» — отмечено: ${targets.length}')),
+    );
   }
 
   void _undoAll() {
@@ -187,6 +246,10 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
     return true;
   }
 
+  Future<void> _saveAndReport() async {
+    if (await _save()) widget.onSaved?.call();
+  }
+
   /// Можно уйти с дня: черновик пуст, сохранён или отброшен.
   Future<bool> _confirmLeave() async {
     if (_draft.isEmpty) return true;
@@ -210,6 +273,90 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
     }
   }
 
+  /// Перевести строку клавишами и показать её.
+  void _moveCursor(int to, int count) {
+    if (count == 0) return;
+    final row = to.clamp(0, count - 1);
+    setState(() => _cursor = row);
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final top = row * _rowExtent;
+    if (top < position.pixels) {
+      _scroll.jumpTo(top);
+    } else if (top + _rowExtent >
+        position.pixels + position.viewportDimension) {
+      _scroll.jumpTo(
+        (top + _rowExtent - position.viewportDimension).clamp(
+          0,
+          position.maxScrollExtent,
+        ),
+      );
+    }
+  }
+
+  KeyEventResult _onKey(
+    KeyEvent event,
+    List<Employee> employees,
+    bool enabled,
+  ) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final count = employees.length;
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed && key == LogicalKeyboardKey.keyS) {
+      if (!_draft.isEmpty && !_saving) _saveAndReport();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _moveCursor(_cursor == null ? 0 : _cursor! + 1, count);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      _moveCursor(_cursor == null ? 0 : _cursor! - 1, count);
+      return KeyEventResult.handled;
+    }
+    if (event is KeyRepeatEvent || count == 0 || !enabled) {
+      return KeyEventResult.ignored;
+    }
+    final row = (_cursor ?? 0).clamp(0, count - 1);
+    if (key == LogicalKeyboardKey.delete ||
+        key == LogicalKeyboardKey.backspace) {
+      _mark(employees[row], null);
+      _moveCursor(row, count);
+      return KeyEventResult.handled;
+    }
+    for (final (i, keys) in _markKeys.indexed) {
+      if (keys.contains(key)) {
+        _mark(employees[row], DayMark.all[i]);
+        // Следующая строка — чтобы идти по списку одними цифрами.
+        _moveCursor(row + 1, count);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// Подсказка над кнопкой на компьютере: клавиша и ставка дня.
+  String? _hint(Employee e, DayMark mark, bool wide) {
+    final parts = <String>[
+      if (wide) 'Клавиша ${DayMark.all.indexOf(mark) + 1}',
+    ];
+    if (!_app.operatorMode && mark.workPlace != null) {
+      final rate = _rates[e.id];
+      final value = mark.workPlace == 'base'
+          ? rate?.baseRate ?? e.baseRate
+          : rate?.fieldRate ?? e.fieldRate;
+      parts.add(
+        mark.days == 1
+            ? 'Ставка: ${StringUtils.formatDayRate(value)}'
+            : 'Ставка: ${StringUtils.formatDayRate(value)}, полдня — половина',
+      );
+    }
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
@@ -220,12 +367,143 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
         )
         .toList();
     final locked = provider.isMonthLocked(day.year, day.month);
-    bool marked(Employee e) => _draft.changes(e.id!)
-        ? _draft.markOf(e.id!) != null
-        : _records.containsKey(e.id);
-    final markedCount = employees.where(marked).length;
+    final enabled = !locked && !_saving && widget.inputEnabled;
+    final markedCount = employees.where(_marked).length;
+    final unmarked = employees.length - markedCount;
     final today = DateTime.now();
     final isToday = day == DateTime(today.year, today.month, today.day);
+    final wide = MediaQuery.sizeOf(context).width >= AppTheme.compactWidth;
+    final cursor = _cursor == null || employees.isEmpty
+        ? null
+        : _cursor!.clamp(0, employees.length - 1);
+
+    final status = Text(
+      locked
+          ? 'Месяц закрыт — отметки менять нельзя.'
+          : 'Отмечено $markedCount из ${employees.length}',
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    );
+    final fill = _FillUnmarkedButton(
+      onSelected: enabled && unmarked > 0
+          ? (mark) => _fillUnmarked(employees, mark)
+          : null,
+    );
+
+    final Widget body;
+    if (employees.isEmpty) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'В этот день нет работающих сотрудников.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    } else if (wide) {
+      body = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ?widget.header,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(children: [status, const Spacer(), fill]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Клавиши: 1–7 — отметка (по порядку кнопок), ↑/↓ — '
+                  'строка, Delete — очистить, Ctrl+S — сохранить.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scroll,
+                  itemExtent: _rowExtent,
+                  padding: const EdgeInsets.only(bottom: 16),
+                  itemCount: employees.length,
+                  itemBuilder: (context, i) {
+                    final e = employees[i];
+                    final saved = _records[e.id];
+                    return _EmployeeDayRow(
+                      employee: e,
+                      record: saved,
+                      changed: _draft.changes(e.id!),
+                      draftMark: _draft.markOf(e.id!),
+                      before: _draft.beforeOf(e.id!),
+                      meanwhile: _draft.changedMeanwhile(e.id!, saved),
+                      current: i == cursor,
+                      enabled: enabled,
+                      hint: (mark) => _hint(e, mark, true),
+                      onMark: (mark) {
+                        _mark(e, mark);
+                        setState(() => _cursor = i);
+                        _keys.requestFocus();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      body = ListView.builder(
+        // Отдельной страницей экран доходит до системных кнопок.
+        padding: EdgeInsets.only(
+          bottom:
+              16 +
+              (_draft.isEmpty ? MediaQuery.viewPaddingOf(context).bottom : 0),
+        ),
+        itemCount: employees.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ?widget.header,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(child: status),
+                      fill,
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
+          final e = employees[i - 1];
+          final saved = _records[e.id];
+          return _EmployeeDayCard(
+            employee: e,
+            record: saved,
+            changed: _draft.changes(e.id!),
+            draftMark: _draft.markOf(e.id!),
+            before: _draft.beforeOf(e.id!),
+            meanwhile: _draft.changedMeanwhile(e.id!, saved),
+            enabled: enabled,
+            hint: (mark) => _hint(e, mark, false),
+            onMark: (mark) => _mark(e, mark),
+          );
+        },
+      );
+    }
 
     return PopScope(
       canPop: _draft.isEmpty,
@@ -234,133 +512,79 @@ class _DailyInputScreenState extends State<DailyInputScreen> {
         final navigator = Navigator.of(context);
         if (await _confirmLeave() && mounted) navigator.pop();
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          centerTitle: false,
-          automaticallyImplyLeading: widget.standalone,
-          actions: [
-            if (!isToday)
-              TextButton(
-                onPressed: () => _go(DateTime.now()),
-                child: const Text('Сегодня'),
-              ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(56),
-            child: Row(
-              children: [
-                IconButton(
-                  iconSize: 32,
-                  tooltip: 'Предыдущий день',
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: () => _go(addCalendarDays(day, -1)),
+      child: Focus(
+        focusNode: _keys,
+        autofocus: true,
+        onKeyEvent: (_, event) => _onKey(event, employees, enabled),
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(widget.title),
+            centerTitle: false,
+            automaticallyImplyLeading: widget.standalone,
+            actions: [
+              if (!isToday)
+                TextButton(
+                  onPressed: () => _go(DateTime.now()),
+                  child: const Text('Сегодня'),
                 ),
-                Expanded(
-                  child: InkWell(
-                    onTap: _pickDate,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              DateFormat('EEE, d MMMM yyyy', 'ru').format(day),
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(56),
+              child: Row(
+                children: [
+                  IconButton(
+                    iconSize: 32,
+                    tooltip: 'Предыдущий день',
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => _go(addCalendarDays(day, -1)),
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _pickDate,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                DateFormat(
+                                  'EEE, d MMMM yyyy',
+                                  'ru',
+                                ).format(day),
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          ClosedMonthBadge(year: day.year, month: day.month),
-                        ],
+                            ClosedMonthBadge(year: day.year, month: day.month),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                IconButton(
-                  iconSize: 32,
-                  tooltip: 'Следующий день',
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: () => _go(addCalendarDays(day, 1)),
-                ),
-              ],
+                  IconButton(
+                    iconSize: 32,
+                    tooltip: 'Следующий день',
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => _go(addCalendarDays(day, 1)),
+                  ),
+                ],
+              ),
             ),
           ),
+          bottomNavigationBar: _draft.isEmpty
+              ? null
+              : _DraftBar(
+                  count: _draft.length,
+                  saving: _saving,
+                  onUndo: _undoAll,
+                  onSave: _saveAndReport,
+                ),
+          body: body,
         ),
-        bottomNavigationBar: _draft.isEmpty
-            ? null
-            : _DraftBar(
-                count: _draft.length,
-                saving: _saving,
-                onUndo: _undoAll,
-                onSave: () async {
-                  if (await _save()) widget.onSaved?.call();
-                },
-              ),
-        body: employees.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'В этот день нет работающих сотрудников.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              )
-            : ListView.builder(
-                // Отдельной страницей экран доходит до системных кнопок.
-                padding: EdgeInsets.only(
-                  bottom:
-                      16 +
-                      (_draft.isEmpty
-                          ? MediaQuery.viewPaddingOf(context).bottom
-                          : 0),
-                ),
-                itemCount: employees.length + 1,
-                itemBuilder: (context, i) {
-                  if (i == 0) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ?widget.header,
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text(
-                            locked
-                                ? 'Месяц закрыт — отметки менять нельзя.'
-                                : 'Отмечено $markedCount из ${employees.length}',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  final e = employees[i - 1];
-                  final saved = _records[e.id];
-                  final changed = _draft.changes(e.id!);
-                  return _EmployeeDayCard(
-                    employee: e,
-                    record: saved,
-                    changed: changed,
-                    draftMark: _draft.markOf(e.id!),
-                    before: _draft.beforeOf(e.id!),
-                    meanwhile: _draft.changedMeanwhile(e.id!, saved),
-                    enabled: !locked && !_saving && widget.inputEnabled,
-                    onMark: (mark) => _mark(e, mark),
-                  );
-                },
-              ),
       ),
     );
   }
@@ -477,56 +701,222 @@ class _DraftBar extends StatelessWidget {
       color: theme.colorScheme.surfaceContainerHigh,
       child: SafeArea(
         top: false,
-        child: Padding(
-          // Две строки (просьба владельца): надпись, под ней — кнопки во
-          // всю ширину.
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Не сохранено: $count',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
+        // На компьютере полоса не растягивается на всё окно.
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              // Две строки (просьба владельца): надпись, под ней — кнопки во
+              // всю ширину.
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      onPressed: saving ? null : onUndo,
-                      child: const Text('Отменить'),
+                  Text(
+                    'Не сохранено: $count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 48),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
+                          onPressed: saving ? null : onUndo,
+                          child: const Text('Отменить'),
+                        ),
                       ),
-                      onPressed: saving ? null : onSave,
-                      icon: saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check),
-                      label: const Text('Сохранить'),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
+                          onPressed: saving ? null : onSave,
+                          icon: saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.check),
+                          label: const Text('Сохранить'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// «Всем без отметки»: меню отметок, выбранная ставится всем, у кого
+/// отметки нет. [onSelected] = null — некому ставить (или месяц закрыт).
+class _FillUnmarkedButton extends StatelessWidget {
+  final void Function(DayMark mark)? onSelected;
+
+  const _FillUnmarkedButton({required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final select = onSelected;
+    return MenuAnchor(
+      menuChildren: [
+        for (final mark in DayMark.all)
+          MenuItemButton(
+            leadingIcon: Icon(Icons.circle, size: 14, color: mark.color),
+            onPressed: select == null ? null : () => select(mark),
+            child: Text(mark.label),
+          ),
+      ],
+      builder: (context, controller, _) => TextButton.icon(
+        onPressed: select == null
+            ? null
+            : () => controller.isOpen ? controller.close() : controller.open(),
+        icon: const Icon(Icons.playlist_add_check),
+        label: const Text('Всем без отметки'),
+      ),
+    );
+  }
+}
+
+/// Строка «было / уже изменено другим» под именем сотрудника.
+List<Widget> _draftNotes(
+  BuildContext context, {
+  required bool changed,
+  required String? before,
+  required String? meanwhile,
+}) => [
+  if (changed)
+    Text(
+      'не сохранено · было: ${before ?? '—'}',
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      overflow: TextOverflow.ellipsis,
+    ),
+  if (meanwhile != null)
+    Text(
+      'уже изменено другим: $meanwhile',
+      style: TextStyle(
+        fontSize: 12,
+        color: StatusColors.of(context).warningText,
+      ),
+      overflow: TextOverflow.ellipsis,
+    ),
+];
+
+/// Сотрудник на широком экране: ФИО и кнопки отметок в одну строку.
+class _EmployeeDayRow extends StatelessWidget {
+  final Employee employee;
+  final TimesheetRecord? record;
+  final bool changed;
+  final DayMark? draftMark;
+  final String? before;
+  final String? meanwhile;
+
+  /// Строка под клавишами.
+  final bool current;
+  final bool enabled;
+  final String? Function(DayMark mark) hint;
+  final void Function(DayMark? mark) onMark;
+
+  const _EmployeeDayRow({
+    required this.employee,
+    required this.record,
+    required this.changed,
+    required this.draftMark,
+    required this.before,
+    required this.meanwhile,
+    required this.current,
+    required this.enabled,
+    required this.hint,
+    required this.onMark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = record;
+    final theme = Theme.of(context);
+    bool selected(DayMark mark) =>
+        changed ? draftMark == mark : r != null && mark.matches(r);
+    final hasMark = changed ? draftMark != null : r != null;
+    return Container(
+      decoration: BoxDecoration(
+        color: current
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
+            : null,
+        border: Border(
+          left: BorderSide(
+            width: 4,
+            color: changed ? theme.colorScheme.primary : Colors.transparent,
+          ),
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  employee.fullName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                ..._draftNotes(
+                  context,
+                  changed: changed,
+                  before: before,
+                  meanwhile: meanwhile,
+                ).take(1),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          for (final mark in DayMark.all) ...[
+            DayMarkButton(
+              mark: mark,
+              selected: selected(mark),
+              dense: true,
+              tooltip: hint(mark),
+              onPressed: enabled ? () => onMark(mark) : null,
+            ),
+            const SizedBox(width: 4),
+          ],
+          SizedBox(
+            width: 40,
+            child: hasMark
+                ? IconButton(
+                    tooltip: 'Очистить отметку (Delete)',
+                    icon: const Icon(Icons.backspace_outlined, size: 20),
+                    onPressed: enabled ? () => onMark(null) : null,
+                  )
+                : null,
+          ),
+        ],
       ),
     );
   }
@@ -547,6 +937,7 @@ class _EmployeeDayCard extends StatelessWidget {
   /// Запись в базе изменилась после начала правки — что там сейчас.
   final String? meanwhile;
   final bool enabled;
+  final String? Function(DayMark mark) hint;
   final void Function(DayMark? mark) onMark;
 
   const _EmployeeDayCard({
@@ -557,6 +948,7 @@ class _EmployeeDayCard extends StatelessWidget {
     required this.before,
     required this.meanwhile,
     required this.enabled,
+    required this.hint,
     required this.onMark,
   });
 
@@ -594,22 +986,12 @@ class _EmployeeDayCard extends StatelessWidget {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (changed)
-                        Text(
-                          'не сохранено · было: ${before ?? '—'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      if (meanwhile != null)
-                        Text(
-                          'уже изменено другим: $meanwhile',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: StatusColors.of(context).warningText,
-                          ),
-                        ),
+                      ..._draftNotes(
+                        context,
+                        changed: changed,
+                        before: before,
+                        meanwhile: meanwhile,
+                      ),
                     ],
                   ),
                 ),
@@ -628,9 +1010,10 @@ class _EmployeeDayCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 for (final mark in DayMark.all)
-                  _MarkButton(
+                  DayMarkButton(
                     mark: mark,
                     selected: selected(mark),
+                    tooltip: hint(mark),
                     onPressed: enabled ? () => onMark(mark) : null,
                   ),
               ],
@@ -638,47 +1021,6 @@ class _EmployeeDayCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MarkButton extends StatelessWidget {
-  final DayMark mark;
-  final bool selected;
-  final VoidCallback? onPressed;
-
-  const _MarkButton({
-    required this.mark,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const size = Size(76, 48);
-    const padding = EdgeInsets.symmetric(horizontal: 10);
-    final label = Text(mark.label, style: const TextStyle(fontSize: 14));
-    if (selected) {
-      return FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: mark.color,
-          disabledBackgroundColor: mark.color.withValues(alpha: 0.5),
-          disabledForegroundColor: Colors.white,
-          minimumSize: size,
-          padding: padding,
-        ),
-        onPressed: onPressed,
-        child: label,
-      );
-    }
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: mark.color,
-        minimumSize: size,
-        padding: padding,
-      ),
-      onPressed: onPressed,
-      child: label,
     );
   }
 }
