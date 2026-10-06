@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../widgets/adaptive_dialog.dart';
+import '../widgets/choice_buttons.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/month_switcher.dart';
@@ -24,15 +25,19 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   DateTime _selectedMonth = DateTime.now();
   String? _selectedEmployeeId;
 
-  // Ширины колонок
+  // Ширины колонок — таблица устроена как «Сотрудники» (решение владельца
+  // 2026-10-06): №, промежутки 8, линии с отступом и цветом от темы.
+  static const double _colNumber = 40;
   static const double _colDate = 100;
   static const double _colEmployee = 200;
-  static const double _colType = 90;
+  static const double _colType = 100;
   static const double _colAmount = 120;
   static const double _colMethod = 100;
-  static const double _colNotes = 150;
-  static const double _colActions = 60;
+  static const double _colNotes = 160;
+  static const double _colActions = 48;
+  static const double _gap = 8;
   final double _tableWidth =
+      _colNumber +
       _colDate +
       _colEmployee +
       _colType +
@@ -40,7 +45,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       _colMethod +
       _colNotes +
       _colActions +
-      64;
+      7 * _gap +
+      32;
 
   @override
   void initState() {
@@ -497,13 +503,19 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,
-                      child: Column(
-                        children: provider.payments.map((payment) {
-                          final employee = provider.getEmployeeById(
-                            payment.employeeId,
-                          );
-                          return _buildRow(payment, employee);
-                        }).toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            for (final (i, payment)
+                                in provider.payments.indexed)
+                              _buildRow(
+                                i + 1,
+                                payment,
+                                provider.getEmployeeById(payment.employeeId),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -517,6 +529,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   Widget _buildTableHeader() {
+    Widget cell(double width, String text, {TextAlign? align}) => SizedBox(
+      width: width,
+      child: Text(text, style: headerStyle(), textAlign: align),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -524,42 +540,21 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: _colDate,
-            child: Text('Дата', style: headerStyle()),
-          ),
-          SizedBox(
-            width: _colEmployee,
-            child: Text('Сотрудник', style: headerStyle()),
-          ),
-          SizedBox(
-            width: _colType,
-            child: Text('Тип', style: headerStyle()),
-          ),
-          SizedBox(
-            width: _colAmount,
-            child: Text(
-              'Сумма',
-              style: headerStyle(),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          // Колонка "Способ" с отступом слева 10px
-          Padding(
-            padding: const EdgeInsets.only(left: 20),
-            child: SizedBox(
-              width: _colMethod,
-              child: Text('Способ', style: headerStyle()),
-            ),
-          ),
-          SizedBox(
-            width: _colNotes,
-            child: Text('Примечания', style: headerStyle()),
-          ),
-          SizedBox(
-            width: _colActions,
-            child: Text('', style: headerStyle()),
-          ),
+          cell(_colNumber, '№'),
+          const SizedBox(width: _gap),
+          cell(_colDate, 'Дата'),
+          const SizedBox(width: _gap),
+          cell(_colEmployee, 'Сотрудник'),
+          const SizedBox(width: _gap),
+          cell(_colType, 'Тип'),
+          const SizedBox(width: _gap),
+          cell(_colAmount, 'Сумма', align: TextAlign.right),
+          const SizedBox(width: _gap),
+          cell(_colMethod, 'Способ'),
+          const SizedBox(width: _gap),
+          cell(_colNotes, 'Примечания'),
+          const SizedBox(width: _gap),
+          cell(_colActions, ''),
         ],
       ),
     );
@@ -568,90 +563,97 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   TextStyle headerStyle() =>
       const TextStyle(fontWeight: FontWeight.bold, fontSize: 12);
 
-  Widget _buildRow(Payment payment, Employee? employee) {
+  /// Строка выплаты; долгое нажатие — правка, как карточка в «Сотрудниках».
+  Widget _buildRow(int index, Payment payment, Employee? employee) {
     final currencyFormat = NumberFormat('#,##0.00', 'ru');
+    const text = TextStyle(fontSize: 12);
+    Widget cell(double width, Widget child) =>
+        SizedBox(width: width, child: child);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _colDate,
-            child: Text(
-              DateFormat('dd.MM.yyyy').format(payment.paymentDate),
-              style: const TextStyle(fontSize: 12),
+    return InkWell(
+      onLongPress: () => _showEditPaymentDialog(context, payment),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
           ),
-          SizedBox(
-            width: _colEmployee,
-            child: Text(
-              employee?.fullName ?? 'Неизвестно',
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(
-            width: _colType,
-            child: Text(
-              payment.paymentTypeName,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: _colAmount,
-            child: Text(
-              '${currencyFormat.format(payment.amount)} ₽',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          // Колонка "Способ" с отступом слева 10px
-          Padding(
-            padding: const EdgeInsets.only(left: 20),
-            child: SizedBox(
-              width: _colMethod,
-              child: Text(
-                payment.paymentMethodName,
-                style: const TextStyle(fontSize: 12),
+        ),
+        child: Row(
+          children: [
+            cell(_colNumber, Text('$index', style: text)),
+            const SizedBox(width: _gap),
+            cell(
+              _colDate,
+              Text(
+                DateFormat('dd.MM.yyyy').format(payment.paymentDate),
+                style: text,
               ),
             ),
-          ),
-          SizedBox(
-            width: _colNotes,
-            child: Text(
-              payment.notes ?? '—',
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+            const SizedBox(width: _gap),
+            cell(
+              _colEmployee,
+              Text(
+                employee?.fullName ?? 'Неизвестно',
+                style: text,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          SizedBox(
-            width: _colActions,
-            child: PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showEditPaymentDialog(context, payment);
-                } else if (value == 'delete') {
-                  _confirmDelete(context, payment);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Редактировать'),
+            const SizedBox(width: _gap),
+            cell(_colType, Text(payment.paymentTypeName, style: text)),
+            const SizedBox(width: _gap),
+            cell(
+              _colAmount,
+              Text(
+                '${currencyFormat.format(payment.amount)} ₽',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Удалить', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-              icon: const Icon(Icons.more_vert),
+                textAlign: TextAlign.right,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: _gap),
+            cell(_colMethod, Text(payment.paymentMethodName, style: text)),
+            const SizedBox(width: _gap),
+            cell(
+              _colNotes,
+              Text(
+                payment.notes ?? '—',
+                style: text,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(width: _gap),
+            cell(
+              _colActions,
+              PopupMenuButton<String>(
+                tooltip: 'Действия',
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditPaymentDialog(context, payment);
+                  } else if (value == 'delete') {
+                    _confirmDelete(context, payment);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Text('Редактировать'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Удалить', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+                icon: const Icon(Icons.more_vert),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -792,29 +794,6 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_selectedEmployeeId == null)
-                  Consumer<AppProvider>(
-                    builder: (context, provider, child) {
-                      final items = provider.employees.map((e) {
-                        return DropdownMenuItem<String>(
-                          value: e.id,
-                          child: Text(StringUtils.getShortName(e.fullName)),
-                        );
-                      }).toList();
-
-                      return AppDropdown<String>(
-                        value: _selectedEmployeeId,
-                        items: items,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedEmployeeId = value;
-                          });
-                        },
-                        labelText: 'Сотрудник *',
-                        prefixIcon: Icons.person,
-                      );
-                    },
-                  ),
                 if (_selectedEmployeeId != null)
                   Consumer<AppProvider>(
                     builder: (context, provider, child) {
@@ -884,40 +863,18 @@ class _PaymentFormDialogState extends State<_PaymentFormDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                AppDropdown<String>(
+                ChoiceGroup<String>(
+                  label: 'Тип выплаты',
+                  options: _paymentTypeOptions,
                   value: _paymentType,
-                  items: const [
-                    DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
-                    DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-                    DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-                    DropdownMenuItem(
-                      value: 'vacation',
-                      child: Text('Отпускные'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'sick_leave',
-                      child: Text('Больничные'),
-                    ),
-                  ],
-                  onChanged: (v) => setState(() => _paymentType = v!),
-                  labelText: 'Тип выплаты',
-                  prefixIcon: Icons.category,
+                  onChanged: (v) => setState(() => _paymentType = v),
                 ),
                 const SizedBox(height: 12),
-                AppDropdown<String?>(
+                ChoiceGroup<String?>(
+                  label: 'Способ оплаты',
+                  options: _paymentMethodOptions,
                   value: _paymentMethod,
-                  items: const [
-                    DropdownMenuItem(
-                      value: null,
-                      child: Text('— Не указано —'),
-                    ),
-                    DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                    DropdownMenuItem(value: 'card', child: Text('На карту')),
-                    DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
-                  ],
                   onChanged: (v) => setState(() => _paymentMethod = v),
-                  labelText: 'Способ оплаты',
-                  prefixIcon: Icons.payment,
                 ),
                 const SizedBox(height: 12),
                 ListTile(
@@ -1198,30 +1155,17 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
   /// одну строку, дата — под ними; на экране остаётся больше сотрудников.
   Widget _buildCommonFields() {
     final compact = MediaQuery.sizeOf(context).width < AppTheme.compactWidth;
-    final type = AppDropdown<String>(
+    final type = ChoiceGroup<String>(
+      label: 'Тип выплаты',
+      options: _paymentTypeOptions,
       value: _paymentType,
-      items: const [
-        DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
-        DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-        DropdownMenuItem(value: 'bonus', child: Text('Премия')),
-        DropdownMenuItem(value: 'vacation', child: Text('Отпускные')),
-        DropdownMenuItem(value: 'sick_leave', child: Text('Больничные')),
-      ],
-      onChanged: (v) => setState(() => _paymentType = v!),
-      labelText: 'Тип выплаты',
-      prefixIcon: compact ? null : Icons.category,
+      onChanged: (v) => setState(() => _paymentType = v),
     );
-    final method = AppDropdown<String?>(
+    final method = ChoiceGroup<String?>(
+      label: 'Способ оплаты',
+      options: _paymentMethodOptions,
       value: _paymentMethod,
-      items: const [
-        DropdownMenuItem(value: null, child: Text('Не указано')),
-        DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-        DropdownMenuItem(value: 'card', child: Text('На карту')),
-        DropdownMenuItem(value: 'transfer', child: Text('Перевод')),
-      ],
       onChanged: (v) => setState(() => _paymentMethod = v),
-      labelText: 'Способ оплаты',
-      prefixIcon: compact ? null : Icons.payment,
     );
     final date = InkWell(
       borderRadius: BorderRadius.circular(AppTheme.defaultRadius),
@@ -1250,28 +1194,14 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
         child: Text(DateFormat('dd.MM.yyyy').format(_date)),
       ),
     );
-    if (compact) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: type),
-              const SizedBox(width: 8),
-              Expanded(child: method),
-            ],
-          ),
-          const SizedBox(height: 8),
-          date,
-        ],
-      );
-    }
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: type),
-        const SizedBox(width: 12),
-        Expanded(child: method),
-        const SizedBox(width: 12),
-        Expanded(child: date),
+        type,
+        const SizedBox(height: 8),
+        method,
+        const SizedBox(height: 12),
+        if (compact) date else SizedBox(width: 220, child: date),
       ],
     );
   }
@@ -1354,3 +1284,21 @@ class _GroupPaymentFormDialogState extends State<_GroupPaymentFormDialog> {
     );
   }
 }
+
+/// Тип выплаты — кнопками (решение владельца 2026-10-06); цвета отпускных и
+/// больничных — как у отметок табеля.
+const _paymentTypeOptions = [
+  ChoiceOption('salary', 'Зарплата', Color(0xFF2E7D32)),
+  ChoiceOption('advance', 'Аванс', Color(0xFF00838F)),
+  ChoiceOption('bonus', 'Премия', Color(0xFFB26A00)),
+  ChoiceOption('vacation', 'Отпускные', Color(0xFF7B1FA2)),
+  ChoiceOption('sick_leave', 'Больничные', Color(0xFF1976D2)),
+];
+
+/// Способ оплаты — кнопками.
+const _paymentMethodOptions = <ChoiceOption<String?>>[
+  ChoiceOption('cash', 'Наличные', Color(0xFF558B2F)),
+  ChoiceOption('card', 'На карту', Color(0xFF1565C0)),
+  ChoiceOption('transfer', 'Перевод', Color(0xFF00838F)),
+  ChoiceOption(null, 'Не указано', Color(0xFF757575)),
+];
