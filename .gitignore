@@ -75,3 +75,6 @@ structure.txt
 
 # Копии web/sqlite3.wasm и web/drift_worker.js для теста базы в браузере
 /packages/local_db/test/browser/assets/
+
+# Данные владельца для шага 8.0 (открытый репозиторий)
+docs/stage-8/private/
