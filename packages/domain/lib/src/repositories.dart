@@ -4,6 +4,7 @@
 // Удаление везде мягкое: запись помечается удалённой и пропадает
 // из выборок, но остаётся в базе (нужно для синхронизации).
 
+import 'finance/models.dart';
 import 'rate_timeline.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
@@ -101,4 +102,39 @@ abstract interface class PayrollRepository {
 abstract interface class SettingsRepository {
   Future<CompanySettings> get();
   Future<void> save(CompanySettings settings);
+}
+
+/// Финансы (этап 8): справочники и операции. Выплаты ЗП здесь не хранятся —
+/// расходы из них строит `payrollExpenses`.
+abstract interface class FinanceRepository {
+  Future<List<FinAccount>> accounts();
+  Future<List<FinDirection>> directions();
+  Future<List<AllocationKey>> allocationKeys();
+  Future<List<Asset>> assets();
+  Future<List<FinCategory>> categories();
+  Future<List<Counterparty>> counterparties();
+  Future<List<FinDebt>> debts();
+
+  /// Добавить или изменить запись справочника (по id).
+  Future<void> saveAccount(FinAccount account);
+  Future<void> saveDirection(FinDirection direction);
+  Future<void> saveAllocationKey(AllocationKey key);
+  Future<void> saveAsset(Asset asset);
+  Future<void> saveCategory(FinCategory category);
+  Future<void> saveCounterparty(Counterparty counterparty);
+  Future<void> saveDebt(FinDebt debt);
+
+  Future<void> addOperation(FinOperation operation);
+  Future<void> updateOperation(FinOperation operation);
+  Future<void> deleteOperation(String id);
+  Future<FinOperation?> operation(String id);
+
+  /// Операции с [from] по [to] включительно (null — без границы),
+  /// по кошельку (как источник или получатель перевода) и сезону.
+  Future<List<FinOperation>> operations({
+    DateTime? from,
+    DateTime? to,
+    String? accountId,
+    int? season,
+  });
 }
