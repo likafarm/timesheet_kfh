@@ -13,8 +13,27 @@ const employeeTables = <String, List<String>>{
   'payroll_results': [],
 };
 
-/// Все бизнес-таблицы v2 (со служебными полями синхронизации).
-const businessTables = <String>['company_settings', ...employeeTablesOrder];
+/// Все бизнес-таблицы v2 (со служебными полями синхронизации) в порядке
+/// вставки: настройки, таблицы с сотрудником, финансы.
+const businessTables = <String>[
+  'company_settings',
+  ...employeeTablesOrder,
+  ...financeTablesOrder,
+];
+
+/// Таблицы финансов в порядке вставки.
+const financeTablesOrder = <String>[
+  'fin_directions',
+  'fin_allocation_keys',
+  'fin_allocation_periods',
+  'fin_accounts',
+  'fin_assets',
+  'fin_categories',
+  'counterparties',
+  'fin_debts',
+  'fin_operations',
+  'fin_payroll_mapping',
+];
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
 const employeeTablesOrder = <String>[
@@ -27,10 +46,7 @@ const employeeTablesOrder = <String>[
   'payroll_results',
 ];
 
-/// Таблицы финансов (этап 8, схема 2) в порядке вставки и их поля-даты.
-/// В синхронизацию и восстановление по таблицам войдут вместе с сервером
-/// (шаг 8.3): до тех пор их нет в [businessTables] и `syncTables`, а в
-/// полной копии файла базы они уже есть.
+/// Таблицы финансов (этап 8, схема 2) и их поля-даты.
 const financeTables = <String, List<String>>{
   'fin_directions': [],
   'fin_allocation_keys': [],

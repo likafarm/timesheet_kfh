@@ -28,8 +28,12 @@ const restorableTables = <String>[
 
 /// Уникальные ключи среди живых записей (кроме uuid): у сотрудника одна
 /// запись табеля на день.
-const _uniqueKeys = <String, List<String>>{
+final _uniqueKeys = <String, List<String>>{
   'timesheet': ['employee_uuid', 'date'],
+  // Финансы: названия и версии ключей — из описания обмена.
+  for (final t in syncTables)
+    if (t.name.startsWith('fin_') || t.name == 'counterparties')
+      if (t.unique.isNotEmpty) t.name: t.unique,
 };
 
 /// Снимок данных: все записи бизнес-таблиц, включая удалённые.

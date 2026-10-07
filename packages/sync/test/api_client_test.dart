@@ -479,7 +479,10 @@ void main() {
         'cursor': '5',
         'epoch': 'e1',
         'limit': '100',
+        // Список таблиц — всегда: без него сервер отдаёт только старые.
+        'tables': allSyncTableNames.join(','),
       });
+      expect(allSyncTableNames, containsAll(['timesheet', 'fin_operations']));
       expect(page.cursor, 12);
       expect(page.changes.single.data['base_rate'], 1000.0);
     });

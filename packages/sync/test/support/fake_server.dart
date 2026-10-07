@@ -178,7 +178,9 @@ class FakeSyncServer {
     final entries = _log.where((e) => e.$1 > cursor.seq).take(limit).toList();
     final lastSeq = <(String, String), int>{
       for (final e in entries)
-        if (tables == null || tables.contains(e.$2)) (e.$2, e.$3): e.$1,
+        // Как сервер 0.9.0: без списка — только таблицы до финансов.
+        if ((tables ?? legacySyncTableNames).contains(e.$2))
+          (e.$2, e.$3): e.$1,
     };
     final keys = lastSeq.keys.toList()
       ..sort((a, b) {
@@ -209,5 +211,5 @@ class _Client implements SyncTransport {
     SyncCursor cursor, {
     int limit = 500,
     Set<String>? tables,
-  }) async => server.pull(cursor, limit, tables);
+  }) async => server.pull(cursor, limit, tables ?? allSyncTableNames);
 }

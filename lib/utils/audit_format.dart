@@ -5,6 +5,7 @@
 // времени, uuid сотрудника) не показываются.
 
 import 'package:intl/intl.dart';
+import 'package:kfh_domain/kfh_domain.dart' show formatRub;
 import 'package:kfh_sync/kfh_sync.dart';
 
 /// Изменившееся поле записи: подпись, было, стало (null — не было / нет).
@@ -41,6 +42,7 @@ const auditKindLabels = <String, String>{
   'payroll': 'Расчёты зарплаты',
   'periods': 'Закрытие месяцев',
   'settings': 'Реквизиты',
+  'finance': 'Финансы',
   'access': 'Входы и пользователи',
 };
 
@@ -60,6 +62,16 @@ const _entity = {
   'employees': 'сотрудник',
   'payroll_results': 'расчёт зарплаты',
   'company_settings': 'реквизиты хозяйства',
+  'fin_directions': 'направление',
+  'fin_allocation_keys': 'ключ распределения',
+  'fin_allocation_periods': 'доли ключа распределения',
+  'fin_accounts': 'кошелёк',
+  'fin_assets': 'имущество',
+  'fin_categories': 'статья',
+  'counterparties': 'контрагент',
+  'fin_debts': 'займ',
+  'fin_operations': 'операция',
+  'fin_payroll_mapping': 'соответствие выплат ЗП',
 };
 
 /// Подписи полей по таблицам; поля не из списка не показываются.
@@ -203,6 +215,13 @@ AuditView describeAudit(AuditEntry e) {
         'payments' => _day('${data?['payment_date'] ?? ''}'),
         'payroll_results' => _month(data),
         'employee_rates' => 'с ${_day('${data?['start_date'] ?? ''}')}',
+        'fin_operations' => _operation(data),
+        'fin_accounts' ||
+        'fin_assets' ||
+        'fin_categories' ||
+        'counterparties' ||
+        'fin_directions' ||
+        'fin_allocation_keys' => '${data?['name'] ?? ''}',
         _ => '',
       },
     ]..removeWhere((p) => p.isEmpty);
@@ -297,4 +316,13 @@ String? _user(Map<String, Object?>? v) {
     if (login is String) '($login)',
     ?roleName,
   ].join(' ');
+}
+
+/// Операция финансов: «05.03.2026 · 1 234,56 ₽» (сумма — копейки).
+String _operation(Map<String, Object?>? data) {
+  final amount = data?['amount'];
+  return [
+    _day('${data?['date'] ?? ''}'),
+    if (amount is int) '${formatRub(amount)} ₽',
+  ].where((p) => p.isNotEmpty).join(' · ');
 }

@@ -14,6 +14,10 @@ const auditKinds = <String, String>{
   'employees': "a.entity = 'employees'",
   'payroll': "a.entity = 'payroll_results'",
   'settings': "a.entity = 'company_settings'",
+  'finance': "a.entity IN ('fin_directions', 'fin_allocation_keys', "
+      "'fin_allocation_periods', 'fin_accounts', 'fin_assets', "
+      "'fin_categories', 'counterparties', 'fin_debts', 'fin_operations', "
+      "'fin_payroll_mapping')",
   'periods': "a.action IN ('period_lock', 'period_unlock')",
   'access': "a.action IN ('login', 'login_failed', 'logout', "
       "'password_change', 'password_reset', 'user_create', 'user_update', "

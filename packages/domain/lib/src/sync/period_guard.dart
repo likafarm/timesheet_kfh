@@ -29,6 +29,11 @@ class PeriodLockedException implements Exception {
 /// открытом месяце, хотя сама прежняя ставка начиналась в закрытом. Любая
 /// другая правка (суммы, заметки, удаление) затрагивает весь период записи.
 /// Сотрудники и реквизиты к месяцам не привязаны.
+///
+/// Финансы (этап 8): операция — её день. Начальный остаток кошелька и займа
+/// — событие в день `opening_date`: правка задевает месяц, только если
+/// меняются сам остаток или его дата и остаток не нулевой; название,
+/// закрытие и прочее к месяцам не привязаны. Справочники — тоже нет.
 class PeriodGuard {
   /// Закрытые месяцы: год * 12 + (месяц - 1).
   final Set<int> lockedMonths;
@@ -48,6 +53,14 @@ class PeriodGuard {
     bool afterDeleted,
   ) {
     if (lockedMonths.isEmpty) return null;
+    if (_openingTables.contains(table) &&
+        before != null &&
+        !beforeDeleted &&
+        !afterDeleted &&
+        before['opening_balance'] == after['opening_balance'] &&
+        before['opening_date'] == after['opening_date']) {
+      return null;
+    }
     final oldRange = before == null || beforeDeleted
         ? null
         : _range(table, before);
@@ -97,10 +110,20 @@ class PeriodGuard {
       case 'sick_leave':
       case 'vacation':
         return _Days(day('start_date'), day('end_date'));
+      case 'fin_operations':
+        return _Days(day('date'), day('date'));
+      case 'fin_accounts':
+      case 'fin_debts':
+        if (data['opening_date'] == null || data['opening_balance'] == 0) {
+          return null;
+        }
+        return _Days(day('opening_date'), day('opening_date'));
       default:
         return null;
     }
   }
+
+  static const _openingTables = {'fin_accounts', 'fin_debts'};
 
   static const _bounds = <String, Set<String>>{
     'employee_rates': {'start_date', 'end_date'},

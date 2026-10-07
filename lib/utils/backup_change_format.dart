@@ -18,6 +18,16 @@ const recordKindLabels = <String, String>{
   'sick_leave': 'Больничный',
   'vacation': 'Отпуск',
   'payroll_results': 'Расчёт ЗП',
+  'fin_directions': 'Направление',
+  'fin_allocation_keys': 'Ключ распределения',
+  'fin_allocation_periods': 'Доли ключа',
+  'fin_accounts': 'Кошелёк',
+  'fin_assets': 'Имущество',
+  'fin_categories': 'Статья',
+  'counterparties': 'Контрагент',
+  'fin_debts': 'Займ',
+  'fin_operations': 'Операция',
+  'fin_payroll_mapping': 'Соответствие выплат ЗП',
 };
 
 /// Что за запись: «Иванов Иван · 03.09.2026», «Иванов Иван · с 01.03.2025».
@@ -27,6 +37,18 @@ String recordSubject(
   Map<String, String> names,
 ) {
   String day(String field) => formatRecordValue(field, data[field]) ?? '';
+  // Финансы: операция — день и сумма (копейки), остальное — название.
+  if (table == 'fin_operations') {
+    final amount = data['amount'];
+    return [
+      day('date'),
+      if (amount is int) '${formatRub(amount)} ₽',
+      if (data['description'] case final String text when text.isNotEmpty) text,
+    ].where((p) => p.isNotEmpty).join(' · ');
+  }
+  if (table.startsWith('fin_') || table == 'counterparties') {
+    return '${data['name'] ?? data['valid_from'] ?? data['value'] ?? ''}';
+  }
   final who = table == 'employees'
       ? '${data['full_name'] ?? '—'}'
       : names[data['employee_uuid']] ?? 'Сотрудник не найден';

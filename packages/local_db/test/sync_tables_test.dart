@@ -16,10 +16,18 @@ void main() {
 
   test('таблицы обмена = бизнес-таблицы клиента', () {
     expect(syncTables.map((t) => t.name).toSet(), businessTables.toSet());
-    expect(
-      syncTables.map((t) => t.name).where((n) => n != 'company_settings'),
-      employeeTablesOrder,
-    );
+    expect(syncTables.map((t) => t.name), businessTables);
+    expect(financeTablesOrder.toSet(), financeTables.keys.toSet());
+  });
+
+  test('уникальные ключи совпадают', () {
+    for (final table in syncTables) {
+      expect(
+        table.unique,
+        uniqueKeys[table.name] ?? const <String>[],
+        reason: table.name,
+      );
+    }
   });
 
   test('состав полей, типы и NULL совпадают со схемой drift', () async {

@@ -3,6 +3,8 @@
 // Правила операций и ключей распределения — одни для окон, AppProvider и
 // сервера (как `timesheetMarkProblem`): текст для человека или null.
 
+import 'dart:convert';
+
 import 'catalog.dart';
 import 'models.dart';
 
@@ -143,3 +145,74 @@ String? allocationKeyProblem(AllocationKey key, [FinanceCatalog? catalog]) {
   }
   return null;
 }
+
+/// Проверка строки `fin_operations` в формате обмена (сервер, без
+/// справочников): поля согласованы с видом операции. Типы, коды и границы
+/// уже проверил `SyncChange`; связи — внешние ключи базы. null — в порядке.
+String? operationRowProblem(Map<String, Object?> data) {
+  final type = data['type'];
+  bool has(String column) => data[column] != null;
+  switch (type) {
+    case 'income' || 'expense':
+      if (!has('category_uuid')) return 'Не указана статья';
+      if (has('to_account_uuid')) {
+        return 'У дохода и расхода нет второго кошелька';
+      }
+      if (has('debt_uuid') || has('debt_move')) {
+        return 'Займ — отдельный вид операции, не доход и не расход';
+      }
+      if (has('direction_uuid') && has('allocation_key_uuid')) {
+        return 'Укажите направление или ключ — не оба сразу';
+      }
+      return null;
+    case 'transfer':
+      if (!has('to_account_uuid')) return 'У перевода не указан кошелёк, куда';
+      if (data['to_account_uuid'] == data['account_uuid']) {
+        return 'Перевод в тот же кошелёк';
+      }
+      if (has('category_uuid')) return 'У перевода нет статьи';
+      if (has('debt_uuid') || has('debt_move')) {
+        return 'Перевод не бывает займом';
+      }
+      return null;
+    case 'debt':
+      if (!has('debt_uuid')) return 'Не указан займ';
+      if (!has('debt_move')) return 'Не указано, что сделали с займом';
+      if (has('category_uuid')) return 'У займа нет статьи';
+      if (has('to_account_uuid')) return 'У займа нет второго кошелька';
+      return null;
+    default:
+      return 'Неизвестный вид операции: $type';
+  }
+}
+
+/// Проверка строки `fin_allocation_periods`: доли — JSON-объект
+/// «направление → целый процент», неотрицательные, в сумме 100.
+String? allocationPeriodRowProblem(Map<String, Object?> data) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(data['shares'] as String);
+  } catch (_) {
+    return 'Доли ключа — не JSON';
+  }
+  if (decoded is! Map || decoded.isEmpty) return 'У ключа нет долей';
+  var sum = 0;
+  for (final MapEntry(key: direction, value: share) in decoded.entries) {
+    if (direction is! String || direction.isEmpty || share is! int) {
+      return 'Доля ключа — целый процент направления';
+    }
+    if (share < 0) return 'Доля не может быть отрицательной';
+    sum += share;
+  }
+  if (sum != 100) return 'Доли ключа в сумме $sum %, а нужно 100 %';
+  return null;
+}
+
+/// Проверка строки финансов в формате обмена; null — в порядке или
+/// таблица без своих правил.
+String? financeRowProblem(String table, Map<String, Object?> data) =>
+    switch (table) {
+      'fin_operations' => operationRowProblem(data),
+      'fin_allocation_periods' => allocationPeriodRowProblem(data),
+      _ => null,
+    };

@@ -151,8 +151,9 @@ void main() {
       logger: logger,
       authApi: authApi,
       syncApi: SyncApi(
-          SyncService(db: testDb.db, logger: logger, payroll: payroll),
-          authApi),
+        SyncService(db: testDb.db, logger: logger, payroll: payroll),
+        authApi,
+      ),
       dataApi: DataApi(
         db: testDb.db,
         auth: authApi,
@@ -160,11 +161,7 @@ void main() {
         payroll: payroll,
       ),
       adminApi: AdminApi(
-        ImportService(
-          db: testDb.db,
-          payroll: payroll,
-          logger: logger,
-        ),
+        ImportService(db: testDb.db, payroll: payroll, logger: logger),
         authApi,
       ),
     );
@@ -252,6 +249,137 @@ void main() {
     });
 
     test(
+      'финансы: справочники, ключ, операции и займ — одинаково на обоих ПК',
+      () async {
+        final fin1 = pc1.repo.finance;
+        final herd = newUuid(), crops = newUuid(), key = newUuid();
+        final cash = newUuid(), bank = newUuid(), fuel = newUuid();
+        final cp = newUuid(), loan = newUuid();
+        await fin1.saveDirection(
+          FinDirection(id: herd, name: 'Животноводство'),
+        );
+        await fin1.saveDirection(FinDirection(id: crops, name: 'Корма'));
+        await fin1.saveAllocationKey(
+          AllocationKey(
+            id: key,
+            name: 'Трактора',
+            periods: [
+              AllocationPeriod(
+                validFrom: DateTime(2025, 1, 1),
+                shares: {herd: 60, crops: 40},
+              ),
+              AllocationPeriod(
+                validFrom: DateTime(2026, 1, 1),
+                shares: {herd: 70, crops: 30},
+              ),
+            ],
+          ),
+        );
+        await fin1.saveAccount(
+          FinAccount(id: cash, name: 'Касса', kind: AccountKind.cash),
+        );
+        await fin1.saveAccount(
+          FinAccount(
+            id: bank,
+            name: 'Счёт',
+            kind: AccountKind.bank,
+            openingBalance: 2900301,
+            openingDate: DateTime(2025, 1, 1),
+          ),
+        );
+        await fin1.saveCategory(
+          FinCategory(
+            id: fuel,
+            type: CategoryType.expense,
+            group: '04. Техника и транспорт',
+            name: 'ГСМ',
+            allocationKeyId: key,
+          ),
+        );
+        await fin1.saveCounterparty(Counterparty(id: cp, name: 'Займодавец'));
+        await fin1.saveDebt(
+          FinDebt(
+            id: loan,
+            counterpartyId: cp,
+            kind: DebtKind.received,
+            openingBalance: 3500000000,
+            openingDate: DateTime(2025, 1, 1),
+          ),
+        );
+        final fuelOp = newUuid();
+        await fin1.addOperation(
+          FinOperation(
+            id: fuelOp,
+            date: DateTime(2026, 9, 10),
+            type: OperationType.expense,
+            amount: 80497100,
+            accountId: cash,
+            categoryId: fuel,
+            createdBy: 'buh',
+          ),
+        );
+        await fin1.addOperation(
+          FinOperation(
+            id: newUuid(),
+            date: DateTime(2026, 9, 11),
+            type: OperationType.debt,
+            amount: 20000000,
+            accountId: bank,
+            debtId: loan,
+            debtMove: DebtMove.take,
+          ),
+        );
+        final r1 = await pc1.sync();
+        expect(r1.pendingLeft, 0);
+        expect(r1.rejected, 0);
+
+        await pc2.sync();
+        final fin2 = pc2.repo.finance;
+        Future<(Map<String, int>, Map<String, int>, Map<String, int>)> totals(
+          FinanceRepository fin,
+        ) async {
+          final ops = await fin.operations();
+          final catalog = FinanceCatalog(
+            directions: await fin.directions(),
+            keys: await fin.allocationKeys(),
+            categories: await fin.categories(),
+            accounts: await fin.accounts(),
+            debts: await fin.debts(),
+          );
+          return (
+            accountBalances(await fin.accounts(), ops),
+            debtBalances(await fin.debts(), ops),
+            expensesByDirection(ops, catalog),
+          );
+        }
+
+        final on1 = await totals(fin1), on2 = await totals(fin2);
+        expect(on2.$1, on1.$1);
+      expect(on2.$2, on1.$2);
+      expect(on2.$3, on1.$3);
+        expect(on2.$1[cash], -80497100);
+        expect(on2.$1[bank], 2900301 + 20000000);
+        expect(on2.$2[loan], 3500000000 + 20000000);
+        expect(on2.$3, {
+          herd: 56347970,
+          crops: 24149130,
+        }, reason: 'ключ 2026 — 70/30');
+        expect((await fin2.allocationKeys()).single.periods, hasLength(2));
+
+        // Правка на втором ПК возвращается на первый.
+        final op = (await fin2.operation(fuelOp))!;
+        await fin2.updateOperation(op.copyWith(amount: 100000));
+        await pc2.sync();
+        await pc1.sync();
+        expect((await fin1.operation(fuelOp))!.amount, 100000);
+        expect((await fin1.operation(fuelOp))!.createdBy, 'buh');
+        final quiet = await pc1.sync();
+        expect(quiet.pushed + quiet.received + quiet.lost, 0);
+        expect(await serverCount('fin_operations'), 2);
+      },
+    );
+
+    test(
       'офлайн: ввод без сети уходит после подключения, дубликатов нет',
       () async {
         final emp = await pc1.addEmployee('Иванов Иван');
@@ -306,8 +434,8 @@ void main() {
         final emp = await pc1.addEmployee('Иванов Иван');
         await pc1.sync();
         await periods.lock(accountant, 2026, 8, 'сдан');
-      // Клиент видит список закрытых месяцев (для отметок в интерфейсе).
-      expect(await pc1.api.lockedMonths(), [(2026, 8)]);
+        // Клиент видит список закрытых месяцев (для отметок в интерфейсе).
+        expect(await pc1.api.lockedMonths(), [(2026, 8)]);
 
         await pc1.addWork(emp, DateTime(2026, 8, 3));
         final report = await pc1.sync();
@@ -318,7 +446,7 @@ void main() {
         expect(await serverCount('timesheet'), 0);
 
         await periods.unlock(admin, '2026', '8');
-      expect(await pc1.api.lockedMonths(), isEmpty);
+        expect(await pc1.api.lockedMonths(), isEmpty);
         final retry = await pc1.sync(retryRejected: true);
         expect(retry.pushed, 1);
         expect(await serverCount('timesheet'), 1);
@@ -451,7 +579,11 @@ void main() {
         final saved = (await pc.repo.payroll.forMonth(2026, 9)).single;
         final fresh = await pc.repo.payrollService.calculateMonth(emp, 2026, 9);
         expect(saved.totalSalary, fresh.totalSalary);
-        expect(saved.skippedWorkDays, 3, reason: 'ставки нет — три дня без ставки');
+        expect(
+          saved.skippedWorkDays,
+          3,
+          reason: 'ставки нет — три дня без ставки',
+        );
       }
     });
 

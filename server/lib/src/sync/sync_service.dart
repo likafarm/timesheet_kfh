@@ -205,6 +205,12 @@ class SyncService {
             message: 'Табель за ${_humanDay(change.data['date'])}: $problem. '
                 'Исправьте отметку этого дня');
       }
+      final financeProblem =
+          change.deleted ? null : financeRowProblem(change.table, change.data);
+      if (financeProblem != null) {
+        await sql('RELEASE SAVEPOINT sync_change');
+        return result('rejected', code: 'invalid', message: financeProblem);
+      }
       final locked = guard.violation(change.table, existing?.data,
           existing?.deleted ?? false, change.data, change.deleted);
       if (locked != null) {
@@ -255,14 +261,27 @@ class SyncService {
     switch (e.errorCode) {
       case 1062: // ER_DUP_ENTRY: живая запись с тем же ключом
         return ('unique_conflict',
-            'Такая запись уже есть (другая запись того же сотрудника за тот же '
-                'день или месяц)',
+            switch (table.name) {
+              'timesheet' || 'payroll_results' =>
+                'Такая запись уже есть (другая запись того же сотрудника за '
+                    'тот же день или месяц)',
+              _ => 'Такая запись уже есть (то же название)',
+            },
             await _conflictingUuid(sql, table, change));
       case 1452: // ER_NO_REFERENCED_ROW_2
-        return ('unknown_employee',
-            'Нет сотрудника ${change.data['employee_uuid']} — сначала '
-                'должен прийти он',
-            null);
+        return table.hasEmployee && !table.name.startsWith('fin_')
+            ? (
+                'unknown_employee',
+                'Нет сотрудника ${change.data['employee_uuid']} — сначала '
+                    'должен прийти он',
+                null
+              )
+            : (
+                'unknown_reference',
+                'Нет связанной записи (кошелька, статьи, займа или '
+                    'сотрудника) — сначала должна прийти она',
+                null
+              );
       case 3819: // ER_CHECK_CONSTRAINT_VIOLATED
       case 1406: // ER_DATA_TOO_LONG
       case 1264: // ER_WARN_DATA_OUT_OF_RANGE
@@ -273,26 +292,15 @@ class SyncService {
 
   Future<String?> _conflictingUuid(
       SqlExecutor sql, SyncTable table, SyncChange change) async {
-    final (String where, Map<String, dynamic> params) = switch (table.name) {
-      'timesheet' => (
-          'employee_uuid = :e AND date = :d',
-          {'e': change.data['employee_uuid'], 'd': change.data['date']}
-        ),
-      'payroll_results' => (
-          'employee_uuid = :e AND year = :y AND month = :m',
-          {
-            'e': change.data['employee_uuid'],
-            'y': change.data['year'],
-            'm': change.data['month'],
-          }
-        ),
-      _ => ('', <String, dynamic>{}),
-    };
-    if (where.isEmpty) return null;
+    if (table.unique.isEmpty) return null;
+    final where = [for (final c in table.unique) '$c = :$c'].join(' AND ');
     final r = await sql(
         'SELECT uuid FROM ${table.name} WHERE $where AND deleted = 0 '
         'AND uuid <> :self',
-        {...params, 'self': change.uuid});
+        {
+          for (final c in table.unique) c: change.data[c],
+          'self': change.uuid,
+        });
     return r.rows.isEmpty ? null : r.rows.first.textOf('uuid');
   }
 
@@ -331,7 +339,9 @@ class SyncService {
   /// другая эпоха или курсор дальше конца журнала — 409 `resync_required`:
   /// база сервера восстановлена из копии, нужна синхронизация с нуля.
   ///
-  /// [tables] — только эти таблицы (из доступных роли); null — все.
+  /// [tables] — только эти таблицы (из доступных роли); null — таблицы
+  /// до финансов ([legacySyncTableNames]): так спрашивают программы до
+  /// 1.18, другие таблицы они не знают. Новые программы присылают список.
   Future<PullResult> pull(User user,
       {required int cursor,
       String? epoch,
@@ -345,9 +355,8 @@ class SyncService {
       throw ApiException.badRequest('Неизвестные таблицы: ${unknown.join(', ')}');
     }
     final n = limit.clamp(1, maxPullLimit);
-    final readable = tables == null
-        ? readableTables(user.role)
-        : readableTables(user.role).intersection(tables);
+    final readable = readableTables(user.role)
+        .intersection(tables ?? legacySyncTableNames);
     return db.transaction((conn) async {
       final sql = conn.execute;
       final current = await _log.epoch(sql);
