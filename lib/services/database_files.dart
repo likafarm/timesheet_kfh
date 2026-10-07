@@ -17,8 +17,39 @@ import 'package:path/path.dart' as p;
 import 'app_database.dart';
 import 'db_location.dart';
 
-/// Открывает существующий (или создаёт новый) файл базы v2.
-Future<AppDatabase> openAppDatabaseFile(String path) async {
+/// Открывает существующий (или создаёт новый) файл базы v2. Схему старше
+/// программы обновляет на месте (миграция drift), но сначала делает копию
+/// файла рядом с ним (`backup_before_migration_…`); без копии база не
+/// открывается. База от более новой версии программы не открывается.
+Future<AppDatabase> openAppDatabaseFile(
+  String path, {
+  Future<void> Function(String message)? log,
+}) async {
+  final write = log ?? (_) async {};
+  final version = databaseFileVersion(path);
+  if (version != null && version > currentSchemaVersion) {
+    throw DatabaseOpenException(
+      'База создана более новой версией программы (схема $version, '
+      'эта версия понимает до $currentSchemaVersion). Установите новую '
+      'версию программы.\n\nБаза не изменена: $path',
+    );
+  }
+  final String? backup;
+  try {
+    backup = backupBeforeUpgrade(path);
+  } catch (e) {
+    await write('Нет копии базы перед обновлением схемы: $e');
+    throw DatabaseOpenException(
+      'Не удалось сделать копию базы перед обновлением:\n$e\n\n'
+      'База не изменена: $path',
+    );
+  }
+  if (backup != null) {
+    await write(
+      'Копия базы перед обновлением схемы $version -> '
+      '$currentSchemaVersion: $backup',
+    );
+  }
   final db = openLocalDatabaseFile(File(path));
   // Открываем сразу: ошибка открытия — здесь, а не на первом экране.
   await db.deviceId();
@@ -81,7 +112,9 @@ Future<AppDatabase> openAppDatabase({
   }
 
   try {
-    return await openAppDatabaseFile(v2Path);
+    return await openAppDatabaseFile(v2Path, log: write);
+  } on DatabaseOpenException {
+    rethrow;
   } catch (e) {
     await write('Не удалось открыть базу $v2Path: $e');
     throw DatabaseOpenException(

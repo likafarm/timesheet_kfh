@@ -5,6 +5,7 @@
 // из выборок, но остаётся в базе (нужно для синхронизации).
 
 import 'finance/models.dart';
+import 'finance/payroll_expenses.dart';
 import 'rate_timeline.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
@@ -123,6 +124,19 @@ abstract interface class FinanceRepository {
   Future<void> saveCategory(FinCategory category);
   Future<void> saveCounterparty(Counterparty counterparty);
   Future<void> saveDebt(FinDebt debt);
+
+  /// Соответствия «выплата ЗП → расход»; null — ещё не настроены
+  /// (нет кошелька или статьи по умолчанию).
+  Future<PayrollFinanceMapping?> payrollMapping();
+  Future<void> savePayrollMapping(PayrollFinanceMapping mapping);
+
+  /// Удалить запись справочника (мягко).
+  Future<void> deleteAccount(String id);
+  Future<void> deleteAsset(String id);
+  Future<void> deleteCategory(String id);
+  Future<void> deleteCounterparty(String id);
+  Future<void> deleteDebt(String id);
+  Future<void> deleteAllocationKey(String id);
 
   Future<void> addOperation(FinOperation operation);
   Future<void> updateOperation(FinOperation operation);

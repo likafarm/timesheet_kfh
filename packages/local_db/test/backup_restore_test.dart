@@ -70,7 +70,7 @@ void main() {
   }
 
   test('версия схемы для копий совпадает с LocalDatabase', () {
-    expect(db.schemaVersion, schemaVersionV2);
+    expect(db.schemaVersion, currentSchemaVersion);
   });
 
   group('формат копии', () {

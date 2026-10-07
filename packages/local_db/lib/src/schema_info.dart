@@ -27,6 +27,23 @@ const employeeTablesOrder = <String>[
   'payroll_results',
 ];
 
+/// Таблицы финансов (этап 8, схема 2) в порядке вставки и их поля-даты.
+/// В синхронизацию и восстановление по таблицам войдут вместе с сервером
+/// (шаг 8.3): до тех пор их нет в [businessTables] и `syncTables`, а в
+/// полной копии файла базы они уже есть.
+const financeTables = <String, List<String>>{
+  'fin_directions': [],
+  'fin_allocation_keys': [],
+  'fin_allocation_periods': ['valid_from'],
+  'fin_accounts': ['opening_date'],
+  'fin_assets': ['valued_on', 'disposed_on'],
+  'fin_categories': [],
+  'counterparties': [],
+  'fin_debts': ['opening_date'],
+  'fin_operations': ['date'],
+  'fin_payroll_mapping': [],
+};
+
 /// Служебные поля синхронизации — вручную не правятся.
 const syncColumns = <String>{
   'uuid',
@@ -38,12 +55,20 @@ const syncColumns = <String>{
 };
 
 /// Поля-даты (`гггг-мм-дд`) таблицы; пусто — дат нет или таблица не бизнес.
-List<String> dateColumnsOf(String table) => employeeTables[table] ?? const [];
+List<String> dateColumnsOf(String table) =>
+    employeeTables[table] ?? financeTables[table] ?? const [];
 
 /// Уникальные ключи среди неудалённых строк (кроме uuid).
 const uniqueKeys = <String, List<String>>{
   'timesheet': ['employee_uuid', 'date'],
   'payroll_results': ['employee_uuid', 'year', 'month'],
+  'fin_directions': ['name'],
+  'fin_allocation_keys': ['name'],
+  'fin_allocation_periods': ['key_uuid', 'valid_from'],
+  'fin_accounts': ['name'],
+  'fin_categories': ['type', 'name'],
+  'counterparties': ['name'],
+  'fin_payroll_mapping': ['kind', 'value'],
 };
 
 final _identifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');

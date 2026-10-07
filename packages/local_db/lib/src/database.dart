@@ -5,12 +5,15 @@ import 'connection/memory_unsupported.dart'
     if (dart.library.ffi) 'connection/memory_native.dart';
 
 import 'daos/employees_dao.dart';
+import 'daos/finance_dao.dart';
 import 'daos/payments_dao.dart';
 import 'daos/payroll_dao.dart';
 import 'daos/rates_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/sync_state_dao.dart';
 import 'daos/timesheet_dao.dart';
+import 'schema_versions.dart';
+import 'tables/finance_tables.dart';
 import 'tables/tables.dart';
 
 part 'database.g.dart';
@@ -31,7 +34,9 @@ String newUuid() => _uuid.v7();
 ///
 /// Версия схемы drift начинается с 1: это новый файл
 /// (`kfx_time_tracking_v2.db`), старая база v8 в него переносится
-/// конвертером, а не миграцией.
+/// конвертером, а не миграцией. Схема 2 (этап 8) — финансы. Снимки схем —
+/// `drift_schemas/`, помощник шагов — `schema_versions.dart`
+/// (`drift_dev schema steps`); миграции только добавляют.
 @DriftDatabase(
   tables: [
     CompanySettings,
@@ -44,6 +49,17 @@ String newUuid() => _uuid.v7();
     PayrollResults,
     PendingChanges,
     SyncState,
+    // Финансы (этап 8, схема 2)
+    FinDirections,
+    FinAllocationKeys,
+    FinAllocationPeriods,
+    FinAccounts,
+    FinAssets,
+    FinCategories,
+    Counterparties,
+    FinDebts,
+    FinOperations,
+    FinPayrollMapping,
   ],
   daos: [
     EmployeesDao,
@@ -53,6 +69,7 @@ String newUuid() => _uuid.v7();
     PayrollDao,
     SettingsDao,
     SyncStateDao,
+    FinanceDao,
   ],
 )
 class LocalDatabase extends _$LocalDatabase {
@@ -68,7 +85,7 @@ class LocalDatabase extends _$LocalDatabase {
   String? _deviceId;
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   /// Текущий момент в UTC — для `updated_at`.
   DateTime nowUtc() => _clock().toUtc();
@@ -95,6 +112,39 @@ class LocalDatabase extends _$LocalDatabase {
         ),
       );
     },
+    onUpgrade: stepByStep(
+      from1To2: (m, schema) async {
+        // Финансы: новые таблицы и индексы, старые таблицы не меняются.
+        for (final table in [
+          schema.finDirections,
+          schema.finAllocationKeys,
+          schema.finAllocationPeriods,
+          schema.finAccounts,
+          schema.finAssets,
+          schema.finCategories,
+          schema.counterparties,
+          schema.finDebts,
+          schema.finOperations,
+          schema.finPayrollMapping,
+        ]) {
+          await m.createTable(table);
+        }
+        for (final index in [
+          schema.idxFinDirectionsName,
+          schema.idxFinAllocationKeysName,
+          schema.idxFinAllocationPeriodsUnique,
+          schema.idxFinAccountsName,
+          schema.idxFinCategoriesName,
+          schema.idxCounterpartiesName,
+          schema.idxFinOperationsDate,
+          schema.idxFinOperationsAccount,
+          schema.idxFinOperationsCategory,
+          schema.idxFinPayrollMappingUnique,
+        ]) {
+          await m.createIndex(index);
+        }
+      },
+    ),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       _deviceId = await syncStateDao.getValue(deviceIdKey);

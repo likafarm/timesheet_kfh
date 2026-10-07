@@ -7591,6 +7591,8152 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateRow> {
   }
 }
 
+class $FinDirectionsTable extends FinDirections
+    with TableInfo<$FinDirectionsTable, FinDirectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinDirectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _overheadMeta = const VerificationMeta(
+    'overhead',
+  );
+  @override
+  late final GeneratedColumn<bool> overhead = GeneratedColumn<bool>(
+    'overhead',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("overhead" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    overhead,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_directions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinDirectionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('overhead')) {
+      context.handle(
+        _overheadMeta,
+        overhead.isAcceptableOrUnknown(data['overhead']!, _overheadMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinDirectionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinDirectionRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      overhead: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}overhead'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $FinDirectionsTable createAlias(String alias) {
+    return $FinDirectionsTable(attachedDatabase, alias);
+  }
+}
+
+class FinDirectionRow extends DataClass implements Insertable<FinDirectionRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+  final bool overhead;
+  final int sortOrder;
+  const FinDirectionRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+    required this.overhead,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    map['overhead'] = Variable<bool>(overhead);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  FinDirectionsCompanion toCompanion(bool nullToAbsent) {
+    return FinDirectionsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+      overhead: Value(overhead),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory FinDirectionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinDirectionRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      overhead: serializer.fromJson<bool>(json['overhead']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+      'overhead': serializer.toJson<bool>(overhead),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  FinDirectionRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+    bool? overhead,
+    int? sortOrder,
+  }) => FinDirectionRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+    overhead: overhead ?? this.overhead,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  FinDirectionRow copyWithCompanion(FinDirectionsCompanion data) {
+    return FinDirectionRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+      overhead: data.overhead.present ? data.overhead.value : this.overhead,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinDirectionRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('overhead: $overhead, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    overhead,
+    sortOrder,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinDirectionRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name &&
+          other.overhead == this.overhead &&
+          other.sortOrder == this.sortOrder);
+}
+
+class FinDirectionsCompanion extends UpdateCompanion<FinDirectionRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<bool> overhead;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const FinDirectionsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.overhead = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinDirectionsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    this.overhead = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name);
+  static Insertable<FinDirectionRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<bool>? overhead,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (overhead != null) 'overhead': overhead,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinDirectionsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<bool>? overhead,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return FinDirectionsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      overhead: overhead ?? this.overhead,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (overhead.present) {
+      map['overhead'] = Variable<bool>(overhead.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinDirectionsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('overhead: $overhead, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinAllocationKeysTable extends FinAllocationKeys
+    with TableInfo<$FinAllocationKeysTable, FinAllocationKeyRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinAllocationKeysTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_allocation_keys';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinAllocationKeyRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinAllocationKeyRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinAllocationKeyRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+    );
+  }
+
+  @override
+  $FinAllocationKeysTable createAlias(String alias) {
+    return $FinAllocationKeysTable(attachedDatabase, alias);
+  }
+}
+
+class FinAllocationKeyRow extends DataClass
+    implements Insertable<FinAllocationKeyRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+  const FinAllocationKeyRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    return map;
+  }
+
+  FinAllocationKeysCompanion toCompanion(bool nullToAbsent) {
+    return FinAllocationKeysCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+    );
+  }
+
+  factory FinAllocationKeyRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinAllocationKeyRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+    };
+  }
+
+  FinAllocationKeyRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+  }) => FinAllocationKeyRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+  );
+  FinAllocationKeyRow copyWithCompanion(FinAllocationKeysCompanion data) {
+    return FinAllocationKeyRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAllocationKeyRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinAllocationKeyRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name);
+}
+
+class FinAllocationKeysCompanion extends UpdateCompanion<FinAllocationKeyRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<int> rowid;
+  const FinAllocationKeysCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinAllocationKeysCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name);
+  static Insertable<FinAllocationKeyRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinAllocationKeysCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<int>? rowid,
+  }) {
+    return FinAllocationKeysCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAllocationKeysCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinAllocationPeriodsTable extends FinAllocationPeriods
+    with TableInfo<$FinAllocationPeriodsTable, FinAllocationPeriodRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinAllocationPeriodsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _keyUuidMeta = const VerificationMeta(
+    'keyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> keyUuid = GeneratedColumn<String>(
+    'key_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_allocation_keys (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _validFromMeta = const VerificationMeta(
+    'validFrom',
+  );
+  @override
+  late final GeneratedColumn<String> validFrom = GeneratedColumn<String>(
+    'valid_from',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sharesMeta = const VerificationMeta('shares');
+  @override
+  late final GeneratedColumn<String> shares = GeneratedColumn<String>(
+    'shares',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    keyUuid,
+    validFrom,
+    shares,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_allocation_periods';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinAllocationPeriodRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('key_uuid')) {
+      context.handle(
+        _keyUuidMeta,
+        keyUuid.isAcceptableOrUnknown(data['key_uuid']!, _keyUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyUuidMeta);
+    }
+    if (data.containsKey('valid_from')) {
+      context.handle(
+        _validFromMeta,
+        validFrom.isAcceptableOrUnknown(data['valid_from']!, _validFromMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_validFromMeta);
+    }
+    if (data.containsKey('shares')) {
+      context.handle(
+        _sharesMeta,
+        shares.isAcceptableOrUnknown(data['shares']!, _sharesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sharesMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinAllocationPeriodRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinAllocationPeriodRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      keyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key_uuid'],
+      )!,
+      validFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valid_from'],
+      )!,
+      shares: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shares'],
+      )!,
+    );
+  }
+
+  @override
+  $FinAllocationPeriodsTable createAlias(String alias) {
+    return $FinAllocationPeriodsTable(attachedDatabase, alias);
+  }
+}
+
+class FinAllocationPeriodRow extends DataClass
+    implements Insertable<FinAllocationPeriodRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String keyUuid;
+  final String validFrom;
+  final String shares;
+  const FinAllocationPeriodRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.keyUuid,
+    required this.validFrom,
+    required this.shares,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['key_uuid'] = Variable<String>(keyUuid);
+    map['valid_from'] = Variable<String>(validFrom);
+    map['shares'] = Variable<String>(shares);
+    return map;
+  }
+
+  FinAllocationPeriodsCompanion toCompanion(bool nullToAbsent) {
+    return FinAllocationPeriodsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      keyUuid: Value(keyUuid),
+      validFrom: Value(validFrom),
+      shares: Value(shares),
+    );
+  }
+
+  factory FinAllocationPeriodRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinAllocationPeriodRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      keyUuid: serializer.fromJson<String>(json['keyUuid']),
+      validFrom: serializer.fromJson<String>(json['validFrom']),
+      shares: serializer.fromJson<String>(json['shares']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'keyUuid': serializer.toJson<String>(keyUuid),
+      'validFrom': serializer.toJson<String>(validFrom),
+      'shares': serializer.toJson<String>(shares),
+    };
+  }
+
+  FinAllocationPeriodRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? keyUuid,
+    String? validFrom,
+    String? shares,
+  }) => FinAllocationPeriodRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    keyUuid: keyUuid ?? this.keyUuid,
+    validFrom: validFrom ?? this.validFrom,
+    shares: shares ?? this.shares,
+  );
+  FinAllocationPeriodRow copyWithCompanion(FinAllocationPeriodsCompanion data) {
+    return FinAllocationPeriodRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      keyUuid: data.keyUuid.present ? data.keyUuid.value : this.keyUuid,
+      validFrom: data.validFrom.present ? data.validFrom.value : this.validFrom,
+      shares: data.shares.present ? data.shares.value : this.shares,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAllocationPeriodRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('keyUuid: $keyUuid, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('shares: $shares')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    keyUuid,
+    validFrom,
+    shares,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinAllocationPeriodRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.keyUuid == this.keyUuid &&
+          other.validFrom == this.validFrom &&
+          other.shares == this.shares);
+}
+
+class FinAllocationPeriodsCompanion
+    extends UpdateCompanion<FinAllocationPeriodRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> keyUuid;
+  final Value<String> validFrom;
+  final Value<String> shares;
+  final Value<int> rowid;
+  const FinAllocationPeriodsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.keyUuid = const Value.absent(),
+    this.validFrom = const Value.absent(),
+    this.shares = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinAllocationPeriodsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String keyUuid,
+    required String validFrom,
+    required String shares,
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       keyUuid = Value(keyUuid),
+       validFrom = Value(validFrom),
+       shares = Value(shares);
+  static Insertable<FinAllocationPeriodRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? keyUuid,
+    Expression<String>? validFrom,
+    Expression<String>? shares,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (keyUuid != null) 'key_uuid': keyUuid,
+      if (validFrom != null) 'valid_from': validFrom,
+      if (shares != null) 'shares': shares,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinAllocationPeriodsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? keyUuid,
+    Value<String>? validFrom,
+    Value<String>? shares,
+    Value<int>? rowid,
+  }) {
+    return FinAllocationPeriodsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      keyUuid: keyUuid ?? this.keyUuid,
+      validFrom: validFrom ?? this.validFrom,
+      shares: shares ?? this.shares,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (keyUuid.present) {
+      map['key_uuid'] = Variable<String>(keyUuid.value);
+    }
+    if (validFrom.present) {
+      map['valid_from'] = Variable<String>(validFrom.value);
+    }
+    if (shares.present) {
+      map['shares'] = Variable<String>(shares.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAllocationPeriodsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('keyUuid: $keyUuid, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('shares: $shares, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinAccountsTable extends FinAccounts
+    with TableInfo<$FinAccountsTable, FinAccountRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinAccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openingBalanceMeta = const VerificationMeta(
+    'openingBalance',
+  );
+  @override
+  late final GeneratedColumn<int> openingBalance = GeneratedColumn<int>(
+    'opening_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _openingDateMeta = const VerificationMeta(
+    'openingDate',
+  );
+  @override
+  late final GeneratedColumn<String> openingDate = GeneratedColumn<String>(
+    'opening_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _closedMeta = const VerificationMeta('closed');
+  @override
+  late final GeneratedColumn<bool> closed = GeneratedColumn<bool>(
+    'closed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("closed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    openingBalance,
+    openingDate,
+    employeeUuid,
+    closed,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinAccountRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('opening_balance')) {
+      context.handle(
+        _openingBalanceMeta,
+        openingBalance.isAcceptableOrUnknown(
+          data['opening_balance']!,
+          _openingBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_date')) {
+      context.handle(
+        _openingDateMeta,
+        openingDate.isAcceptableOrUnknown(
+          data['opening_date']!,
+          _openingDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('closed')) {
+      context.handle(
+        _closedMeta,
+        closed.isAcceptableOrUnknown(data['closed']!, _closedMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinAccountRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinAccountRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      openingBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opening_balance'],
+      )!,
+      openingDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opening_date'],
+      ),
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
+      closed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}closed'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $FinAccountsTable createAlias(String alias) {
+    return $FinAccountsTable(attachedDatabase, alias);
+  }
+}
+
+class FinAccountRow extends DataClass implements Insertable<FinAccountRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+
+  /// `AccountKind.code`
+  final String kind;
+  final int openingBalance;
+  final String? openingDate;
+  final String? employeeUuid;
+  final bool closed;
+  final int sortOrder;
+  const FinAccountRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+    required this.kind,
+    required this.openingBalance,
+    this.openingDate,
+    this.employeeUuid,
+    required this.closed,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    map['kind'] = Variable<String>(kind);
+    map['opening_balance'] = Variable<int>(openingBalance);
+    if (!nullToAbsent || openingDate != null) {
+      map['opening_date'] = Variable<String>(openingDate);
+    }
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    map['closed'] = Variable<bool>(closed);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  FinAccountsCompanion toCompanion(bool nullToAbsent) {
+    return FinAccountsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+      kind: Value(kind),
+      openingBalance: Value(openingBalance),
+      openingDate: openingDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingDate),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
+      closed: Value(closed),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory FinAccountRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinAccountRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      kind: serializer.fromJson<String>(json['kind']),
+      openingBalance: serializer.fromJson<int>(json['openingBalance']),
+      openingDate: serializer.fromJson<String?>(json['openingDate']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      closed: serializer.fromJson<bool>(json['closed']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+      'kind': serializer.toJson<String>(kind),
+      'openingBalance': serializer.toJson<int>(openingBalance),
+      'openingDate': serializer.toJson<String?>(openingDate),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'closed': serializer.toJson<bool>(closed),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  FinAccountRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+    String? kind,
+    int? openingBalance,
+    Value<String?> openingDate = const Value.absent(),
+    Value<String?> employeeUuid = const Value.absent(),
+    bool? closed,
+    int? sortOrder,
+  }) => FinAccountRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+    kind: kind ?? this.kind,
+    openingBalance: openingBalance ?? this.openingBalance,
+    openingDate: openingDate.present ? openingDate.value : this.openingDate,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    closed: closed ?? this.closed,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  FinAccountRow copyWithCompanion(FinAccountsCompanion data) {
+    return FinAccountRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      openingBalance: data.openingBalance.present
+          ? data.openingBalance.value
+          : this.openingBalance,
+      openingDate: data.openingDate.present
+          ? data.openingDate.value
+          : this.openingDate,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
+      closed: data.closed.present ? data.closed.value : this.closed,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAccountRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingDate: $openingDate, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('closed: $closed, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    openingBalance,
+    openingDate,
+    employeeUuid,
+    closed,
+    sortOrder,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinAccountRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name &&
+          other.kind == this.kind &&
+          other.openingBalance == this.openingBalance &&
+          other.openingDate == this.openingDate &&
+          other.employeeUuid == this.employeeUuid &&
+          other.closed == this.closed &&
+          other.sortOrder == this.sortOrder);
+}
+
+class FinAccountsCompanion extends UpdateCompanion<FinAccountRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<String> kind;
+  final Value<int> openingBalance;
+  final Value<String?> openingDate;
+  final Value<String?> employeeUuid;
+  final Value<bool> closed;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const FinAccountsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.openingBalance = const Value.absent(),
+    this.openingDate = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.closed = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinAccountsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    required String kind,
+    this.openingBalance = const Value.absent(),
+    this.openingDate = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.closed = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name),
+       kind = Value(kind);
+  static Insertable<FinAccountRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<String>? kind,
+    Expression<int>? openingBalance,
+    Expression<String>? openingDate,
+    Expression<String>? employeeUuid,
+    Expression<bool>? closed,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (kind != null) 'kind': kind,
+      if (openingBalance != null) 'opening_balance': openingBalance,
+      if (openingDate != null) 'opening_date': openingDate,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (closed != null) 'closed': closed,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinAccountsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<String>? kind,
+    Value<int>? openingBalance,
+    Value<String?>? openingDate,
+    Value<String?>? employeeUuid,
+    Value<bool>? closed,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return FinAccountsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      openingBalance: openingBalance ?? this.openingBalance,
+      openingDate: openingDate ?? this.openingDate,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
+      closed: closed ?? this.closed,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (openingBalance.present) {
+      map['opening_balance'] = Variable<int>(openingBalance.value);
+    }
+    if (openingDate.present) {
+      map['opening_date'] = Variable<String>(openingDate.value);
+    }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
+    if (closed.present) {
+      map['closed'] = Variable<bool>(closed.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAccountsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingDate: $openingDate, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('closed: $closed, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinAssetsTable extends FinAssets
+    with TableInfo<$FinAssetsTable, FinAssetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinAssetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _yearMeta = const VerificationMeta('year');
+  @override
+  late final GeneratedColumn<int> year = GeneratedColumn<int>(
+    'year',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _referenceValueMeta = const VerificationMeta(
+    'referenceValue',
+  );
+  @override
+  late final GeneratedColumn<int> referenceValue = GeneratedColumn<int>(
+    'reference_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _valuedOnMeta = const VerificationMeta(
+    'valuedOn',
+  );
+  @override
+  late final GeneratedColumn<String> valuedOn = GeneratedColumn<String>(
+    'valued_on',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _directionUuidMeta = const VerificationMeta(
+    'directionUuid',
+  );
+  @override
+  late final GeneratedColumn<String> directionUuid = GeneratedColumn<String>(
+    'direction_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_directions (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _allocationKeyUuidMeta = const VerificationMeta(
+    'allocationKeyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> allocationKeyUuid =
+      GeneratedColumn<String>(
+        'allocation_key_uuid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES fin_allocation_keys (uuid) DEFERRABLE INITIALLY DEFERRED',
+        ),
+      );
+  static const VerificationMeta _cadastralNumberMeta = const VerificationMeta(
+    'cadastralNumber',
+  );
+  @override
+  late final GeneratedColumn<String> cadastralNumber = GeneratedColumn<String>(
+    'cadastral_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _areaHaMeta = const VerificationMeta('areaHa');
+  @override
+  late final GeneratedColumn<double> areaHa = GeneratedColumn<double>(
+    'area_ha',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cadastralValueMeta = const VerificationMeta(
+    'cadastralValue',
+  );
+  @override
+  late final GeneratedColumn<int> cadastralValue = GeneratedColumn<int>(
+    'cadastral_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _disposedOnMeta = const VerificationMeta(
+    'disposedOn',
+  );
+  @override
+  late final GeneratedColumn<String> disposedOn = GeneratedColumn<String>(
+    'disposed_on',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _disposalReasonMeta = const VerificationMeta(
+    'disposalReason',
+  );
+  @override
+  late final GeneratedColumn<String> disposalReason = GeneratedColumn<String>(
+    'disposal_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    year,
+    quantity,
+    referenceValue,
+    valuedOn,
+    directionUuid,
+    allocationKeyUuid,
+    cadastralNumber,
+    areaHa,
+    cadastralValue,
+    disposedOn,
+    disposalReason,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_assets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinAssetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('year')) {
+      context.handle(
+        _yearMeta,
+        year.isAcceptableOrUnknown(data['year']!, _yearMeta),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('reference_value')) {
+      context.handle(
+        _referenceValueMeta,
+        referenceValue.isAcceptableOrUnknown(
+          data['reference_value']!,
+          _referenceValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('valued_on')) {
+      context.handle(
+        _valuedOnMeta,
+        valuedOn.isAcceptableOrUnknown(data['valued_on']!, _valuedOnMeta),
+      );
+    }
+    if (data.containsKey('direction_uuid')) {
+      context.handle(
+        _directionUuidMeta,
+        directionUuid.isAcceptableOrUnknown(
+          data['direction_uuid']!,
+          _directionUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('allocation_key_uuid')) {
+      context.handle(
+        _allocationKeyUuidMeta,
+        allocationKeyUuid.isAcceptableOrUnknown(
+          data['allocation_key_uuid']!,
+          _allocationKeyUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cadastral_number')) {
+      context.handle(
+        _cadastralNumberMeta,
+        cadastralNumber.isAcceptableOrUnknown(
+          data['cadastral_number']!,
+          _cadastralNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('area_ha')) {
+      context.handle(
+        _areaHaMeta,
+        areaHa.isAcceptableOrUnknown(data['area_ha']!, _areaHaMeta),
+      );
+    }
+    if (data.containsKey('cadastral_value')) {
+      context.handle(
+        _cadastralValueMeta,
+        cadastralValue.isAcceptableOrUnknown(
+          data['cadastral_value']!,
+          _cadastralValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('disposed_on')) {
+      context.handle(
+        _disposedOnMeta,
+        disposedOn.isAcceptableOrUnknown(data['disposed_on']!, _disposedOnMeta),
+      );
+    }
+    if (data.containsKey('disposal_reason')) {
+      context.handle(
+        _disposalReasonMeta,
+        disposalReason.isAcceptableOrUnknown(
+          data['disposal_reason']!,
+          _disposalReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinAssetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinAssetRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      year: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}year'],
+      ),
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      referenceValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reference_value'],
+      ),
+      valuedOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valued_on'],
+      ),
+      directionUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction_uuid'],
+      ),
+      allocationKeyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}allocation_key_uuid'],
+      ),
+      cadastralNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cadastral_number'],
+      ),
+      areaHa: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}area_ha'],
+      ),
+      cadastralValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cadastral_value'],
+      ),
+      disposedOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}disposed_on'],
+      ),
+      disposalReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}disposal_reason'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $FinAssetsTable createAlias(String alias) {
+    return $FinAssetsTable(attachedDatabase, alias);
+  }
+}
+
+class FinAssetRow extends DataClass implements Insertable<FinAssetRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+
+  /// `AssetKind.code`
+  final String kind;
+  final int? year;
+  final int quantity;
+  final int? referenceValue;
+  final String? valuedOn;
+  final String? directionUuid;
+  final String? allocationKeyUuid;
+  final String? cadastralNumber;
+  final double? areaHa;
+  final int? cadastralValue;
+  final String? disposedOn;
+  final String? disposalReason;
+  final String? notes;
+  const FinAssetRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+    required this.kind,
+    this.year,
+    required this.quantity,
+    this.referenceValue,
+    this.valuedOn,
+    this.directionUuid,
+    this.allocationKeyUuid,
+    this.cadastralNumber,
+    this.areaHa,
+    this.cadastralValue,
+    this.disposedOn,
+    this.disposalReason,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || year != null) {
+      map['year'] = Variable<int>(year);
+    }
+    map['quantity'] = Variable<int>(quantity);
+    if (!nullToAbsent || referenceValue != null) {
+      map['reference_value'] = Variable<int>(referenceValue);
+    }
+    if (!nullToAbsent || valuedOn != null) {
+      map['valued_on'] = Variable<String>(valuedOn);
+    }
+    if (!nullToAbsent || directionUuid != null) {
+      map['direction_uuid'] = Variable<String>(directionUuid);
+    }
+    if (!nullToAbsent || allocationKeyUuid != null) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid);
+    }
+    if (!nullToAbsent || cadastralNumber != null) {
+      map['cadastral_number'] = Variable<String>(cadastralNumber);
+    }
+    if (!nullToAbsent || areaHa != null) {
+      map['area_ha'] = Variable<double>(areaHa);
+    }
+    if (!nullToAbsent || cadastralValue != null) {
+      map['cadastral_value'] = Variable<int>(cadastralValue);
+    }
+    if (!nullToAbsent || disposedOn != null) {
+      map['disposed_on'] = Variable<String>(disposedOn);
+    }
+    if (!nullToAbsent || disposalReason != null) {
+      map['disposal_reason'] = Variable<String>(disposalReason);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  FinAssetsCompanion toCompanion(bool nullToAbsent) {
+    return FinAssetsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+      kind: Value(kind),
+      year: year == null && nullToAbsent ? const Value.absent() : Value(year),
+      quantity: Value(quantity),
+      referenceValue: referenceValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceValue),
+      valuedOn: valuedOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valuedOn),
+      directionUuid: directionUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(directionUuid),
+      allocationKeyUuid: allocationKeyUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(allocationKeyUuid),
+      cadastralNumber: cadastralNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cadastralNumber),
+      areaHa: areaHa == null && nullToAbsent
+          ? const Value.absent()
+          : Value(areaHa),
+      cadastralValue: cadastralValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cadastralValue),
+      disposedOn: disposedOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disposedOn),
+      disposalReason: disposalReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disposalReason),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory FinAssetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinAssetRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      kind: serializer.fromJson<String>(json['kind']),
+      year: serializer.fromJson<int?>(json['year']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      referenceValue: serializer.fromJson<int?>(json['referenceValue']),
+      valuedOn: serializer.fromJson<String?>(json['valuedOn']),
+      directionUuid: serializer.fromJson<String?>(json['directionUuid']),
+      allocationKeyUuid: serializer.fromJson<String?>(
+        json['allocationKeyUuid'],
+      ),
+      cadastralNumber: serializer.fromJson<String?>(json['cadastralNumber']),
+      areaHa: serializer.fromJson<double?>(json['areaHa']),
+      cadastralValue: serializer.fromJson<int?>(json['cadastralValue']),
+      disposedOn: serializer.fromJson<String?>(json['disposedOn']),
+      disposalReason: serializer.fromJson<String?>(json['disposalReason']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+      'kind': serializer.toJson<String>(kind),
+      'year': serializer.toJson<int?>(year),
+      'quantity': serializer.toJson<int>(quantity),
+      'referenceValue': serializer.toJson<int?>(referenceValue),
+      'valuedOn': serializer.toJson<String?>(valuedOn),
+      'directionUuid': serializer.toJson<String?>(directionUuid),
+      'allocationKeyUuid': serializer.toJson<String?>(allocationKeyUuid),
+      'cadastralNumber': serializer.toJson<String?>(cadastralNumber),
+      'areaHa': serializer.toJson<double?>(areaHa),
+      'cadastralValue': serializer.toJson<int?>(cadastralValue),
+      'disposedOn': serializer.toJson<String?>(disposedOn),
+      'disposalReason': serializer.toJson<String?>(disposalReason),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  FinAssetRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+    String? kind,
+    Value<int?> year = const Value.absent(),
+    int? quantity,
+    Value<int?> referenceValue = const Value.absent(),
+    Value<String?> valuedOn = const Value.absent(),
+    Value<String?> directionUuid = const Value.absent(),
+    Value<String?> allocationKeyUuid = const Value.absent(),
+    Value<String?> cadastralNumber = const Value.absent(),
+    Value<double?> areaHa = const Value.absent(),
+    Value<int?> cadastralValue = const Value.absent(),
+    Value<String?> disposedOn = const Value.absent(),
+    Value<String?> disposalReason = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+  }) => FinAssetRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+    kind: kind ?? this.kind,
+    year: year.present ? year.value : this.year,
+    quantity: quantity ?? this.quantity,
+    referenceValue: referenceValue.present
+        ? referenceValue.value
+        : this.referenceValue,
+    valuedOn: valuedOn.present ? valuedOn.value : this.valuedOn,
+    directionUuid: directionUuid.present
+        ? directionUuid.value
+        : this.directionUuid,
+    allocationKeyUuid: allocationKeyUuid.present
+        ? allocationKeyUuid.value
+        : this.allocationKeyUuid,
+    cadastralNumber: cadastralNumber.present
+        ? cadastralNumber.value
+        : this.cadastralNumber,
+    areaHa: areaHa.present ? areaHa.value : this.areaHa,
+    cadastralValue: cadastralValue.present
+        ? cadastralValue.value
+        : this.cadastralValue,
+    disposedOn: disposedOn.present ? disposedOn.value : this.disposedOn,
+    disposalReason: disposalReason.present
+        ? disposalReason.value
+        : this.disposalReason,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  FinAssetRow copyWithCompanion(FinAssetsCompanion data) {
+    return FinAssetRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      year: data.year.present ? data.year.value : this.year,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      referenceValue: data.referenceValue.present
+          ? data.referenceValue.value
+          : this.referenceValue,
+      valuedOn: data.valuedOn.present ? data.valuedOn.value : this.valuedOn,
+      directionUuid: data.directionUuid.present
+          ? data.directionUuid.value
+          : this.directionUuid,
+      allocationKeyUuid: data.allocationKeyUuid.present
+          ? data.allocationKeyUuid.value
+          : this.allocationKeyUuid,
+      cadastralNumber: data.cadastralNumber.present
+          ? data.cadastralNumber.value
+          : this.cadastralNumber,
+      areaHa: data.areaHa.present ? data.areaHa.value : this.areaHa,
+      cadastralValue: data.cadastralValue.present
+          ? data.cadastralValue.value
+          : this.cadastralValue,
+      disposedOn: data.disposedOn.present
+          ? data.disposedOn.value
+          : this.disposedOn,
+      disposalReason: data.disposalReason.present
+          ? data.disposalReason.value
+          : this.disposalReason,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAssetRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('year: $year, ')
+          ..write('quantity: $quantity, ')
+          ..write('referenceValue: $referenceValue, ')
+          ..write('valuedOn: $valuedOn, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('cadastralNumber: $cadastralNumber, ')
+          ..write('areaHa: $areaHa, ')
+          ..write('cadastralValue: $cadastralValue, ')
+          ..write('disposedOn: $disposedOn, ')
+          ..write('disposalReason: $disposalReason, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    year,
+    quantity,
+    referenceValue,
+    valuedOn,
+    directionUuid,
+    allocationKeyUuid,
+    cadastralNumber,
+    areaHa,
+    cadastralValue,
+    disposedOn,
+    disposalReason,
+    notes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinAssetRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name &&
+          other.kind == this.kind &&
+          other.year == this.year &&
+          other.quantity == this.quantity &&
+          other.referenceValue == this.referenceValue &&
+          other.valuedOn == this.valuedOn &&
+          other.directionUuid == this.directionUuid &&
+          other.allocationKeyUuid == this.allocationKeyUuid &&
+          other.cadastralNumber == this.cadastralNumber &&
+          other.areaHa == this.areaHa &&
+          other.cadastralValue == this.cadastralValue &&
+          other.disposedOn == this.disposedOn &&
+          other.disposalReason == this.disposalReason &&
+          other.notes == this.notes);
+}
+
+class FinAssetsCompanion extends UpdateCompanion<FinAssetRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<String> kind;
+  final Value<int?> year;
+  final Value<int> quantity;
+  final Value<int?> referenceValue;
+  final Value<String?> valuedOn;
+  final Value<String?> directionUuid;
+  final Value<String?> allocationKeyUuid;
+  final Value<String?> cadastralNumber;
+  final Value<double?> areaHa;
+  final Value<int?> cadastralValue;
+  final Value<String?> disposedOn;
+  final Value<String?> disposalReason;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const FinAssetsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.year = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.referenceValue = const Value.absent(),
+    this.valuedOn = const Value.absent(),
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.cadastralNumber = const Value.absent(),
+    this.areaHa = const Value.absent(),
+    this.cadastralValue = const Value.absent(),
+    this.disposedOn = const Value.absent(),
+    this.disposalReason = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinAssetsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    required String kind,
+    this.year = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.referenceValue = const Value.absent(),
+    this.valuedOn = const Value.absent(),
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.cadastralNumber = const Value.absent(),
+    this.areaHa = const Value.absent(),
+    this.cadastralValue = const Value.absent(),
+    this.disposedOn = const Value.absent(),
+    this.disposalReason = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name),
+       kind = Value(kind);
+  static Insertable<FinAssetRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<String>? kind,
+    Expression<int>? year,
+    Expression<int>? quantity,
+    Expression<int>? referenceValue,
+    Expression<String>? valuedOn,
+    Expression<String>? directionUuid,
+    Expression<String>? allocationKeyUuid,
+    Expression<String>? cadastralNumber,
+    Expression<double>? areaHa,
+    Expression<int>? cadastralValue,
+    Expression<String>? disposedOn,
+    Expression<String>? disposalReason,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (kind != null) 'kind': kind,
+      if (year != null) 'year': year,
+      if (quantity != null) 'quantity': quantity,
+      if (referenceValue != null) 'reference_value': referenceValue,
+      if (valuedOn != null) 'valued_on': valuedOn,
+      if (directionUuid != null) 'direction_uuid': directionUuid,
+      if (allocationKeyUuid != null) 'allocation_key_uuid': allocationKeyUuid,
+      if (cadastralNumber != null) 'cadastral_number': cadastralNumber,
+      if (areaHa != null) 'area_ha': areaHa,
+      if (cadastralValue != null) 'cadastral_value': cadastralValue,
+      if (disposedOn != null) 'disposed_on': disposedOn,
+      if (disposalReason != null) 'disposal_reason': disposalReason,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinAssetsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<String>? kind,
+    Value<int?>? year,
+    Value<int>? quantity,
+    Value<int?>? referenceValue,
+    Value<String?>? valuedOn,
+    Value<String?>? directionUuid,
+    Value<String?>? allocationKeyUuid,
+    Value<String?>? cadastralNumber,
+    Value<double?>? areaHa,
+    Value<int?>? cadastralValue,
+    Value<String?>? disposedOn,
+    Value<String?>? disposalReason,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return FinAssetsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      year: year ?? this.year,
+      quantity: quantity ?? this.quantity,
+      referenceValue: referenceValue ?? this.referenceValue,
+      valuedOn: valuedOn ?? this.valuedOn,
+      directionUuid: directionUuid ?? this.directionUuid,
+      allocationKeyUuid: allocationKeyUuid ?? this.allocationKeyUuid,
+      cadastralNumber: cadastralNumber ?? this.cadastralNumber,
+      areaHa: areaHa ?? this.areaHa,
+      cadastralValue: cadastralValue ?? this.cadastralValue,
+      disposedOn: disposedOn ?? this.disposedOn,
+      disposalReason: disposalReason ?? this.disposalReason,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (year.present) {
+      map['year'] = Variable<int>(year.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (referenceValue.present) {
+      map['reference_value'] = Variable<int>(referenceValue.value);
+    }
+    if (valuedOn.present) {
+      map['valued_on'] = Variable<String>(valuedOn.value);
+    }
+    if (directionUuid.present) {
+      map['direction_uuid'] = Variable<String>(directionUuid.value);
+    }
+    if (allocationKeyUuid.present) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid.value);
+    }
+    if (cadastralNumber.present) {
+      map['cadastral_number'] = Variable<String>(cadastralNumber.value);
+    }
+    if (areaHa.present) {
+      map['area_ha'] = Variable<double>(areaHa.value);
+    }
+    if (cadastralValue.present) {
+      map['cadastral_value'] = Variable<int>(cadastralValue.value);
+    }
+    if (disposedOn.present) {
+      map['disposed_on'] = Variable<String>(disposedOn.value);
+    }
+    if (disposalReason.present) {
+      map['disposal_reason'] = Variable<String>(disposalReason.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinAssetsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('year: $year, ')
+          ..write('quantity: $quantity, ')
+          ..write('referenceValue: $referenceValue, ')
+          ..write('valuedOn: $valuedOn, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('cadastralNumber: $cadastralNumber, ')
+          ..write('areaHa: $areaHa, ')
+          ..write('cadastralValue: $cadastralValue, ')
+          ..write('disposedOn: $disposedOn, ')
+          ..write('disposalReason: $disposalReason, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinCategoriesTable extends FinCategories
+    with TableInfo<$FinCategoriesTable, FinCategoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _groupNameMeta = const VerificationMeta(
+    'groupName',
+  );
+  @override
+  late final GeneratedColumn<String> groupName = GeneratedColumn<String>(
+    'group_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _directionUuidMeta = const VerificationMeta(
+    'directionUuid',
+  );
+  @override
+  late final GeneratedColumn<String> directionUuid = GeneratedColumn<String>(
+    'direction_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_directions (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _allocationKeyUuidMeta = const VerificationMeta(
+    'allocationKeyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> allocationKeyUuid =
+      GeneratedColumn<String>(
+        'allocation_key_uuid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES fin_allocation_keys (uuid) DEFERRABLE INITIALLY DEFERRED',
+        ),
+      );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('current'),
+  );
+  static const VerificationMeta _inTaxBookMeta = const VerificationMeta(
+    'inTaxBook',
+  );
+  @override
+  late final GeneratedColumn<bool> inTaxBook = GeneratedColumn<bool>(
+    'in_tax_book',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("in_tax_book" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _hiddenMeta = const VerificationMeta('hidden');
+  @override
+  late final GeneratedColumn<bool> hidden = GeneratedColumn<bool>(
+    'hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    type,
+    groupName,
+    name,
+    directionUuid,
+    allocationKeyUuid,
+    kind,
+    inTaxBook,
+    hidden,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinCategoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('group_name')) {
+      context.handle(
+        _groupNameMeta,
+        groupName.isAcceptableOrUnknown(data['group_name']!, _groupNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupNameMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('direction_uuid')) {
+      context.handle(
+        _directionUuidMeta,
+        directionUuid.isAcceptableOrUnknown(
+          data['direction_uuid']!,
+          _directionUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('allocation_key_uuid')) {
+      context.handle(
+        _allocationKeyUuidMeta,
+        allocationKeyUuid.isAcceptableOrUnknown(
+          data['allocation_key_uuid']!,
+          _allocationKeyUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('in_tax_book')) {
+      context.handle(
+        _inTaxBookMeta,
+        inTaxBook.isAcceptableOrUnknown(data['in_tax_book']!, _inTaxBookMeta),
+      );
+    }
+    if (data.containsKey('hidden')) {
+      context.handle(
+        _hiddenMeta,
+        hidden.isAcceptableOrUnknown(data['hidden']!, _hiddenMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinCategoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinCategoryRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      groupName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_name'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      directionUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction_uuid'],
+      ),
+      allocationKeyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}allocation_key_uuid'],
+      ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      inTaxBook: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}in_tax_book'],
+      )!,
+      hidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hidden'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $FinCategoriesTable createAlias(String alias) {
+    return $FinCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+
+  /// `CategoryType.code`
+  final String type;
+  final String groupName;
+  final String name;
+  final String? directionUuid;
+  final String? allocationKeyUuid;
+
+  /// `CategoryKind.code`
+  final String kind;
+  final bool inTaxBook;
+  final bool hidden;
+  final int sortOrder;
+  const FinCategoryRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.type,
+    required this.groupName,
+    required this.name,
+    this.directionUuid,
+    this.allocationKeyUuid,
+    required this.kind,
+    required this.inTaxBook,
+    required this.hidden,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['type'] = Variable<String>(type);
+    map['group_name'] = Variable<String>(groupName);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || directionUuid != null) {
+      map['direction_uuid'] = Variable<String>(directionUuid);
+    }
+    if (!nullToAbsent || allocationKeyUuid != null) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid);
+    }
+    map['kind'] = Variable<String>(kind);
+    map['in_tax_book'] = Variable<bool>(inTaxBook);
+    map['hidden'] = Variable<bool>(hidden);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  FinCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return FinCategoriesCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      type: Value(type),
+      groupName: Value(groupName),
+      name: Value(name),
+      directionUuid: directionUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(directionUuid),
+      allocationKeyUuid: allocationKeyUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(allocationKeyUuid),
+      kind: Value(kind),
+      inTaxBook: Value(inTaxBook),
+      hidden: Value(hidden),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory FinCategoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinCategoryRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      type: serializer.fromJson<String>(json['type']),
+      groupName: serializer.fromJson<String>(json['groupName']),
+      name: serializer.fromJson<String>(json['name']),
+      directionUuid: serializer.fromJson<String?>(json['directionUuid']),
+      allocationKeyUuid: serializer.fromJson<String?>(
+        json['allocationKeyUuid'],
+      ),
+      kind: serializer.fromJson<String>(json['kind']),
+      inTaxBook: serializer.fromJson<bool>(json['inTaxBook']),
+      hidden: serializer.fromJson<bool>(json['hidden']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'type': serializer.toJson<String>(type),
+      'groupName': serializer.toJson<String>(groupName),
+      'name': serializer.toJson<String>(name),
+      'directionUuid': serializer.toJson<String?>(directionUuid),
+      'allocationKeyUuid': serializer.toJson<String?>(allocationKeyUuid),
+      'kind': serializer.toJson<String>(kind),
+      'inTaxBook': serializer.toJson<bool>(inTaxBook),
+      'hidden': serializer.toJson<bool>(hidden),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  FinCategoryRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? type,
+    String? groupName,
+    String? name,
+    Value<String?> directionUuid = const Value.absent(),
+    Value<String?> allocationKeyUuid = const Value.absent(),
+    String? kind,
+    bool? inTaxBook,
+    bool? hidden,
+    int? sortOrder,
+  }) => FinCategoryRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    type: type ?? this.type,
+    groupName: groupName ?? this.groupName,
+    name: name ?? this.name,
+    directionUuid: directionUuid.present
+        ? directionUuid.value
+        : this.directionUuid,
+    allocationKeyUuid: allocationKeyUuid.present
+        ? allocationKeyUuid.value
+        : this.allocationKeyUuid,
+    kind: kind ?? this.kind,
+    inTaxBook: inTaxBook ?? this.inTaxBook,
+    hidden: hidden ?? this.hidden,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  FinCategoryRow copyWithCompanion(FinCategoriesCompanion data) {
+    return FinCategoryRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      type: data.type.present ? data.type.value : this.type,
+      groupName: data.groupName.present ? data.groupName.value : this.groupName,
+      name: data.name.present ? data.name.value : this.name,
+      directionUuid: data.directionUuid.present
+          ? data.directionUuid.value
+          : this.directionUuid,
+      allocationKeyUuid: data.allocationKeyUuid.present
+          ? data.allocationKeyUuid.value
+          : this.allocationKeyUuid,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      inTaxBook: data.inTaxBook.present ? data.inTaxBook.value : this.inTaxBook,
+      hidden: data.hidden.present ? data.hidden.value : this.hidden,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinCategoryRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('type: $type, ')
+          ..write('groupName: $groupName, ')
+          ..write('name: $name, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('kind: $kind, ')
+          ..write('inTaxBook: $inTaxBook, ')
+          ..write('hidden: $hidden, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    type,
+    groupName,
+    name,
+    directionUuid,
+    allocationKeyUuid,
+    kind,
+    inTaxBook,
+    hidden,
+    sortOrder,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinCategoryRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.type == this.type &&
+          other.groupName == this.groupName &&
+          other.name == this.name &&
+          other.directionUuid == this.directionUuid &&
+          other.allocationKeyUuid == this.allocationKeyUuid &&
+          other.kind == this.kind &&
+          other.inTaxBook == this.inTaxBook &&
+          other.hidden == this.hidden &&
+          other.sortOrder == this.sortOrder);
+}
+
+class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> type;
+  final Value<String> groupName;
+  final Value<String> name;
+  final Value<String?> directionUuid;
+  final Value<String?> allocationKeyUuid;
+  final Value<String> kind;
+  final Value<bool> inTaxBook;
+  final Value<bool> hidden;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const FinCategoriesCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.type = const Value.absent(),
+    this.groupName = const Value.absent(),
+    this.name = const Value.absent(),
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.inTaxBook = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinCategoriesCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String type,
+    required String groupName,
+    required String name,
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.inTaxBook = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       type = Value(type),
+       groupName = Value(groupName),
+       name = Value(name);
+  static Insertable<FinCategoryRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? type,
+    Expression<String>? groupName,
+    Expression<String>? name,
+    Expression<String>? directionUuid,
+    Expression<String>? allocationKeyUuid,
+    Expression<String>? kind,
+    Expression<bool>? inTaxBook,
+    Expression<bool>? hidden,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (type != null) 'type': type,
+      if (groupName != null) 'group_name': groupName,
+      if (name != null) 'name': name,
+      if (directionUuid != null) 'direction_uuid': directionUuid,
+      if (allocationKeyUuid != null) 'allocation_key_uuid': allocationKeyUuid,
+      if (kind != null) 'kind': kind,
+      if (inTaxBook != null) 'in_tax_book': inTaxBook,
+      if (hidden != null) 'hidden': hidden,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinCategoriesCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? type,
+    Value<String>? groupName,
+    Value<String>? name,
+    Value<String?>? directionUuid,
+    Value<String?>? allocationKeyUuid,
+    Value<String>? kind,
+    Value<bool>? inTaxBook,
+    Value<bool>? hidden,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return FinCategoriesCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      type: type ?? this.type,
+      groupName: groupName ?? this.groupName,
+      name: name ?? this.name,
+      directionUuid: directionUuid ?? this.directionUuid,
+      allocationKeyUuid: allocationKeyUuid ?? this.allocationKeyUuid,
+      kind: kind ?? this.kind,
+      inTaxBook: inTaxBook ?? this.inTaxBook,
+      hidden: hidden ?? this.hidden,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (groupName.present) {
+      map['group_name'] = Variable<String>(groupName.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (directionUuid.present) {
+      map['direction_uuid'] = Variable<String>(directionUuid.value);
+    }
+    if (allocationKeyUuid.present) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (inTaxBook.present) {
+      map['in_tax_book'] = Variable<bool>(inTaxBook.value);
+    }
+    if (hidden.present) {
+      map['hidden'] = Variable<bool>(hidden.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinCategoriesCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('type: $type, ')
+          ..write('groupName: $groupName, ')
+          ..write('name: $name, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('kind: $kind, ')
+          ..write('inTaxBook: $inTaxBook, ')
+          ..write('hidden: $hidden, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CounterpartiesTable extends Counterparties
+    with TableInfo<$CounterpartiesTable, CounterpartyRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CounterpartiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('other'),
+  );
+  static const VerificationMeta _innMeta = const VerificationMeta('inn');
+  @override
+  late final GeneratedColumn<String> inn = GeneratedColumn<String>(
+    'inn',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    inn,
+    phone,
+    employeeUuid,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'counterparties';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CounterpartyRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('inn')) {
+      context.handle(
+        _innMeta,
+        inn.isAcceptableOrUnknown(data['inn']!, _innMeta),
+      );
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  CounterpartyRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CounterpartyRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      inn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inn'],
+      ),
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      ),
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $CounterpartiesTable createAlias(String alias) {
+    return $CounterpartiesTable(attachedDatabase, alias);
+  }
+}
+
+class CounterpartyRow extends DataClass implements Insertable<CounterpartyRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+
+  /// `CounterpartyKind.code`
+  final String kind;
+  final String? inn;
+  final String? phone;
+  final String? employeeUuid;
+  final String? notes;
+  const CounterpartyRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+    required this.kind,
+    this.inn,
+    this.phone,
+    this.employeeUuid,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || inn != null) {
+      map['inn'] = Variable<String>(inn);
+    }
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  CounterpartiesCompanion toCompanion(bool nullToAbsent) {
+    return CounterpartiesCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+      kind: Value(kind),
+      inn: inn == null && nullToAbsent ? const Value.absent() : Value(inn),
+      phone: phone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phone),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory CounterpartyRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CounterpartyRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      kind: serializer.fromJson<String>(json['kind']),
+      inn: serializer.fromJson<String?>(json['inn']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+      'kind': serializer.toJson<String>(kind),
+      'inn': serializer.toJson<String?>(inn),
+      'phone': serializer.toJson<String?>(phone),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  CounterpartyRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+    String? kind,
+    Value<String?> inn = const Value.absent(),
+    Value<String?> phone = const Value.absent(),
+    Value<String?> employeeUuid = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+  }) => CounterpartyRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+    kind: kind ?? this.kind,
+    inn: inn.present ? inn.value : this.inn,
+    phone: phone.present ? phone.value : this.phone,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  CounterpartyRow copyWithCompanion(CounterpartiesCompanion data) {
+    return CounterpartyRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      inn: data.inn.present ? data.inn.value : this.inn,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CounterpartyRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('inn: $inn, ')
+          ..write('phone: $phone, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    kind,
+    inn,
+    phone,
+    employeeUuid,
+    notes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CounterpartyRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name &&
+          other.kind == this.kind &&
+          other.inn == this.inn &&
+          other.phone == this.phone &&
+          other.employeeUuid == this.employeeUuid &&
+          other.notes == this.notes);
+}
+
+class CounterpartiesCompanion extends UpdateCompanion<CounterpartyRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<String> kind;
+  final Value<String?> inn;
+  final Value<String?> phone;
+  final Value<String?> employeeUuid;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const CounterpartiesCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.inn = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CounterpartiesCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    this.kind = const Value.absent(),
+    this.inn = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name);
+  static Insertable<CounterpartyRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<String>? kind,
+    Expression<String>? inn,
+    Expression<String>? phone,
+    Expression<String>? employeeUuid,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (kind != null) 'kind': kind,
+      if (inn != null) 'inn': inn,
+      if (phone != null) 'phone': phone,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CounterpartiesCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<String>? kind,
+    Value<String?>? inn,
+    Value<String?>? phone,
+    Value<String?>? employeeUuid,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return CounterpartiesCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      inn: inn ?? this.inn,
+      phone: phone ?? this.phone,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (inn.present) {
+      map['inn'] = Variable<String>(inn.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CounterpartiesCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('inn: $inn, ')
+          ..write('phone: $phone, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinDebtsTable extends FinDebts
+    with TableInfo<$FinDebtsTable, FinDebtRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinDebtsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _counterpartyUuidMeta = const VerificationMeta(
+    'counterpartyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> counterpartyUuid = GeneratedColumn<String>(
+    'counterparty_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES counterparties (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openingBalanceMeta = const VerificationMeta(
+    'openingBalance',
+  );
+  @override
+  late final GeneratedColumn<int> openingBalance = GeneratedColumn<int>(
+    'opening_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _openingDateMeta = const VerificationMeta(
+    'openingDate',
+  );
+  @override
+  late final GeneratedColumn<String> openingDate = GeneratedColumn<String>(
+    'opening_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _closedMeta = const VerificationMeta('closed');
+  @override
+  late final GeneratedColumn<bool> closed = GeneratedColumn<bool>(
+    'closed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("closed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    counterpartyUuid,
+    kind,
+    openingBalance,
+    openingDate,
+    closed,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_debts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinDebtRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('counterparty_uuid')) {
+      context.handle(
+        _counterpartyUuidMeta,
+        counterpartyUuid.isAcceptableOrUnknown(
+          data['counterparty_uuid']!,
+          _counterpartyUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_counterpartyUuidMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('opening_balance')) {
+      context.handle(
+        _openingBalanceMeta,
+        openingBalance.isAcceptableOrUnknown(
+          data['opening_balance']!,
+          _openingBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_date')) {
+      context.handle(
+        _openingDateMeta,
+        openingDate.isAcceptableOrUnknown(
+          data['opening_date']!,
+          _openingDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('closed')) {
+      context.handle(
+        _closedMeta,
+        closed.isAcceptableOrUnknown(data['closed']!, _closedMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinDebtRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinDebtRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      counterpartyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}counterparty_uuid'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      openingBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opening_balance'],
+      )!,
+      openingDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opening_date'],
+      ),
+      closed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}closed'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $FinDebtsTable createAlias(String alias) {
+    return $FinDebtsTable(attachedDatabase, alias);
+  }
+}
+
+class FinDebtRow extends DataClass implements Insertable<FinDebtRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String counterpartyUuid;
+
+  /// `DebtKind.code`
+  final String kind;
+  final int openingBalance;
+  final String? openingDate;
+  final bool closed;
+  final String? notes;
+  const FinDebtRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.counterpartyUuid,
+    required this.kind,
+    required this.openingBalance,
+    this.openingDate,
+    required this.closed,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['counterparty_uuid'] = Variable<String>(counterpartyUuid);
+    map['kind'] = Variable<String>(kind);
+    map['opening_balance'] = Variable<int>(openingBalance);
+    if (!nullToAbsent || openingDate != null) {
+      map['opening_date'] = Variable<String>(openingDate);
+    }
+    map['closed'] = Variable<bool>(closed);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  FinDebtsCompanion toCompanion(bool nullToAbsent) {
+    return FinDebtsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      counterpartyUuid: Value(counterpartyUuid),
+      kind: Value(kind),
+      openingBalance: Value(openingBalance),
+      openingDate: openingDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingDate),
+      closed: Value(closed),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory FinDebtRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinDebtRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      counterpartyUuid: serializer.fromJson<String>(json['counterpartyUuid']),
+      kind: serializer.fromJson<String>(json['kind']),
+      openingBalance: serializer.fromJson<int>(json['openingBalance']),
+      openingDate: serializer.fromJson<String?>(json['openingDate']),
+      closed: serializer.fromJson<bool>(json['closed']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'counterpartyUuid': serializer.toJson<String>(counterpartyUuid),
+      'kind': serializer.toJson<String>(kind),
+      'openingBalance': serializer.toJson<int>(openingBalance),
+      'openingDate': serializer.toJson<String?>(openingDate),
+      'closed': serializer.toJson<bool>(closed),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  FinDebtRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? counterpartyUuid,
+    String? kind,
+    int? openingBalance,
+    Value<String?> openingDate = const Value.absent(),
+    bool? closed,
+    Value<String?> notes = const Value.absent(),
+  }) => FinDebtRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    counterpartyUuid: counterpartyUuid ?? this.counterpartyUuid,
+    kind: kind ?? this.kind,
+    openingBalance: openingBalance ?? this.openingBalance,
+    openingDate: openingDate.present ? openingDate.value : this.openingDate,
+    closed: closed ?? this.closed,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  FinDebtRow copyWithCompanion(FinDebtsCompanion data) {
+    return FinDebtRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      counterpartyUuid: data.counterpartyUuid.present
+          ? data.counterpartyUuid.value
+          : this.counterpartyUuid,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      openingBalance: data.openingBalance.present
+          ? data.openingBalance.value
+          : this.openingBalance,
+      openingDate: data.openingDate.present
+          ? data.openingDate.value
+          : this.openingDate,
+      closed: data.closed.present ? data.closed.value : this.closed,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinDebtRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('counterpartyUuid: $counterpartyUuid, ')
+          ..write('kind: $kind, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingDate: $openingDate, ')
+          ..write('closed: $closed, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    counterpartyUuid,
+    kind,
+    openingBalance,
+    openingDate,
+    closed,
+    notes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinDebtRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.counterpartyUuid == this.counterpartyUuid &&
+          other.kind == this.kind &&
+          other.openingBalance == this.openingBalance &&
+          other.openingDate == this.openingDate &&
+          other.closed == this.closed &&
+          other.notes == this.notes);
+}
+
+class FinDebtsCompanion extends UpdateCompanion<FinDebtRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> counterpartyUuid;
+  final Value<String> kind;
+  final Value<int> openingBalance;
+  final Value<String?> openingDate;
+  final Value<bool> closed;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const FinDebtsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.counterpartyUuid = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.openingBalance = const Value.absent(),
+    this.openingDate = const Value.absent(),
+    this.closed = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinDebtsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String counterpartyUuid,
+    required String kind,
+    this.openingBalance = const Value.absent(),
+    this.openingDate = const Value.absent(),
+    this.closed = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       counterpartyUuid = Value(counterpartyUuid),
+       kind = Value(kind);
+  static Insertable<FinDebtRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? counterpartyUuid,
+    Expression<String>? kind,
+    Expression<int>? openingBalance,
+    Expression<String>? openingDate,
+    Expression<bool>? closed,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (counterpartyUuid != null) 'counterparty_uuid': counterpartyUuid,
+      if (kind != null) 'kind': kind,
+      if (openingBalance != null) 'opening_balance': openingBalance,
+      if (openingDate != null) 'opening_date': openingDate,
+      if (closed != null) 'closed': closed,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinDebtsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? counterpartyUuid,
+    Value<String>? kind,
+    Value<int>? openingBalance,
+    Value<String?>? openingDate,
+    Value<bool>? closed,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return FinDebtsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      counterpartyUuid: counterpartyUuid ?? this.counterpartyUuid,
+      kind: kind ?? this.kind,
+      openingBalance: openingBalance ?? this.openingBalance,
+      openingDate: openingDate ?? this.openingDate,
+      closed: closed ?? this.closed,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (counterpartyUuid.present) {
+      map['counterparty_uuid'] = Variable<String>(counterpartyUuid.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (openingBalance.present) {
+      map['opening_balance'] = Variable<int>(openingBalance.value);
+    }
+    if (openingDate.present) {
+      map['opening_date'] = Variable<String>(openingDate.value);
+    }
+    if (closed.present) {
+      map['closed'] = Variable<bool>(closed.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinDebtsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('counterpartyUuid: $counterpartyUuid, ')
+          ..write('kind: $kind, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingDate: $openingDate, ')
+          ..write('closed: $closed, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinOperationsTable extends FinOperations
+    with TableInfo<$FinOperationsTable, FinOperationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinOperationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountUuidMeta = const VerificationMeta(
+    'accountUuid',
+  );
+  @override
+  late final GeneratedColumn<String> accountUuid = GeneratedColumn<String>(
+    'account_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_accounts (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _toAccountUuidMeta = const VerificationMeta(
+    'toAccountUuid',
+  );
+  @override
+  late final GeneratedColumn<String> toAccountUuid = GeneratedColumn<String>(
+    'to_account_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_accounts (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _categoryUuidMeta = const VerificationMeta(
+    'categoryUuid',
+  );
+  @override
+  late final GeneratedColumn<String> categoryUuid = GeneratedColumn<String>(
+    'category_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_categories (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _directionUuidMeta = const VerificationMeta(
+    'directionUuid',
+  );
+  @override
+  late final GeneratedColumn<String> directionUuid = GeneratedColumn<String>(
+    'direction_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_directions (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _allocationKeyUuidMeta = const VerificationMeta(
+    'allocationKeyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> allocationKeyUuid =
+      GeneratedColumn<String>(
+        'allocation_key_uuid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES fin_allocation_keys (uuid) DEFERRABLE INITIALLY DEFERRED',
+        ),
+      );
+  static const VerificationMeta _assetUuidMeta = const VerificationMeta(
+    'assetUuid',
+  );
+  @override
+  late final GeneratedColumn<String> assetUuid = GeneratedColumn<String>(
+    'asset_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_assets (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _seasonMeta = const VerificationMeta('season');
+  @override
+  late final GeneratedColumn<int> season = GeneratedColumn<int>(
+    'season',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _counterpartyUuidMeta = const VerificationMeta(
+    'counterpartyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> counterpartyUuid = GeneratedColumn<String>(
+    'counterparty_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES counterparties (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _debtUuidMeta = const VerificationMeta(
+    'debtUuid',
+  );
+  @override
+  late final GeneratedColumn<String> debtUuid = GeneratedColumn<String>(
+    'debt_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_debts (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _debtMoveMeta = const VerificationMeta(
+    'debtMove',
+  );
+  @override
+  late final GeneratedColumn<String> debtMove = GeneratedColumn<String>(
+    'debt_move',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<double> quantity = GeneratedColumn<double>(
+    'quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tagMeta = const VerificationMeta('tag');
+  @override
+  late final GeneratedColumn<String> tag = GeneratedColumn<String>(
+    'tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
+  static const VerificationMeta _sourceRefMeta = const VerificationMeta(
+    'sourceRef',
+  );
+  @override
+  late final GeneratedColumn<String> sourceRef = GeneratedColumn<String>(
+    'source_ref',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    date,
+    type,
+    amount,
+    accountUuid,
+    toAccountUuid,
+    categoryUuid,
+    directionUuid,
+    allocationKeyUuid,
+    assetUuid,
+    season,
+    counterpartyUuid,
+    employeeUuid,
+    debtUuid,
+    debtMove,
+    description,
+    quantity,
+    unit,
+    tag,
+    notes,
+    source,
+    sourceRef,
+    createdBy,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_operations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinOperationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('account_uuid')) {
+      context.handle(
+        _accountUuidMeta,
+        accountUuid.isAcceptableOrUnknown(
+          data['account_uuid']!,
+          _accountUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_accountUuidMeta);
+    }
+    if (data.containsKey('to_account_uuid')) {
+      context.handle(
+        _toAccountUuidMeta,
+        toAccountUuid.isAcceptableOrUnknown(
+          data['to_account_uuid']!,
+          _toAccountUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('category_uuid')) {
+      context.handle(
+        _categoryUuidMeta,
+        categoryUuid.isAcceptableOrUnknown(
+          data['category_uuid']!,
+          _categoryUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('direction_uuid')) {
+      context.handle(
+        _directionUuidMeta,
+        directionUuid.isAcceptableOrUnknown(
+          data['direction_uuid']!,
+          _directionUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('allocation_key_uuid')) {
+      context.handle(
+        _allocationKeyUuidMeta,
+        allocationKeyUuid.isAcceptableOrUnknown(
+          data['allocation_key_uuid']!,
+          _allocationKeyUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('asset_uuid')) {
+      context.handle(
+        _assetUuidMeta,
+        assetUuid.isAcceptableOrUnknown(data['asset_uuid']!, _assetUuidMeta),
+      );
+    }
+    if (data.containsKey('season')) {
+      context.handle(
+        _seasonMeta,
+        season.isAcceptableOrUnknown(data['season']!, _seasonMeta),
+      );
+    }
+    if (data.containsKey('counterparty_uuid')) {
+      context.handle(
+        _counterpartyUuidMeta,
+        counterpartyUuid.isAcceptableOrUnknown(
+          data['counterparty_uuid']!,
+          _counterpartyUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('debt_uuid')) {
+      context.handle(
+        _debtUuidMeta,
+        debtUuid.isAcceptableOrUnknown(data['debt_uuid']!, _debtUuidMeta),
+      );
+    }
+    if (data.containsKey('debt_move')) {
+      context.handle(
+        _debtMoveMeta,
+        debtMove.isAcceptableOrUnknown(data['debt_move']!, _debtMoveMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    }
+    if (data.containsKey('tag')) {
+      context.handle(
+        _tagMeta,
+        tag.isAcceptableOrUnknown(data['tag']!, _tagMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('source_ref')) {
+      context.handle(
+        _sourceRefMeta,
+        sourceRef.isAcceptableOrUnknown(data['source_ref']!, _sourceRefMeta),
+      );
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinOperationRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinOperationRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount'],
+      )!,
+      accountUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_uuid'],
+      )!,
+      toAccountUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_account_uuid'],
+      ),
+      categoryUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_uuid'],
+      ),
+      directionUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction_uuid'],
+      ),
+      allocationKeyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}allocation_key_uuid'],
+      ),
+      assetUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asset_uuid'],
+      ),
+      season: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}season'],
+      ),
+      counterpartyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}counterparty_uuid'],
+      ),
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
+      debtUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_uuid'],
+      ),
+      debtMove: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_move'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}quantity'],
+      ),
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
+      tag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      sourceRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_ref'],
+      ),
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FinOperationsTable createAlias(String alias) {
+    return $FinOperationsTable(attachedDatabase, alias);
+  }
+}
+
+class FinOperationRow extends DataClass implements Insertable<FinOperationRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String date;
+
+  /// `OperationType.code`
+  final String type;
+  final int amount;
+  final String accountUuid;
+  final String? toAccountUuid;
+  final String? categoryUuid;
+  final String? directionUuid;
+  final String? allocationKeyUuid;
+  final String? assetUuid;
+  final int? season;
+  final String? counterpartyUuid;
+  final String? employeeUuid;
+  final String? debtUuid;
+
+  /// `DebtMove.code`
+  final String? debtMove;
+  final String? description;
+  final double? quantity;
+  final String? unit;
+  final String? tag;
+  final String? notes;
+
+  /// `OperationSource.code`
+  final String source;
+  final String? sourceRef;
+
+  /// Кто внёс (логин пользователя; устройство — в `edited_by`).
+  final String? createdBy;
+  final String createdAt;
+  const FinOperationRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.date,
+    required this.type,
+    required this.amount,
+    required this.accountUuid,
+    this.toAccountUuid,
+    this.categoryUuid,
+    this.directionUuid,
+    this.allocationKeyUuid,
+    this.assetUuid,
+    this.season,
+    this.counterpartyUuid,
+    this.employeeUuid,
+    this.debtUuid,
+    this.debtMove,
+    this.description,
+    this.quantity,
+    this.unit,
+    this.tag,
+    this.notes,
+    required this.source,
+    this.sourceRef,
+    this.createdBy,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['date'] = Variable<String>(date);
+    map['type'] = Variable<String>(type);
+    map['amount'] = Variable<int>(amount);
+    map['account_uuid'] = Variable<String>(accountUuid);
+    if (!nullToAbsent || toAccountUuid != null) {
+      map['to_account_uuid'] = Variable<String>(toAccountUuid);
+    }
+    if (!nullToAbsent || categoryUuid != null) {
+      map['category_uuid'] = Variable<String>(categoryUuid);
+    }
+    if (!nullToAbsent || directionUuid != null) {
+      map['direction_uuid'] = Variable<String>(directionUuid);
+    }
+    if (!nullToAbsent || allocationKeyUuid != null) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid);
+    }
+    if (!nullToAbsent || assetUuid != null) {
+      map['asset_uuid'] = Variable<String>(assetUuid);
+    }
+    if (!nullToAbsent || season != null) {
+      map['season'] = Variable<int>(season);
+    }
+    if (!nullToAbsent || counterpartyUuid != null) {
+      map['counterparty_uuid'] = Variable<String>(counterpartyUuid);
+    }
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    if (!nullToAbsent || debtUuid != null) {
+      map['debt_uuid'] = Variable<String>(debtUuid);
+    }
+    if (!nullToAbsent || debtMove != null) {
+      map['debt_move'] = Variable<String>(debtMove);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || quantity != null) {
+      map['quantity'] = Variable<double>(quantity);
+    }
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
+    }
+    if (!nullToAbsent || tag != null) {
+      map['tag'] = Variable<String>(tag);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || sourceRef != null) {
+      map['source_ref'] = Variable<String>(sourceRef);
+    }
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<String>(createdBy);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  FinOperationsCompanion toCompanion(bool nullToAbsent) {
+    return FinOperationsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      date: Value(date),
+      type: Value(type),
+      amount: Value(amount),
+      accountUuid: Value(accountUuid),
+      toAccountUuid: toAccountUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toAccountUuid),
+      categoryUuid: categoryUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryUuid),
+      directionUuid: directionUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(directionUuid),
+      allocationKeyUuid: allocationKeyUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(allocationKeyUuid),
+      assetUuid: assetUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assetUuid),
+      season: season == null && nullToAbsent
+          ? const Value.absent()
+          : Value(season),
+      counterpartyUuid: counterpartyUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(counterpartyUuid),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
+      debtUuid: debtUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(debtUuid),
+      debtMove: debtMove == null && nullToAbsent
+          ? const Value.absent()
+          : Value(debtMove),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      quantity: quantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quantity),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
+      tag: tag == null && nullToAbsent ? const Value.absent() : Value(tag),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      source: Value(source),
+      sourceRef: sourceRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceRef),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FinOperationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinOperationRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      date: serializer.fromJson<String>(json['date']),
+      type: serializer.fromJson<String>(json['type']),
+      amount: serializer.fromJson<int>(json['amount']),
+      accountUuid: serializer.fromJson<String>(json['accountUuid']),
+      toAccountUuid: serializer.fromJson<String?>(json['toAccountUuid']),
+      categoryUuid: serializer.fromJson<String?>(json['categoryUuid']),
+      directionUuid: serializer.fromJson<String?>(json['directionUuid']),
+      allocationKeyUuid: serializer.fromJson<String?>(
+        json['allocationKeyUuid'],
+      ),
+      assetUuid: serializer.fromJson<String?>(json['assetUuid']),
+      season: serializer.fromJson<int?>(json['season']),
+      counterpartyUuid: serializer.fromJson<String?>(json['counterpartyUuid']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      debtUuid: serializer.fromJson<String?>(json['debtUuid']),
+      debtMove: serializer.fromJson<String?>(json['debtMove']),
+      description: serializer.fromJson<String?>(json['description']),
+      quantity: serializer.fromJson<double?>(json['quantity']),
+      unit: serializer.fromJson<String?>(json['unit']),
+      tag: serializer.fromJson<String?>(json['tag']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      source: serializer.fromJson<String>(json['source']),
+      sourceRef: serializer.fromJson<String?>(json['sourceRef']),
+      createdBy: serializer.fromJson<String?>(json['createdBy']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'date': serializer.toJson<String>(date),
+      'type': serializer.toJson<String>(type),
+      'amount': serializer.toJson<int>(amount),
+      'accountUuid': serializer.toJson<String>(accountUuid),
+      'toAccountUuid': serializer.toJson<String?>(toAccountUuid),
+      'categoryUuid': serializer.toJson<String?>(categoryUuid),
+      'directionUuid': serializer.toJson<String?>(directionUuid),
+      'allocationKeyUuid': serializer.toJson<String?>(allocationKeyUuid),
+      'assetUuid': serializer.toJson<String?>(assetUuid),
+      'season': serializer.toJson<int?>(season),
+      'counterpartyUuid': serializer.toJson<String?>(counterpartyUuid),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'debtUuid': serializer.toJson<String?>(debtUuid),
+      'debtMove': serializer.toJson<String?>(debtMove),
+      'description': serializer.toJson<String?>(description),
+      'quantity': serializer.toJson<double?>(quantity),
+      'unit': serializer.toJson<String?>(unit),
+      'tag': serializer.toJson<String?>(tag),
+      'notes': serializer.toJson<String?>(notes),
+      'source': serializer.toJson<String>(source),
+      'sourceRef': serializer.toJson<String?>(sourceRef),
+      'createdBy': serializer.toJson<String?>(createdBy),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  FinOperationRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? date,
+    String? type,
+    int? amount,
+    String? accountUuid,
+    Value<String?> toAccountUuid = const Value.absent(),
+    Value<String?> categoryUuid = const Value.absent(),
+    Value<String?> directionUuid = const Value.absent(),
+    Value<String?> allocationKeyUuid = const Value.absent(),
+    Value<String?> assetUuid = const Value.absent(),
+    Value<int?> season = const Value.absent(),
+    Value<String?> counterpartyUuid = const Value.absent(),
+    Value<String?> employeeUuid = const Value.absent(),
+    Value<String?> debtUuid = const Value.absent(),
+    Value<String?> debtMove = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    Value<double?> quantity = const Value.absent(),
+    Value<String?> unit = const Value.absent(),
+    Value<String?> tag = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    String? source,
+    Value<String?> sourceRef = const Value.absent(),
+    Value<String?> createdBy = const Value.absent(),
+    String? createdAt,
+  }) => FinOperationRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    date: date ?? this.date,
+    type: type ?? this.type,
+    amount: amount ?? this.amount,
+    accountUuid: accountUuid ?? this.accountUuid,
+    toAccountUuid: toAccountUuid.present
+        ? toAccountUuid.value
+        : this.toAccountUuid,
+    categoryUuid: categoryUuid.present ? categoryUuid.value : this.categoryUuid,
+    directionUuid: directionUuid.present
+        ? directionUuid.value
+        : this.directionUuid,
+    allocationKeyUuid: allocationKeyUuid.present
+        ? allocationKeyUuid.value
+        : this.allocationKeyUuid,
+    assetUuid: assetUuid.present ? assetUuid.value : this.assetUuid,
+    season: season.present ? season.value : this.season,
+    counterpartyUuid: counterpartyUuid.present
+        ? counterpartyUuid.value
+        : this.counterpartyUuid,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    debtUuid: debtUuid.present ? debtUuid.value : this.debtUuid,
+    debtMove: debtMove.present ? debtMove.value : this.debtMove,
+    description: description.present ? description.value : this.description,
+    quantity: quantity.present ? quantity.value : this.quantity,
+    unit: unit.present ? unit.value : this.unit,
+    tag: tag.present ? tag.value : this.tag,
+    notes: notes.present ? notes.value : this.notes,
+    source: source ?? this.source,
+    sourceRef: sourceRef.present ? sourceRef.value : this.sourceRef,
+    createdBy: createdBy.present ? createdBy.value : this.createdBy,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FinOperationRow copyWithCompanion(FinOperationsCompanion data) {
+    return FinOperationRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      date: data.date.present ? data.date.value : this.date,
+      type: data.type.present ? data.type.value : this.type,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      accountUuid: data.accountUuid.present
+          ? data.accountUuid.value
+          : this.accountUuid,
+      toAccountUuid: data.toAccountUuid.present
+          ? data.toAccountUuid.value
+          : this.toAccountUuid,
+      categoryUuid: data.categoryUuid.present
+          ? data.categoryUuid.value
+          : this.categoryUuid,
+      directionUuid: data.directionUuid.present
+          ? data.directionUuid.value
+          : this.directionUuid,
+      allocationKeyUuid: data.allocationKeyUuid.present
+          ? data.allocationKeyUuid.value
+          : this.allocationKeyUuid,
+      assetUuid: data.assetUuid.present ? data.assetUuid.value : this.assetUuid,
+      season: data.season.present ? data.season.value : this.season,
+      counterpartyUuid: data.counterpartyUuid.present
+          ? data.counterpartyUuid.value
+          : this.counterpartyUuid,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
+      debtUuid: data.debtUuid.present ? data.debtUuid.value : this.debtUuid,
+      debtMove: data.debtMove.present ? data.debtMove.value : this.debtMove,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      tag: data.tag.present ? data.tag.value : this.tag,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      source: data.source.present ? data.source.value : this.source,
+      sourceRef: data.sourceRef.present ? data.sourceRef.value : this.sourceRef,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinOperationRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('date: $date, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('accountUuid: $accountUuid, ')
+          ..write('toAccountUuid: $toAccountUuid, ')
+          ..write('categoryUuid: $categoryUuid, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('assetUuid: $assetUuid, ')
+          ..write('season: $season, ')
+          ..write('counterpartyUuid: $counterpartyUuid, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('debtUuid: $debtUuid, ')
+          ..write('debtMove: $debtMove, ')
+          ..write('description: $description, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
+          ..write('tag: $tag, ')
+          ..write('notes: $notes, ')
+          ..write('source: $source, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    date,
+    type,
+    amount,
+    accountUuid,
+    toAccountUuid,
+    categoryUuid,
+    directionUuid,
+    allocationKeyUuid,
+    assetUuid,
+    season,
+    counterpartyUuid,
+    employeeUuid,
+    debtUuid,
+    debtMove,
+    description,
+    quantity,
+    unit,
+    tag,
+    notes,
+    source,
+    sourceRef,
+    createdBy,
+    createdAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinOperationRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.date == this.date &&
+          other.type == this.type &&
+          other.amount == this.amount &&
+          other.accountUuid == this.accountUuid &&
+          other.toAccountUuid == this.toAccountUuid &&
+          other.categoryUuid == this.categoryUuid &&
+          other.directionUuid == this.directionUuid &&
+          other.allocationKeyUuid == this.allocationKeyUuid &&
+          other.assetUuid == this.assetUuid &&
+          other.season == this.season &&
+          other.counterpartyUuid == this.counterpartyUuid &&
+          other.employeeUuid == this.employeeUuid &&
+          other.debtUuid == this.debtUuid &&
+          other.debtMove == this.debtMove &&
+          other.description == this.description &&
+          other.quantity == this.quantity &&
+          other.unit == this.unit &&
+          other.tag == this.tag &&
+          other.notes == this.notes &&
+          other.source == this.source &&
+          other.sourceRef == this.sourceRef &&
+          other.createdBy == this.createdBy &&
+          other.createdAt == this.createdAt);
+}
+
+class FinOperationsCompanion extends UpdateCompanion<FinOperationRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> date;
+  final Value<String> type;
+  final Value<int> amount;
+  final Value<String> accountUuid;
+  final Value<String?> toAccountUuid;
+  final Value<String?> categoryUuid;
+  final Value<String?> directionUuid;
+  final Value<String?> allocationKeyUuid;
+  final Value<String?> assetUuid;
+  final Value<int?> season;
+  final Value<String?> counterpartyUuid;
+  final Value<String?> employeeUuid;
+  final Value<String?> debtUuid;
+  final Value<String?> debtMove;
+  final Value<String?> description;
+  final Value<double?> quantity;
+  final Value<String?> unit;
+  final Value<String?> tag;
+  final Value<String?> notes;
+  final Value<String> source;
+  final Value<String?> sourceRef;
+  final Value<String?> createdBy;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const FinOperationsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.date = const Value.absent(),
+    this.type = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.accountUuid = const Value.absent(),
+    this.toAccountUuid = const Value.absent(),
+    this.categoryUuid = const Value.absent(),
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.assetUuid = const Value.absent(),
+    this.season = const Value.absent(),
+    this.counterpartyUuid = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.debtUuid = const Value.absent(),
+    this.debtMove = const Value.absent(),
+    this.description = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.tag = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinOperationsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String date,
+    required String type,
+    required int amount,
+    required String accountUuid,
+    this.toAccountUuid = const Value.absent(),
+    this.categoryUuid = const Value.absent(),
+    this.directionUuid = const Value.absent(),
+    this.allocationKeyUuid = const Value.absent(),
+    this.assetUuid = const Value.absent(),
+    this.season = const Value.absent(),
+    this.counterpartyUuid = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.debtUuid = const Value.absent(),
+    this.debtMove = const Value.absent(),
+    this.description = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.tag = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       date = Value(date),
+       type = Value(type),
+       amount = Value(amount),
+       accountUuid = Value(accountUuid),
+       createdAt = Value(createdAt);
+  static Insertable<FinOperationRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? date,
+    Expression<String>? type,
+    Expression<int>? amount,
+    Expression<String>? accountUuid,
+    Expression<String>? toAccountUuid,
+    Expression<String>? categoryUuid,
+    Expression<String>? directionUuid,
+    Expression<String>? allocationKeyUuid,
+    Expression<String>? assetUuid,
+    Expression<int>? season,
+    Expression<String>? counterpartyUuid,
+    Expression<String>? employeeUuid,
+    Expression<String>? debtUuid,
+    Expression<String>? debtMove,
+    Expression<String>? description,
+    Expression<double>? quantity,
+    Expression<String>? unit,
+    Expression<String>? tag,
+    Expression<String>? notes,
+    Expression<String>? source,
+    Expression<String>? sourceRef,
+    Expression<String>? createdBy,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (date != null) 'date': date,
+      if (type != null) 'type': type,
+      if (amount != null) 'amount': amount,
+      if (accountUuid != null) 'account_uuid': accountUuid,
+      if (toAccountUuid != null) 'to_account_uuid': toAccountUuid,
+      if (categoryUuid != null) 'category_uuid': categoryUuid,
+      if (directionUuid != null) 'direction_uuid': directionUuid,
+      if (allocationKeyUuid != null) 'allocation_key_uuid': allocationKeyUuid,
+      if (assetUuid != null) 'asset_uuid': assetUuid,
+      if (season != null) 'season': season,
+      if (counterpartyUuid != null) 'counterparty_uuid': counterpartyUuid,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (debtUuid != null) 'debt_uuid': debtUuid,
+      if (debtMove != null) 'debt_move': debtMove,
+      if (description != null) 'description': description,
+      if (quantity != null) 'quantity': quantity,
+      if (unit != null) 'unit': unit,
+      if (tag != null) 'tag': tag,
+      if (notes != null) 'notes': notes,
+      if (source != null) 'source': source,
+      if (sourceRef != null) 'source_ref': sourceRef,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinOperationsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? date,
+    Value<String>? type,
+    Value<int>? amount,
+    Value<String>? accountUuid,
+    Value<String?>? toAccountUuid,
+    Value<String?>? categoryUuid,
+    Value<String?>? directionUuid,
+    Value<String?>? allocationKeyUuid,
+    Value<String?>? assetUuid,
+    Value<int?>? season,
+    Value<String?>? counterpartyUuid,
+    Value<String?>? employeeUuid,
+    Value<String?>? debtUuid,
+    Value<String?>? debtMove,
+    Value<String?>? description,
+    Value<double?>? quantity,
+    Value<String?>? unit,
+    Value<String?>? tag,
+    Value<String?>? notes,
+    Value<String>? source,
+    Value<String?>? sourceRef,
+    Value<String?>? createdBy,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return FinOperationsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      accountUuid: accountUuid ?? this.accountUuid,
+      toAccountUuid: toAccountUuid ?? this.toAccountUuid,
+      categoryUuid: categoryUuid ?? this.categoryUuid,
+      directionUuid: directionUuid ?? this.directionUuid,
+      allocationKeyUuid: allocationKeyUuid ?? this.allocationKeyUuid,
+      assetUuid: assetUuid ?? this.assetUuid,
+      season: season ?? this.season,
+      counterpartyUuid: counterpartyUuid ?? this.counterpartyUuid,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
+      debtUuid: debtUuid ?? this.debtUuid,
+      debtMove: debtMove ?? this.debtMove,
+      description: description ?? this.description,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+      tag: tag ?? this.tag,
+      notes: notes ?? this.notes,
+      source: source ?? this.source,
+      sourceRef: sourceRef ?? this.sourceRef,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (accountUuid.present) {
+      map['account_uuid'] = Variable<String>(accountUuid.value);
+    }
+    if (toAccountUuid.present) {
+      map['to_account_uuid'] = Variable<String>(toAccountUuid.value);
+    }
+    if (categoryUuid.present) {
+      map['category_uuid'] = Variable<String>(categoryUuid.value);
+    }
+    if (directionUuid.present) {
+      map['direction_uuid'] = Variable<String>(directionUuid.value);
+    }
+    if (allocationKeyUuid.present) {
+      map['allocation_key_uuid'] = Variable<String>(allocationKeyUuid.value);
+    }
+    if (assetUuid.present) {
+      map['asset_uuid'] = Variable<String>(assetUuid.value);
+    }
+    if (season.present) {
+      map['season'] = Variable<int>(season.value);
+    }
+    if (counterpartyUuid.present) {
+      map['counterparty_uuid'] = Variable<String>(counterpartyUuid.value);
+    }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
+    if (debtUuid.present) {
+      map['debt_uuid'] = Variable<String>(debtUuid.value);
+    }
+    if (debtMove.present) {
+      map['debt_move'] = Variable<String>(debtMove.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<double>(quantity.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (tag.present) {
+      map['tag'] = Variable<String>(tag.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (sourceRef.present) {
+      map['source_ref'] = Variable<String>(sourceRef.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinOperationsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('date: $date, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('accountUuid: $accountUuid, ')
+          ..write('toAccountUuid: $toAccountUuid, ')
+          ..write('categoryUuid: $categoryUuid, ')
+          ..write('directionUuid: $directionUuid, ')
+          ..write('allocationKeyUuid: $allocationKeyUuid, ')
+          ..write('assetUuid: $assetUuid, ')
+          ..write('season: $season, ')
+          ..write('counterpartyUuid: $counterpartyUuid, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('debtUuid: $debtUuid, ')
+          ..write('debtMove: $debtMove, ')
+          ..write('description: $description, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
+          ..write('tag: $tag, ')
+          ..write('notes: $notes, ')
+          ..write('source: $source, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinPayrollMappingTable extends FinPayrollMapping
+    with TableInfo<$FinPayrollMappingTable, FinPayrollMappingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinPayrollMappingTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _targetUuidMeta = const VerificationMeta(
+    'targetUuid',
+  );
+  @override
+  late final GeneratedColumn<String> targetUuid = GeneratedColumn<String>(
+    'target_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    kind,
+    value,
+    targetUuid,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_payroll_mapping';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinPayrollMappingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    }
+    if (data.containsKey('target_uuid')) {
+      context.handle(
+        _targetUuidMeta,
+        targetUuid.isAcceptableOrUnknown(data['target_uuid']!, _targetUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetUuidMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinPayrollMappingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinPayrollMappingRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+      targetUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_uuid'],
+      )!,
+    );
+  }
+
+  @override
+  $FinPayrollMappingTable createAlias(String alias) {
+    return $FinPayrollMappingTable(attachedDatabase, alias);
+  }
+}
+
+class FinPayrollMappingRow extends DataClass
+    implements Insertable<FinPayrollMappingRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String kind;
+  final String value;
+  final String targetUuid;
+  const FinPayrollMappingRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.kind,
+    required this.value,
+    required this.targetUuid,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['kind'] = Variable<String>(kind);
+    map['value'] = Variable<String>(value);
+    map['target_uuid'] = Variable<String>(targetUuid);
+    return map;
+  }
+
+  FinPayrollMappingCompanion toCompanion(bool nullToAbsent) {
+    return FinPayrollMappingCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      kind: Value(kind),
+      value: Value(value),
+      targetUuid: Value(targetUuid),
+    );
+  }
+
+  factory FinPayrollMappingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinPayrollMappingRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      kind: serializer.fromJson<String>(json['kind']),
+      value: serializer.fromJson<String>(json['value']),
+      targetUuid: serializer.fromJson<String>(json['targetUuid']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'kind': serializer.toJson<String>(kind),
+      'value': serializer.toJson<String>(value),
+      'targetUuid': serializer.toJson<String>(targetUuid),
+    };
+  }
+
+  FinPayrollMappingRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? kind,
+    String? value,
+    String? targetUuid,
+  }) => FinPayrollMappingRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    kind: kind ?? this.kind,
+    value: value ?? this.value,
+    targetUuid: targetUuid ?? this.targetUuid,
+  );
+  FinPayrollMappingRow copyWithCompanion(FinPayrollMappingCompanion data) {
+    return FinPayrollMappingRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      value: data.value.present ? data.value.value : this.value,
+      targetUuid: data.targetUuid.present
+          ? data.targetUuid.value
+          : this.targetUuid,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinPayrollMappingRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('kind: $kind, ')
+          ..write('value: $value, ')
+          ..write('targetUuid: $targetUuid')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    kind,
+    value,
+    targetUuid,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinPayrollMappingRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.kind == this.kind &&
+          other.value == this.value &&
+          other.targetUuid == this.targetUuid);
+}
+
+class FinPayrollMappingCompanion extends UpdateCompanion<FinPayrollMappingRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> kind;
+  final Value<String> value;
+  final Value<String> targetUuid;
+  final Value<int> rowid;
+  const FinPayrollMappingCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.value = const Value.absent(),
+    this.targetUuid = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinPayrollMappingCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String kind,
+    this.value = const Value.absent(),
+    required String targetUuid,
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       kind = Value(kind),
+       targetUuid = Value(targetUuid);
+  static Insertable<FinPayrollMappingRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? kind,
+    Expression<String>? value,
+    Expression<String>? targetUuid,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (kind != null) 'kind': kind,
+      if (value != null) 'value': value,
+      if (targetUuid != null) 'target_uuid': targetUuid,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinPayrollMappingCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? kind,
+    Value<String>? value,
+    Value<String>? targetUuid,
+    Value<int>? rowid,
+  }) {
+    return FinPayrollMappingCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      kind: kind ?? this.kind,
+      value: value ?? this.value,
+      targetUuid: targetUuid ?? this.targetUuid,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (targetUuid.present) {
+      map['target_uuid'] = Variable<String>(targetUuid.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinPayrollMappingCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('kind: $kind, ')
+          ..write('value: $value, ')
+          ..write('targetUuid: $targetUuid, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
@@ -7606,6 +15752,19 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $PayrollResultsTable payrollResults = $PayrollResultsTable(this);
   late final $PendingChangesTable pendingChanges = $PendingChangesTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
+  late final $FinDirectionsTable finDirections = $FinDirectionsTable(this);
+  late final $FinAllocationKeysTable finAllocationKeys =
+      $FinAllocationKeysTable(this);
+  late final $FinAllocationPeriodsTable finAllocationPeriods =
+      $FinAllocationPeriodsTable(this);
+  late final $FinAccountsTable finAccounts = $FinAccountsTable(this);
+  late final $FinAssetsTable finAssets = $FinAssetsTable(this);
+  late final $FinCategoriesTable finCategories = $FinCategoriesTable(this);
+  late final $CounterpartiesTable counterparties = $CounterpartiesTable(this);
+  late final $FinDebtsTable finDebts = $FinDebtsTable(this);
+  late final $FinOperationsTable finOperations = $FinOperationsTable(this);
+  late final $FinPayrollMappingTable finPayrollMapping =
+      $FinPayrollMappingTable(this);
   late final Index idxEmployeesFullName = Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -7646,6 +15805,46 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     'idx_payroll_period',
     'CREATE INDEX idx_payroll_period ON payroll_results (year, month)',
   );
+  late final Index idxFinDirectionsName = Index(
+    'idx_fin_directions_name',
+    'CREATE UNIQUE INDEX idx_fin_directions_name ON fin_directions (name) WHERE deleted = 0',
+  );
+  late final Index idxFinAllocationKeysName = Index(
+    'idx_fin_allocation_keys_name',
+    'CREATE UNIQUE INDEX idx_fin_allocation_keys_name ON fin_allocation_keys (name) WHERE deleted = 0',
+  );
+  late final Index idxFinAllocationPeriodsUnique = Index(
+    'idx_fin_allocation_periods_unique',
+    'CREATE UNIQUE INDEX idx_fin_allocation_periods_unique ON fin_allocation_periods (key_uuid, valid_from) WHERE deleted = 0',
+  );
+  late final Index idxFinAccountsName = Index(
+    'idx_fin_accounts_name',
+    'CREATE UNIQUE INDEX idx_fin_accounts_name ON fin_accounts (name) WHERE deleted = 0',
+  );
+  late final Index idxFinCategoriesName = Index(
+    'idx_fin_categories_name',
+    'CREATE UNIQUE INDEX idx_fin_categories_name ON fin_categories (type, name) WHERE deleted = 0',
+  );
+  late final Index idxCounterpartiesName = Index(
+    'idx_counterparties_name',
+    'CREATE UNIQUE INDEX idx_counterparties_name ON counterparties (name) WHERE deleted = 0',
+  );
+  late final Index idxFinOperationsDate = Index(
+    'idx_fin_operations_date',
+    'CREATE INDEX idx_fin_operations_date ON fin_operations (date)',
+  );
+  late final Index idxFinOperationsAccount = Index(
+    'idx_fin_operations_account',
+    'CREATE INDEX idx_fin_operations_account ON fin_operations (account_uuid, date)',
+  );
+  late final Index idxFinOperationsCategory = Index(
+    'idx_fin_operations_category',
+    'CREATE INDEX idx_fin_operations_category ON fin_operations (category_uuid)',
+  );
+  late final Index idxFinPayrollMappingUnique = Index(
+    'idx_fin_payroll_mapping_unique',
+    'CREATE UNIQUE INDEX idx_fin_payroll_mapping_unique ON fin_payroll_mapping (kind, value) WHERE deleted = 0',
+  );
   late final EmployeesDao employeesDao = EmployeesDao(this as LocalDatabase);
   late final RatesDao ratesDao = RatesDao(this as LocalDatabase);
   late final TimesheetDao timesheetDao = TimesheetDao(this as LocalDatabase);
@@ -7653,6 +15852,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final PayrollDao payrollDao = PayrollDao(this as LocalDatabase);
   late final SettingsDao settingsDao = SettingsDao(this as LocalDatabase);
   late final SyncStateDao syncStateDao = SyncStateDao(this as LocalDatabase);
+  late final FinanceDao financeDao = FinanceDao(this as LocalDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7668,6 +15868,16 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     payrollResults,
     pendingChanges,
     syncState,
+    finDirections,
+    finAllocationKeys,
+    finAllocationPeriods,
+    finAccounts,
+    finAssets,
+    finCategories,
+    counterparties,
+    finDebts,
+    finOperations,
+    finPayrollMapping,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -7678,6 +15888,16 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     idxVacationEmployee,
     idxPayrollUnique,
     idxPayrollPeriod,
+    idxFinDirectionsName,
+    idxFinAllocationKeysName,
+    idxFinAllocationPeriodsUnique,
+    idxFinAccountsName,
+    idxFinCategoriesName,
+    idxCounterpartiesName,
+    idxFinOperationsDate,
+    idxFinOperationsAccount,
+    idxFinOperationsCategory,
+    idxFinPayrollMappingUnique,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -8278,6 +16498,60 @@ final class $$EmployeesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$FinAccountsTable, List<FinAccountRow>>
+  _finAccountsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finAccounts,
+    aliasName: 'employees__uuid__fin_accounts__employee_uuid',
+  );
+
+  $$FinAccountsTableProcessedTableManager get finAccountsRefs {
+    final manager = $$FinAccountsTableTableManager($_db, $_db.finAccounts)
+        .filter(
+          (f) => f.employeeUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finAccountsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$CounterpartiesTable, List<CounterpartyRow>>
+  _counterpartiesRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.counterparties,
+    aliasName: 'employees__uuid__counterparties__employee_uuid',
+  );
+
+  $$CounterpartiesTableProcessedTableManager get counterpartiesRefs {
+    final manager = $$CounterpartiesTableTableManager($_db, $_db.counterparties)
+        .filter(
+          (f) => f.employeeUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_counterpartiesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'employees__uuid__fin_operations__employee_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager($_db, $_db.finOperations)
+        .filter(
+          (f) => f.employeeUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$EmployeesTableFilterComposer
@@ -8490,6 +16764,81 @@ class $$EmployeesTableFilterComposer
           }) => $$PayrollResultsTableFilterComposer(
             $db: $db,
             $table: $db.payrollResults,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finAccountsRefs(
+    Expression<bool> Function($$FinAccountsTableFilterComposer f) f,
+  ) {
+    final $$FinAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> counterpartiesRefs(
+    Expression<bool> Function($$CounterpartiesTableFilterComposer f) f,
+  ) {
+    final $$CounterpartiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableFilterComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -8768,6 +17117,81 @@ class $$EmployeesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> finAccountsRefs<T extends Object>(
+    Expression<T> Function($$FinAccountsTableAnnotationComposer a) f,
+  ) {
+    final $$FinAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> counterpartiesRefs<T extends Object>(
+    Expression<T> Function($$CounterpartiesTableAnnotationComposer a) f,
+  ) {
+    final $$CounterpartiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableTableManager
@@ -8790,6 +17214,9 @@ class $$EmployeesTableTableManager
             bool sickLeaveRefs,
             bool vacationRefs,
             bool payrollResultsRefs,
+            bool finAccountsRefs,
+            bool counterpartiesRefs,
+            bool finOperationsRefs,
           })
         > {
   $$EmployeesTableTableManager(_$LocalDatabase db, $EmployeesTable table)
@@ -8879,6 +17306,9 @@ class $$EmployeesTableTableManager
                 sickLeaveRefs = false,
                 vacationRefs = false,
                 payrollResultsRefs = false,
+                finAccountsRefs = false,
+                counterpartiesRefs = false,
+                finOperationsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -8889,6 +17319,9 @@ class $$EmployeesTableTableManager
                     if (sickLeaveRefs) db.sickLeave,
                     if (vacationRefs) db.vacation,
                     if (payrollResultsRefs) db.payrollResults,
+                    if (finAccountsRefs) db.finAccounts,
+                    if (counterpartiesRefs) db.counterparties,
+                    if (finOperationsRefs) db.finOperations,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -9019,6 +17452,69 @@ class $$EmployeesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (finAccountsRefs)
+                        await $_getPrefetchedData<
+                          EmployeeRow,
+                          $EmployeesTable,
+                          FinAccountRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._finAccountsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finAccountsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (counterpartiesRefs)
+                        await $_getPrefetchedData<
+                          EmployeeRow,
+                          $EmployeesTable,
+                          CounterpartyRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._counterpartiesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).counterpartiesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          EmployeeRow,
+                          $EmployeesTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -9046,6 +17542,9 @@ typedef $$EmployeesTableProcessedTableManager =
         bool sickLeaveRefs,
         bool vacationRefs,
         bool payrollResultsRefs,
+        bool finAccountsRefs,
+        bool counterpartiesRefs,
+        bool finOperationsRefs,
       })
     >;
 typedef $$EmployeeRatesTableCreateCompanionBuilder =
@@ -12475,6 +20974,6690 @@ typedef $$SyncStateTableProcessedTableManager =
       SyncStateRow,
       PrefetchHooks Function()
     >;
+typedef $$FinDirectionsTableCreateCompanionBuilder =
+    FinDirectionsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      Value<bool> overhead,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$FinDirectionsTableUpdateCompanionBuilder =
+    FinDirectionsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<bool> overhead,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$FinDirectionsTableReferences
+    extends
+        BaseReferences<_$LocalDatabase, $FinDirectionsTable, FinDirectionRow> {
+  $$FinDirectionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$FinAssetsTable, List<FinAssetRow>>
+  _finAssetsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finAssets,
+    aliasName: 'fin_directions__uuid__fin_assets__direction_uuid',
+  );
+
+  $$FinAssetsTableProcessedTableManager get finAssetsRefs {
+    final manager = $$FinAssetsTableTableManager($_db, $_db.finAssets).filter(
+      (f) => f.directionUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_finAssetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinCategoriesTable, List<FinCategoryRow>>
+  _finCategoriesRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finCategories,
+    aliasName: 'fin_directions__uuid__fin_categories__direction_uuid',
+  );
+
+  $$FinCategoriesTableProcessedTableManager get finCategoriesRefs {
+    final manager = $$FinCategoriesTableTableManager($_db, $_db.finCategories)
+        .filter(
+          (f) => f.directionUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finCategoriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'fin_directions__uuid__fin_operations__direction_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager($_db, $_db.finOperations)
+        .filter(
+          (f) => f.directionUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinDirectionsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinDirectionsTable> {
+  $$FinDirectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get overhead => $composableBuilder(
+    column: $table.overhead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> finAssetsRefs(
+    Expression<bool> Function($$FinAssetsTableFilterComposer f) f,
+  ) {
+    final $$FinAssetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finCategoriesRefs(
+    Expression<bool> Function($$FinCategoriesTableFilterComposer f) f,
+  ) {
+    final $$FinCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinDirectionsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinDirectionsTable> {
+  $$FinDirectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get overhead => $composableBuilder(
+    column: $table.overhead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FinDirectionsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinDirectionsTable> {
+  $$FinDirectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get overhead =>
+      $composableBuilder(column: $table.overhead, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  Expression<T> finAssetsRefs<T extends Object>(
+    Expression<T> Function($$FinAssetsTableAnnotationComposer a) f,
+  ) {
+    final $$FinAssetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finCategoriesRefs<T extends Object>(
+    Expression<T> Function($$FinCategoriesTableAnnotationComposer a) f,
+  ) {
+    final $$FinCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.directionUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinDirectionsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinDirectionsTable,
+          FinDirectionRow,
+          $$FinDirectionsTableFilterComposer,
+          $$FinDirectionsTableOrderingComposer,
+          $$FinDirectionsTableAnnotationComposer,
+          $$FinDirectionsTableCreateCompanionBuilder,
+          $$FinDirectionsTableUpdateCompanionBuilder,
+          (FinDirectionRow, $$FinDirectionsTableReferences),
+          FinDirectionRow,
+          PrefetchHooks Function({
+            bool finAssetsRefs,
+            bool finCategoriesRefs,
+            bool finOperationsRefs,
+          })
+        > {
+  $$FinDirectionsTableTableManager(
+    _$LocalDatabase db,
+    $FinDirectionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinDirectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinDirectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinDirectionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<bool> overhead = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinDirectionsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                overhead: overhead,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                Value<bool> overhead = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinDirectionsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                overhead: overhead,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinDirectionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                finAssetsRefs = false,
+                finCategoriesRefs = false,
+                finOperationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finAssetsRefs) db.finAssets,
+                    if (finCategoriesRefs) db.finCategories,
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finAssetsRefs)
+                        await $_getPrefetchedData<
+                          FinDirectionRow,
+                          $FinDirectionsTable,
+                          FinAssetRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinDirectionsTableReferences
+                              ._finAssetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinDirectionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finAssetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.directionUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finCategoriesRefs)
+                        await $_getPrefetchedData<
+                          FinDirectionRow,
+                          $FinDirectionsTable,
+                          FinCategoryRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinDirectionsTableReferences
+                              ._finCategoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinDirectionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finCategoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.directionUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          FinDirectionRow,
+                          $FinDirectionsTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinDirectionsTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinDirectionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.directionUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinDirectionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinDirectionsTable,
+      FinDirectionRow,
+      $$FinDirectionsTableFilterComposer,
+      $$FinDirectionsTableOrderingComposer,
+      $$FinDirectionsTableAnnotationComposer,
+      $$FinDirectionsTableCreateCompanionBuilder,
+      $$FinDirectionsTableUpdateCompanionBuilder,
+      (FinDirectionRow, $$FinDirectionsTableReferences),
+      FinDirectionRow,
+      PrefetchHooks Function({
+        bool finAssetsRefs,
+        bool finCategoriesRefs,
+        bool finOperationsRefs,
+      })
+    >;
+typedef $$FinAllocationKeysTableCreateCompanionBuilder =
+    FinAllocationKeysCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      Value<int> rowid,
+    });
+typedef $$FinAllocationKeysTableUpdateCompanionBuilder =
+    FinAllocationKeysCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<int> rowid,
+    });
+
+final class $$FinAllocationKeysTableReferences
+    extends
+        BaseReferences<
+          _$LocalDatabase,
+          $FinAllocationKeysTable,
+          FinAllocationKeyRow
+        > {
+  $$FinAllocationKeysTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $FinAllocationPeriodsTable,
+    List<FinAllocationPeriodRow>
+  >
+  _finAllocationPeriodsRefsTable(_$LocalDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.finAllocationPeriods,
+        aliasName:
+            'fin_allocation_keys__uuid__fin_allocation_periods__key_uuid',
+      );
+
+  $$FinAllocationPeriodsTableProcessedTableManager
+  get finAllocationPeriodsRefs {
+    final manager = $$FinAllocationPeriodsTableTableManager(
+      $_db,
+      $_db.finAllocationPeriods,
+    ).filter((f) => f.keyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _finAllocationPeriodsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinAssetsTable, List<FinAssetRow>>
+  _finAssetsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finAssets,
+    aliasName: 'fin_allocation_keys__uuid__fin_assets__allocation_key_uuid',
+  );
+
+  $$FinAssetsTableProcessedTableManager get finAssetsRefs {
+    final manager = $$FinAssetsTableTableManager($_db, $_db.finAssets).filter(
+      (f) => f.allocationKeyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_finAssetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinCategoriesTable, List<FinCategoryRow>>
+  _finCategoriesRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finCategories,
+    aliasName: 'fin_allocation_keys__uuid__fin_categories__allocation_key_uuid',
+  );
+
+  $$FinCategoriesTableProcessedTableManager get finCategoriesRefs {
+    final manager = $$FinCategoriesTableTableManager($_db, $_db.finCategories)
+        .filter(
+          (f) =>
+              f.allocationKeyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finCategoriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'fin_allocation_keys__uuid__fin_operations__allocation_key_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager($_db, $_db.finOperations)
+        .filter(
+          (f) =>
+              f.allocationKeyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinAllocationKeysTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinAllocationKeysTable> {
+  $$FinAllocationKeysTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> finAllocationPeriodsRefs(
+    Expression<bool> Function($$FinAllocationPeriodsTableFilterComposer f) f,
+  ) {
+    final $$FinAllocationPeriodsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAllocationPeriods,
+      getReferencedColumn: (t) => t.keyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationPeriodsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAllocationPeriods,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finAssetsRefs(
+    Expression<bool> Function($$FinAssetsTableFilterComposer f) f,
+  ) {
+    final $$FinAssetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finCategoriesRefs(
+    Expression<bool> Function($$FinCategoriesTableFilterComposer f) f,
+  ) {
+    final $$FinCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinAllocationKeysTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinAllocationKeysTable> {
+  $$FinAllocationKeysTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FinAllocationKeysTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinAllocationKeysTable> {
+  $$FinAllocationKeysTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  Expression<T> finAllocationPeriodsRefs<T extends Object>(
+    Expression<T> Function($$FinAllocationPeriodsTableAnnotationComposer a) f,
+  ) {
+    final $$FinAllocationPeriodsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.uuid,
+          referencedTable: $db.finAllocationPeriods,
+          getReferencedColumn: (t) => t.keyUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinAllocationPeriodsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finAllocationPeriods,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> finAssetsRefs<T extends Object>(
+    Expression<T> Function($$FinAssetsTableAnnotationComposer a) f,
+  ) {
+    final $$FinAssetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finCategoriesRefs<T extends Object>(
+    Expression<T> Function($$FinCategoriesTableAnnotationComposer a) f,
+  ) {
+    final $$FinCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.allocationKeyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinAllocationKeysTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinAllocationKeysTable,
+          FinAllocationKeyRow,
+          $$FinAllocationKeysTableFilterComposer,
+          $$FinAllocationKeysTableOrderingComposer,
+          $$FinAllocationKeysTableAnnotationComposer,
+          $$FinAllocationKeysTableCreateCompanionBuilder,
+          $$FinAllocationKeysTableUpdateCompanionBuilder,
+          (FinAllocationKeyRow, $$FinAllocationKeysTableReferences),
+          FinAllocationKeyRow,
+          PrefetchHooks Function({
+            bool finAllocationPeriodsRefs,
+            bool finAssetsRefs,
+            bool finCategoriesRefs,
+            bool finOperationsRefs,
+          })
+        > {
+  $$FinAllocationKeysTableTableManager(
+    _$LocalDatabase db,
+    $FinAllocationKeysTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinAllocationKeysTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinAllocationKeysTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinAllocationKeysTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAllocationKeysCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                Value<int> rowid = const Value.absent(),
+              }) => FinAllocationKeysCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinAllocationKeysTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                finAllocationPeriodsRefs = false,
+                finAssetsRefs = false,
+                finCategoriesRefs = false,
+                finOperationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finAllocationPeriodsRefs) db.finAllocationPeriods,
+                    if (finAssetsRefs) db.finAssets,
+                    if (finCategoriesRefs) db.finCategories,
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finAllocationPeriodsRefs)
+                        await $_getPrefetchedData<
+                          FinAllocationKeyRow,
+                          $FinAllocationKeysTable,
+                          FinAllocationPeriodRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinAllocationKeysTableReferences
+                              ._finAllocationPeriodsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinAllocationKeysTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finAllocationPeriodsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.keyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finAssetsRefs)
+                        await $_getPrefetchedData<
+                          FinAllocationKeyRow,
+                          $FinAllocationKeysTable,
+                          FinAssetRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinAllocationKeysTableReferences
+                              ._finAssetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinAllocationKeysTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finAssetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.allocationKeyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finCategoriesRefs)
+                        await $_getPrefetchedData<
+                          FinAllocationKeyRow,
+                          $FinAllocationKeysTable,
+                          FinCategoryRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinAllocationKeysTableReferences
+                              ._finCategoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinAllocationKeysTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finCategoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.allocationKeyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          FinAllocationKeyRow,
+                          $FinAllocationKeysTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinAllocationKeysTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinAllocationKeysTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.allocationKeyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinAllocationKeysTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinAllocationKeysTable,
+      FinAllocationKeyRow,
+      $$FinAllocationKeysTableFilterComposer,
+      $$FinAllocationKeysTableOrderingComposer,
+      $$FinAllocationKeysTableAnnotationComposer,
+      $$FinAllocationKeysTableCreateCompanionBuilder,
+      $$FinAllocationKeysTableUpdateCompanionBuilder,
+      (FinAllocationKeyRow, $$FinAllocationKeysTableReferences),
+      FinAllocationKeyRow,
+      PrefetchHooks Function({
+        bool finAllocationPeriodsRefs,
+        bool finAssetsRefs,
+        bool finCategoriesRefs,
+        bool finOperationsRefs,
+      })
+    >;
+typedef $$FinAllocationPeriodsTableCreateCompanionBuilder =
+    FinAllocationPeriodsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String keyUuid,
+      required String validFrom,
+      required String shares,
+      Value<int> rowid,
+    });
+typedef $$FinAllocationPeriodsTableUpdateCompanionBuilder =
+    FinAllocationPeriodsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> keyUuid,
+      Value<String> validFrom,
+      Value<String> shares,
+      Value<int> rowid,
+    });
+
+final class $$FinAllocationPeriodsTableReferences
+    extends
+        BaseReferences<
+          _$LocalDatabase,
+          $FinAllocationPeriodsTable,
+          FinAllocationPeriodRow
+        > {
+  $$FinAllocationPeriodsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $FinAllocationKeysTable _keyUuidTable(_$LocalDatabase db) =>
+      db.finAllocationKeys.createAlias(
+        'fin_allocation_periods__key_uuid__fin_allocation_keys__uuid',
+      );
+
+  $$FinAllocationKeysTableProcessedTableManager get keyUuid {
+    final $_column = $_itemColumn<String>('key_uuid')!;
+
+    final manager = $$FinAllocationKeysTableTableManager(
+      $_db,
+      $_db.finAllocationKeys,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_keyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FinAllocationPeriodsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinAllocationPeriodsTable> {
+  $$FinAllocationPeriodsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shares => $composableBuilder(
+    column: $table.shares,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FinAllocationKeysTableFilterComposer get keyUuid {
+    final $$FinAllocationKeysTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.keyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableFilterComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAllocationPeriodsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinAllocationPeriodsTable> {
+  $$FinAllocationPeriodsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shares => $composableBuilder(
+    column: $table.shares,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FinAllocationKeysTableOrderingComposer get keyUuid {
+    final $$FinAllocationKeysTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.keyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAllocationPeriodsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinAllocationPeriodsTable> {
+  $$FinAllocationPeriodsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validFrom =>
+      $composableBuilder(column: $table.validFrom, builder: (column) => column);
+
+  GeneratedColumn<String> get shares =>
+      $composableBuilder(column: $table.shares, builder: (column) => column);
+
+  $$FinAllocationKeysTableAnnotationComposer get keyUuid {
+    final $$FinAllocationKeysTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.keyUuid,
+          referencedTable: $db.finAllocationKeys,
+          getReferencedColumn: (t) => t.uuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinAllocationKeysTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finAllocationKeys,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$FinAllocationPeriodsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinAllocationPeriodsTable,
+          FinAllocationPeriodRow,
+          $$FinAllocationPeriodsTableFilterComposer,
+          $$FinAllocationPeriodsTableOrderingComposer,
+          $$FinAllocationPeriodsTableAnnotationComposer,
+          $$FinAllocationPeriodsTableCreateCompanionBuilder,
+          $$FinAllocationPeriodsTableUpdateCompanionBuilder,
+          (FinAllocationPeriodRow, $$FinAllocationPeriodsTableReferences),
+          FinAllocationPeriodRow,
+          PrefetchHooks Function({bool keyUuid})
+        > {
+  $$FinAllocationPeriodsTableTableManager(
+    _$LocalDatabase db,
+    $FinAllocationPeriodsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinAllocationPeriodsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinAllocationPeriodsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$FinAllocationPeriodsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> keyUuid = const Value.absent(),
+                Value<String> validFrom = const Value.absent(),
+                Value<String> shares = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAllocationPeriodsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                keyUuid: keyUuid,
+                validFrom: validFrom,
+                shares: shares,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String keyUuid,
+                required String validFrom,
+                required String shares,
+                Value<int> rowid = const Value.absent(),
+              }) => FinAllocationPeriodsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                keyUuid: keyUuid,
+                validFrom: validFrom,
+                shares: shares,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinAllocationPeriodsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({keyUuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (keyUuid) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.keyUuid,
+                                referencedTable:
+                                    $$FinAllocationPeriodsTableReferences
+                                        ._keyUuidTable(db),
+                                referencedColumn:
+                                    $$FinAllocationPeriodsTableReferences
+                                        ._keyUuidTable(db)
+                                        .uuid,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FinAllocationPeriodsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinAllocationPeriodsTable,
+      FinAllocationPeriodRow,
+      $$FinAllocationPeriodsTableFilterComposer,
+      $$FinAllocationPeriodsTableOrderingComposer,
+      $$FinAllocationPeriodsTableAnnotationComposer,
+      $$FinAllocationPeriodsTableCreateCompanionBuilder,
+      $$FinAllocationPeriodsTableUpdateCompanionBuilder,
+      (FinAllocationPeriodRow, $$FinAllocationPeriodsTableReferences),
+      FinAllocationPeriodRow,
+      PrefetchHooks Function({bool keyUuid})
+    >;
+typedef $$FinAccountsTableCreateCompanionBuilder =
+    FinAccountsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      required String kind,
+      Value<int> openingBalance,
+      Value<String?> openingDate,
+      Value<String?> employeeUuid,
+      Value<bool> closed,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$FinAccountsTableUpdateCompanionBuilder =
+    FinAccountsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<String> kind,
+      Value<int> openingBalance,
+      Value<String?> openingDate,
+      Value<String?> employeeUuid,
+      Value<bool> closed,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$FinAccountsTableReferences
+    extends BaseReferences<_$LocalDatabase, $FinAccountsTable, FinAccountRow> {
+  $$FinAccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $EmployeesTable _employeeUuidTable(_$LocalDatabase db) =>
+      db.employees.createAlias('fin_accounts__employee_uuid__employees__uuid');
+
+  $$EmployeesTableProcessedTableManager? get employeeUuid {
+    final $_column = $_itemColumn<String>('employee_uuid');
+    if ($_column == null) return null;
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FinAccountsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinAccountsTable> {
+  $$FinAccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get closed => $composableBuilder(
+    column: $table.closed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$EmployeesTableFilterComposer get employeeUuid {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAccountsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinAccountsTable> {
+  $$FinAccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get closed => $composableBuilder(
+    column: $table.closed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$EmployeesTableOrderingComposer get employeeUuid {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAccountsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinAccountsTable> {
+  $$FinAccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get closed =>
+      $composableBuilder(column: $table.closed, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeUuid {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAccountsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinAccountsTable,
+          FinAccountRow,
+          $$FinAccountsTableFilterComposer,
+          $$FinAccountsTableOrderingComposer,
+          $$FinAccountsTableAnnotationComposer,
+          $$FinAccountsTableCreateCompanionBuilder,
+          $$FinAccountsTableUpdateCompanionBuilder,
+          (FinAccountRow, $$FinAccountsTableReferences),
+          FinAccountRow,
+          PrefetchHooks Function({bool employeeUuid})
+        > {
+  $$FinAccountsTableTableManager(_$LocalDatabase db, $FinAccountsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinAccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinAccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinAccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int> openingBalance = const Value.absent(),
+                Value<String?> openingDate = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<bool> closed = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAccountsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                openingBalance: openingBalance,
+                openingDate: openingDate,
+                employeeUuid: employeeUuid,
+                closed: closed,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                required String kind,
+                Value<int> openingBalance = const Value.absent(),
+                Value<String?> openingDate = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<bool> closed = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAccountsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                openingBalance: openingBalance,
+                openingDate: openingDate,
+                employeeUuid: employeeUuid,
+                closed: closed,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinAccountsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({employeeUuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (employeeUuid) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.employeeUuid,
+                                referencedTable: $$FinAccountsTableReferences
+                                    ._employeeUuidTable(db),
+                                referencedColumn: $$FinAccountsTableReferences
+                                    ._employeeUuidTable(db)
+                                    .uuid,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FinAccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinAccountsTable,
+      FinAccountRow,
+      $$FinAccountsTableFilterComposer,
+      $$FinAccountsTableOrderingComposer,
+      $$FinAccountsTableAnnotationComposer,
+      $$FinAccountsTableCreateCompanionBuilder,
+      $$FinAccountsTableUpdateCompanionBuilder,
+      (FinAccountRow, $$FinAccountsTableReferences),
+      FinAccountRow,
+      PrefetchHooks Function({bool employeeUuid})
+    >;
+typedef $$FinAssetsTableCreateCompanionBuilder =
+    FinAssetsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      required String kind,
+      Value<int?> year,
+      Value<int> quantity,
+      Value<int?> referenceValue,
+      Value<String?> valuedOn,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String?> cadastralNumber,
+      Value<double?> areaHa,
+      Value<int?> cadastralValue,
+      Value<String?> disposedOn,
+      Value<String?> disposalReason,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$FinAssetsTableUpdateCompanionBuilder =
+    FinAssetsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<String> kind,
+      Value<int?> year,
+      Value<int> quantity,
+      Value<int?> referenceValue,
+      Value<String?> valuedOn,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String?> cadastralNumber,
+      Value<double?> areaHa,
+      Value<int?> cadastralValue,
+      Value<String?> disposedOn,
+      Value<String?> disposalReason,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$FinAssetsTableReferences
+    extends BaseReferences<_$LocalDatabase, $FinAssetsTable, FinAssetRow> {
+  $$FinAssetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $FinDirectionsTable _directionUuidTable(_$LocalDatabase db) => db
+      .finDirections
+      .createAlias('fin_assets__direction_uuid__fin_directions__uuid');
+
+  $$FinDirectionsTableProcessedTableManager? get directionUuid {
+    final $_column = $_itemColumn<String>('direction_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinDirectionsTableTableManager(
+      $_db,
+      $_db.finDirections,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_directionUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinAllocationKeysTable _allocationKeyUuidTable(_$LocalDatabase db) =>
+      db.finAllocationKeys.createAlias(
+        'fin_assets__allocation_key_uuid__fin_allocation_keys__uuid',
+      );
+
+  $$FinAllocationKeysTableProcessedTableManager? get allocationKeyUuid {
+    final $_column = $_itemColumn<String>('allocation_key_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinAllocationKeysTableTableManager(
+      $_db,
+      $_db.finAllocationKeys,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_allocationKeyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'fin_assets__uuid__fin_operations__asset_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager(
+      $_db,
+      $_db.finOperations,
+    ).filter((f) => f.assetUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinAssetsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinAssetsTable> {
+  $$FinAssetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get referenceValue => $composableBuilder(
+    column: $table.referenceValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get valuedOn => $composableBuilder(
+    column: $table.valuedOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cadastralNumber => $composableBuilder(
+    column: $table.cadastralNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get areaHa => $composableBuilder(
+    column: $table.areaHa,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cadastralValue => $composableBuilder(
+    column: $table.cadastralValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disposedOn => $composableBuilder(
+    column: $table.disposedOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disposalReason => $composableBuilder(
+    column: $table.disposalReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FinDirectionsTableFilterComposer get directionUuid {
+    final $$FinDirectionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableFilterComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableFilterComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableFilterComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.assetUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinAssetsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinAssetsTable> {
+  $$FinAssetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get referenceValue => $composableBuilder(
+    column: $table.referenceValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get valuedOn => $composableBuilder(
+    column: $table.valuedOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cadastralNumber => $composableBuilder(
+    column: $table.cadastralNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get areaHa => $composableBuilder(
+    column: $table.areaHa,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cadastralValue => $composableBuilder(
+    column: $table.cadastralValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get disposedOn => $composableBuilder(
+    column: $table.disposedOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get disposalReason => $composableBuilder(
+    column: $table.disposalReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FinDirectionsTableOrderingComposer get directionUuid {
+    final $$FinDirectionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableOrderingComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinAssetsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinAssetsTable> {
+  $$FinAssetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get year =>
+      $composableBuilder(column: $table.year, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get referenceValue => $composableBuilder(
+    column: $table.referenceValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get valuedOn =>
+      $composableBuilder(column: $table.valuedOn, builder: (column) => column);
+
+  GeneratedColumn<String> get cadastralNumber => $composableBuilder(
+    column: $table.cadastralNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get areaHa =>
+      $composableBuilder(column: $table.areaHa, builder: (column) => column);
+
+  GeneratedColumn<int> get cadastralValue => $composableBuilder(
+    column: $table.cadastralValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get disposedOn => $composableBuilder(
+    column: $table.disposedOn,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get disposalReason => $composableBuilder(
+    column: $table.disposalReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$FinDirectionsTableAnnotationComposer get directionUuid {
+    final $$FinDirectionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableAnnotationComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.allocationKeyUuid,
+          referencedTable: $db.finAllocationKeys,
+          getReferencedColumn: (t) => t.uuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinAllocationKeysTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finAllocationKeys,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.assetUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinAssetsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinAssetsTable,
+          FinAssetRow,
+          $$FinAssetsTableFilterComposer,
+          $$FinAssetsTableOrderingComposer,
+          $$FinAssetsTableAnnotationComposer,
+          $$FinAssetsTableCreateCompanionBuilder,
+          $$FinAssetsTableUpdateCompanionBuilder,
+          (FinAssetRow, $$FinAssetsTableReferences),
+          FinAssetRow,
+          PrefetchHooks Function({
+            bool directionUuid,
+            bool allocationKeyUuid,
+            bool finOperationsRefs,
+          })
+        > {
+  $$FinAssetsTableTableManager(_$LocalDatabase db, $FinAssetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinAssetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinAssetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinAssetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int?> year = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int?> referenceValue = const Value.absent(),
+                Value<String?> valuedOn = const Value.absent(),
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String?> cadastralNumber = const Value.absent(),
+                Value<double?> areaHa = const Value.absent(),
+                Value<int?> cadastralValue = const Value.absent(),
+                Value<String?> disposedOn = const Value.absent(),
+                Value<String?> disposalReason = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAssetsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                year: year,
+                quantity: quantity,
+                referenceValue: referenceValue,
+                valuedOn: valuedOn,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                cadastralNumber: cadastralNumber,
+                areaHa: areaHa,
+                cadastralValue: cadastralValue,
+                disposedOn: disposedOn,
+                disposalReason: disposalReason,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                required String kind,
+                Value<int?> year = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int?> referenceValue = const Value.absent(),
+                Value<String?> valuedOn = const Value.absent(),
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String?> cadastralNumber = const Value.absent(),
+                Value<double?> areaHa = const Value.absent(),
+                Value<int?> cadastralValue = const Value.absent(),
+                Value<String?> disposedOn = const Value.absent(),
+                Value<String?> disposalReason = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinAssetsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                year: year,
+                quantity: quantity,
+                referenceValue: referenceValue,
+                valuedOn: valuedOn,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                cadastralNumber: cadastralNumber,
+                areaHa: areaHa,
+                cadastralValue: cadastralValue,
+                disposedOn: disposedOn,
+                disposalReason: disposalReason,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinAssetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                directionUuid = false,
+                allocationKeyUuid = false,
+                finOperationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (directionUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.directionUuid,
+                                    referencedTable: $$FinAssetsTableReferences
+                                        ._directionUuidTable(db),
+                                    referencedColumn: $$FinAssetsTableReferences
+                                        ._directionUuidTable(db)
+                                        .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (allocationKeyUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.allocationKeyUuid,
+                                    referencedTable: $$FinAssetsTableReferences
+                                        ._allocationKeyUuidTable(db),
+                                    referencedColumn: $$FinAssetsTableReferences
+                                        ._allocationKeyUuidTable(db)
+                                        .uuid,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          FinAssetRow,
+                          $FinAssetsTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinAssetsTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinAssetsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.assetUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinAssetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinAssetsTable,
+      FinAssetRow,
+      $$FinAssetsTableFilterComposer,
+      $$FinAssetsTableOrderingComposer,
+      $$FinAssetsTableAnnotationComposer,
+      $$FinAssetsTableCreateCompanionBuilder,
+      $$FinAssetsTableUpdateCompanionBuilder,
+      (FinAssetRow, $$FinAssetsTableReferences),
+      FinAssetRow,
+      PrefetchHooks Function({
+        bool directionUuid,
+        bool allocationKeyUuid,
+        bool finOperationsRefs,
+      })
+    >;
+typedef $$FinCategoriesTableCreateCompanionBuilder =
+    FinCategoriesCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String type,
+      required String groupName,
+      required String name,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String> kind,
+      Value<bool> inTaxBook,
+      Value<bool> hidden,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$FinCategoriesTableUpdateCompanionBuilder =
+    FinCategoriesCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> type,
+      Value<String> groupName,
+      Value<String> name,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String> kind,
+      Value<bool> inTaxBook,
+      Value<bool> hidden,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$FinCategoriesTableReferences
+    extends
+        BaseReferences<_$LocalDatabase, $FinCategoriesTable, FinCategoryRow> {
+  $$FinCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $FinDirectionsTable _directionUuidTable(_$LocalDatabase db) => db
+      .finDirections
+      .createAlias('fin_categories__direction_uuid__fin_directions__uuid');
+
+  $$FinDirectionsTableProcessedTableManager? get directionUuid {
+    final $_column = $_itemColumn<String>('direction_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinDirectionsTableTableManager(
+      $_db,
+      $_db.finDirections,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_directionUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinAllocationKeysTable _allocationKeyUuidTable(_$LocalDatabase db) =>
+      db.finAllocationKeys.createAlias(
+        'fin_categories__allocation_key_uuid__fin_allocation_keys__uuid',
+      );
+
+  $$FinAllocationKeysTableProcessedTableManager? get allocationKeyUuid {
+    final $_column = $_itemColumn<String>('allocation_key_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinAllocationKeysTableTableManager(
+      $_db,
+      $_db.finAllocationKeys,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_allocationKeyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'fin_categories__uuid__fin_operations__category_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager($_db, $_db.finOperations)
+        .filter(
+          (f) => f.categoryUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinCategoriesTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinCategoriesTable> {
+  $$FinCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get groupName => $composableBuilder(
+    column: $table.groupName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get inTaxBook => $composableBuilder(
+    column: $table.inTaxBook,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FinDirectionsTableFilterComposer get directionUuid {
+    final $$FinDirectionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableFilterComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableFilterComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableFilterComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.categoryUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinCategoriesTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinCategoriesTable> {
+  $$FinCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get groupName => $composableBuilder(
+    column: $table.groupName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get inTaxBook => $composableBuilder(
+    column: $table.inTaxBook,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FinDirectionsTableOrderingComposer get directionUuid {
+    final $$FinDirectionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableOrderingComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinCategoriesTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinCategoriesTable> {
+  $$FinCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get groupName =>
+      $composableBuilder(column: $table.groupName, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<bool> get inTaxBook =>
+      $composableBuilder(column: $table.inTaxBook, builder: (column) => column);
+
+  GeneratedColumn<bool> get hidden =>
+      $composableBuilder(column: $table.hidden, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  $$FinDirectionsTableAnnotationComposer get directionUuid {
+    final $$FinDirectionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableAnnotationComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.allocationKeyUuid,
+          referencedTable: $db.finAllocationKeys,
+          getReferencedColumn: (t) => t.uuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinAllocationKeysTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finAllocationKeys,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.categoryUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinCategoriesTable,
+          FinCategoryRow,
+          $$FinCategoriesTableFilterComposer,
+          $$FinCategoriesTableOrderingComposer,
+          $$FinCategoriesTableAnnotationComposer,
+          $$FinCategoriesTableCreateCompanionBuilder,
+          $$FinCategoriesTableUpdateCompanionBuilder,
+          (FinCategoryRow, $$FinCategoriesTableReferences),
+          FinCategoryRow,
+          PrefetchHooks Function({
+            bool directionUuid,
+            bool allocationKeyUuid,
+            bool finOperationsRefs,
+          })
+        > {
+  $$FinCategoriesTableTableManager(
+    _$LocalDatabase db,
+    $FinCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> groupName = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<bool> inTaxBook = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinCategoriesCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                type: type,
+                groupName: groupName,
+                name: name,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                kind: kind,
+                inTaxBook: inTaxBook,
+                hidden: hidden,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String type,
+                required String groupName,
+                required String name,
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<bool> inTaxBook = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinCategoriesCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                type: type,
+                groupName: groupName,
+                name: name,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                kind: kind,
+                inTaxBook: inTaxBook,
+                hidden: hidden,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                directionUuid = false,
+                allocationKeyUuid = false,
+                finOperationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (directionUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.directionUuid,
+                                    referencedTable:
+                                        $$FinCategoriesTableReferences
+                                            ._directionUuidTable(db),
+                                    referencedColumn:
+                                        $$FinCategoriesTableReferences
+                                            ._directionUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (allocationKeyUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.allocationKeyUuid,
+                                    referencedTable:
+                                        $$FinCategoriesTableReferences
+                                            ._allocationKeyUuidTable(db),
+                                    referencedColumn:
+                                        $$FinCategoriesTableReferences
+                                            ._allocationKeyUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          FinCategoryRow,
+                          $FinCategoriesTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinCategoriesTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinCategoriesTable,
+      FinCategoryRow,
+      $$FinCategoriesTableFilterComposer,
+      $$FinCategoriesTableOrderingComposer,
+      $$FinCategoriesTableAnnotationComposer,
+      $$FinCategoriesTableCreateCompanionBuilder,
+      $$FinCategoriesTableUpdateCompanionBuilder,
+      (FinCategoryRow, $$FinCategoriesTableReferences),
+      FinCategoryRow,
+      PrefetchHooks Function({
+        bool directionUuid,
+        bool allocationKeyUuid,
+        bool finOperationsRefs,
+      })
+    >;
+typedef $$CounterpartiesTableCreateCompanionBuilder =
+    CounterpartiesCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      Value<String> kind,
+      Value<String?> inn,
+      Value<String?> phone,
+      Value<String?> employeeUuid,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$CounterpartiesTableUpdateCompanionBuilder =
+    CounterpartiesCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<String> kind,
+      Value<String?> inn,
+      Value<String?> phone,
+      Value<String?> employeeUuid,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$CounterpartiesTableReferences
+    extends
+        BaseReferences<_$LocalDatabase, $CounterpartiesTable, CounterpartyRow> {
+  $$CounterpartiesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $EmployeesTable _employeeUuidTable(_$LocalDatabase db) => db.employees
+      .createAlias('counterparties__employee_uuid__employees__uuid');
+
+  $$EmployeesTableProcessedTableManager? get employeeUuid {
+    final $_column = $_itemColumn<String>('employee_uuid');
+    if ($_column == null) return null;
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$FinDebtsTable, List<FinDebtRow>>
+  _finDebtsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finDebts,
+    aliasName: 'counterparties__uuid__fin_debts__counterparty_uuid',
+  );
+
+  $$FinDebtsTableProcessedTableManager get finDebtsRefs {
+    final manager = $$FinDebtsTableTableManager($_db, $_db.finDebts).filter(
+      (f) => f.counterpartyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_finDebtsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'counterparties__uuid__fin_operations__counterparty_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager($_db, $_db.finOperations)
+        .filter(
+          (f) =>
+              f.counterpartyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$CounterpartiesTableFilterComposer
+    extends Composer<_$LocalDatabase, $CounterpartiesTable> {
+  $$CounterpartiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inn => $composableBuilder(
+    column: $table.inn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$EmployeesTableFilterComposer get employeeUuid {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> finDebtsRefs(
+    Expression<bool> Function($$FinDebtsTableFilterComposer f) f,
+  ) {
+    final $$FinDebtsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finDebts,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDebtsTableFilterComposer(
+            $db: $db,
+            $table: $db.finDebts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CounterpartiesTableOrderingComposer
+    extends Composer<_$LocalDatabase, $CounterpartiesTable> {
+  $$CounterpartiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get inn => $composableBuilder(
+    column: $table.inn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$EmployeesTableOrderingComposer get employeeUuid {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CounterpartiesTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $CounterpartiesTable> {
+  $$CounterpartiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get inn =>
+      $composableBuilder(column: $table.inn, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeUuid {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> finDebtsRefs<T extends Object>(
+    Expression<T> Function($$FinDebtsTableAnnotationComposer a) f,
+  ) {
+    final $$FinDebtsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finDebts,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDebtsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finDebts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CounterpartiesTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $CounterpartiesTable,
+          CounterpartyRow,
+          $$CounterpartiesTableFilterComposer,
+          $$CounterpartiesTableOrderingComposer,
+          $$CounterpartiesTableAnnotationComposer,
+          $$CounterpartiesTableCreateCompanionBuilder,
+          $$CounterpartiesTableUpdateCompanionBuilder,
+          (CounterpartyRow, $$CounterpartiesTableReferences),
+          CounterpartyRow,
+          PrefetchHooks Function({
+            bool employeeUuid,
+            bool finDebtsRefs,
+            bool finOperationsRefs,
+          })
+        > {
+  $$CounterpartiesTableTableManager(
+    _$LocalDatabase db,
+    $CounterpartiesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CounterpartiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CounterpartiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CounterpartiesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String?> inn = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CounterpartiesCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                inn: inn,
+                phone: phone,
+                employeeUuid: employeeUuid,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                Value<String> kind = const Value.absent(),
+                Value<String?> inn = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CounterpartiesCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                kind: kind,
+                inn: inn,
+                phone: phone,
+                employeeUuid: employeeUuid,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CounterpartiesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                employeeUuid = false,
+                finDebtsRefs = false,
+                finOperationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finDebtsRefs) db.finDebts,
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (employeeUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.employeeUuid,
+                                    referencedTable:
+                                        $$CounterpartiesTableReferences
+                                            ._employeeUuidTable(db),
+                                    referencedColumn:
+                                        $$CounterpartiesTableReferences
+                                            ._employeeUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finDebtsRefs)
+                        await $_getPrefetchedData<
+                          CounterpartyRow,
+                          $CounterpartiesTable,
+                          FinDebtRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CounterpartiesTableReferences
+                              ._finDebtsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CounterpartiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finDebtsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.counterpartyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          CounterpartyRow,
+                          $CounterpartiesTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CounterpartiesTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CounterpartiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.counterpartyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$CounterpartiesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $CounterpartiesTable,
+      CounterpartyRow,
+      $$CounterpartiesTableFilterComposer,
+      $$CounterpartiesTableOrderingComposer,
+      $$CounterpartiesTableAnnotationComposer,
+      $$CounterpartiesTableCreateCompanionBuilder,
+      $$CounterpartiesTableUpdateCompanionBuilder,
+      (CounterpartyRow, $$CounterpartiesTableReferences),
+      CounterpartyRow,
+      PrefetchHooks Function({
+        bool employeeUuid,
+        bool finDebtsRefs,
+        bool finOperationsRefs,
+      })
+    >;
+typedef $$FinDebtsTableCreateCompanionBuilder =
+    FinDebtsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String counterpartyUuid,
+      required String kind,
+      Value<int> openingBalance,
+      Value<String?> openingDate,
+      Value<bool> closed,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$FinDebtsTableUpdateCompanionBuilder =
+    FinDebtsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> counterpartyUuid,
+      Value<String> kind,
+      Value<int> openingBalance,
+      Value<String?> openingDate,
+      Value<bool> closed,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$FinDebtsTableReferences
+    extends BaseReferences<_$LocalDatabase, $FinDebtsTable, FinDebtRow> {
+  $$FinDebtsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $CounterpartiesTable _counterpartyUuidTable(_$LocalDatabase db) => db
+      .counterparties
+      .createAlias('fin_debts__counterparty_uuid__counterparties__uuid');
+
+  $$CounterpartiesTableProcessedTableManager get counterpartyUuid {
+    final $_column = $_itemColumn<String>('counterparty_uuid')!;
+
+    final manager = $$CounterpartiesTableTableManager(
+      $_db,
+      $_db.counterparties,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_counterpartyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$FinOperationsTable, List<FinOperationRow>>
+  _finOperationsRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finOperations,
+    aliasName: 'fin_debts__uuid__fin_operations__debt_uuid',
+  );
+
+  $$FinOperationsTableProcessedTableManager get finOperationsRefs {
+    final manager = $$FinOperationsTableTableManager(
+      $_db,
+      $_db.finOperations,
+    ).filter((f) => f.debtUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(_finOperationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinDebtsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinDebtsTable> {
+  $$FinDebtsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get closed => $composableBuilder(
+    column: $table.closed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CounterpartiesTableFilterComposer get counterpartyUuid {
+    final $$CounterpartiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableFilterComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> finOperationsRefs(
+    Expression<bool> Function($$FinOperationsTableFilterComposer f) f,
+  ) {
+    final $$FinOperationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.debtUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableFilterComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinDebtsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinDebtsTable> {
+  $$FinDebtsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get closed => $composableBuilder(
+    column: $table.closed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CounterpartiesTableOrderingComposer get counterpartyUuid {
+    final $$CounterpartiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinDebtsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinDebtsTable> {
+  $$FinDebtsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get openingDate => $composableBuilder(
+    column: $table.openingDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get closed =>
+      $composableBuilder(column: $table.closed, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$CounterpartiesTableAnnotationComposer get counterpartyUuid {
+    final $$CounterpartiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> finOperationsRefs<T extends Object>(
+    Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
+  ) {
+    final $$FinOperationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finOperations,
+      getReferencedColumn: (t) => t.debtUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinOperationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinDebtsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinDebtsTable,
+          FinDebtRow,
+          $$FinDebtsTableFilterComposer,
+          $$FinDebtsTableOrderingComposer,
+          $$FinDebtsTableAnnotationComposer,
+          $$FinDebtsTableCreateCompanionBuilder,
+          $$FinDebtsTableUpdateCompanionBuilder,
+          (FinDebtRow, $$FinDebtsTableReferences),
+          FinDebtRow,
+          PrefetchHooks Function({
+            bool counterpartyUuid,
+            bool finOperationsRefs,
+          })
+        > {
+  $$FinDebtsTableTableManager(_$LocalDatabase db, $FinDebtsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinDebtsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinDebtsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinDebtsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> counterpartyUuid = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int> openingBalance = const Value.absent(),
+                Value<String?> openingDate = const Value.absent(),
+                Value<bool> closed = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinDebtsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                counterpartyUuid: counterpartyUuid,
+                kind: kind,
+                openingBalance: openingBalance,
+                openingDate: openingDate,
+                closed: closed,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String counterpartyUuid,
+                required String kind,
+                Value<int> openingBalance = const Value.absent(),
+                Value<String?> openingDate = const Value.absent(),
+                Value<bool> closed = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinDebtsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                counterpartyUuid: counterpartyUuid,
+                kind: kind,
+                openingBalance: openingBalance,
+                openingDate: openingDate,
+                closed: closed,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinDebtsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({counterpartyUuid = false, finOperationsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (finOperationsRefs) db.finOperations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (counterpartyUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.counterpartyUuid,
+                                    referencedTable: $$FinDebtsTableReferences
+                                        ._counterpartyUuidTable(db),
+                                    referencedColumn: $$FinDebtsTableReferences
+                                        ._counterpartyUuidTable(db)
+                                        .uuid,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (finOperationsRefs)
+                        await $_getPrefetchedData<
+                          FinDebtRow,
+                          $FinDebtsTable,
+                          FinOperationRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinDebtsTableReferences
+                              ._finOperationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinDebtsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).finOperationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.debtUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinDebtsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinDebtsTable,
+      FinDebtRow,
+      $$FinDebtsTableFilterComposer,
+      $$FinDebtsTableOrderingComposer,
+      $$FinDebtsTableAnnotationComposer,
+      $$FinDebtsTableCreateCompanionBuilder,
+      $$FinDebtsTableUpdateCompanionBuilder,
+      (FinDebtRow, $$FinDebtsTableReferences),
+      FinDebtRow,
+      PrefetchHooks Function({bool counterpartyUuid, bool finOperationsRefs})
+    >;
+typedef $$FinOperationsTableCreateCompanionBuilder =
+    FinOperationsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String date,
+      required String type,
+      required int amount,
+      required String accountUuid,
+      Value<String?> toAccountUuid,
+      Value<String?> categoryUuid,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String?> assetUuid,
+      Value<int?> season,
+      Value<String?> counterpartyUuid,
+      Value<String?> employeeUuid,
+      Value<String?> debtUuid,
+      Value<String?> debtMove,
+      Value<String?> description,
+      Value<double?> quantity,
+      Value<String?> unit,
+      Value<String?> tag,
+      Value<String?> notes,
+      Value<String> source,
+      Value<String?> sourceRef,
+      Value<String?> createdBy,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$FinOperationsTableUpdateCompanionBuilder =
+    FinOperationsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> date,
+      Value<String> type,
+      Value<int> amount,
+      Value<String> accountUuid,
+      Value<String?> toAccountUuid,
+      Value<String?> categoryUuid,
+      Value<String?> directionUuid,
+      Value<String?> allocationKeyUuid,
+      Value<String?> assetUuid,
+      Value<int?> season,
+      Value<String?> counterpartyUuid,
+      Value<String?> employeeUuid,
+      Value<String?> debtUuid,
+      Value<String?> debtMove,
+      Value<String?> description,
+      Value<double?> quantity,
+      Value<String?> unit,
+      Value<String?> tag,
+      Value<String?> notes,
+      Value<String> source,
+      Value<String?> sourceRef,
+      Value<String?> createdBy,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$FinOperationsTableReferences
+    extends
+        BaseReferences<_$LocalDatabase, $FinOperationsTable, FinOperationRow> {
+  $$FinOperationsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $FinAccountsTable _accountUuidTable(_$LocalDatabase db) => db
+      .finAccounts
+      .createAlias('fin_operations__account_uuid__fin_accounts__uuid');
+
+  $$FinAccountsTableProcessedTableManager get accountUuid {
+    final $_column = $_itemColumn<String>('account_uuid')!;
+
+    final manager = $$FinAccountsTableTableManager(
+      $_db,
+      $_db.finAccounts,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinAccountsTable _toAccountUuidTable(_$LocalDatabase db) => db
+      .finAccounts
+      .createAlias('fin_operations__to_account_uuid__fin_accounts__uuid');
+
+  $$FinAccountsTableProcessedTableManager? get toAccountUuid {
+    final $_column = $_itemColumn<String>('to_account_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinAccountsTableTableManager(
+      $_db,
+      $_db.finAccounts,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_toAccountUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinCategoriesTable _categoryUuidTable(_$LocalDatabase db) => db
+      .finCategories
+      .createAlias('fin_operations__category_uuid__fin_categories__uuid');
+
+  $$FinCategoriesTableProcessedTableManager? get categoryUuid {
+    final $_column = $_itemColumn<String>('category_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinCategoriesTableTableManager(
+      $_db,
+      $_db.finCategories,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinDirectionsTable _directionUuidTable(_$LocalDatabase db) => db
+      .finDirections
+      .createAlias('fin_operations__direction_uuid__fin_directions__uuid');
+
+  $$FinDirectionsTableProcessedTableManager? get directionUuid {
+    final $_column = $_itemColumn<String>('direction_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinDirectionsTableTableManager(
+      $_db,
+      $_db.finDirections,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_directionUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinAllocationKeysTable _allocationKeyUuidTable(_$LocalDatabase db) =>
+      db.finAllocationKeys.createAlias(
+        'fin_operations__allocation_key_uuid__fin_allocation_keys__uuid',
+      );
+
+  $$FinAllocationKeysTableProcessedTableManager? get allocationKeyUuid {
+    final $_column = $_itemColumn<String>('allocation_key_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinAllocationKeysTableTableManager(
+      $_db,
+      $_db.finAllocationKeys,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_allocationKeyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinAssetsTable _assetUuidTable(_$LocalDatabase db) =>
+      db.finAssets.createAlias('fin_operations__asset_uuid__fin_assets__uuid');
+
+  $$FinAssetsTableProcessedTableManager? get assetUuid {
+    final $_column = $_itemColumn<String>('asset_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinAssetsTableTableManager(
+      $_db,
+      $_db.finAssets,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_assetUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $CounterpartiesTable _counterpartyUuidTable(_$LocalDatabase db) => db
+      .counterparties
+      .createAlias('fin_operations__counterparty_uuid__counterparties__uuid');
+
+  $$CounterpartiesTableProcessedTableManager? get counterpartyUuid {
+    final $_column = $_itemColumn<String>('counterparty_uuid');
+    if ($_column == null) return null;
+    final manager = $$CounterpartiesTableTableManager(
+      $_db,
+      $_db.counterparties,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_counterpartyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $EmployeesTable _employeeUuidTable(_$LocalDatabase db) => db.employees
+      .createAlias('fin_operations__employee_uuid__employees__uuid');
+
+  $$EmployeesTableProcessedTableManager? get employeeUuid {
+    final $_column = $_itemColumn<String>('employee_uuid');
+    if ($_column == null) return null;
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinDebtsTable _debtUuidTable(_$LocalDatabase db) =>
+      db.finDebts.createAlias('fin_operations__debt_uuid__fin_debts__uuid');
+
+  $$FinDebtsTableProcessedTableManager? get debtUuid {
+    final $_column = $_itemColumn<String>('debt_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinDebtsTableTableManager(
+      $_db,
+      $_db.finDebts,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_debtUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FinOperationsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinOperationsTable> {
+  $$FinOperationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get season => $composableBuilder(
+    column: $table.season,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debtMove => $composableBuilder(
+    column: $table.debtMove,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceRef => $composableBuilder(
+    column: $table.sourceRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FinAccountsTableFilterComposer get accountUuid {
+    final $$FinAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAccountsTableFilterComposer get toAccountUuid {
+    final $$FinAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toAccountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinCategoriesTableFilterComposer get categoryUuid {
+    final $$FinCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryUuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDirectionsTableFilterComposer get directionUuid {
+    final $$FinDirectionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableFilterComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableFilterComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableFilterComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAssetsTableFilterComposer get assetUuid {
+    final $$FinAssetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assetUuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableFilterComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CounterpartiesTableFilterComposer get counterpartyUuid {
+    final $$CounterpartiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableFilterComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableFilterComposer get employeeUuid {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDebtsTableFilterComposer get debtUuid {
+    final $$FinDebtsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtUuid,
+      referencedTable: $db.finDebts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDebtsTableFilterComposer(
+            $db: $db,
+            $table: $db.finDebts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinOperationsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinOperationsTable> {
+  $$FinOperationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get season => $composableBuilder(
+    column: $table.season,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debtMove => $composableBuilder(
+    column: $table.debtMove,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceRef => $composableBuilder(
+    column: $table.sourceRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FinAccountsTableOrderingComposer get accountUuid {
+    final $$FinAccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAccountsTableOrderingComposer get toAccountUuid {
+    final $$FinAccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toAccountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinCategoriesTableOrderingComposer get categoryUuid {
+    final $$FinCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryUuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDirectionsTableOrderingComposer get directionUuid {
+    final $$FinDirectionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableOrderingComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.allocationKeyUuid,
+      referencedTable: $db.finAllocationKeys,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAllocationKeysTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAssetsTableOrderingComposer get assetUuid {
+    final $$FinAssetsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assetUuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CounterpartiesTableOrderingComposer get counterpartyUuid {
+    final $$CounterpartiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableOrderingComposer get employeeUuid {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDebtsTableOrderingComposer get debtUuid {
+    final $$FinDebtsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtUuid,
+      referencedTable: $db.finDebts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDebtsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finDebts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinOperationsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinOperationsTable> {
+  $$FinOperationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<int> get season =>
+      $composableBuilder(column: $table.season, builder: (column) => column);
+
+  GeneratedColumn<String> get debtMove =>
+      $composableBuilder(column: $table.debtMove, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get tag =>
+      $composableBuilder(column: $table.tag, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceRef =>
+      $composableBuilder(column: $table.sourceRef, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$FinAccountsTableAnnotationComposer get accountUuid {
+    final $$FinAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAccountsTableAnnotationComposer get toAccountUuid {
+    final $$FinAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toAccountUuid,
+      referencedTable: $db.finAccounts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinCategoriesTableAnnotationComposer get categoryUuid {
+    final $$FinCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryUuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDirectionsTableAnnotationComposer get directionUuid {
+    final $$FinDirectionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.directionUuid,
+      referencedTable: $db.finDirections,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDirectionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finDirections,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinAllocationKeysTableAnnotationComposer get allocationKeyUuid {
+    final $$FinAllocationKeysTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.allocationKeyUuid,
+          referencedTable: $db.finAllocationKeys,
+          getReferencedColumn: (t) => t.uuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinAllocationKeysTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finAllocationKeys,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$FinAssetsTableAnnotationComposer get assetUuid {
+    final $$FinAssetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assetUuid,
+      referencedTable: $db.finAssets,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinAssetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finAssets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CounterpartiesTableAnnotationComposer get counterpartyUuid {
+    final $$CounterpartiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableAnnotationComposer get employeeUuid {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinDebtsTableAnnotationComposer get debtUuid {
+    final $$FinDebtsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtUuid,
+      referencedTable: $db.finDebts,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinDebtsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finDebts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FinOperationsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinOperationsTable,
+          FinOperationRow,
+          $$FinOperationsTableFilterComposer,
+          $$FinOperationsTableOrderingComposer,
+          $$FinOperationsTableAnnotationComposer,
+          $$FinOperationsTableCreateCompanionBuilder,
+          $$FinOperationsTableUpdateCompanionBuilder,
+          (FinOperationRow, $$FinOperationsTableReferences),
+          FinOperationRow,
+          PrefetchHooks Function({
+            bool accountUuid,
+            bool toAccountUuid,
+            bool categoryUuid,
+            bool directionUuid,
+            bool allocationKeyUuid,
+            bool assetUuid,
+            bool counterpartyUuid,
+            bool employeeUuid,
+            bool debtUuid,
+          })
+        > {
+  $$FinOperationsTableTableManager(
+    _$LocalDatabase db,
+    $FinOperationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinOperationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinOperationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinOperationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<String> accountUuid = const Value.absent(),
+                Value<String?> toAccountUuid = const Value.absent(),
+                Value<String?> categoryUuid = const Value.absent(),
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String?> assetUuid = const Value.absent(),
+                Value<int?> season = const Value.absent(),
+                Value<String?> counterpartyUuid = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> debtUuid = const Value.absent(),
+                Value<String?> debtMove = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<double?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<String?> tag = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> sourceRef = const Value.absent(),
+                Value<String?> createdBy = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinOperationsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                date: date,
+                type: type,
+                amount: amount,
+                accountUuid: accountUuid,
+                toAccountUuid: toAccountUuid,
+                categoryUuid: categoryUuid,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                assetUuid: assetUuid,
+                season: season,
+                counterpartyUuid: counterpartyUuid,
+                employeeUuid: employeeUuid,
+                debtUuid: debtUuid,
+                debtMove: debtMove,
+                description: description,
+                quantity: quantity,
+                unit: unit,
+                tag: tag,
+                notes: notes,
+                source: source,
+                sourceRef: sourceRef,
+                createdBy: createdBy,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String date,
+                required String type,
+                required int amount,
+                required String accountUuid,
+                Value<String?> toAccountUuid = const Value.absent(),
+                Value<String?> categoryUuid = const Value.absent(),
+                Value<String?> directionUuid = const Value.absent(),
+                Value<String?> allocationKeyUuid = const Value.absent(),
+                Value<String?> assetUuid = const Value.absent(),
+                Value<int?> season = const Value.absent(),
+                Value<String?> counterpartyUuid = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> debtUuid = const Value.absent(),
+                Value<String?> debtMove = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<double?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<String?> tag = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> sourceRef = const Value.absent(),
+                Value<String?> createdBy = const Value.absent(),
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => FinOperationsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                date: date,
+                type: type,
+                amount: amount,
+                accountUuid: accountUuid,
+                toAccountUuid: toAccountUuid,
+                categoryUuid: categoryUuid,
+                directionUuid: directionUuid,
+                allocationKeyUuid: allocationKeyUuid,
+                assetUuid: assetUuid,
+                season: season,
+                counterpartyUuid: counterpartyUuid,
+                employeeUuid: employeeUuid,
+                debtUuid: debtUuid,
+                debtMove: debtMove,
+                description: description,
+                quantity: quantity,
+                unit: unit,
+                tag: tag,
+                notes: notes,
+                source: source,
+                sourceRef: sourceRef,
+                createdBy: createdBy,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinOperationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                accountUuid = false,
+                toAccountUuid = false,
+                categoryUuid = false,
+                directionUuid = false,
+                allocationKeyUuid = false,
+                assetUuid = false,
+                counterpartyUuid = false,
+                employeeUuid = false,
+                debtUuid = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (accountUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.accountUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._accountUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._accountUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (toAccountUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.toAccountUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._toAccountUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._toAccountUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (categoryUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._categoryUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._categoryUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (directionUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.directionUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._directionUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._directionUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (allocationKeyUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.allocationKeyUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._allocationKeyUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._allocationKeyUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (assetUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.assetUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._assetUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._assetUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (counterpartyUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.counterpartyUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._counterpartyUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._counterpartyUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (employeeUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.employeeUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._employeeUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._employeeUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+                        if (debtUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.debtUuid,
+                                    referencedTable:
+                                        $$FinOperationsTableReferences
+                                            ._debtUuidTable(db),
+                                    referencedColumn:
+                                        $$FinOperationsTableReferences
+                                            ._debtUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinOperationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinOperationsTable,
+      FinOperationRow,
+      $$FinOperationsTableFilterComposer,
+      $$FinOperationsTableOrderingComposer,
+      $$FinOperationsTableAnnotationComposer,
+      $$FinOperationsTableCreateCompanionBuilder,
+      $$FinOperationsTableUpdateCompanionBuilder,
+      (FinOperationRow, $$FinOperationsTableReferences),
+      FinOperationRow,
+      PrefetchHooks Function({
+        bool accountUuid,
+        bool toAccountUuid,
+        bool categoryUuid,
+        bool directionUuid,
+        bool allocationKeyUuid,
+        bool assetUuid,
+        bool counterpartyUuid,
+        bool employeeUuid,
+        bool debtUuid,
+      })
+    >;
+typedef $$FinPayrollMappingTableCreateCompanionBuilder =
+    FinPayrollMappingCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String kind,
+      Value<String> value,
+      required String targetUuid,
+      Value<int> rowid,
+    });
+typedef $$FinPayrollMappingTableUpdateCompanionBuilder =
+    FinPayrollMappingCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> kind,
+      Value<String> value,
+      Value<String> targetUuid,
+      Value<int> rowid,
+    });
+
+class $$FinPayrollMappingTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinPayrollMappingTable> {
+  $$FinPayrollMappingTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetUuid => $composableBuilder(
+    column: $table.targetUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FinPayrollMappingTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinPayrollMappingTable> {
+  $$FinPayrollMappingTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetUuid => $composableBuilder(
+    column: $table.targetUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FinPayrollMappingTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinPayrollMappingTable> {
+  $$FinPayrollMappingTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<String> get targetUuid => $composableBuilder(
+    column: $table.targetUuid,
+    builder: (column) => column,
+  );
+}
+
+class $$FinPayrollMappingTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinPayrollMappingTable,
+          FinPayrollMappingRow,
+          $$FinPayrollMappingTableFilterComposer,
+          $$FinPayrollMappingTableOrderingComposer,
+          $$FinPayrollMappingTableAnnotationComposer,
+          $$FinPayrollMappingTableCreateCompanionBuilder,
+          $$FinPayrollMappingTableUpdateCompanionBuilder,
+          (
+            FinPayrollMappingRow,
+            BaseReferences<
+              _$LocalDatabase,
+              $FinPayrollMappingTable,
+              FinPayrollMappingRow
+            >,
+          ),
+          FinPayrollMappingRow,
+          PrefetchHooks Function()
+        > {
+  $$FinPayrollMappingTableTableManager(
+    _$LocalDatabase db,
+    $FinPayrollMappingTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinPayrollMappingTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinPayrollMappingTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinPayrollMappingTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<String> targetUuid = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinPayrollMappingCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                kind: kind,
+                value: value,
+                targetUuid: targetUuid,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String kind,
+                Value<String> value = const Value.absent(),
+                required String targetUuid,
+                Value<int> rowid = const Value.absent(),
+              }) => FinPayrollMappingCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                kind: kind,
+                value: value,
+                targetUuid: targetUuid,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FinPayrollMappingTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinPayrollMappingTable,
+      FinPayrollMappingRow,
+      $$FinPayrollMappingTableFilterComposer,
+      $$FinPayrollMappingTableOrderingComposer,
+      $$FinPayrollMappingTableAnnotationComposer,
+      $$FinPayrollMappingTableCreateCompanionBuilder,
+      $$FinPayrollMappingTableUpdateCompanionBuilder,
+      (
+        FinPayrollMappingRow,
+        BaseReferences<
+          _$LocalDatabase,
+          $FinPayrollMappingTable,
+          FinPayrollMappingRow
+        >,
+      ),
+      FinPayrollMappingRow,
+      PrefetchHooks Function()
+    >;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -12499,4 +27682,24 @@ class $LocalDatabaseManager {
       $$PendingChangesTableTableManager(_db, _db.pendingChanges);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
+  $$FinDirectionsTableTableManager get finDirections =>
+      $$FinDirectionsTableTableManager(_db, _db.finDirections);
+  $$FinAllocationKeysTableTableManager get finAllocationKeys =>
+      $$FinAllocationKeysTableTableManager(_db, _db.finAllocationKeys);
+  $$FinAllocationPeriodsTableTableManager get finAllocationPeriods =>
+      $$FinAllocationPeriodsTableTableManager(_db, _db.finAllocationPeriods);
+  $$FinAccountsTableTableManager get finAccounts =>
+      $$FinAccountsTableTableManager(_db, _db.finAccounts);
+  $$FinAssetsTableTableManager get finAssets =>
+      $$FinAssetsTableTableManager(_db, _db.finAssets);
+  $$FinCategoriesTableTableManager get finCategories =>
+      $$FinCategoriesTableTableManager(_db, _db.finCategories);
+  $$CounterpartiesTableTableManager get counterparties =>
+      $$CounterpartiesTableTableManager(_db, _db.counterparties);
+  $$FinDebtsTableTableManager get finDebts =>
+      $$FinDebtsTableTableManager(_db, _db.finDebts);
+  $$FinOperationsTableTableManager get finOperations =>
+      $$FinOperationsTableTableManager(_db, _db.finOperations);
+  $$FinPayrollMappingTableTableManager get finPayrollMapping =>
+      $$FinPayrollMappingTableTableManager(_db, _db.finPayrollMapping);
 }

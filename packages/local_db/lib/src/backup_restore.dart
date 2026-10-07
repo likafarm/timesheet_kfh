@@ -40,10 +40,14 @@ BackupFormat detectBackupFormat(String path) {
         .map((r) => r['name'] as String)
         .toSet();
     if (tables.contains('sync_state')) {
-      if (version != schemaVersionV2) {
+      // Копии старых схем обновляются при открытии (миграция drift),
+      // новее программы — не открыть.
+      if (version is! int ||
+          version < firstSchemaVersionV2 ||
+          version > currentSchemaVersion) {
         throw RestoreException(
-          'Копия схемы версии $version, программа понимает версию '
-          '$schemaVersionV2',
+          'Копия схемы версии $version, программа понимает версии '
+          '$firstSchemaVersionV2–$currentSchemaVersion',
         );
       }
       return BackupFormat.v2;
@@ -59,8 +63,12 @@ BackupFormat detectBackupFormat(String path) {
   }
 }
 
-/// Версия drift-схемы v2 (`LocalDatabase.schemaVersion`).
-const schemaVersionV2 = 1;
+/// Первая версия drift-схемы v2 (база v2 до финансов).
+const firstSchemaVersionV2 = 1;
+
+/// Текущая версия drift-схемы (`LocalDatabase.schemaVersion`; сверяет
+/// тест).
+const currentSchemaVersion = 2;
 
 /// Готовит из копии [backupPath] файл базы v2 [targetPath] для полной
 /// замены текущей. [deviceId] — id этого устройства: восстановленная база

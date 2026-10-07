@@ -147,4 +147,71 @@ void main() {
     );
     expect(File(v2Path()).existsSync(), isFalse);
   });
+
+  /// База схемы 1 (до финансов): текущая база без таблиц финансов.
+  Future<void> makeSchema1() async {
+    final db = await open();
+    await db.repos.employees.all();
+    await db.close();
+    opened = null;
+    final raw = sql.sqlite3.open(v2Path());
+    for (final table in financeTables.keys.toList().reversed) {
+      raw.execute('DROP TABLE $table');
+    }
+    raw.execute('PRAGMA user_version = 1');
+    raw.execute(
+      "INSERT INTO employees (uuid, full_name, position, hire_date, "
+      "base_rate, field_rate, updated_at, deleted) VALUES ('e1', "
+      "'Петров Пётр', 'Рабочий', '2025-01-01', 0, 0, "
+      "'2026-09-26T10:00:00.000Z', 0)",
+    );
+    raw.close();
+  }
+
+  List<String> upgradeCopies() => [
+    for (final f in Directory(dataDir).listSync().whereType<File>())
+      if (p.basename(f.path).startsWith(upgradeBackupPrefix)) f.path,
+  ];
+
+  test('база схемы 1: копия рядом, обновление до 2, данные на месте', () async {
+    await makeSchema1();
+    final db = await open();
+    expect(upgradeCopies(), hasLength(1));
+    final copy = sql.sqlite3.open(
+      upgradeCopies().single,
+      mode: sql.OpenMode.readOnly,
+    );
+    expect(copy.select('PRAGMA user_version').single.values.single, 1);
+    copy.close();
+    expect(databaseFileVersion(v2Path()), currentSchemaVersion);
+    expect((await db.repos.employees.all()).single.fullName, 'Петров Пётр');
+    expect(await db.repos.finance.accounts(), isEmpty);
+    expect(log.any((m) => m.contains('обновлением схемы 1 -> 2')), isTrue);
+
+    // Следующий запуск — копий больше не делается.
+    await db.close();
+    opened = null;
+    await open();
+    expect(upgradeCopies(), hasLength(1));
+  });
+
+  test('база от более новой версии программы не открывается', () async {
+    await (await open()).close();
+    opened = null;
+    final raw = sql.sqlite3.open(v2Path());
+    raw.execute('PRAGMA user_version = ${currentSchemaVersion + 1}');
+    raw.close();
+    await expectLater(
+      open(),
+      throwsA(
+        isA<DatabaseOpenException>().having(
+          (e) => e.message,
+          'message',
+          contains('более новой версией'),
+        ),
+      ),
+    );
+    expect(databaseFileVersion(v2Path()), currentSchemaVersion + 1);
+    expect(upgradeCopies(), isEmpty);
+  });
 }
