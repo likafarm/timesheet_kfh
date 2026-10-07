@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/day_draft.dart';
+import 'choice_buttons.dart';
 
 class DayMarkButton extends StatelessWidget {
   final DayMark mark;
@@ -30,35 +31,12 @@ class DayMarkButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final size = dense ? const Size(64, 36) : const Size(76, 48);
-    final padding = EdgeInsets.symmetric(horizontal: dense ? 8 : 10);
-    final label = Text(mark.label, style: const TextStyle(fontSize: 14));
-    final Widget button;
-    if (selected) {
-      button = FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: mark.color,
-          disabledBackgroundColor: mark.color.withValues(alpha: 0.5),
-          disabledForegroundColor: Colors.white,
-          minimumSize: size,
-          padding: padding,
-        ),
-        onPressed: onPressed,
-        child: label,
-      );
-    } else {
-      button = OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: mark.color,
-          minimumSize: size,
-          padding: padding,
-        ),
-        onPressed: onPressed,
-        child: label,
-      );
-    }
-    final hint = tooltip;
-    return hint == null ? button : Tooltip(message: hint, child: button);
-  }
+  Widget build(BuildContext context) => ChoiceButton(
+    label: mark.label,
+    color: mark.color,
+    selected: selected,
+    onPressed: onPressed,
+    dense: dense,
+    tooltip: tooltip,
+  );
 }
