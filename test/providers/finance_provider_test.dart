@@ -216,4 +216,55 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(fin.allOperations.map((o) => o.id), contains('op-9'));
   });
+
+  test('быстрый ввод: последние статьи, контрагенты и кошелёк', () async {
+    await DriftRepositories(
+      db,
+    ).finance.saveCounterparty(const Counterparty(id: 'cp-azs', name: 'АЗС'));
+    await DriftRepositories(db).finance.saveCounterparty(
+      const Counterparty(id: 'cp-shop', name: 'Магазин'),
+    );
+    await fin.load();
+    await fin.saveOperation(
+      FinOperation(
+        id: 'op-a',
+        date: DateTime(2026, 9, 1),
+        type: OperationType.expense,
+        amount: 100,
+        accountId: card,
+        categoryId: fuel,
+        counterpartyId: 'cp-azs',
+      ),
+    );
+    await fin.saveOperation(
+      FinOperation(
+        id: 'op-b',
+        date: DateTime(2026, 9, 5),
+        type: OperationType.expense,
+        amount: 100,
+        accountId: card,
+        categoryId: salary,
+        counterpartyId: 'cp-shop',
+      ),
+    );
+    expect(
+      fin.recentCategories(OperationType.expense).map((c) => c.id),
+      [salary, fuel],
+      reason: 'свежие сверху, выплаты ЗП не в счёт',
+    );
+    expect(fin.recentCategories(OperationType.income), isEmpty);
+    expect(
+      fin
+          .recentCounterparties(OperationType.expense, categoryId: fuel)
+          .map((c) => c.id),
+      ['cp-azs', 'cp-shop'],
+      reason: 'со статьёй — сначала её контрагенты',
+    );
+    expect(fin.lastAccount(OperationType.expense), card);
+    expect(
+      fin.lastAccount(OperationType.income),
+      fin.accounts.first.id,
+      reason: 'доходов не было — первый открытый кошелёк',
+    );
+  });
 }

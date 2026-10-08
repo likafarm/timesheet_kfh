@@ -208,6 +208,59 @@ class FinanceProvider extends ChangeNotifier {
   Map<String, int> debtBalancesAt([DateTime? at]) =>
       debtBalances(_debts, allOperations, at: at);
 
+  // ------------------------------------------- быстрый ввод (8.6)
+
+  /// Записанные вручную и импортированные операции вида [type], свежие
+  /// сверху (выплаты ЗП не в счёт — их не вводят здесь).
+  Iterable<FinOperation> _recent(OperationType type) =>
+      allOperations.where((o) => o.type == type && !isPayroll(o));
+
+  /// Последние статьи вида [type] (без скрытых), до [limit] штук.
+  List<FinCategory> recentCategories(OperationType type, {int limit = 8}) {
+    final result = <FinCategory>[];
+    for (final op in _recent(type)) {
+      final c = _catalog.categories[op.categoryId];
+      if (c == null || c.hidden || result.contains(c)) continue;
+      result.add(c);
+      if (result.length == limit) break;
+    }
+    return result;
+  }
+
+  /// Последние контрагенты операций вида [type]; со статьёй [categoryId] —
+  /// сначала те, что были с ней.
+  List<Counterparty> recentCounterparties(
+    OperationType type, {
+    String? categoryId,
+    int limit = 8,
+  }) {
+    final result = <Counterparty>[];
+    void add(Iterable<FinOperation> ops) {
+      for (final op in ops) {
+        final c = _catalog.counterparties[op.counterpartyId];
+        if (c == null || result.contains(c)) continue;
+        result.add(c);
+        if (result.length == limit) return;
+      }
+    }
+
+    if (categoryId != null) {
+      add(_recent(type).where((o) => o.categoryId == categoryId));
+    }
+    if (result.length < limit) add(_recent(type));
+    return result;
+  }
+
+  /// Кошелёк последней операции вида [type] (открытый); иначе — первый
+  /// открытый.
+  String? lastAccount(OperationType type) {
+    for (final op in _recent(type)) {
+      final a = _catalog.accounts[op.accountId];
+      if (a != null && !a.closed) return a.id;
+    }
+    return _accounts.where((a) => !a.closed).firstOrNull?.id;
+  }
+
   // --------------------------------------------------------- подписи
 
   String accountName(String? id) => _catalog.accounts[id]?.name ?? '—';

@@ -18,6 +18,7 @@ import '../widgets/common_widgets.dart';
 import '../widgets/finance_operation_dialog.dart';
 import '../widgets/month_switcher.dart';
 import 'finance_catalog_screen.dart';
+import 'finance_quick_screen.dart';
 
 class FinanceScreen extends StatelessWidget {
   const FinanceScreen({super.key});
@@ -87,12 +88,21 @@ class _FinanceViewState extends State<_FinanceView> {
     if (picked != null) _setMonth(picked);
   }
 
+  /// Новая операция: на телефоне без образца — быстрый ввод (8.6), иначе —
+  /// полное окно.
   Future<void> _add(FinanceProvider fin, {FinOperation? template}) async {
     final day = calendarDay(DateTime.now());
     if (!await ensureMonthOpen(context, day.year, day.month) || !mounted) {
       return;
     }
-    await showOperationDialog(context, fin, template: template);
+    final ok = template == null && MonthSwitcher.isCompact(context)
+        ? await openQuickOperation(context, fin)
+        : await showOperationDialog(context, fin, template: template);
+    if (ok && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Записано')));
+    }
   }
 
   Future<void> _edit(FinanceProvider fin, FinOperation op) async {
