@@ -145,6 +145,93 @@ void main() {
     expect(sync.pending, 0);
   });
 
+  test('телефон оператора: финансы догружаются один раз, когда сервер их '
+      'выдаёт (8.8.4)', () async {
+    server.role = 'operator';
+    server.serverVersion = '0.10.0';
+    final sync = provider(client: ClientKind.phone);
+    await sync.init();
+    await sync.signIn('https://localhost', 'oper', 'secret-pass');
+    await sync.link(await sync.analyzeLink());
+
+    Map<String, Object?> change(
+      String table,
+      String uuid,
+      Map<String, Object?> data,
+    ) => SyncChange(
+      table: table,
+      uuid: uuid,
+      updatedAt: DateTime.utc(2026, 10, 1),
+      deleted: false,
+      data: data,
+    ).toJson();
+    const account = '01900000-0000-7000-8000-0000000000a1';
+    const mine = '01900000-0000-7000-8000-0000000000b1';
+    const theirs = '01900000-0000-7000-8000-0000000000b2';
+    Map<String, Object?> op(String createdBy) => {
+      'legacy_id': null,
+      'date': '2026-10-01',
+      'type': 'expense',
+      'amount': 100,
+      'account_uuid': account,
+      'to_account_uuid': null,
+      'category_uuid': null,
+      'direction_uuid': null,
+      'allocation_key_uuid': null,
+      'asset_uuid': null,
+      'season': null,
+      'counterparty_uuid': null,
+      'employee_uuid': null,
+      'debt_uuid': null,
+      'debt_move': null,
+      'description': null,
+      'quantity': null,
+      'unit': null,
+      'tag': null,
+      'notes': null,
+      'source': 'manual',
+      'source_ref': null,
+      'created_by': createdBy,
+      'created_at': '2026-10-01T10:00:00.000Z',
+    };
+    server
+      ..put(
+        change('fin_accounts', account, {
+          'legacy_id': null,
+          'name': 'Касса',
+          'kind': 'cash',
+          'opening_balance': 0,
+          'opening_date': null,
+          'employee_uuid': null,
+          'closed': false,
+          'sort_order': 0,
+        }),
+      )
+      ..put(change('fin_operations', mine, op(SyncTestServer.userUuid)))
+      ..put(change('fin_operations', theirs, op('someone-else')));
+
+    // Старый сервер финансы оператору не выдаёт — отметки нет.
+    await sync.syncNow();
+    final ops = DriftRepositories(db).finance;
+    expect(await ops.operations(), isEmpty);
+    expect(
+      await db.syncStateDao.getValue(SyncProvider.operatorFinanceKey),
+      isNull,
+    );
+
+    // Сервер обновился: записи, пришедшие раньше, догружаются с нуля.
+    server.serverVersion = '0.11.0';
+    await sync.syncNow();
+    expect((await ops.operations()).map((o) => o.id), [mine]);
+    expect(
+      await db.syncStateDao.getValue(SyncProvider.operatorFinanceKey),
+      '1',
+    );
+    final pulls = server.pulls;
+    await sync.syncNow();
+    expect(server.pulls, pulls + 1, reason: 'догрузка — один раз');
+  });
+
   test('телефон (6.9): бухгалтер входит, первый вход — только приём', () async {
     server.role = 'accountant';
     final sync = provider(client: ClientKind.phone);

@@ -186,18 +186,85 @@ void main() {
     expect(fin.allOperations, hasLength(3));
   });
 
-  test('закрытый месяц и оператор — не записывается', () async {
+  test('закрытый месяц — не записывается', () async {
     await LocalSyncStore(db).saveLockedMonths([(2026, 9)]);
     await app.loadLockedMonths();
     expect(await fin.saveOperation(expense()), isFalse);
     expect(app.takeNotice(), contains('09.2026'));
+  });
+
+  test('автор новой операции — вошедший, у старой не меняется', () async {
+    app.userUuid = 'u-buh';
+    expect(await fin.saveOperation(expense()), isTrue);
+    final saved = fin.allOperations.firstWhere((o) => o.id == 'op-1');
+    expect(saved.createdBy, 'u-buh');
+    app.userUuid = 'u-admin';
+    expect(
+      await fin.saveOperation(expense(amount: 777), before: saved),
+      isTrue,
+    );
+    expect(
+      fin.allOperations.firstWhere((o) => o.id == 'op-1').createdBy,
+      'u-buh',
+    );
+  });
+
+  test('оператор: свои расходы и доходы, новые контрагенты (8.8.4)', () async {
+    // Чужая операция (бухгалтера) уже есть.
+    app.userUuid = 'u-buh';
+    expect(await fin.saveOperation(expense(id: 'op-buh')), isTrue);
 
     app.operatorMode = true;
+    app.userUuid = 'u-oper';
+    await fin.load();
+    expect(fin.allOperations, isEmpty, reason: 'ни чужих, ни выплат ЗП');
+
+    expect(await fin.saveOperation(expense(id: 'op-mine')), isTrue);
+    expect(fin.allOperations.map((o) => o.id), ['op-mine']);
+    expect(fin.allOperations.single.createdBy, 'u-oper');
+
+    // Перевод — нельзя.
+    final transfer = FinOperation(
+      id: 'op-t',
+      date: DateTime(2026, 9, 10),
+      type: OperationType.transfer,
+      amount: 100,
+      accountId: cash,
+      toAccountId: card,
+    );
+    expect(await fin.saveOperation(transfer), isFalse);
+    expect(app.takeNotice(), contains('только расходы и доходы'));
+
+    // Чужую — не исправить и не удалить.
+    final buh = (await DriftRepositories(
+      db,
+    ).finance.operations()).firstWhere((o) => o.id == 'op-buh');
     expect(
-      await fin.saveOperation(expense(date: DateTime(2026, 10, 1))),
+      await fin.saveOperation(expense(id: 'op-buh', amount: 1), before: buh),
       isFalse,
     );
-    expect(app.takeNotice(), contains('Оператор'));
+    expect(await fin.deleteOperation(buh), isFalse);
+    expect(app.takeNotice(), contains('только свои'));
+
+    // Справочники — нельзя, нового контрагента — можно.
+    expect(
+      await fin.saveAccount(
+        const FinAccount(id: 'a-new', name: 'Сейф', kind: AccountKind.cash),
+      ),
+      isFalse,
+    );
+    expect(
+      await fin.saveCounterparty(const Counterparty(id: 'cp-1', name: 'АЗС')),
+      isTrue,
+    );
+    expect(
+      await fin.saveCounterparty(const Counterparty(id: 'cp-1', name: 'АЗС-2')),
+      isFalse,
+    );
+
+    // Своя — удаляется.
+    expect(await fin.deleteOperation(fin.allOperations.single), isTrue);
+    expect(fin.allOperations, isEmpty);
   });
 
   test('используемую статью не удалить, неиспользуемую — можно', () async {

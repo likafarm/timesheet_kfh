@@ -99,7 +99,13 @@ void main() {
       find.byType(BottomNavigationBar),
     );
     // 6.10: раздела «День» нет — ввод за день кнопкой в заголовке табеля.
-    expect(bar.items.map((i) => i.label), ['Табель', 'Сотрудники', 'Сервер']);
+    // 8.8.4: свои расходы и доходы — «Финансы».
+    expect(bar.items.map((i) => i.label), [
+      'Табель',
+      'Финансы',
+      'Сотрудники',
+      'Сервер',
+    ]);
     expect(bar.currentIndex, 0);
     expect(find.byTooltip('Ввод за день'), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);

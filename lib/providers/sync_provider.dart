@@ -10,7 +10,7 @@ import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart'
-    show PlatformVersion, compareVersions, syncTables;
+    show PlatformVersion, compareVersions, operatorFinanceReadable, syncTables;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -72,6 +72,15 @@ class SyncProvider extends ChangeNotifier {
   /// `full`. Нет ключа — база принята до 6.9, когда на телефоне был только
   /// оператор.
   static const dataRoleKey = 'sync_data_role';
+
+  /// Ключ в `sync_state` (8.8.4): телефон оператора один раз догрузил с
+  /// нуля справочники финансов и свои операции. До сервера 0.11.0
+  /// оператору их не выдавали, а программа уже считала эти таблицы
+  /// полученными.
+  static const operatorFinanceKey = 'sync_operator_finance';
+
+  /// Сервер, который выдаёт оператору финансы.
+  static const operatorFinanceServerVersion = '0.11.0';
 
   static String _dataRole(SessionUser user) =>
       user.isOperator ? 'operator' : 'full';
@@ -657,6 +666,7 @@ class SyncProvider extends ChangeNotifier {
           variables: [Variable<String>(relinkKey)],
         );
       }
+      await _catchUpOperatorFinance(report);
       await _succeeded(report);
       return report;
     } on SyncFailure catch (e) {
@@ -668,6 +678,24 @@ class SyncProvider extends ChangeNotifier {
     } finally {
       _syncing = false;
       await refreshPending();
+    }
+  }
+
+  /// Телефон оператора: финансы с нуля — один раз, когда сервер их уже
+  /// выдаёт. Сбой не мешает: повторится при следующей синхронизации.
+  Future<void> _catchUpOperatorFinance(SyncReport report) async {
+    if (_user?.isOperator != true) return;
+    if (await _db.syncStateDao.getValue(operatorFinanceKey) == '1') return;
+    try {
+      final version = await _api!.serverVersion();
+      if (version == null ||
+          compareVersions(version, operatorFinanceServerVersion) < 0) {
+        return;
+      }
+      report.received += await _syncEngine.refetch(operatorFinanceReadable);
+      await _db.syncStateDao.setValue(operatorFinanceKey, '1');
+    } on SyncFailure catch (e) {
+      debugPrint('sync: финансы оператора не догружены: ${e.message}');
     }
   }
 

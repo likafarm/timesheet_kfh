@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:kfh_domain/kfh_domain.dart' show operatorFinanceReadable;
 
 /// Сервер для тестов интерфейса синхронизации (через `MockClient`): вход,
 /// смена пароля, push (всё принимает) и pull. Правила синхронизации
@@ -13,6 +14,16 @@ class SyncTestServer {
   bool sessionExpired = false;
   final rows = <String, Map<String, Object?>>{};
   final log = <String>[];
+
+  /// uuid вошедшего.
+  static const userUuid = '01900000-0000-7000-8000-000000000001';
+
+  /// Запись, внесённая на сервер «другим устройством».
+  void put(Map<String, Object?> change) {
+    final key = '${change['table']}/${change['uuid']}';
+    rows[key] = {...change}..remove('change_id');
+    log.add(key);
+  }
 
   /// Ответ `GET /client/version` (null — старый сервер без этого адреса).
   Map<String, Object?>? versions;
@@ -64,7 +75,7 @@ class SyncTestServer {
         .toUtc()
         .toIso8601String(),
     'user': {
-      'uuid': '01900000-0000-7000-8000-000000000001',
+      'uuid': userUuid,
       'login': 'ivan',
       'full_name': 'Иван Иванов',
       'role': role,
@@ -169,13 +180,24 @@ class SyncTestServer {
         if (failPull) return _error(400, 'bad_request', 'Приём недоступен');
         final cursor = int.parse(r.url.queryParameters['cursor'] ?? '0');
         // Как сервер: оператор получает только сотрудников (без ставок) и
-        // табель; `tables` — отбор таблиц (6.10).
+        // табель, с 0.11.0 — ещё справочники финансов и свои операции;
+        // `tables` — отбор таблиц (6.10).
         final tables = r.url.queryParameters['tables']?.split(',').toSet();
-        bool readable(String table) =>
-            (role != 'operator' ||
-                table == 'employees' ||
-                table == 'timesheet') &&
-            (tables == null || tables.contains(table));
+        final operatorFinance =
+            !serverVersion.startsWith('0.') ||
+            int.parse(serverVersion.split('.')[1]) >= 11;
+        bool readable(Map<String, Object?> row) {
+          final table = row['table'] as String;
+          final data = row['data'] as Map<String, Object?>;
+          return (role != 'operator' ||
+                  table == 'employees' ||
+                  table == 'timesheet' ||
+                  (operatorFinance &&
+                      operatorFinanceReadable.contains(table) &&
+                      (table != 'fin_operations' ||
+                          data['created_by'] == userUuid))) &&
+              (tables == null || tables.contains(table));
+        }
         final keys = log.skip(cursor).toSet();
         Map<String, Object?> hide(Map<String, Object?> row) =>
             role == 'operator' && row['table'] == 'employees'
@@ -194,7 +216,7 @@ class SyncTestServer {
           'has_more': false,
           'changes': [
             for (final k in keys)
-              if (readable(rows[k]!['table'] as String)) hide(rows[k]!),
+              if (readable(rows[k]!)) hide(rows[k]!),
           ],
         });
     }

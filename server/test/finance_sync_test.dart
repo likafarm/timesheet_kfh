@@ -17,6 +17,7 @@ void main() {
   late Handler handler;
   late Map<Role, String> tokens;
   late String adminUuid;
+  late Map<Role, String> uuids;
 
   DateTime at(int minutesAgo) =>
       DateTime.now().toUtc().subtract(Duration(minutes: minutesAgo));
@@ -45,6 +46,7 @@ void main() {
       password: 'admin-pass-1',
     );
     adminUuid = admin.uuid;
+    uuids = {Role.admin: admin.uuid};
     tokens = {
       Role.admin: (await auth.login(
         'admin',
@@ -53,7 +55,7 @@ void main() {
       )).accessToken,
     };
     for (final role in [Role.accountant, Role.operator]) {
-      await auth.createUser(
+      final user = await auth.createUser(
         admin,
         login: role.name,
         fullName: role.name,
@@ -61,6 +63,7 @@ void main() {
         password: 'temp-pass-1',
         info: const RequestInfo(),
       );
+      uuids[role] = user.uuid;
       await auth.setPasswordFromConsole(role.name, 'real-pass-1');
       tokens[role] = (await auth.login(
         role.name,
@@ -191,7 +194,9 @@ void main() {
     String? debtMove,
     int amount = 150000,
     String date = '2026-09-10',
-  }) => row('fin_operations', id, {
+    String? createdBy = 'buh',
+    DateTime? updatedAt,
+  }) => row('fin_operations', id, updatedAt: updatedAt, {
     'date': date,
     'type': type,
     'amount': amount,
@@ -213,7 +218,7 @@ void main() {
     'notes': null,
     'source': 'manual',
     'source_ref': null,
-    'created_by': 'buh',
+    'created_by': createdBy,
     'created_at': '2026-09-10T12:00:00.000',
   });
 
@@ -366,17 +371,133 @@ void main() {
       skip: mysqlSkip,
     );
 
-    test('оператор финансы не пишет и не получает', () async {
-      final (_, cash, _, fuel) = await catalog();
-      final results = await push([
-        operation(uuid(), cash, categoryId: fuel),
-      ], role: Role.operator);
-      expect(results.single['code'], 'forbidden');
-      final pulled = await pull(tables: all, role: Role.operator);
+  });
+
+  group('оператор (сервер 0.11.0)', () {
+    test('видит справочники без остатков и только свои операции', () async {
+      final (_, cash, bank, fuel) = await catalog();
+      final me = uuids[Role.operator]!;
+      final mine = uuid(), theirs = uuid();
       expect(
-        pulled.map((c) => c['table']).toSet(),
-        everyElement(isIn({'employees', 'timesheet'})),
+        statuses(
+          await push([
+            operation(mine, cash, categoryId: fuel, createdBy: me),
+          ], role: Role.operator),
+        ),
+        ['applied'],
       );
+      await push([operation(theirs, cash, categoryId: fuel)]);
+      final pulled = await pull(tables: all, role: Role.operator);
+      final tables = pulled.map((c) => c['table']).toSet();
+      expect(tables, isNot(contains('fin_debts')));
+      expect(tables, isNot(contains('payments')));
+      final ops = [
+        for (final c in pulled)
+          if (c['table'] == 'fin_operations') c['uuid'],
+      ];
+      expect(ops, [mine]);
+      final bankRow = pulled.firstWhere((c) => c['uuid'] == bank);
+      expect(bankRow['data']['opening_balance'], 0);
+      expect(bankRow['data']['opening_date'], '2025-01-01');
+      // Бухгалтер видит обе и настоящий остаток.
+      final full = await pull(tables: all);
+      expect(
+        full.where((c) => c['table'] == 'fin_operations').length,
+        2,
+      );
+      expect(
+        full.firstWhere((c) => c['uuid'] == bank)['data']['opening_balance'],
+        2900301,
+      );
+    }, skip: mysqlSkip);
+
+    test('чужие операции, переводы и чужие контрагенты — отказ', () async {
+      final (_, cash, bank, fuel) = await catalog();
+      final me = uuids[Role.operator]!;
+      final theirs = uuid(), cp = uuid(), mine = uuid();
+      await push([
+        operation(theirs, cash, categoryId: fuel, updatedAt: at(30)),
+        row('counterparties', cp, {
+          'name': 'Нефтебаза',
+          'kind': 'supplier',
+          'inn': null,
+          'phone': null,
+          'employee_uuid': null,
+          'notes': null,
+        }, updatedAt: at(30)),
+      ]);
+      final results = await push([
+        // Чужую — нельзя ни править, ни удалять.
+        operation(theirs, cash, categoryId: fuel, createdBy: me),
+        operation(theirs, cash, categoryId: fuel, createdBy: 'buh'),
+        // От чужого имени и перевод — нельзя.
+        operation(uuid(), cash, categoryId: fuel, createdBy: 'buh'),
+        operation(
+          uuid(),
+          cash,
+          type: 'transfer',
+          toAccountId: bank,
+          createdBy: me,
+        ),
+        // Существующего контрагента править нельзя, нового завести можно.
+        row('counterparties', cp, {
+          'name': 'Нефтебаза ООО',
+          'kind': 'supplier',
+          'inn': null,
+          'phone': null,
+          'employee_uuid': null,
+          'notes': null,
+        }),
+        row('counterparties', uuid(), {
+          'name': 'Магазин',
+          'kind': 'supplier',
+          'inn': null,
+          'phone': null,
+          'employee_uuid': null,
+          'notes': null,
+        }),
+        operation(mine, cash, categoryId: fuel, createdBy: me),
+      ], role: Role.operator);
+      expect(statuses(results), [
+        'rejected',
+        'rejected',
+        'rejected',
+        'rejected',
+        'rejected',
+        'applied',
+        'applied',
+      ], reason: '$results');
+      expect(
+        results.take(5).map((r) => r['code']),
+        everyElement('forbidden'),
+      );
+      // Своя — правится и удаляется.
+      final again = await push([
+        operation(mine, cash, categoryId: fuel, createdBy: me, amount: 99),
+      ], role: Role.operator);
+      expect(statuses(again), ['applied']);
+      final gone = await push([
+        row(
+          'fin_operations',
+          mine,
+          {
+            ...(SyncChange.fromJson(
+              operation(mine, cash, categoryId: fuel, createdBy: me),
+            ).data),
+          },
+          deleted: true,
+          updatedAt: at(0),
+        ),
+      ], role: Role.operator);
+      expect(statuses(gone), ['applied']);
+    }, skip: mysqlSkip);
+
+    test('остальное финансов оператор не пишет', () async {
+      final results = await push([
+        account(uuid(), 'Касса 2'),
+        direction(uuid(), 'Пчёлы'),
+      ], role: Role.operator);
+      expect(results.map((r) => r['code']), everyElement('forbidden'));
     }, skip: mysqlSkip);
   });
 

@@ -112,7 +112,10 @@ class _MyAppState extends State<MyApp> {
     // добавлен раньше экранов — режим меняется до их перестройки.
     _sync.addListener(() {
       final user = _sync.user;
-      if (user != null) _app.operatorMode = user.isOperator;
+      if (user != null) {
+        _app.operatorMode = user.isOperator;
+        _app.userUuid = user.uuid;
+      }
     });
     platform.guardPageClose?.call(() => _sync.pending > 0);
     _app.beforeDatabaseReplaced = _sync.suspend;

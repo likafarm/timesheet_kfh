@@ -9,6 +9,7 @@ export 'src/finance/calc.dart';
 export 'src/finance/catalog.dart';
 export 'src/finance/models.dart';
 export 'src/finance/money.dart';
+export 'src/finance/operator_rules.dart';
 export 'src/finance/payroll_expenses.dart';
 export 'src/finance/report.dart';
 export 'src/finance/rules.dart';

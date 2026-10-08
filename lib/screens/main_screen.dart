@@ -81,7 +81,8 @@ class MainScreen extends StatefulWidget {
   ];
 
   /// Разделы программы оператора (телефон). 6.10: первый — табель, ввод
-  /// за день — кнопкой в его заголовке, как в полной программе.
+  /// за день — кнопкой в его заголовке, как в полной программе. 8.8.4:
+  /// «Финансы» — свои расходы и доходы.
   static List<NavigationItem> operatorSections() => [
     NavigationItem(
       section: AppSection.timesheet,
@@ -89,6 +90,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.calendar_today,
       label: 'Табель',
       screen: const TimesheetScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.finance,
+      icon: Icons.account_balance_wallet_outlined,
+      selectedIcon: Icons.account_balance_wallet,
+      label: 'Финансы',
+      screen: const FinanceScreen(),
     ),
     NavigationItem(
       section: AppSection.employees,

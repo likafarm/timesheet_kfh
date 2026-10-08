@@ -379,8 +379,11 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
                   for (final t in [
                     OperationType.expense,
                     OperationType.income,
-                    OperationType.transfer,
-                    OperationType.debt,
+                    // Оператор (8.8.4) вносит только расходы и доходы.
+                    if (!fin.operator) ...[
+                      OperationType.transfer,
+                      OperationType.debt,
+                    ],
                   ])
                     ChoiceOption(t, t.title, operationTypeColors[t]!),
                 ],

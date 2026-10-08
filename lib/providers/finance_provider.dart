@@ -101,11 +101,20 @@ class FinanceProvider extends ChangeNotifier {
 
   /// Все операции: записанные и расходы ЗП из выплат табеля (только
   /// чтение — правятся в «Выплатах»), новые сверху.
+  ///
+  /// Оператору (8.8.4) — только свои операции, без выплат ЗП.
   List<FinOperation> get allOperations =>
-      [..._manual, ..._payroll]..sort((a, b) {
-        final byDate = b.date.compareTo(a.date);
-        return byDate != 0 ? byDate : b.id.compareTo(a.id);
-      });
+      (operator
+            ? [
+                for (final op in _manual)
+                  if (operatorSeesOperation(op.createdBy, _app.userUuid ?? ''))
+                    op,
+              ]
+            : [..._manual, ..._payroll])
+        ..sort((a, b) {
+          final byDate = b.date.compareTo(a.date);
+          return byDate != 0 ? byDate : b.id.compareTo(a.id);
+        });
 
   /// Операция построена из выплаты табеля ([payrollExpenses]).
   static bool isPayroll(FinOperation op) =>
@@ -396,10 +405,17 @@ class FinanceProvider extends ChangeNotifier {
   /// Записать операцию (новую или изменённую [before]); false — не
   /// записано, объяснение — внизу окна.
   Future<bool> saveOperation(FinOperation op, {FinOperation? before}) async {
-    if (!_allowed()) return false;
+    _lastProblem = null;
     if (isPayroll(op)) {
       return _fail('Выплата ЗП правится в «Выплатах»');
     }
+    // Автор — вошедший (новая операция); у старой автор не меняется.
+    if (before == null && op.createdBy == null) {
+      op = op.copyWith(createdBy: _app.userUuid);
+    } else if (before != null) {
+      op = op.copyWith(createdBy: before.createdBy);
+    }
+    if (!_operatorMay(op, before: before)) return false;
     final problem = operationProblem(op, _catalog, before: before);
     if (problem != null) return _refuse(problem);
     if (!_open(
@@ -419,10 +435,11 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteOperation(FinOperation op) async {
-    if (!_allowed()) return false;
+    _lastProblem = null;
     if (isPayroll(op)) {
       return _fail('Выплата ЗП удаляется в «Выплатах»');
     }
+    if (!_operatorMay(op, before: op)) return false;
     if (!_open('fin_operations', _opRow(op), null)) return false;
     return _write(() => _repo.deleteOperation(op.id));
   }
@@ -521,7 +538,17 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   Future<bool> saveCounterparty(Counterparty c) async {
-    if (!_allowed()) return false;
+    if (operator) {
+      _lastProblem = null;
+      if (_catalog.counterparties.containsKey(c.id)) {
+        return _fail(
+          'Оператор только заводит новых контрагентов — исправляют '
+          'бухгалтер и администратор.',
+        );
+      }
+    } else if (!_allowed()) {
+      return false;
+    }
     if (c.name.trim().isEmpty) return _refuse('У контрагента нет названия');
     return _write(() => _repo.saveCounterparty(c));
   }
@@ -651,13 +678,33 @@ class FinanceProvider extends ChangeNotifier {
   /// Отказ окна правки (поле не разобрано) — как отказ проверки.
   bool reject(String message) => _refuse(message);
 
+  /// Финансы оператора (8.8.4): свои расходы и доходы и новые контрагенты.
+  bool get operator => _app.operatorMode;
+
+  /// Справочники, переводы и займы — бухгалтер и администратор.
   bool _allowed() {
     _lastProblem = null;
-    if (!_app.operatorMode) return true;
+    if (!operator) return true;
     return _fail(
-      'Оператор вводит только табель — финансы ведут бухгалтер и '
-      'администратор.',
+      'Оператор вносит только свои расходы и доходы — справочники, '
+      'переводы и займы ведут бухгалтер и администратор.',
     );
+  }
+
+  /// Правило сервера для оператора: только свои операции, только доходы и
+  /// расходы.
+  bool _operatorMay(FinOperation op, {FinOperation? before}) {
+    if (!operator) return true;
+    final user = _app.userUuid;
+    if (user == null) return _fail('Войдите на сервер — тогда можно вносить');
+    final problem = operatorOperationProblem(
+      userUuid: user,
+      exists: before != null,
+      existingCreatedBy: before?.createdBy,
+      type: op.type.code,
+      createdBy: op.createdBy,
+    );
+    return problem == null || _fail(problem);
   }
 
   bool _open(

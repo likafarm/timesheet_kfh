@@ -199,6 +199,11 @@ class SyncService {
             _sameData(table, change.data, existing.data);
         return same ? result('duplicate') : result('stale');
       }
+      final forbidden = _operatorProblem(user, change, existing);
+      if (forbidden != null) {
+        await sql('RELEASE SAVEPOINT sync_change');
+        return result('rejected', code: 'forbidden', message: forbidden);
+      }
       final problem = change.table == 'timesheet' && !change.deleted
           ? timesheetRowProblem(change.data)
           : null;
@@ -268,6 +273,29 @@ class SyncService {
       return result('rejected',
           code: rejected.$1, message: rejected.$2, conflictUuid: rejected.$3);
     }
+  }
+
+  /// Оператор в финансах (0.11.0): свои операции (только доходы и
+  /// расходы) и новые контрагенты; null — можно.
+  static String? _operatorProblem(
+      User user, SyncChange change, SyncChange? existing) {
+    if (user.role != Role.operator) return null;
+    switch (change.table) {
+      case 'fin_operations':
+        return operatorOperationProblem(
+          userUuid: user.uuid,
+          exists: existing != null,
+          existingCreatedBy: existing?.data['created_by'] as String?,
+          type: change.data['type'] as String? ?? '',
+          createdBy: change.data['created_by'] as String?,
+        );
+      case 'counterparties':
+        return existing == null
+            ? null
+            : 'Оператор только заводит новых контрагентов — исправляют '
+                'бухгалтер и администратор';
+    }
+    return null;
   }
 
   /// Ошибка MySQL, которая значит «эта запись не подходит» (а не «сломался
@@ -430,7 +458,8 @@ class SyncService {
         // Колонки, которых программа не знает (спросила без их таблицы).
         final unknown = unknownColumnsFor(table, asked);
         for (final row in await _rows.readMany(sql, table, uuids)) {
-          var out = hidden.isEmpty ? row : _hide(row, hidden);
+          if (!rowVisible(user, row)) continue;
+          var out = hidden.isEmpty ? row : _hide(table, row, hidden);
           if (unknown.isNotEmpty) out = _without(out, unknown);
           changes.add((
             syncTableOrder(table.name),
@@ -459,7 +488,15 @@ class SyncService {
         },
       );
 
-  static SyncChange _hide(SyncChange row, Set<String> hidden) => SyncChange(
+  /// Скрытое поле: пустое, если может быть пустым, иначе ноль.
+  static Object? _hidden(SyncTable table, String column) {
+    final c = table.column(column);
+    if (c == null || c.nullable) return null;
+    return c.type == SyncType.integer ? 0 : 0.0;
+  }
+
+  static SyncChange _hide(SyncTable table, SyncChange row, Set<String> hidden) =>
+      SyncChange(
         table: row.table,
         uuid: row.uuid,
         updatedAt: row.updatedAt,
@@ -467,7 +504,7 @@ class SyncService {
         editedBy: row.editedBy,
         data: {
           for (final e in row.data.entries)
-            e.key: hidden.contains(e.key) ? 0.0 : e.value,
+            e.key: hidden.contains(e.key) ? _hidden(table, e.key) : e.value,
         },
       );
 }

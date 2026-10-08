@@ -437,7 +437,7 @@ class _FinanceViewState extends State<_FinanceView> {
           if (t.transfers != 0) item('Переводы', t.transfers),
           if (t.debtIn != 0 || t.debtOut != 0)
             item('Займы: пришло / ушло', t.debtIn - t.debtOut),
-          if (accountId != null)
+          if (accountId != null && !fin.operator)
             item(
               'Остаток «${fin.accountName(accountId)}» на '
               '${DateFormat('dd.MM.yyyy').format(monthEnd)}',
@@ -609,12 +609,19 @@ class _FinanceViewState extends State<_FinanceView> {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        '${_signed(op)} ₽',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: operationTypeColors[op.type],
-        ),
+      // Сумма и меню (изменить, повторить, удалить) — 8.8.4.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${_signed(op)} ₽',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: operationTypeColors[op.type],
+            ),
+          ),
+          _menu(fin, op),
+        ],
       ),
       onTap: () => _edit(fin, op),
       onLongPress: FinanceProvider.isPayroll(op)
@@ -630,7 +637,7 @@ class _FinanceViewState extends State<_FinanceView> {
     final ops = fin.loaded ? fin.operations(_filter) : const <FinOperation>[];
     final appBar = monthAppBar(
       context,
-      title: 'Финансы',
+      title: fin.operator ? 'Мои расходы и доходы' : 'Финансы',
       switcher: MonthSwitcher(
         month: _month,
         onPrevious: () => _setMonth(DateTime(_month.year, _month.month - 1)),
@@ -646,39 +653,43 @@ class _FinanceViewState extends State<_FinanceView> {
             onPressed: fin.loaded ? () => _add(fin) : null,
           ),
       ],
+      // Оператор (8.8.4): только свои операции — без остатков, отчётов,
+      // сверки, выгрузки и справочников.
       menu: [
-        AppBarMenuItem(
-          Icons.account_balance_wallet_outlined,
-          'Остатки',
-          fin.loaded ? () => _openBalances(fin) : null,
-        ),
-        AppBarMenuItem(
-          Icons.calendar_view_month,
-          'По месяцам',
-          fin.loaded ? () => _openReport(fin) : null,
-        ),
-        AppBarMenuItem(
-          Icons.agriculture_outlined,
-          'Себестоимость кормов',
-          fin.loaded
-              ? () => _openReport(fin, mode: FinanceReportMode.season)
-              : null,
-        ),
-        AppBarMenuItem(
-          Icons.fact_check_outlined,
-          'Сверка остатка',
-          fin.loaded ? () => _reconcile(fin) : null,
-        ),
-        AppBarMenuItem(
-          Icons.table_view,
-          'Выгрузить в Excel',
-          fin.loaded ? () => _export(fin) : null,
-        ),
-        AppBarMenuItem(
-          Icons.menu_book_outlined,
-          'Справочники и займы',
-          fin.loaded ? () => _openCatalog(fin) : null,
-        ),
+        if (!fin.operator) ...[
+          AppBarMenuItem(
+            Icons.account_balance_wallet_outlined,
+            'Остатки',
+            fin.loaded ? () => _openBalances(fin) : null,
+          ),
+          AppBarMenuItem(
+            Icons.calendar_view_month,
+            'По месяцам',
+            fin.loaded ? () => _openReport(fin) : null,
+          ),
+          AppBarMenuItem(
+            Icons.agriculture_outlined,
+            'Себестоимость кормов',
+            fin.loaded
+                ? () => _openReport(fin, mode: FinanceReportMode.season)
+                : null,
+          ),
+          AppBarMenuItem(
+            Icons.fact_check_outlined,
+            'Сверка остатка',
+            fin.loaded ? () => _reconcile(fin) : null,
+          ),
+          AppBarMenuItem(
+            Icons.table_view,
+            'Выгрузить в Excel',
+            fin.loaded ? () => _export(fin) : null,
+          ),
+          AppBarMenuItem(
+            Icons.menu_book_outlined,
+            'Справочники и займы',
+            fin.loaded ? () => _openCatalog(fin) : null,
+          ),
+        ],
         AppBarMenuItem(Icons.refresh, 'Обновить', fin.load),
       ],
     );

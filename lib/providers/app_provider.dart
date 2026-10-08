@@ -28,6 +28,17 @@ class AppProvider extends ChangeNotifier {
     if (!value) loadEmployees();
   }
 
+  /// uuid вошедшего пользователя сервера (автор операций финансов,
+  /// 8.8.4); null — вход не выполнен.
+  String? get userUuid => _userUuid;
+  String? _userUuid;
+
+  set userUuid(String? value) {
+    if (value == _userUuid) return;
+    _userUuid = value;
+    notifyListeners();
+  }
+
   /// Меняется при полном восстановлении из копии (база переоткрывается).
   AppDatabase _appDb;
   final LocalBackups? _backupService;
