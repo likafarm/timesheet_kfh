@@ -282,15 +282,17 @@ for kind, sheet, tname, g, a, who, wal in (
         assert rule, f"нет правила: {kind} {r[g]} / {r[a]} / {text}"
         if rule[4] == "статья":
             cat = cat_index[(kind, rule[5])]
-            direction = DIRS[rule[6] or cat[3]]
+            code = rule[6] or cat[3]
+            direction = DIRS[code]
             new, group_new, vid = rule[5], cat[1], cat[4]
         else:
-            new, group_new, direction, vid = "→ реестр долгов", "", "", ""
+            new, group_new, direction, vid, code = "→ реестр долгов", "", "", "", ""
         rows.append(dict(kind=kind, sheet=sheet, row=r["_row"], date=r["Дата"], who=s(r[who]), goods=s(r["Товар"]),
                          qty=r.get("Количество"), price=r.get("Цена"), sum=float(r["Стоимость"] or 0),
                          wallet=s(r[wal]), old=f"{s(r[g])} / {s(r[a])}", note=s(r["Примечание"]),
                          tag=s(r.get("Бирка")), new=new, group=group_new, dir=direction, vid=vid,
-                         why=rule[7], action=rule[4]))
+                         why=rule[7], action=rule[4], code=code, rawtag=r.get("Бирка"),
+                         rawqty=r.get("Количество")))
 
 # Сверка: всё сопоставлено и суммы сохранены.
 total_old = collections.defaultdict(float)

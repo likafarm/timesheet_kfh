@@ -9,6 +9,7 @@ export 'src/api_client.dart';
 export 'src/audit_log.dart';
 export 'src/backoff.dart';
 export 'src/failures.dart';
+export 'src/finance_import.dart';
 export 'src/period_snapshots.dart';
 export 'src/server_backups.dart';
 export 'src/session.dart';
