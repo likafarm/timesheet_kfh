@@ -16,7 +16,10 @@ void main() {
   final herd = id(1), crops = id(2), key = id(3), fuel = id(4), meat = id(5);
   final cash = id(6), olga = id(7), cp = id(8), debt = id(9), emp = id(10);
 
-  Map<String, dynamic> json({int fuelAmount = 1001}) {
+  Map<String, dynamic> json({
+    int fuelAmount = 1001,
+    List<Map<String, dynamic>> employees = const [],
+  }) {
     final operations = [
       {
         'id': id(20),
@@ -183,6 +186,7 @@ void main() {
         'positionCategories': {'механизатор': fuel},
         'defaultCategoryId': fuel,
       },
+      'employees': employees,
       'control': control,
     };
   }
@@ -343,5 +347,66 @@ void main() {
     expect(matchEmployee('Воробьёв А.', staff), isNull);
     expect(matchEmployee('Кольцов С.', staff), 'Кольцов Сергей');
     expect(matchEmployee('Новиков Н.', staff), isNull);
+  });
+
+  test('недостающие работники табеля Excel добавляются уволенными', () async {
+    final petrova = id(40);
+    final data = FinanceImportData.fromJson(
+      json(
+        employees: [
+          {
+            'id': id(41),
+            'name': 'Иванов И. П.',
+            'position': 'Рабочий',
+            'hireDate': '2025-01-10',
+            'dismissalDate': '2025-05-01',
+            'rate': 2000,
+          },
+          {
+            'id': petrova,
+            'name': 'Петрова О.',
+            'position': 'Рабочий',
+            'hireDate': '2025-01-31',
+            'dismissalDate': '2025-04-20',
+            'rate': 3000,
+          },
+        ],
+      ),
+    );
+    final (first, _) = await importer();
+    final plan = await first.plan(data);
+    expect(plan.addedEmployees, ['Петрова О.'], reason: 'Иванов уже есть');
+    expect(plan.unmatchedEmployees, isEmpty);
+    await first.run(data);
+    expect(server.row('employees', petrova)!.editedBy, device);
+    expect(server.row('employees', id(41)), isNull);
+
+    final (check, db) = await importer();
+    expect(await check.verify(data), isEmpty);
+    expect((await check.plan(data)).changes, 0);
+    final repos = DriftRepositories(db);
+    final added = (await repos.employees.byId(petrova))!;
+    expect(added.fullName, 'Петрова О.');
+    expect(added.dismissalDate, DateTime(2025, 4, 20));
+    final rates = await repos.rates.history(petrova);
+    expect(rates.single.startDate, DateTime(2025, 1, 31));
+    expect(rates.single.baseRate, 3000);
+    final accounts = await repos.finance.accounts();
+    expect(accounts.firstWhere((a) => a.id == olga).employeeId, petrova);
+
+    // Удалённого после импорта не возвращает.
+    final row = server.row('employees', petrova)!;
+    server.put(
+      SyncChange(
+        table: row.table,
+        uuid: row.uuid,
+        updatedAt: row.updatedAt.add(const Duration(minutes: 5)),
+        deleted: true,
+        editedBy: 'pc-1',
+        data: row.data,
+      ),
+    );
+    final (third, _) = await importer();
+    await expectLater(third.run(data), throwsA(isA<FinanceImportException>()));
   });
 }

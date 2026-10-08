@@ -10,6 +10,8 @@ resolution: workspace
 
 dependencies:
   cryptography: ^2.9.0
+  # Импорт финансов пишет сотрудников с заданным uuid (EmployeesCompanion).
+  drift: 2.34.0
   http: ^1.2.0
   kfh_domain:
     path: ../domain
@@ -17,8 +19,6 @@ dependencies:
     path: ../local_db
 
 dev_dependencies:
-  # В тестах — только driftRuntimeOptions (две базы в памяти = два ПК).
-  drift: 2.34.0
   fake_async: ^1.3.1
   lints: ^6.0.0
   test: ^1.26.0

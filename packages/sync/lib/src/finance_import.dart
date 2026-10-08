@@ -7,7 +7,12 @@
 // uuid записей приходят из выгрузки и не меняются между запусками: повтор
 // ничего не дублирует. Запись, которую после импорта правили не им
 // (`edited_by` другого устройства), импорт не перезаписывает — останавливается.
+//
+// Работники из «Табеля 25», которых нет в табеле программы (по «Фамилия И.»),
+// добавляются уволенными со ставкой с даты приёма — к ним привязываются
+// выплаты ЗП из Excel. Уже добавленных импорт не правит.
 
+import 'package:drift/drift.dart' show Value;
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 
@@ -34,6 +39,10 @@ class FinanceImportData {
   final List<FinOperation> operations;
   final PayrollFinanceMapping payroll;
 
+  /// Работники из табеля Excel: имя — как в Excel («Иванов И. И.»), ставка
+  /// базы и поля — тариф. Для плана и записи — только недостающие.
+  final List<Employee> employees;
+
   /// Сотрудник табеля по имени из Excel («Иванов И.»): у кошелька
   /// (подотчёт), контрагента и операции зарплаты. Ключ — id записи.
   final Map<String, String> accountEmployees;
@@ -53,6 +62,7 @@ class FinanceImportData {
     required this.assets,
     required this.operations,
     required this.payroll,
+    required this.employees,
     required this.accountEmployees,
     required this.counterpartyEmployees,
     required this.operationEmployees,
@@ -193,6 +203,20 @@ class FinanceImportData {
             .cast<String, String>(),
         defaultCategoryId: payroll['defaultCategoryId'],
       ),
+      employees: [
+        for (final e
+            in (json['employees'] as List? ?? const [])
+                .cast<Map<String, dynamic>>())
+          Employee(
+            id: e['id'],
+            fullName: e['name'],
+            position: e['position'],
+            hireDate: date(e['hireDate'])!,
+            dismissalDate: date(e['dismissalDate']),
+            baseRate: (e['rate'] as num).toDouble(),
+            fieldRate: (e['rate'] as num).toDouble(),
+          ),
+      ],
       accountEmployees: names('accounts'),
       counterpartyEmployees: names('counterparties'),
       operationEmployees: names('operations'),
@@ -248,16 +272,24 @@ class FinanceImportData {
 /// Сотрудник табеля по имени из Excel: «Фамилия И.» — фамилия и первая
 /// буква имени; полное имя — точно. null — не найден или неоднозначно.
 String? matchEmployee(String excelName, Iterable<Employee> employees) {
+  final found = matchingEmployees(excelName, employees);
+  return found.length == 1 ? found.single.id : null;
+}
+
+/// Все сотрудники, подходящие к имени из Excel.
+List<Employee> matchingEmployees(
+  String excelName,
+  Iterable<Employee> employees,
+) {
   final parts = excelName.replaceAll('.', ' ').split(RegExp(r'\s+'))
     ..removeWhere((p) => p.isEmpty);
-  if (parts.isEmpty) return null;
+  if (parts.isEmpty) return const [];
   final surname = parts.first.toLowerCase().replaceAll('ё', 'е');
   final initial = parts.length > 1 ? parts[1][0].toLowerCase() : null;
-  final found = [
+  return [
     for (final e in employees)
       if (_matches(e.fullName, surname, initial)) e,
   ];
-  return found.length == 1 ? found.single.id : null;
 }
 
 bool _matches(String fullName, String surname, String? initial) {
@@ -282,6 +314,9 @@ class FinanceImportPlan {
   /// Имена из Excel, не найденные среди сотрудников табеля.
   final Set<String> unmatchedEmployees = {};
 
+  /// Работники Excel, которых импорт добавит в табель.
+  final List<String> addedEmployees = [];
+
   void _count(String table, ImportAction action) {
     final t = counts.putIfAbsent(table, () => {});
     t[action] = (t[action] ?? 0) + 1;
@@ -298,6 +333,8 @@ class FinanceImportPlan {
       '$table: добавить ${t[ImportAction.create] ?? 0}, '
           'изменить ${t[ImportAction.update] ?? 0}, '
           'без изменений ${t[ImportAction.same] ?? 0}',
+    if (addedEmployees.isNotEmpty)
+      'Добавить в табель (уволенными): ${addedEmployees.join(', ')}',
     if (unmatchedEmployees.isNotEmpty)
       'Не найдены в табеле (останутся без связи): '
           '${(unmatchedEmployees.toList()..sort()).join(', ')}',
@@ -335,11 +372,19 @@ class FinanceImporter {
     }
   }
 
-  /// Данные с подставленными сотрудниками табеля (по имени из Excel).
+  /// Данные с подставленными сотрудниками табеля (по имени из Excel);
+  /// в `employees` — только работники Excel, которых в табеле нет.
   Future<(FinanceImportData, Set<String>)> _withEmployees(
     FinanceImportData data,
   ) async {
-    final employees = await _employees.all();
+    final existing = await _employees.all();
+    final added = <Employee>[];
+    for (final e in data.employees) {
+      if (matchingEmployees(e.fullName, [...existing, ...added]).isEmpty) {
+        added.add(e);
+      }
+    }
+    final employees = [...existing, ...added];
     final unmatched = <String>{};
     String? find(String? name) {
       if (name == null) return null;
@@ -392,6 +437,7 @@ class FinanceImporter {
         assets: data.assets,
         operations: operations,
         payroll: data.payroll,
+        employees: added,
         accountEmployees: data.accountEmployees,
         counterpartyEmployees: data.counterpartyEmployees,
         operationEmployees: data.operationEmployees,
@@ -488,6 +534,19 @@ class FinanceImporter {
       }
     }
 
+    // Недостающие работники — до финансов: на них ссылаются операции.
+    final employeeEditors = await _editors('employees');
+    for (final e in data.employees) {
+      plan._count('employees', ImportAction.create);
+      plan.addedEmployees.add(e.fullName);
+      // uuid уже есть, а живого сотрудника с таким именем нет — его удалили.
+      final by = employeeEditors[e.id];
+      if (employeeEditors.containsKey(e.id)) {
+        plan.editedElsewhere.add(('employees', e.id!, 'удалена: $by'));
+      }
+      if (write) await _addEmployee(e);
+    }
+
     await each(
       'fin_directions',
       data.directions,
@@ -571,6 +630,30 @@ class FinanceImporter {
           : ImportAction.update,
     );
     if (write && !same) await _fin.savePayrollMapping(data.payroll);
+  }
+
+  /// Сотрудник с uuid выгрузки и первой ставкой с даты приёма (как
+  /// `AppProvider.addEmployee`).
+  Future<void> _addEmployee(Employee e) async {
+    await db.employeesDao.insertEmployee(
+      EmployeesCompanion(
+        uuid: Value(e.id!),
+        fullName: Value(e.fullName),
+        position: Value(e.position),
+        hireDate: Value(formatDateIso(e.hireDate)),
+        dismissalDate: Value(formatDateIsoOrNull(e.dismissalDate)),
+        baseRate: Value(e.baseRate),
+        fieldRate: Value(e.fieldRate),
+      ),
+    );
+    await DriftRepositories(db).rates.add(
+      EmployeeRate(
+        employeeId: e.id!,
+        baseRate: e.baseRate,
+        fieldRate: e.fieldRate,
+        startDate: e.hireDate,
+      ),
+    );
   }
 
   /// Проверка после импорта: эта база (свежий клиент, принявший всё с

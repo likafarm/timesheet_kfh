@@ -24,6 +24,7 @@ import build_mapping as bm  # noqa: E402 — разбор «Финансов 25�
 
 warnings.filterwarnings("ignore")
 ASSETS_SRC = r"C:/Users/Иван/Yandex.Disk/КФХ/Имущество КФХ.xlsx"
+TABEL_SRC = r"C:/Users/Иван/OneDrive/ЛИКА/Табель 25.xlsx"
 NS = uuid.uuid5(uuid.NAMESPACE_URL, "https://tab.korovatech.ru/finance25")
 
 
@@ -366,6 +367,73 @@ payroll = {
     "defaultCategoryId": cat_id[("расход", "Рабочие фермы")],
 }
 
+# --- Работники из «Табеля 25» ---------------------------------------------
+# Импортёр добавляет в табель тех, кого там нет (по «Фамилия И.»): уволенными,
+# приём — первый отработанный день 2025–2026, увольнение — следующий за
+# последним; ставка базы и поля — тариф месяца последнего дня (нет — ближайшего); должность в
+# Excel не указана — «Рабочий». Дни табеля не переносятся.
+MONTHS = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
+          "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
+
+
+def worked(value):
+    if isinstance(value, str):  # «1 ,5» в августе
+        try:
+            value = float(value.replace(" ", "").replace(",", "."))
+        except ValueError:
+            return False
+    return isinstance(value, (int, float)) and value > 0
+
+
+people = {}
+tabel = openpyxl.load_workbook(TABEL_SRC, data_only=True, read_only=True)
+for ws in tabel.worksheets:
+    parts = ws.title.split()
+    if len(parts) != 2 or parts[0] not in MONTHS:
+        continue  # шаблон, итоги года, пустые листы
+    year, month = 2000 + int(parts[1]), MONTHS[parts[0]]
+    rows = list(ws.iter_rows(values_only=True))
+    head = rows[4]
+    day_cols = [i for i, v in enumerate(head) if isinstance(v, int)]
+    rate_col = next(i for i, v in enumerate(head) if isinstance(v, str) and v.strip().startswith("Тариф"))
+    for r in rows[5:]:
+        name = text(r[1]) if len(r) > 1 else None
+        if not name or name == "Итого" or not isinstance(r[0], int):
+            continue
+        p = people.setdefault(name, {"first": None, "last": None, "rate": {}})
+        for i in day_cols:
+            if worked(r[i]):
+                d = datetime.date(year, month, head[i])
+                p["first"] = p["first"] or d
+                p["last"] = d
+        if r[rate_col]:
+            p["rate"][(year, month)] = r[rate_col]
+employees = []
+for name, p in people.items():
+    if not p["first"]:
+        continue
+    last = p["last"]
+    employees.append({
+        "id": uid("employee", name), "name": name, "position": "Рабочий",
+        "hireDate": day(p["first"]), "dismissalDate": day(last + datetime.timedelta(days=1)),
+        # В месяце без тарифа (Лопатин А., январь — разовая сумма) — ближайший.
+        "rate": p["rate"].get((last.year, last.month))
+        or min(p["rate"].items(), key=lambda kv: abs((kv[0][0] - last.year) * 12 + kv[0][1] - last.month))[1],
+    })
+
+
+def short(name):
+    """«Иванов И. П.» → («иванов», «и») — как matchEmployee в импортёре."""
+    w = name.replace(".", " ").split()
+    return w[0].lower().replace("ё", "е"), (w[1][0].lower() if len(w) > 1 else None)
+
+
+tabel_keys = {short(e["name"]) for e in employees}
+finance_people = {x["employeeName"] for k in ("accounts", "counterparties", "operations")
+                  for x in globals()[k] if x.get("employeeName")}
+missing = sorted(n for n in finance_people if short(n) not in tabel_keys)
+assert not missing, f"работники «Финансов 25» не найдены в «Табеле 25»: {missing}"
+
 # --- Контрольные итоги: из Excel, независимо от операций --------------------
 control = collections.defaultdict(int)
 
@@ -384,11 +452,11 @@ for o in bm.ops:
     add("Долги|всего", kop(o["Сумма"]))
 
 out = {
-    "source": "Финансы 25.xlsm, Имущество КФХ.xlsx",
+    "source": "Финансы 25.xlsm, Имущество КФХ.xlsx, Табель 25.xlsx",
     "generated": datetime.datetime.now().isoformat(timespec="seconds"),
     "directions": directions, "allocationKeys": keys, "categories": categories,
     "accounts": accounts, "counterparties": counterparties, "debts": debts, "assets": assets,
-    "operations": operations, "payrollMapping": payroll, "skipped": skipped,
+    "operations": operations, "payrollMapping": payroll, "employees": employees, "skipped": skipped,
     "control": dict(sorted(control.items())),
 }
 assert len({o["id"] for o in operations}) == len(operations), "повтор uuid операции"
@@ -402,3 +470,4 @@ print("статей", len(categories), "кошельков", len(accounts), "к�
       "займов", len(debts), "имущества", len(assets))
 print("с машиной:", sum(1 for o in operations if o["assetId"]),
       "| своё направление:", sum(1 for o in operations if o["directionId"] or o["allocationKeyId"]))
+print("работников в «Табеле 25»:", len(employees))
