@@ -226,21 +226,40 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   /// Разделы с отдельной кнопкой внизу на телефоне (индексы
-  /// [_navigationItems]); остальные — в «Ещё».
+  /// [_navigationItems]) в порядке кнопок; остальные — в «Ещё». У
+  /// бухгалтера и администратора основной раздел — «Финансы» (решение
+  /// владельца 2026-10-08): он первый.
   List<int> _bottomItems() {
     if (_navigationItems.length <= 5) {
       return [for (var i = 0; i < _navigationItems.length; i++) i];
     }
-    const primary = {
-      AppSection.home,
-      AppSection.timesheet,
-      AppSection.payments,
-      AppSection.reports,
-    };
     return [
-      for (final (i, item) in _navigationItems.indexed)
-        if (primary.contains(item.section)) i,
+      for (final section in _phonePrimary)
+        if (_navigationItems.indexWhere((i) => i.section == section)
+            case final i when i >= 0)
+          i,
     ];
+  }
+
+  static const _phonePrimary = [
+    AppSection.finance,
+    AppSection.home,
+    AppSection.timesheet,
+    AppSection.payments,
+  ];
+
+  bool _startChosen = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Телефон бухгалтера и администратора открывается на «Финансах».
+    if (_startChosen) return;
+    _startChosen = true;
+    if (MediaQuery.sizeOf(context).width < AppTheme.compactWidth &&
+        _navigationItems.length > 5) {
+      _selectedIndex = _bottomItems().first;
+    }
   }
 
   /// «Ещё»: разделы, не поместившиеся внизу.

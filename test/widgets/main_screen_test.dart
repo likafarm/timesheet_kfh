@@ -124,7 +124,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('бухгалтер на телефоне (6.9): внизу четыре раздела и «Ещё», '
+  testWidgets('бухгалтер на телефоне (6.9, 8.6): «Финансы» первыми, '
+      'внизу четыре раздела и «Ещё», '
       'все разделы без ошибок раскладки', (tester) async {
     await pumpMain(
       tester,
@@ -172,12 +173,13 @@ void main() {
       find.byType(BottomNavigationBar),
     );
     expect(bar.items.map((i) => i.label), [
+      'Финансы',
       'Главная',
       'Табель',
       'Выплаты',
-      'Отчёты',
       'Ещё',
     ]);
+    expect(bar.currentIndex, 0, reason: 'открывается на «Финансах»');
 
     Future<void> settle() async {
       for (var i = 0; i < 4; i++) {
@@ -205,8 +207,9 @@ void main() {
     }
 
     await settle();
-    await check('Главная');
-    for (final label in ['Табель', 'Выплаты', 'Отчёты']) {
+    await check('Финансы');
+    expect(find.text('Расход / доход'), findsOneWidget);
+    for (final label in ['Главная', 'Табель', 'Выплаты']) {
       await tester.tap(
         find.descendant(
           of: find.byType(BottomNavigationBar),
@@ -216,7 +219,7 @@ void main() {
       await settle();
       await check(label);
     }
-    for (final label in ['Сотрудники', 'Настройки']) {
+    for (final label in ['Сотрудники', 'Отчёты', 'Настройки']) {
       await tester.tap(find.text('Ещё'));
       await settle();
       await tester.tap(find.widgetWithText(ListTile, label));

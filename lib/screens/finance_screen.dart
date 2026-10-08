@@ -548,11 +548,12 @@ class _FinanceViewState extends State<_FinanceView> {
         onToday: () => _setMonth(DateTime.now()),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.add),
-          tooltip: 'Новая операция',
-          onPressed: fin.loaded ? () => _add(fin) : null,
-        ),
+        if (!compact)
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Новая операция',
+            onPressed: fin.loaded ? () => _add(fin) : null,
+          ),
       ],
       menu: [
         AppBarMenuItem(
@@ -580,7 +581,15 @@ class _FinanceViewState extends State<_FinanceView> {
     if (compact) {
       return Scaffold(
         appBar: appBar,
+        // Телефон: быстрый ввод — большой кнопкой под пальцем (8.6).
+        floatingActionButton: FloatingActionButton.extended(
+          tooltip: 'Новая операция',
+          onPressed: () => _add(fin),
+          icon: const Icon(Icons.add),
+          label: const Text('Расход / доход'),
+        ),
         body: ListView(
+          padding: const EdgeInsets.only(bottom: 88),
           children: [
             ExpansionTile(
               title: Text(_filter.narrowed ? 'Отбор (задан)' : 'Отбор'),
