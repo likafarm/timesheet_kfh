@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
 import 'finance_balance_sheet_screen.dart';
+import 'finance_dds_screen.dart';
 import 'finance_report_screen.dart';
 
 class FinanceReportsScreen extends StatelessWidget {
@@ -36,6 +37,16 @@ class FinanceReportsScreen extends StatelessWidget {
         onTap: () => open(mode),
       ),
     );
+    void push(Widget screen) {
+      final fin = context.read<FinanceProvider>();
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              ChangeNotifierProvider.value(value: fin, child: screen),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Отчёты по финансам')),
       body: Center(
@@ -53,17 +64,19 @@ class FinanceReportsScreen extends StatelessWidget {
                     'капитал хозяйства',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    final fin = context.read<FinanceProvider>();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ChangeNotifierProvider.value(
-                          value: fin,
-                          child: const FinanceBalanceSheetScreen(),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => push(const FinanceBalanceSheetScreen()),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.waterfall_chart),
+                  title: const Text('Движение денег (ДДС)'),
+                  subtitle: const Text(
+                    'Деньги на начало и конец месяца; потоки операционной, '
+                    'инвестиционной и финансовой деятельности',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => push(const FinanceDdsScreen()),
                 ),
               ),
               report(

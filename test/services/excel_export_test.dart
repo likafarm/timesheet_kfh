@@ -396,4 +396,68 @@ void main() {
     expect(c['C15']!.v, '2600');
     expect(c['D15']!.v, '2100');
   });
+
+  test('ДДС: итоги и остаток на конец — формулами', () {
+    final catalog = FinanceCatalog(
+      accounts: [
+        FinAccount(
+          id: 'a',
+          name: 'Касса',
+          kind: AccountKind.cash,
+          openingBalance: 100000,
+          openingDate: DateTime(2026, 1, 1),
+        ),
+      ],
+      categories: const [
+        FinCategory(
+          id: 'meat',
+          type: CategoryType.income,
+          group: 'Продажи',
+          name: 'Мясо',
+        ),
+        FinCategory(
+          id: 'feed',
+          type: CategoryType.expense,
+          group: 'Корма',
+          name: 'Комбикорм',
+        ),
+      ],
+    );
+    final report = ddsReport(
+      operations: [
+        FinOperation(
+          id: '1',
+          date: DateTime(2026, 1, 3),
+          type: OperationType.income,
+          amount: 50000,
+          accountId: 'a',
+          categoryId: 'meat',
+        ),
+        FinOperation(
+          id: '2',
+          date: DateTime(2026, 2, 3),
+          type: OperationType.expense,
+          amount: 20000,
+          accountId: 'a',
+          categoryId: 'feed',
+        ),
+      ],
+      catalog: catalog,
+      from: DateTime(2026),
+      count: 2,
+    );
+    final bytes = ddsWorkbook(report: report, title: 'ДДС — 2026').encode();
+    save('ДДС_2026.xlsx', bytes);
+    final c = cells(bytes);
+    expect(c['A5']!.v, 'Деньги на начало месяца');
+    expect(c['B5']!.v, '1000');
+    expect(c['C5']!.v, '1500');
+    final last = c.keys
+        .where((k) => c[k]!.v == 'Деньги на конец месяца')
+        .single;
+    final row = last.substring(1);
+    expect(c['B$row']!.f, startsWith('B5+'));
+    expect(c['C$row']!.v, '1300');
+    expect(c['D$row']!.f, 'C$row');
+  });
 }

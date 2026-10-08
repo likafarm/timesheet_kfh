@@ -8,6 +8,7 @@ export 'src/dashboard.dart';
 export 'src/finance/balance.dart';
 export 'src/finance/calc.dart';
 export 'src/finance/catalog.dart';
+export 'src/finance/dds.dart';
 export 'src/finance/models.dart';
 export 'src/finance/money.dart';
 export 'src/finance/operator_rules.dart';

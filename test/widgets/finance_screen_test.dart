@@ -308,4 +308,22 @@ void main() {
     expect(find.text('${formatRub(-250000)} ₽'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ДДС: остатки и потоки по видам деятельности (8Б.3)', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1700, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(section(const FinanceReportsScreen()));
+    await settle(tester);
+    await tester.tap(find.text('Движение денег (ДДС)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Деньги на начало месяца'), findsOneWidget);
+    expect(find.text('Итого операционная'), findsOneWidget);
+    expect(find.text('Корма покупные'), findsOneWidget);
+    expect(find.text('Деньги на конец месяца'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

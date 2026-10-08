@@ -840,3 +840,189 @@ XlsxWorkbook managementBalanceWorkbook({
   sheet.frozenRows = 4;
   return book;
 }
+
+/// ДДС (8Б.3) по месяцам: строки — как на экране, суммы со знаком
+/// (приход — плюс); итоги видов деятельности, изменение и остаток на конец
+/// — формулами (конец = начало + изменение + прочее).
+XlsxWorkbook ddsWorkbook({
+  required DdsReport report,
+  required String title,
+  CompanySettings? companySettings,
+}) {
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('ДДС')..landscape = true;
+  final n = report.columns.length;
+  final yearCol = n + 1;
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:${xlsxRef(yearCol, 0)}');
+  sheet.addRow([XlsxCell.text(_company(companySettings), _note)]);
+  sheet.merges.add('A2:${xlsxRef(yearCol, 1)}');
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text('', _head),
+    for (final m in report.columns) XlsxCell.text(_monthTitle(m), _head),
+    XlsxCell.text('Год', _head),
+  ], height: 30);
+
+  final money = _cell.copyWith(numFmt: _money);
+  final groupLabel = _cell.copyWith(bold: true, fill: _gray);
+  final groupMoney = groupLabel.copyWith(numFmt: _money);
+  final totalMoney = _total.copyWith(numFmt: _money);
+  int sum(List<int> v) => v.fold(0, (a, b) => a + b);
+
+  /// Строка чисел; «Год» — формулой суммы месяцев.
+  int numbers(String name, List<int> values, XlsxStyle label, XlsxStyle style) {
+    final r = sheet.rows.length;
+    sheet.addRow([
+      XlsxCell.text(name, label),
+      for (final v in values)
+        v == 0 ? XlsxCell.empty(style) : XlsxCell.number(v / 100, style),
+      XlsxCell(
+        XlsxFormula(
+          'SUM(${xlsxRef(1, r)}:${xlsxRef(n, r)})',
+          sum(values) / 100,
+        ),
+        style,
+      ),
+    ]);
+    return r;
+  }
+
+  /// Строка-формула по столбцам.
+  int formulas(
+    String name,
+    List<int> values,
+    int yearValue,
+    XlsxStyle label,
+    XlsxStyle style,
+    String Function(int column) expression,
+  ) {
+    final r = sheet.rows.length;
+    sheet.addRow([
+      XlsxCell.text(name, label),
+      for (var c = 1; c <= n; c++)
+        XlsxCell(XlsxFormula(expression(c), values[c - 1] / 100), style),
+      XlsxCell(XlsxFormula(expression(yearCol), yearValue / 100), style),
+    ]);
+    return r;
+  }
+
+  String sumRows(int c, List<int> rows) =>
+      rows.isEmpty ? '0' : rows.map((r) => xlsxRef(c, r)).join('+');
+
+  /// Раздел по статьям со знаком [sign]; возвращает строку итога.
+  int section(CashFlowSection s, String name, int sign) {
+    final lines = [for (final g in s.groups) ...g.lines];
+    final r = sheet.rows.length;
+    formulas(
+      name,
+      [for (final v in s.values) sign * v],
+      sign * s.total,
+      groupLabel,
+      groupMoney,
+      (c) => lines.isEmpty
+          ? '0'
+          : 'SUM(${xlsxRef(c, r + 1)}:${xlsxRef(c, r + lines.length)})',
+    );
+    for (final l in lines) {
+      numbers(
+        '    ${l.name}',
+        [for (final v in l.values) sign * v],
+        _cell,
+        money,
+      );
+    }
+    return r;
+  }
+
+  final opening = sheet.rows.length;
+  sheet.addRow([
+    XlsxCell.text('Деньги на начало месяца', _total),
+    for (final v in report.opening) XlsxCell.number(v / 100, totalMoney),
+    XlsxCell(
+      XlsxFormula(xlsxRef(1, opening), report.opening.first / 100),
+      totalMoney,
+    ),
+  ]);
+
+  sheet.addRow([XlsxCell.text('Операционная деятельность', _total)]);
+  final inRow = section(report.operatingIn, 'Поступления', 1);
+  final outRow = section(report.operatingOut, 'Платежи', -1);
+  final operating = formulas(
+    'Итого операционная',
+    report.operatingNet,
+    sum(report.operatingNet),
+    _total,
+    totalMoney,
+    (c) => sumRows(c, [inRow, outRow]),
+  );
+
+  sheet.addRow([XlsxCell.text('Инвестиционная деятельность', _total)]);
+  final capexRow = section(report.investingOut, 'Капвложения', -1);
+  final investing = formulas(
+    'Итого инвестиционная',
+    report.investingNet,
+    sum(report.investingNet),
+    _total,
+    totalMoney,
+    (c) => sumRows(c, [capexRow]),
+  );
+
+  sheet.addRow([XlsxCell.text('Финансовая деятельность (займы)', _total)]);
+  final loanRows = [
+    for (final l in report.financing)
+      numbers('    ${l.name}', l.values, _cell, money),
+  ];
+  final financing = formulas(
+    'Итого финансовая',
+    report.financingNet,
+    sum(report.financingNet),
+    _total,
+    totalMoney,
+    (c) => sumRows(c, loanRows),
+  );
+  sheet.addRow([]);
+  final other = report.hasOther
+      ? numbers(
+          'Прочее: начальные остатки новых кошельков',
+          report.other,
+          _note.copyWith(border: true),
+          money,
+        )
+      : null;
+  final change = formulas(
+    'Изменение денег за месяц',
+    report.netFlow,
+    sum(report.netFlow),
+    _total,
+    totalMoney,
+    (c) => sumRows(c, [operating, investing, financing]),
+  );
+  formulas(
+    'Деньги на конец месяца',
+    report.closing,
+    report.closing.last,
+    _total,
+    totalMoney,
+    (c) => c == yearCol
+        ? xlsxRef(n, sheet.rows.length)
+        : '${xlsxRef(c, opening)}+${xlsxRef(c, change)}'
+              '${other == null ? '' : '+${xlsxRef(c, other)}'}',
+  );
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(
+      'Со знаком: приход — плюс, уход — минус. Переводы между кошельками не '
+      'входят.',
+      _note,
+    ),
+  ]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+  sheet.columnWidths[0] = 40;
+  for (var c = 1; c <= yearCol; c++) {
+    sheet.columnWidths[c] = 14;
+  }
+  sheet.frozenRows = 4;
+  sheet.frozenColumns = 1;
+  return book;
+}

@@ -108,6 +108,9 @@ void main() {
     await shots.tapText('Управленческий баланс');
     await shots.save('finance_balance_sheet');
     await shots.back();
+    await shots.tapText('Движение денег (ДДС)');
+    await shots.save('finance_dds');
+    await shots.back();
     await shots.tapText('Доходы и расходы по месяцам');
     await shots.save('finance_report');
     await shots.back();
