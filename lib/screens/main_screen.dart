@@ -6,6 +6,7 @@ import 'daily_input_screen.dart';
 import 'home_screen.dart';
 import 'reminder_screen.dart';
 import 'employees_screen.dart';
+import 'finance_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
@@ -55,6 +56,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.payments,
       label: 'Выплаты',
       screen: const PaymentsScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.finance,
+      icon: Icons.account_balance_wallet_outlined,
+      selectedIcon: Icons.account_balance_wallet,
+      label: 'Финансы',
+      screen: const FinanceScreen(),
     ),
     NavigationItem(
       section: AppSection.reports,

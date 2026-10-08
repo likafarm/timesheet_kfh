@@ -61,8 +61,7 @@ class AppProvider extends ChangeNotifier {
   RateRepository get _ratesRepo => _appDb.repos.rates;
   TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
   PaymentRepository get _paymentsRepo => _appDb.repos.payments;
-  PayrollAdjustmentRepository get _adjustmentsRepo =>
-      _appDb.repos.adjustments;
+  PayrollAdjustmentRepository get _adjustmentsRepo => _appDb.repos.adjustments;
   SettingsRepository get _settingsRepo => _appDb.repos.settings;
   PayrollService get _payrollService => _appDb.repos.payrollService;
 
@@ -148,17 +147,12 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Правка таблицы [table] не задевает закрытый месяц ([PeriodGuard]);
-  /// иначе — сообщение и false. [after] = null — удаление.
-  bool allowedInOpenPeriod(
+  /// Почему правка задевает закрытый месяц; null — не задевает.
+  String? periodViolation(
     String table,
     Map<String, Object?>? before,
     Map<String, Object?>? after,
-  ) => _allowedInOpenPeriod(table, before, after);
-
-  /// Оператор финансы не видит и не правит (решение владельца, 8.3);
-  /// иначе — сообщение и false.
-  bool financeAllowed() => _notOperator();
+  ) => _periodViolation(table, before, after);
 
   /// Есть сообщение для пользователя — забрать его (показывается один раз).
   String? takeNotice() {

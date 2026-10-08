@@ -11,6 +11,7 @@ enum AppSection {
   timesheet,
   employees,
   payments,
+  finance,
   reports,
   sync,
   settings,

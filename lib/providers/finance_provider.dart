@@ -257,17 +257,13 @@ class FinanceProvider extends ChangeNotifier {
   /// Записать операцию (новую или изменённую [before]); false — не
   /// записано, объяснение — внизу окна.
   Future<bool> saveOperation(FinOperation op, {FinOperation? before}) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (isPayroll(op)) {
-      _app.showNotice('Выплата ЗП правится в «Выплатах»');
-      return false;
+      return _fail('Выплата ЗП правится в «Выплатах»');
     }
     final problem = operationProblem(op, _catalog, before: before);
-    if (problem != null) {
-      _app.showNotice('Не сохранено: $problem');
-      return false;
-    }
-    if (!_app.allowedInOpenPeriod(
+    if (problem != null) return _refuse(problem);
+    if (!_open(
       'fin_operations',
       before == null ? null : _opRow(before),
       _opRow(op),
@@ -284,14 +280,11 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteOperation(FinOperation op) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (isPayroll(op)) {
-      _app.showNotice('Выплата ЗП удаляется в «Выплатах»');
-      return false;
+      return _fail('Выплата ЗП удаляется в «Выплатах»');
     }
-    if (!_app.allowedInOpenPeriod('fin_operations', _opRow(op), null)) {
-      return false;
-    }
+    if (!_open('fin_operations', _opRow(op), null)) return false;
     return _write(() => _repo.deleteOperation(op.id));
   }
 
@@ -323,7 +316,7 @@ class FinanceProvider extends ChangeNotifier {
   // ------------------------------------------------------- справочники
 
   Future<bool> saveAccount(FinAccount a, {FinAccount? before}) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (a.name.trim().isEmpty) return _refuse('У кошелька нет названия');
     // Начальный остаток — в дне opening_date (правило сервера).
     Map<String, Object?> row(FinAccount x) => {
@@ -332,18 +325,14 @@ class FinanceProvider extends ChangeNotifier {
           ? null
           : formatDateIso(x.openingDate!),
     };
-    if (!_app.allowedInOpenPeriod(
-      'fin_accounts',
-      before == null ? null : row(before),
-      row(a),
-    )) {
+    if (!_open('fin_accounts', before == null ? null : row(before), row(a))) {
       return false;
     }
     return _write(() => _repo.saveAccount(a));
   }
 
   Future<bool> saveCategory(FinCategory c) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (c.name.trim().isEmpty) return _refuse('У статьи нет названия');
     if (c.directionId != null && c.allocationKeyId != null) {
       return _refuse('Укажите направление или ключ — не оба сразу');
@@ -352,26 +341,26 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   Future<bool> saveCounterparty(Counterparty c) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (c.name.trim().isEmpty) return _refuse('У контрагента нет названия');
     return _write(() => _repo.saveCounterparty(c));
   }
 
   Future<bool> saveDirection(FinDirection d) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (d.name.trim().isEmpty) return _refuse('У направления нет названия');
     return _write(() => _repo.saveDirection(d));
   }
 
   Future<bool> saveAllocationKey(AllocationKey k) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     final problem = allocationKeyProblem(k, _catalog);
     if (problem != null) return _refuse(problem);
     return _write(() => _repo.saveAllocationKey(k));
   }
 
   Future<bool> saveAsset(Asset a) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (a.name.trim().isEmpty) return _refuse('У имущества нет названия');
     if (a.directionId != null && a.allocationKeyId != null) {
       return _refuse('Укажите направление или ключ — не оба сразу');
@@ -380,7 +369,7 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   Future<bool> saveDebt(FinDebt d, {FinDebt? before}) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     if (!_catalog.counterparties.containsKey(d.counterpartyId)) {
       return _refuse('Не указан контрагент займа');
     }
@@ -390,11 +379,7 @@ class FinanceProvider extends ChangeNotifier {
           ? null
           : formatDateIso(x.openingDate!),
     };
-    if (!_app.allowedInOpenPeriod(
-      'fin_debts',
-      before == null ? null : row(before),
-      row(d),
-    )) {
+    if (!_open('fin_debts', before == null ? null : row(before), row(d))) {
       return false;
     }
     return _write(() => _repo.saveDebt(d));
@@ -440,7 +425,7 @@ class FinanceProvider extends ChangeNotifier {
 
   /// Удалить неиспользуемую запись справочника: [table] — имя таблицы.
   Future<bool> deleteCatalogItem(String table, String id) async {
-    if (!_app.financeAllowed()) return false;
+    if (!_allowed()) return false;
     final used = switch (table) {
       'fin_accounts' => usages(accountId: id),
       'fin_categories' => usages(categoryId: id),
@@ -469,9 +454,37 @@ class FinanceProvider extends ChangeNotifier {
     );
   }
 
-  bool _refuse(String message) {
-    _app.showNotice('Не сохранено: $message');
+  /// Почему последняя правка не записана (для окна правки); null — записана.
+  String? get lastProblem => _lastProblem;
+  String? _lastProblem;
+
+  bool _fail(String message) {
+    _lastProblem = message;
+    _app.showNotice(message);
     return false;
+  }
+
+  bool _refuse(String message) => _fail('Не сохранено: $message');
+
+  /// Отказ окна правки (поле не разобрано) — как отказ проверки.
+  bool reject(String message) => _refuse(message);
+
+  bool _allowed() {
+    _lastProblem = null;
+    if (!_app.operatorMode) return true;
+    return _fail(
+      'Оператор вводит только табель — финансы ведут бухгалтер и '
+      'администратор.',
+    );
+  }
+
+  bool _open(
+    String table,
+    Map<String, Object?>? before,
+    Map<String, Object?>? after,
+  ) {
+    final message = _app.periodViolation(table, before, after);
+    return message == null || _fail(message);
   }
 
   Future<bool> _write(Future<void> Function() action) async {
