@@ -6,6 +6,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/providers/finance_provider.dart';
+import 'package:kfx_time_tracking/screens/bank_import_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_balances_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_catalog_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_reports_screen.dart';
@@ -391,6 +392,56 @@ void main() {
     expect(saved, hasLength(12));
     expect(saved!.every((e) => e.amount == 300000), isTrue);
     expect(find.text('Исполнение'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('загрузка выписки: кошелёк, статья, запись (8Б.6)', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final statement = BankStatement(
+      account: '40802',
+      lines: [
+        BankLine(
+          date: today,
+          amount: 120000,
+          incoming: false,
+          docNumber: '77',
+          purpose: 'Оплата комбикорма по счёту 5',
+          counterpartyName: 'ИП Комбикорм',
+          counterpartyInn: '402905392775',
+        ),
+      ],
+    );
+    await tester.pumpWidget(section(BankImportScreen(statement: statement)));
+    await settle(tester);
+    expect(find.textContaining('строк 1'), findsOneWidget);
+    await tester.tap(find.byType(AppDropdown<String?>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Карта').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Новых: 1'), findsOneWidget);
+    expect(find.text('Выбрать статью'), findsOneWidget);
+    await tester.tap(find.text('Выбрать статью'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Статья'), 'корм');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Корма покупные').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выбрать'));
+    await tester.pumpAndSettle();
+    expect(find.text('К записи: 1'), findsOneWidget);
+    await settle(tester, () async {
+      await tester.tap(find.text('Записать'));
+      await tester.pump();
+    });
+    final ops = await tester.runAsync(
+      () => DriftRepositories(db).finance.operations(),
+    );
+    expect(ops!.where((o) => o.source == OperationSource.bank), hasLength(1));
     expect(tester.takeException(), isNull);
   });
 }

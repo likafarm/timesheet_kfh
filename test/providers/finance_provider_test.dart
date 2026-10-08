@@ -591,4 +591,78 @@ void main() {
       70000,
     );
   });
+
+  test('выписка: новые, связь с введённой, контрагент с ИНН, без дублей '
+      '(8Б.6)', () async {
+    // Введённая вручную оплата, которая есть и в выписке.
+    await fin.saveOperation(expense(id: 'op-manual', amount: 50000));
+    final statement = BankStatement(
+      account: '40802',
+      lines: [
+        BankLine(
+          date: DateTime(2026, 9, 11),
+          amount: 50000,
+          incoming: false,
+          docNumber: '1',
+          purpose: 'ГСМ',
+        ),
+        BankLine(
+          date: DateTime(2026, 9, 12),
+          amount: 320875,
+          incoming: false,
+          docNumber: '2',
+          purpose: 'Оплата за электроэнергию',
+          counterpartyName: 'ПАО "Калужская сбытовая компания"',
+          counterpartyInn: '4029030252',
+        ),
+      ],
+    );
+    var matches = fin.matchStatement(statement, cash);
+    expect(matches.map((m) => m.status), [
+      BankLineStatus.matched,
+      BankLineStatus.fresh,
+    ]);
+    final written = await fin.importStatement(
+      accountId: cash,
+      fresh: [(statement.lines[1], fuel, null)],
+      matched: [matches.first],
+    );
+    expect(written, 1);
+    final ops = await DriftRepositories(db).finance.operations();
+    final bank = ops.firstWhere((o) => o.amount == 320875);
+    expect(bank.source, OperationSource.bank);
+    expect(bank.sourceRef, statement.lines[1].key);
+    final cp = fin.catalog.counterparties[bank.counterpartyId]!;
+    expect(cp.inn, '4029030252');
+    expect(
+      ops.firstWhere((o) => o.id == 'op-manual').sourceRef,
+      statement.lines[0].key,
+    );
+
+    // Повторная загрузка — всё уже есть; подсказка статьи — по контрагенту.
+    matches = fin.matchStatement(statement, cash);
+    expect(matches.map((m) => m.status), everyElement(BankLineStatus.imported));
+    final next = BankLine(
+      date: DateTime(2026, 9, 20),
+      amount: 100000,
+      incoming: false,
+      docNumber: '3',
+      purpose: 'Свет',
+      counterpartyInn: '4029030252',
+    );
+    final hint = fin.matchStatement(BankStatement(lines: [next]), cash).single;
+    expect(hint.categoryId, fuel);
+    expect(hint.counterpartyId, cp.id);
+
+    // Без статьи — отказ.
+    expect(
+      await fin.importStatement(
+        accountId: cash,
+        fresh: [(next, null, null)],
+        matched: const [],
+      ),
+      isNull,
+    );
+    expect(fin.lastProblem, contains('статья'));
+  });
 }

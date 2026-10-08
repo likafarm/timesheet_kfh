@@ -7,6 +7,7 @@
 // оператор финансы не правит. Нарушение — сообщение внизу окна и false.
 
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart' show newUuid;
 
@@ -478,12 +479,7 @@ class FinanceProvider extends ChangeNotifier {
 
   /// Разы планов с [from] по [to] (оплаченные и пропущенные отмечены).
   List<PlanOccurrence> occurrences(DateTime from, DateTime to) =>
-      planOccurrences(
-        plans: _plans,
-        operations: _manual,
-        from: from,
-        to: to,
-      );
+      planOccurrences(plans: _plans, operations: _manual, from: from, to: to);
 
   /// Прогноз денег по дням с сегодня (все кошельки + неоплаченные планы;
   /// просроченные — сегодня).
@@ -599,6 +595,116 @@ class FinanceProvider extends ChangeNotifier {
                 ),
       ]),
     );
+  }
+
+  // ------------------------------------------------- выписка банка (8Б.6)
+
+  /// Строки выписки кошелька [accountId] против операций: уже загруженные,
+  /// найденные введённые вручную и новые с подсказками статьи.
+  List<BankLineMatch> matchStatement(
+    BankStatement statement,
+    String accountId, {
+    String? ownInn,
+  }) => matchBankLines(
+    lines: statement.lines,
+    accountId: accountId,
+    operations: _manual,
+    catalog: _catalog,
+    ownInn: ownInn,
+  );
+
+  /// Записать выписку: [fresh] — новые операции (строка, статья,
+  /// контрагент; контрагента без справочника заводит по названию и ИНН
+  /// строки), [matched] — ручные операции, найденные по строкам: им
+  /// ставится ссылка на строку (повторная загрузка их не задвоит). Закрытые
+  /// месяцы — как при обычной записи. Возвращает число записанных
+  /// операций; null — отказ (объяснение — [lastProblem]).
+  Future<int?> importStatement({
+    required String accountId,
+    required List<(BankLine, String? categoryId, String? counterpartyId)> fresh,
+    required List<BankLineMatch> matched,
+  }) async {
+    if (!_allowed()) return null;
+    for (final (line, category, _) in fresh) {
+      final message = _app.periodViolation('fin_operations', null, {
+        'date': formatDateIso(line.date),
+      });
+      if (message != null) {
+        _fail(message);
+        return null;
+      }
+      final problem = operationProblem(
+        bankOperation(
+          id: '',
+          line: line,
+          accountId: accountId,
+          categoryId: category,
+        ),
+        _catalog,
+      );
+      if (problem != null) {
+        _refuse(
+          '${DateFormat('dd.MM.yyyy').format(line.date)} '
+          '${formatRub(line.amount)} ₽: $problem',
+        );
+        return null;
+      }
+    }
+    var written = 0;
+    final ok = await _write(() async {
+      final byInn = <String, String>{
+        for (final c in _counterparties)
+          if ((c.inn ?? '').isNotEmpty) c.inn!: c.id,
+      };
+      final byName = <String, String>{
+        for (final c in _counterparties) c.name.trim().toLowerCase(): c.id,
+      };
+      for (final (line, category, chosen) in fresh) {
+        var counterparty = chosen;
+        final name = line.counterpartyName?.trim();
+        if (counterparty == null &&
+            name != null &&
+            name.isNotEmpty &&
+            !bankInns.contains(line.counterpartyInn)) {
+          counterparty =
+              byInn[line.counterpartyInn] ?? byName[name.toLowerCase()];
+          if (counterparty == null) {
+            counterparty = newId();
+            await _repo.saveCounterparty(
+              Counterparty(
+                id: counterparty,
+                name: name.length > 255 ? name.substring(0, 255) : name,
+                kind: line.incoming
+                    ? CounterpartyKind.buyer
+                    : CounterpartyKind.supplier,
+                inn: line.counterpartyInn,
+              ),
+            );
+            if (line.counterpartyInn != null) {
+              byInn[line.counterpartyInn!] = counterparty;
+            }
+            byName[name.toLowerCase()] = counterparty;
+          }
+        }
+        await _repo.addOperation(
+          bankOperation(
+            id: newId(),
+            line: line,
+            accountId: accountId,
+            categoryId: category,
+            counterpartyId: counterparty,
+            createdBy: _app.userUuid,
+          ),
+        );
+        written++;
+      }
+      for (final m in matched) {
+        final op = m.operation;
+        if (op == null || op.sourceRef != null) continue;
+        await _repo.updateOperation(op.copyWith(sourceRef: m.line.key));
+      }
+    });
+    return ok ? written : null;
   }
 
   // ------------------------------------------------------- справочники

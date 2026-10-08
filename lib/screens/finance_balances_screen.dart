@@ -11,6 +11,8 @@ import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
 import '../widgets/finance_reconcile_dialog.dart';
+import '../theme/app_theme.dart';
+import 'bank_import_screen.dart';
 import 'finance_screen.dart';
 
 class FinanceBalancesScreen extends StatefulWidget {
@@ -69,12 +71,34 @@ class _FinanceBalancesScreenState extends State<FinanceBalancesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Банки и кассы'),
+        // На телефоне — значки с подсказками (подписи не помещаются).
         actions: [
-          TextButton.icon(
-            onPressed: () => _reconcile(fin),
-            icon: const Icon(Icons.fact_check_outlined),
-            label: const Text('Сверка'),
-          ),
+          for (final (icon, label, action) in [
+            (
+              Icons.upload_file,
+              'Загрузить выписку',
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChangeNotifierProvider.value(
+                    value: fin,
+                    child: const BankImportScreen(),
+                  ),
+                ),
+              ),
+            ),
+            (Icons.fact_check_outlined, 'Сверка', () => _reconcile(fin)),
+          ])
+            MediaQuery.sizeOf(context).width < AppTheme.compactWidth
+                ? IconButton(
+                    tooltip: label,
+                    icon: Icon(icon),
+                    onPressed: action,
+                  )
+                : TextButton.icon(
+                    onPressed: action,
+                    icon: Icon(icon),
+                    label: Text(label),
+                  ),
         ],
       ),
       body: Center(
