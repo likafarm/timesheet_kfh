@@ -15737,6 +15737,686 @@ class FinPayrollMappingCompanion extends UpdateCompanion<FinPayrollMappingRow> {
   }
 }
 
+class $PayrollAdjustmentsTable extends PayrollAdjustments
+    with TableInfo<$PayrollAdjustmentsTable, PayrollAdjustmentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PayrollAdjustmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  static const VerificationMeta _yearMeta = const VerificationMeta('year');
+  @override
+  late final GeneratedColumn<int> year = GeneratedColumn<int>(
+    'year',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<int> month = GeneratedColumn<int>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    employeeUuid,
+    year,
+    month,
+    amount,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'payroll_adjustments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PayrollAdjustmentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_employeeUuidMeta);
+    }
+    if (data.containsKey('year')) {
+      context.handle(
+        _yearMeta,
+        year.isAcceptableOrUnknown(data['year']!, _yearMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_yearMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  PayrollAdjustmentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PayrollAdjustmentRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      )!,
+      year: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}year'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}month'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $PayrollAdjustmentsTable createAlias(String alias) {
+    return $PayrollAdjustmentsTable(attachedDatabase, alias);
+  }
+}
+
+class PayrollAdjustmentRow extends DataClass
+    implements Insertable<PayrollAdjustmentRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String employeeUuid;
+  final int year;
+  final int month;
+  final double amount;
+  final String? notes;
+  const PayrollAdjustmentRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.employeeUuid,
+    required this.year,
+    required this.month,
+    required this.amount,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['employee_uuid'] = Variable<String>(employeeUuid);
+    map['year'] = Variable<int>(year);
+    map['month'] = Variable<int>(month);
+    map['amount'] = Variable<double>(amount);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  PayrollAdjustmentsCompanion toCompanion(bool nullToAbsent) {
+    return PayrollAdjustmentsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      employeeUuid: Value(employeeUuid),
+      year: Value(year),
+      month: Value(month),
+      amount: Value(amount),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory PayrollAdjustmentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PayrollAdjustmentRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      employeeUuid: serializer.fromJson<String>(json['employeeUuid']),
+      year: serializer.fromJson<int>(json['year']),
+      month: serializer.fromJson<int>(json['month']),
+      amount: serializer.fromJson<double>(json['amount']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'employeeUuid': serializer.toJson<String>(employeeUuid),
+      'year': serializer.toJson<int>(year),
+      'month': serializer.toJson<int>(month),
+      'amount': serializer.toJson<double>(amount),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  PayrollAdjustmentRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? employeeUuid,
+    int? year,
+    int? month,
+    double? amount,
+    Value<String?> notes = const Value.absent(),
+  }) => PayrollAdjustmentRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    employeeUuid: employeeUuid ?? this.employeeUuid,
+    year: year ?? this.year,
+    month: month ?? this.month,
+    amount: amount ?? this.amount,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  PayrollAdjustmentRow copyWithCompanion(PayrollAdjustmentsCompanion data) {
+    return PayrollAdjustmentRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
+      year: data.year.present ? data.year.value : this.year,
+      month: data.month.present ? data.month.value : this.month,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayrollAdjustmentRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('year: $year, ')
+          ..write('month: $month, ')
+          ..write('amount: $amount, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    employeeUuid,
+    year,
+    month,
+    amount,
+    notes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PayrollAdjustmentRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.employeeUuid == this.employeeUuid &&
+          other.year == this.year &&
+          other.month == this.month &&
+          other.amount == this.amount &&
+          other.notes == this.notes);
+}
+
+class PayrollAdjustmentsCompanion
+    extends UpdateCompanion<PayrollAdjustmentRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> employeeUuid;
+  final Value<int> year;
+  final Value<int> month;
+  final Value<double> amount;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const PayrollAdjustmentsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.year = const Value.absent(),
+    this.month = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PayrollAdjustmentsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String employeeUuid,
+    required int year,
+    required int month,
+    required double amount,
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       employeeUuid = Value(employeeUuid),
+       year = Value(year),
+       month = Value(month),
+       amount = Value(amount);
+  static Insertable<PayrollAdjustmentRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? employeeUuid,
+    Expression<int>? year,
+    Expression<int>? month,
+    Expression<double>? amount,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (year != null) 'year': year,
+      if (month != null) 'month': month,
+      if (amount != null) 'amount': amount,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PayrollAdjustmentsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? employeeUuid,
+    Value<int>? year,
+    Value<int>? month,
+    Value<double>? amount,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return PayrollAdjustmentsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
+      year: year ?? this.year,
+      month: month ?? this.month,
+      amount: amount ?? this.amount,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
+    if (year.present) {
+      map['year'] = Variable<int>(year.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<int>(month.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayrollAdjustmentsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('year: $year, ')
+          ..write('month: $month, ')
+          ..write('amount: $amount, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
@@ -15765,6 +16445,8 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $FinOperationsTable finOperations = $FinOperationsTable(this);
   late final $FinPayrollMappingTable finPayrollMapping =
       $FinPayrollMappingTable(this);
+  late final $PayrollAdjustmentsTable payrollAdjustments =
+      $PayrollAdjustmentsTable(this);
   late final Index idxEmployeesFullName = Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -15845,6 +16527,14 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     'idx_fin_payroll_mapping_unique',
     'CREATE UNIQUE INDEX idx_fin_payroll_mapping_unique ON fin_payroll_mapping (kind, value) WHERE deleted = 0',
   );
+  late final Index idxPayrollAdjustmentsMonth = Index(
+    'idx_payroll_adjustments_month',
+    'CREATE INDEX idx_payroll_adjustments_month ON payroll_adjustments (year, month)',
+  );
+  late final Index idxPayrollAdjustmentsEmployee = Index(
+    'idx_payroll_adjustments_employee',
+    'CREATE INDEX idx_payroll_adjustments_employee ON payroll_adjustments (employee_uuid)',
+  );
   late final EmployeesDao employeesDao = EmployeesDao(this as LocalDatabase);
   late final RatesDao ratesDao = RatesDao(this as LocalDatabase);
   late final TimesheetDao timesheetDao = TimesheetDao(this as LocalDatabase);
@@ -15853,6 +16543,8 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final SettingsDao settingsDao = SettingsDao(this as LocalDatabase);
   late final SyncStateDao syncStateDao = SyncStateDao(this as LocalDatabase);
   late final FinanceDao financeDao = FinanceDao(this as LocalDatabase);
+  late final PayrollAdjustmentsDao payrollAdjustmentsDao =
+      PayrollAdjustmentsDao(this as LocalDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15878,6 +16570,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     finDebts,
     finOperations,
     finPayrollMapping,
+    payrollAdjustments,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -15898,6 +16591,8 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     idxFinOperationsAccount,
     idxFinOperationsCategory,
     idxFinPayrollMappingUnique,
+    idxPayrollAdjustmentsMonth,
+    idxPayrollAdjustmentsEmployee,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -16552,6 +17247,33 @@ final class $$EmployeesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $PayrollAdjustmentsTable,
+    List<PayrollAdjustmentRow>
+  >
+  _payrollAdjustmentsRefsTable(_$LocalDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.payrollAdjustments,
+        aliasName: 'employees__uuid__payroll_adjustments__employee_uuid',
+      );
+
+  $$PayrollAdjustmentsTableProcessedTableManager get payrollAdjustmentsRefs {
+    final manager =
+        $$PayrollAdjustmentsTableTableManager(
+          $_db,
+          $_db.payrollAdjustments,
+        ).filter(
+          (f) => f.employeeUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _payrollAdjustmentsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$EmployeesTableFilterComposer
@@ -16839,6 +17561,31 @@ class $$EmployeesTableFilterComposer
           }) => $$FinOperationsTableFilterComposer(
             $db: $db,
             $table: $db.finOperations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> payrollAdjustmentsRefs(
+    Expression<bool> Function($$PayrollAdjustmentsTableFilterComposer f) f,
+  ) {
+    final $$PayrollAdjustmentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.payrollAdjustments,
+      getReferencedColumn: (t) => t.employeeUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayrollAdjustmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.payrollAdjustments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17192,6 +17939,32 @@ class $$EmployeesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> payrollAdjustmentsRefs<T extends Object>(
+    Expression<T> Function($$PayrollAdjustmentsTableAnnotationComposer a) f,
+  ) {
+    final $$PayrollAdjustmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.uuid,
+          referencedTable: $db.payrollAdjustments,
+          getReferencedColumn: (t) => t.employeeUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PayrollAdjustmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.payrollAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableTableManager
@@ -17217,6 +17990,7 @@ class $$EmployeesTableTableManager
             bool finAccountsRefs,
             bool counterpartiesRefs,
             bool finOperationsRefs,
+            bool payrollAdjustmentsRefs,
           })
         > {
   $$EmployeesTableTableManager(_$LocalDatabase db, $EmployeesTable table)
@@ -17309,6 +18083,7 @@ class $$EmployeesTableTableManager
                 finAccountsRefs = false,
                 counterpartiesRefs = false,
                 finOperationsRefs = false,
+                payrollAdjustmentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -17322,6 +18097,7 @@ class $$EmployeesTableTableManager
                     if (finAccountsRefs) db.finAccounts,
                     if (counterpartiesRefs) db.counterparties,
                     if (finOperationsRefs) db.finOperations,
+                    if (payrollAdjustmentsRefs) db.payrollAdjustments,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -17515,6 +18291,27 @@ class $$EmployeesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (payrollAdjustmentsRefs)
+                        await $_getPrefetchedData<
+                          EmployeeRow,
+                          $EmployeesTable,
+                          PayrollAdjustmentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._payrollAdjustmentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).payrollAdjustmentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17545,6 +18342,7 @@ typedef $$EmployeesTableProcessedTableManager =
         bool finAccountsRefs,
         bool counterpartiesRefs,
         bool finOperationsRefs,
+        bool payrollAdjustmentsRefs,
       })
     >;
 typedef $$EmployeeRatesTableCreateCompanionBuilder =
@@ -27658,6 +28456,455 @@ typedef $$FinPayrollMappingTableProcessedTableManager =
       FinPayrollMappingRow,
       PrefetchHooks Function()
     >;
+typedef $$PayrollAdjustmentsTableCreateCompanionBuilder =
+    PayrollAdjustmentsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String employeeUuid,
+      required int year,
+      required int month,
+      required double amount,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$PayrollAdjustmentsTableUpdateCompanionBuilder =
+    PayrollAdjustmentsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> employeeUuid,
+      Value<int> year,
+      Value<int> month,
+      Value<double> amount,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$PayrollAdjustmentsTableReferences
+    extends
+        BaseReferences<
+          _$LocalDatabase,
+          $PayrollAdjustmentsTable,
+          PayrollAdjustmentRow
+        > {
+  $$PayrollAdjustmentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $EmployeesTable _employeeUuidTable(_$LocalDatabase db) => db.employees
+      .createAlias('payroll_adjustments__employee_uuid__employees__uuid');
+
+  $$EmployeesTableProcessedTableManager get employeeUuid {
+    final $_column = $_itemColumn<String>('employee_uuid')!;
+
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PayrollAdjustmentsTableFilterComposer
+    extends Composer<_$LocalDatabase, $PayrollAdjustmentsTable> {
+  $$PayrollAdjustmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$EmployeesTableFilterComposer get employeeUuid {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayrollAdjustmentsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $PayrollAdjustmentsTable> {
+  $$PayrollAdjustmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$EmployeesTableOrderingComposer get employeeUuid {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayrollAdjustmentsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $PayrollAdjustmentsTable> {
+  $$PayrollAdjustmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get year =>
+      $composableBuilder(column: $table.year, builder: (column) => column);
+
+  GeneratedColumn<int> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeUuid {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeUuid,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayrollAdjustmentsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $PayrollAdjustmentsTable,
+          PayrollAdjustmentRow,
+          $$PayrollAdjustmentsTableFilterComposer,
+          $$PayrollAdjustmentsTableOrderingComposer,
+          $$PayrollAdjustmentsTableAnnotationComposer,
+          $$PayrollAdjustmentsTableCreateCompanionBuilder,
+          $$PayrollAdjustmentsTableUpdateCompanionBuilder,
+          (PayrollAdjustmentRow, $$PayrollAdjustmentsTableReferences),
+          PayrollAdjustmentRow,
+          PrefetchHooks Function({bool employeeUuid})
+        > {
+  $$PayrollAdjustmentsTableTableManager(
+    _$LocalDatabase db,
+    $PayrollAdjustmentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PayrollAdjustmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PayrollAdjustmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PayrollAdjustmentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> employeeUuid = const Value.absent(),
+                Value<int> year = const Value.absent(),
+                Value<int> month = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PayrollAdjustmentsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                employeeUuid: employeeUuid,
+                year: year,
+                month: month,
+                amount: amount,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String employeeUuid,
+                required int year,
+                required int month,
+                required double amount,
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PayrollAdjustmentsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                employeeUuid: employeeUuid,
+                year: year,
+                month: month,
+                amount: amount,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PayrollAdjustmentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({employeeUuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (employeeUuid) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.employeeUuid,
+                                referencedTable:
+                                    $$PayrollAdjustmentsTableReferences
+                                        ._employeeUuidTable(db),
+                                referencedColumn:
+                                    $$PayrollAdjustmentsTableReferences
+                                        ._employeeUuidTable(db)
+                                        .uuid,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PayrollAdjustmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $PayrollAdjustmentsTable,
+      PayrollAdjustmentRow,
+      $$PayrollAdjustmentsTableFilterComposer,
+      $$PayrollAdjustmentsTableOrderingComposer,
+      $$PayrollAdjustmentsTableAnnotationComposer,
+      $$PayrollAdjustmentsTableCreateCompanionBuilder,
+      $$PayrollAdjustmentsTableUpdateCompanionBuilder,
+      (PayrollAdjustmentRow, $$PayrollAdjustmentsTableReferences),
+      PayrollAdjustmentRow,
+      PrefetchHooks Function({bool employeeUuid})
+    >;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -27702,4 +28949,6 @@ class $LocalDatabaseManager {
       $$FinOperationsTableTableManager(_db, _db.finOperations);
   $$FinPayrollMappingTableTableManager get finPayrollMapping =>
       $$FinPayrollMappingTableTableManager(_db, _db.finPayrollMapping);
+  $$PayrollAdjustmentsTableTableManager get payrollAdjustments =>
+      $$PayrollAdjustmentsTableTableManager(_db, _db.payrollAdjustments);
 }

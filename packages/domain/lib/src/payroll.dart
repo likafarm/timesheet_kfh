@@ -15,7 +15,11 @@ class PayrollCalculation {
   final double fieldDays;
   final double sickDays;
   final double vacationDays;
+  /// Начислено за месяц: дни по ставкам плюс [adjustment].
   final double totalSalary;
+
+  /// Корректировки месяца (доплаты минус удержания), уже в [totalSalary].
+  final double adjustment;
 
   /// Ставки последнего оплаченного рабочего дня (для справки).
   final double? baseRateUsed;
@@ -33,6 +37,7 @@ class PayrollCalculation {
     required this.sickDays,
     required this.vacationDays,
     required this.totalSalary,
+    this.adjustment = 0,
     this.baseRateUsed,
     this.fieldRateUsed,
     this.skippedWorkDays = 0,
@@ -48,6 +53,7 @@ class PayrollCalculation {
     'sickDays': sickDays,
     'vacationDays': vacationDays,
     'totalSalary': totalSalary,
+    'adjustment': adjustment,
     'baseRateUsed': baseRateUsed,
     'fieldRateUsed': fieldRateUsed,
     'skippedWorkDays': skippedWorkDays,
@@ -81,12 +87,15 @@ EmployeeRate? findRateAtDate(List<EmployeeRate> rates, DateTime date) {
 ///
 /// Рабочий день оплачивается по ставке базы (`workPlace == 'base'`),
 /// иначе — по ставке поля. Больничные и отпуск только подсчитываются.
+/// [adjustment] — сумма корректировок месяца ([PayrollAdjustment]),
+/// прибавляется к начисленному.
 PayrollCalculation calculateMonthlySalary({
   required String employeeId,
   required int year,
   required int month,
   required List<TimesheetRecord> records,
   required List<EmployeeRate> rates,
+  double adjustment = 0,
 }) {
   double baseDays = 0.0;
   double fieldDays = 0.0;
@@ -133,7 +142,8 @@ PayrollCalculation calculateMonthlySalary({
     fieldDays: fieldDays,
     sickDays: sickDays,
     vacationDays: vacationDays,
-    totalSalary: totalSalary,
+    totalSalary: totalSalary + adjustment,
+    adjustment: adjustment,
     baseRateUsed: lastBaseRate,
     fieldRateUsed: lastFieldRate,
     skippedWorkDays: skippedWorkDays,

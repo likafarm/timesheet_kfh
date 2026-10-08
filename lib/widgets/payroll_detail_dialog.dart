@@ -9,7 +9,7 @@ import '../services/print_service.dart';
 import '../theme/app_theme.dart';
 import 'adaptive_dialog.dart';
 
-class PayrollDetailDialog extends StatelessWidget {
+class PayrollDetailDialog extends StatefulWidget {
   final Employee employee;
   final PayrollResult result;
   final List<Payment> payments;
@@ -24,7 +24,84 @@ class PayrollDetailDialog extends StatelessWidget {
   });
 
   @override
+  State<PayrollDetailDialog> createState() => _PayrollDetailDialogState();
+}
+
+class _PayrollDetailDialogState extends State<PayrollDetailDialog> {
+  late PayrollResult result = widget.result;
+  List<PayrollAdjustment> _adjustments = const [];
+
+  Employee get employee => widget.employee;
+  List<Payment> get payments => widget.payments;
+  double get startingBalance => widget.startingBalance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdjustments();
+  }
+
+  Future<void> _loadAdjustments() async {
+    final id = employee.id;
+    if (id == null) return;
+    final list = await context.read<AppProvider>().adjustmentsInMonth(
+      id,
+      result.year,
+      result.month,
+    );
+    if (mounted) setState(() => _adjustments = list);
+  }
+
+  /// После правки корректировки: открытый месяц — свежий пересчёт.
+  Future<void> _afterChange() async {
+    final provider = context.read<AppProvider>();
+    await _loadAdjustments();
+    if (!provider.isMonthLocked(result.year, result.month)) {
+      final calc = await provider.calculatePayroll(
+        employee.id!,
+        result.year,
+        result.month,
+      );
+      if (mounted) {
+        setState(() => result = PayrollResult.fromCalculation(calc));
+      }
+    }
+    await provider.loadPayrollReport(result.year, result.month);
+  }
+
+  Future<void> _editAdjustment([PayrollAdjustment? old]) async {
+    final provider = context.read<AppProvider>();
+    final edited = await showAppDialog<_AdjustmentEdit>(
+      context: context,
+      builder: (_) => _AdjustmentDialog(old: old),
+    );
+    if (edited == null || !mounted) return;
+    final bool ok;
+    if (edited.delete) {
+      ok = await provider.deleteAdjustment(old!);
+    } else {
+      ok = await provider.saveAdjustment(
+        PayrollAdjustment(
+          id: old?.id,
+          employeeId: employee.id!,
+          year: result.year,
+          month: result.month,
+          amount: edited.amount,
+          notes: edited.notes,
+        ),
+        old: old,
+      );
+    }
+    if (ok) await _afterChange();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final canEdit =
+        !provider.operatorMode &&
+        employee.id != null &&
+        !provider.isMonthLocked(result.year, result.month);
     final monthName = DateFormat(
       'LLLL yyyy',
       'ru',
@@ -87,7 +164,7 @@ class PayrollDetailDialog extends StatelessWidget {
               ],
               _buildStartTotals(currencyFormat, startingBalance),
               const SizedBox(height: 16),
-              _buildAccrualSection(currencyFormat, daysFormat),
+              _buildAccrualSection(currencyFormat, daysFormat, canEdit),
               const SizedBox(height: 16),
               _buildPaymentsSection(sortedPayments, currencyFormat),
               const SizedBox(height: 20),
@@ -97,6 +174,12 @@ class PayrollDetailDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        if (canEdit)
+          TextButton.icon(
+            onPressed: _editAdjustment,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Корректировка'),
+          ),
         TextButton.icon(
           onPressed: () async {
             final provider = context.read<AppProvider>();
@@ -109,6 +192,7 @@ class PayrollDetailDialog extends StatelessWidget {
                 result: result,
                 payments: sortedPayments,
                 startingBalance: startingBalance,
+                adjustments: _adjustments,
                 companySettings: provider.companySettings,
               );
             } catch (e) {
@@ -140,7 +224,11 @@ class PayrollDetailDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildAccrualSection(NumberFormat currency, NumberFormat days) {
+  Widget _buildAccrualSection(
+    NumberFormat currency,
+    NumberFormat days,
+    bool canEdit,
+  ) {
     final rows = [
       _AccrualRow(
         'Работа на базе',
@@ -180,6 +268,31 @@ class PayrollDetailDialog extends StatelessWidget {
               numeric: {1, 2, 3},
             ),
           ),
+          for (final a in _adjustments)
+            TableRow(
+              children: [
+                for (final (i, t) in [
+                  _adjustmentName(a),
+                  '',
+                  '—',
+                  currency.format(a.amount),
+                ].indexed)
+                  TableRowInkWell(
+                    onTap: canEdit ? () => _editAdjustment(a) : null,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        t,
+                        style: const TextStyle(fontSize: 13),
+                        textAlign: i == 0 ? TextAlign.left : TextAlign.right,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           _footerRow(
             ['ИТОГО', '', '', currency.format(result.totalSalary)],
             numeric: {3},
@@ -339,4 +452,112 @@ class _AccrualRow {
     : days = d.toString(),
       rate = r?.toString(),
       amount = a.toString();
+}
+
+/// Подпись корректировки в таблице начислений.
+String _adjustmentName(PayrollAdjustment a) =>
+    a.notes == null || a.notes!.isEmpty
+    ? 'Корректировка'
+    : 'Корректировка: ${a.notes}';
+
+/// Итог окна корректировки: сумма и примечание или удаление.
+class _AdjustmentEdit {
+  final double amount;
+  final String? notes;
+  final bool delete;
+  const _AdjustmentEdit(this.amount, this.notes, {this.delete = false});
+}
+
+/// Окно корректировки начисления: сумма (минус — удержание) и примечание.
+class _AdjustmentDialog extends StatefulWidget {
+  final PayrollAdjustment? old;
+  const _AdjustmentDialog({this.old});
+
+  @override
+  State<_AdjustmentDialog> createState() => _AdjustmentDialogState();
+}
+
+class _AdjustmentDialogState extends State<_AdjustmentDialog> {
+  late final _amount = TextEditingController(
+    text: widget.old == null
+        ? ''
+        : NumberFormat('0.##', 'ru').format(widget.old!.amount),
+  );
+  late final _notes = TextEditingController(text: widget.old?.notes ?? '');
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final text = _amount.text
+        .replaceAll(RegExp(r'[\s ]'), '')
+        .replaceAll(',', '.')
+        .replaceAll('−', '-');
+    final value = double.tryParse(text);
+    if (value == null || value == 0) {
+      setState(() => _error = 'Введите сумму, для удержания — с минусом');
+      return;
+    }
+    final notes = _notes.text.trim();
+    Navigator.of(
+      context,
+    ).pop(_AdjustmentEdit(value, notes.isEmpty ? null : notes));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: const Text('Корректировка начисления'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                signed: true,
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Сумма, ₽',
+                helperText: 'Плюс — доплата, минус — удержание',
+                errorText: _error,
+              ),
+              onSubmitted: (_) => _save(),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              decoration: const InputDecoration(
+                labelText: 'Примечание',
+                hintText: 'Надбавка, премия, вычет…',
+              ),
+              onSubmitted: (_) => _save(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        if (widget.old != null)
+          TextButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(const _AdjustmentEdit(0, null, delete: true)),
+            child: const Text('Удалить'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Сохранить')),
+      ],
+    );
+  }
 }

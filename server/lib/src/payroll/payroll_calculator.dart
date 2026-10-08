@@ -143,6 +143,8 @@ class PayrollCalculator {
     final rates = await _rows.live(sql, _t('employee_rates'));
     final saved = await _rows.live(sql, _t('payroll_results'),
         where: 'year = :y AND month = :m', params: {'y': year, 'm': month});
+    final adjustments = await _rows.live(sql, _t('payroll_adjustments'),
+        where: 'year = :y AND month = :m', params: {'y': year, 'm': month});
 
     final daysBy = <String, List<TimesheetRecord>>{};
     for (final d in days) {
@@ -153,6 +155,11 @@ class PayrollCalculator {
       (ratesBy[r.data['employee_uuid'] as String] ??= []).add(_rate(r));
     }
     final savedBy = {for (final s in saved) s.data['employee_uuid'] as String: s};
+    final adjustmentBy = <String, double>{};
+    for (final a in adjustments) {
+      final id = a.data['employee_uuid'] as String;
+      adjustmentBy[id] = (adjustmentBy[id] ?? 0) + (a.data['amount'] as double);
+    }
     final paid = await paidInMonth(sql, year, month);
     final balances = await startingBalances(sql, year, month);
 
@@ -166,6 +173,7 @@ class PayrollCalculator {
             month: month,
             records: daysBy[e.uuid] ?? const [],
             rates: ratesBy[e.uuid] ?? const [],
+            adjustment: adjustmentBy[e.uuid] ?? 0,
           ),
           savedBy[e.uuid],
           paidInMonth: paid.contains(e.uuid),
@@ -265,7 +273,8 @@ class PayrollCalculator {
   }
 
   /// Первый и последний месяц ([PeriodGuard.monthKey]), где есть живой
-  /// табель, выплата или сохранённый расчёт; null — данных нет.
+  /// табель, выплата, корректировка или сохранённый расчёт; null — данных
+  /// нет.
   Future<({int first, int last})?> dataMonths(SqlExecutor sql) async {
     final r = await sql('SELECT '
         '(SELECT MIN(date) FROM timesheet WHERE deleted = 0) AS t0, '
@@ -275,7 +284,11 @@ class PayrollCalculator {
         '(SELECT MIN(year * 12 + month - 1) FROM payroll_results '
         'WHERE deleted = 0) AS r0, '
         '(SELECT MAX(year * 12 + month - 1) FROM payroll_results '
-        'WHERE deleted = 0) AS r1');
+        'WHERE deleted = 0) AS r1, '
+        '(SELECT MIN(year * 12 + month - 1) FROM payroll_adjustments '
+        'WHERE deleted = 0) AS a0, '
+        '(SELECT MAX(year * 12 + month - 1) FROM payroll_adjustments '
+        'WHERE deleted = 0) AS a1');
     final row = r.rows.single;
     int? day(String column) {
       final v = row.text(column);
@@ -285,8 +298,10 @@ class PayrollCalculator {
     }
 
     int? key(String column) => int.tryParse(row.text(column) ?? '');
-    final firsts = [day('t0'), day('p0'), key('r0')].whereType<int>();
-    final lasts = [day('t1'), day('p1'), key('r1')].whereType<int>();
+    final firsts =
+        [day('t0'), day('p0'), key('r0'), key('a0')].whereType<int>();
+    final lasts =
+        [day('t1'), day('p1'), key('r1'), key('a1')].whereType<int>();
     if (firsts.isEmpty) return null;
     return (
       first: firsts.reduce((a, b) => a < b ? a : b),
@@ -404,7 +419,7 @@ class PayrollCalculator {
 
 /// С какого месяца ([PeriodGuard.monthKey]) правка записи может изменить
 /// расчёты ЗП: табель и выплаты — их месяц (прежний и новый), ставка — месяц
-/// начала, расчёт — его месяц, сотрудник — все месяцы (0: удалённый
+/// начала, расчёт и корректировка — их месяц, сотрудник — все месяцы (0: удалённый
 /// сотрудник выпадает из расчёта). null — на расчёт не влияет (реквизиты,
 /// больничные и отпуска: расчёт идёт по табелю). [before] и [after] —
 /// данные живой записи до и после правки (null — записи нет или удалена).
@@ -423,7 +438,7 @@ int? payrollImpactFrom(
       final d = parseDateIso(data[column] as String);
       return PeriodGuard.monthKey(d.year, d.month);
     }
-    if (table == 'payroll_results') {
+    if (table == 'payroll_results' || table == 'payroll_adjustments') {
       return PeriodGuard.monthKey(data['year'] as int, data['month'] as int);
     }
     return null;

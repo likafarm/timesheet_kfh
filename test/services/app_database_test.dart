@@ -155,7 +155,11 @@ void main() {
     await db.close();
     opened = null;
     final raw = sql.sqlite3.open(v2Path());
-    for (final table in financeTables.keys.toList().reversed) {
+    // Схема 1 — без таблиц финансов (схема 2) и корректировок (схема 3).
+    for (final table in [
+      'payroll_adjustments',
+      ...financeTables.keys.toList().reversed,
+    ]) {
       raw.execute('DROP TABLE $table');
     }
     raw.execute('PRAGMA user_version = 1');
@@ -173,7 +177,7 @@ void main() {
       if (p.basename(f.path).startsWith(upgradeBackupPrefix)) f.path,
   ];
 
-  test('база схемы 1: копия рядом, обновление до 2, данные на месте', () async {
+  test('база схемы 1: копия рядом, обновление до последней, данные на месте', () async {
     await makeSchema1();
     final db = await open();
     expect(upgradeCopies(), hasLength(1));
@@ -186,7 +190,12 @@ void main() {
     expect(databaseFileVersion(v2Path()), currentSchemaVersion);
     expect((await db.repos.employees.all()).single.fullName, 'Петров Пётр');
     expect(await db.repos.finance.accounts(), isEmpty);
-    expect(log.any((m) => m.contains('обновлением схемы 1 -> 2')), isTrue);
+    expect(
+      log.any(
+        (m) => m.contains('обновлением схемы 1 -> $currentSchemaVersion'),
+      ),
+      isTrue,
+    );
 
     // Следующий запуск — копий больше не делается.
     await db.close();

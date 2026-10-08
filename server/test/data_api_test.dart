@@ -747,6 +747,30 @@ void main() {
       expect(await auditCount('payroll_auto_save'), 4);
     }, skip: mysqlSkip);
 
+    test('корректировка месяца входит в расчёт и остаток', () async {
+      await seed(auto: true);
+      await push(auto: true, [
+        SyncChange(
+            table: 'payroll_adjustments',
+            uuid: '01900000-0000-7000-8000-00000000a001',
+            updatedAt: DateTime.now().toUtc(),
+            deleted: false,
+            data: {
+              'legacy_id': null,
+              'employee_uuid': ivan,
+              'year': 2026,
+              'month': 9,
+              'amount': 13000.0,
+              'notes': 'надбавка',
+            }),
+      ]);
+      final sept = await month(9);
+      expect(sept[ivan]['saved']['total_salary'], 5650.0 + 13000);
+      expect(sept[ivan]['up_to_date'], isTrue);
+      final (_, oct) = await call('GET', '/payroll?year=2026&month=10');
+      expect(oct['starting_balances'][ivan], 5650.0 + 13000 - 1000);
+    }, skip: mysqlSkip);
+
     test('правка в сентябре обновляет сентябрь и остаток октября', () async {
       await seed(auto: true);
       final petrSept = (await month(9))[petr]['saved'];

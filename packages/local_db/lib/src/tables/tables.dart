@@ -125,6 +125,26 @@ class Payments extends Table with SyncColumns {
   TextColumn get createdAt => text()();
 }
 
+/// Корректировка начисления за месяц (схема 3): доплата или удержание,
+/// рубли (как выплаты); несколько на месяц можно.
+@DataClassName('PayrollAdjustmentRow')
+@TableIndex(
+  name: 'idx_payroll_adjustments_month',
+  columns: {#year, #month},
+)
+@TableIndex(
+  name: 'idx_payroll_adjustments_employee',
+  columns: {#employeeUuid},
+)
+class PayrollAdjustments extends Table with SyncColumns {
+  TextColumn get employeeUuid =>
+      text().references(Employees, #uuid, initiallyDeferred: true)();
+  IntColumn get year => integer()();
+  IntColumn get month => integer()();
+  RealColumn get amount => real()();
+  TextColumn get notes => text().nullable()();
+}
+
 @DataClassName('SickLeaveRow')
 @TableIndex(name: 'idx_sick_leave_employee', columns: {#employeeUuid})
 class SickLeave extends Table with SyncColumns {

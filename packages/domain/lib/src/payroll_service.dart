@@ -1,4 +1,5 @@
 import 'models/employee_rate.dart';
+import 'models/payroll_adjustment.dart';
 import 'models/payroll_result.dart';
 import 'models/timesheet_record.dart';
 import 'payroll.dart';
@@ -57,13 +58,20 @@ class PayrollService {
   final PaymentRepository payments;
   final PayrollRepository payroll;
 
+  /// Корректировки начисления; null — их нет (тесты без хранилища).
+  final PayrollAdjustmentRepository? adjustments;
+
   PayrollService({
     required this.employees,
     required this.rates,
     required this.timesheet,
     required this.payments,
     required this.payroll,
+    this.adjustments,
   });
+
+  Future<List<PayrollAdjustment>> _adjustments() async =>
+      await adjustments?.all() ?? const [];
 
   /// Расчёт за месяц по табелю и истории ставок.
   Future<PayrollCalculation> calculateMonth(
@@ -84,6 +92,16 @@ class PayrollService {
       month: month,
       records: records,
       rates: await rates.history(employeeId),
+      adjustment: [
+        for (final a
+            in await adjustments?.forMonth(
+                  year,
+                  month,
+                  employeeId: employeeId,
+                ) ??
+                const <PayrollAdjustment>[])
+          a.amount,
+      ].fold(0.0, (s, v) => s + v),
     );
   }
 
@@ -220,8 +238,8 @@ class PayrollService {
     final accrued = <String, double>{};
     void add(String id, double sum) => accrued[id] = (accrued[id] ?? 0) + sum;
 
-    // Открытые месяцы — пересчёт по табелю (месяц без табеля начислений не
-    // даёт).
+    // Открытые месяцы — пересчёт по табелю и корректировкам (месяц без
+    // них начислений не даёт).
     for (final (id, key) in data.monthsWithDays) {
       if (key >= target || lockedMonths.contains(key)) continue;
       add(id, data.calculate(id, key ~/ 12, key % 12 + 1).totalSalary);
@@ -249,6 +267,12 @@ class PayrollService {
       ids,
       await timesheet.inPeriod(DateTime(1900), end),
       {for (final id in ids) id: await rates.history(id)},
+      adjustmentSums([
+        for (final a in await _adjustments())
+          if (a.year * 12 + a.month - 1 <=
+              PeriodGuard.monthKey(end.year, end.month))
+            a,
+      ]),
     );
   }
 
@@ -272,13 +296,20 @@ class PayrollService {
       );
 }
 
-/// Данные для пересчёта: табель по сотрудникам и месяцам, ставки.
+/// Данные для пересчёта: табель по сотрудникам и месяцам, ставки,
+/// суммы корректировок.
 class _PayrollData {
   final List<String> employeeIds;
   final Map<String, List<EmployeeRate>> rates;
+  final Map<(String, int), double> adjustments;
   final _days = <(String, int), List<TimesheetRecord>>{};
 
-  _PayrollData(this.employeeIds, List<TimesheetRecord> records, this.rates) {
+  _PayrollData(
+    this.employeeIds,
+    List<TimesheetRecord> records,
+    this.rates,
+    this.adjustments,
+  ) {
     final live = employeeIds.toSet();
     for (final r in records) {
       if (!live.contains(r.employeeId)) continue;
@@ -287,8 +318,12 @@ class _PayrollData {
     }
   }
 
-  /// (сотрудник, месяц) с записями табеля.
-  Iterable<(String, int)> get monthsWithDays => _days.keys;
+  /// (сотрудник, месяц) с записями табеля или корректировками.
+  Iterable<(String, int)> get monthsWithDays => {
+    ..._days.keys,
+    for (final k in adjustments.keys)
+      if (employeeIds.contains(k.$1)) k,
+  };
 
   PayrollCalculation calculate(String id, int year, int month) =>
       calculateMonthlySalary(
@@ -297,5 +332,6 @@ class _PayrollData {
         month: month,
         records: _days[(id, PeriodGuard.monthKey(year, month))] ?? const [],
         rates: rates[id] ?? const [],
+        adjustment: adjustments[(id, PeriodGuard.monthKey(year, month))] ?? 0,
       );
 }

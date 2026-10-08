@@ -61,6 +61,8 @@ class AppProvider extends ChangeNotifier {
   RateRepository get _ratesRepo => _appDb.repos.rates;
   TimesheetRepository get _timesheetRepo => _appDb.repos.timesheet;
   PaymentRepository get _paymentsRepo => _appDb.repos.payments;
+  PayrollAdjustmentRepository get _adjustmentsRepo =>
+      _appDb.repos.adjustments;
   SettingsRepository get _settingsRepo => _appDb.repos.settings;
   PayrollService get _payrollService => _appDb.repos.payrollService;
 
@@ -797,6 +799,69 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
+  // КОРРЕКТИРОВКИ НАЧИСЛЕНИЯ
+  // ==========================================================================
+
+  /// Корректировки начисления сотрудника за месяц.
+  Future<List<PayrollAdjustment>> adjustmentsInMonth(
+    String employeeId,
+    int year,
+    int month,
+  ) => _adjustmentsRepo.forMonth(year, month, employeeId: employeeId);
+
+  static Map<String, Object?> _adjustmentRow(PayrollAdjustment a) => {
+    'year': a.year,
+    'month': a.month,
+  };
+
+  /// Добавить (id == null) или изменить корректировку; false — не
+  /// сохранено (оператор, закрытый месяц — объяснение в [takeNotice]).
+  Future<bool> saveAdjustment(
+    PayrollAdjustment adjustment, {
+    PayrollAdjustment? old,
+  }) async {
+    if (!_notOperator()) return false;
+    if (!_allowedInOpenPeriod(
+      'payroll_adjustments',
+      old == null ? null : _adjustmentRow(old),
+      _adjustmentRow(adjustment),
+    )) {
+      return false;
+    }
+    try {
+      await _adjustmentsRepo.save(adjustment);
+      setNeedRefreshReports(true);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Ошибка сохранения корректировки: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteAdjustment(PayrollAdjustment adjustment) async {
+    if (!_notOperator()) return false;
+    if (!_allowedInOpenPeriod(
+      'payroll_adjustments',
+      _adjustmentRow(adjustment),
+      null,
+    )) {
+      return false;
+    }
+    try {
+      await _adjustmentsRepo.delete(adjustment.id!);
+      setNeedRefreshReports(true);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Ошибка удаления корректировки: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ==========================================================================
   // ОТЧЁТЫ
   // ==========================================================================
 
@@ -841,7 +906,8 @@ class AppProvider extends ChangeNotifier {
   Future<PayrollMonthReport> payrollReportFor(int year, int month) =>
       _payrollService.monthReport(year, month, lockedMonths: _lockedMonths);
 
-  /// Месяцы `(год, месяц)`, где в этой базе есть табель или выплаты, по
+  /// Месяцы `(год, месяц)`, где в этой базе есть табель, выплаты или
+  /// корректировки, по
   /// возрастанию.
   Future<List<(int, int)>> dataMonths() async {
     final keys = <int>{
@@ -852,6 +918,8 @@ class AppProvider extends ChangeNotifier {
         PeriodGuard.monthKey(r.date.year, r.date.month),
       for (final p in await _paymentsRepo.list())
         PeriodGuard.monthKey(p.paymentDate.year, p.paymentDate.month),
+      for (final a in await _adjustmentsRepo.all())
+        PeriodGuard.monthKey(a.year, a.month),
     };
     return [for (final k in keys.toList()..sort()) (k ~/ 12, k % 12 + 1)];
   }
@@ -899,6 +967,13 @@ class AppProvider extends ChangeNotifier {
     start: DateTime(year, month, 1),
     end: DateTime(year, month + 1, 0),
   );
+
+  /// Свежий расчёт сотрудника за месяц.
+  Future<PayrollCalculation> calculatePayroll(
+    String employeeId,
+    int year,
+    int month,
+  ) => _payrollService.calculateMonth(employeeId, year, month);
 
   Future<Map<String, dynamic>> calculateSingleEmployeePayroll(
     String employeeId,

@@ -61,6 +61,7 @@ const _entity = {
   'employee_rates': 'ставка',
   'employees': 'сотрудник',
   'payroll_results': 'расчёт зарплаты',
+  'payroll_adjustments': 'корректировка начисления',
   'company_settings': 'реквизиты хозяйства',
   'fin_directions': 'направление',
   'fin_allocation_keys': 'ключ распределения',
@@ -91,6 +92,12 @@ const _fields = <String, Map<String, String>>{
     'period_start': 'Период с',
     'period_end': 'Период по',
     'document_number': 'Документ',
+    'notes': 'Примечание',
+  },
+  'payroll_adjustments': {
+    'year': 'Год',
+    'month': 'Месяц',
+    'amount': 'Сумма',
     'notes': 'Примечание',
   },
   'employee_rates': {
@@ -213,7 +220,7 @@ AuditView describeAudit(AuditEntry e) {
       switch (entity) {
         'timesheet' => _day('${data?['date'] ?? ''}'),
         'payments' => _day('${data?['payment_date'] ?? ''}'),
-        'payroll_results' => _month(data),
+        'payroll_results' || 'payroll_adjustments' => _month(data),
         'employee_rates' => 'с ${_day('${data?['start_date'] ?? ''}')}',
         'fin_operations' => _operation(data),
         'fin_accounts' ||

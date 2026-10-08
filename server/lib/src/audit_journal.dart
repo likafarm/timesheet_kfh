@@ -12,7 +12,7 @@ const auditKinds = <String, String>{
   'payments': "a.entity = 'payments'",
   'rates': "a.entity = 'employee_rates'",
   'employees': "a.entity = 'employees'",
-  'payroll': "a.entity = 'payroll_results'",
+  'payroll': "a.entity IN ('payroll_results', 'payroll_adjustments')",
   'settings': "a.entity = 'company_settings'",
   'finance': "a.entity IN ('fin_directions', 'fin_allocation_keys', "
       "'fin_allocation_periods', 'fin_accounts', 'fin_assets', "

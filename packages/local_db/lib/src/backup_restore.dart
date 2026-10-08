@@ -68,7 +68,7 @@ const firstSchemaVersionV2 = 1;
 
 /// Текущая версия drift-схемы (`LocalDatabase.schemaVersion`; сверяет
 /// тест).
-const currentSchemaVersion = 2;
+const currentSchemaVersion = 3;
 
 /// Готовит из копии [backupPath] файл базы v2 [targetPath] для полной
 /// замены текущей. [deviceId] — id этого устройства: восстановленная база

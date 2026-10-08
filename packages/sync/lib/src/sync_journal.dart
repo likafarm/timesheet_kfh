@@ -99,6 +99,7 @@ String tableTitle(String table) => switch (table) {
   'employee_rates' => 'Ставка',
   'timesheet' => 'Табель',
   'payments' => 'Выплата',
+  'payroll_adjustments' => 'Корректировка начисления',
   'sick_leave' => 'Больничный',
   'vacation' => 'Отпуск',
   'payroll_results' => 'Расчёт ЗП',

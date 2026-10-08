@@ -15,6 +15,7 @@ const recordKindLabels = <String, String>{
   'employee_rates': 'Ставка',
   'timesheet': 'Табель',
   'payments': 'Выплата',
+  'payroll_adjustments': 'Корректировка начисления',
   'sick_leave': 'Больничный',
   'vacation': 'Отпуск',
   'payroll_results': 'Расчёт ЗП',
@@ -60,6 +61,9 @@ String recordSubject(
     'payments' =>
       '${day('payment_date')}, ${formatRecordValue('amount', data['amount'])}',
     'sick_leave' || 'vacation' => '${day('start_date')} – ${day('end_date')}',
+    'payroll_adjustments' =>
+      '${data['month'].toString().padLeft(2, '0')}.${data['year']}, '
+          '${formatRecordValue('amount', data['amount'])}',
     _ => '',
   };
   if (table == 'company_settings') return 'Реквизиты хозяйства';

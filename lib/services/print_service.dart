@@ -201,6 +201,7 @@ class PrintService {
     required PayrollResult result,
     required List<Payment> payments,
     required double startingBalance,
+    List<PayrollAdjustment> adjustments = const [],
     CompanySettings? companySettings,
   }) async {
     await _ensureFonts();
@@ -277,6 +278,15 @@ class PrintService {
               ],
               ['Больничный', days.format(result.sickDays), '—', '—'],
               ['Отпуск', days.format(result.vacationDays), '—', '—'],
+              for (final a in adjustments)
+                [
+                  a.notes == null || a.notes!.isEmpty
+                      ? 'Корректировка'
+                      : 'Корректировка: ${a.notes}',
+                  '',
+                  '—',
+                  currency.format(a.amount),
+                ],
             ],
             footer: ['ИТОГО', '', '', currency.format(result.totalSalary)],
             alignRight: const {1, 2, 3},

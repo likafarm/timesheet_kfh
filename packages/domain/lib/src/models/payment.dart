@@ -54,6 +54,8 @@ class Payment {
         return 'На карту';
       case 'transfer':
         return 'Перевод';
+      case 'accountable':
+        return 'Из подотчёта';
       default:
         return 'Не указано';
     }

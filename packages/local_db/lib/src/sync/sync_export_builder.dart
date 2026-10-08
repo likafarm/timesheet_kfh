@@ -84,6 +84,7 @@ Future<SyncExport> buildSyncExport(LocalDatabase db, {DateTime? now}) async {
         );
         months.add((day.year, day.month));
       case 'payroll_results':
+      case 'payroll_adjustments':
         months.add((r.data['year'] as int, r.data['month'] as int));
     }
   }

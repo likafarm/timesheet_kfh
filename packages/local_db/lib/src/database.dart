@@ -7,6 +7,7 @@ import 'connection/memory_unsupported.dart'
 import 'daos/employees_dao.dart';
 import 'daos/finance_dao.dart';
 import 'daos/payments_dao.dart';
+import 'daos/payroll_adjustments_dao.dart';
 import 'daos/payroll_dao.dart';
 import 'daos/rates_dao.dart';
 import 'daos/settings_dao.dart';
@@ -34,7 +35,8 @@ String newUuid() => _uuid.v7();
 ///
 /// Версия схемы drift начинается с 1: это новый файл
 /// (`kfx_time_tracking_v2.db`), старая база v8 в него переносится
-/// конвертером, а не миграцией. Схема 2 (этап 8) — финансы. Снимки схем —
+/// конвертером, а не миграцией. Схема 2 (этап 8) — финансы, схема 3 —
+/// корректировки начисления за месяц. Снимки схем —
 /// `drift_schemas/`, помощник шагов — `schema_versions.dart`
 /// (`drift_dev schema steps`); миграции только добавляют.
 @DriftDatabase(
@@ -60,6 +62,8 @@ String newUuid() => _uuid.v7();
     FinDebts,
     FinOperations,
     FinPayrollMapping,
+    // Корректировки начисления (схема 3)
+    PayrollAdjustments,
   ],
   daos: [
     EmployeesDao,
@@ -70,6 +74,7 @@ String newUuid() => _uuid.v7();
     SettingsDao,
     SyncStateDao,
     FinanceDao,
+    PayrollAdjustmentsDao,
   ],
 )
 class LocalDatabase extends _$LocalDatabase {
@@ -85,7 +90,7 @@ class LocalDatabase extends _$LocalDatabase {
   String? _deviceId;
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Текущий момент в UTC — для `updated_at`.
   DateTime nowUtc() => _clock().toUtc();
@@ -143,6 +148,12 @@ class LocalDatabase extends _$LocalDatabase {
         ]) {
           await m.createIndex(index);
         }
+      },
+      from2To3: (m, schema) async {
+        // Корректировки начисления: новая таблица, старые не меняются.
+        await m.createTable(schema.payrollAdjustments);
+        await m.createIndex(schema.idxPayrollAdjustmentsMonth);
+        await m.createIndex(schema.idxPayrollAdjustmentsEmployee);
       },
     ),
     beforeOpen: (details) async {

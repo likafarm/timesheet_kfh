@@ -11,6 +11,7 @@ import 'models/company_settings.dart';
 import 'models/employee.dart';
 import 'models/employee_rate.dart';
 import 'models/payment.dart';
+import 'models/payroll_adjustment.dart';
 import 'models/payroll_result.dart';
 import 'models/timesheet_record.dart';
 
@@ -85,6 +86,23 @@ abstract interface class PaymentRepository {
 
   /// Сумма выплат по сотрудникам строго до [date].
   Future<Map<String, double>> paidBefore(DateTime date);
+}
+
+/// Корректировки начисления за месяц ([PayrollAdjustment]).
+abstract interface class PayrollAdjustmentRepository {
+  /// Добавить (id == null — новый) или изменить. Возвращает id.
+  Future<String> save(PayrollAdjustment adjustment);
+  Future<void> delete(String id);
+
+  /// Корректировки месяца; [employeeId] — только этого сотрудника.
+  Future<List<PayrollAdjustment>> forMonth(
+    int year,
+    int month, {
+    String? employeeId,
+  });
+
+  /// Все живые корректировки.
+  Future<List<PayrollAdjustment>> all();
 }
 
 abstract interface class PayrollRepository {

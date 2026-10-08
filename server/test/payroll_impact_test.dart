@@ -27,6 +27,10 @@ void main() {
         payrollImpactFrom(
             'payroll_results', null, {'year': 2026, 'month': 10}),
         oct);
+    expect(
+        payrollImpactFrom(
+            'payroll_adjustments', null, {'year': 2026, 'month': 9}),
+        sept);
     expect(payrollImpactFrom('employees', null, {'full_name': 'И'}), 0);
   });
 

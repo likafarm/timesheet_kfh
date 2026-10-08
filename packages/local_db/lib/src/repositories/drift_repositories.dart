@@ -20,6 +20,8 @@ class DriftRepositories {
   late final PayrollRepository payroll = DriftPayrollRepository(db);
   late final SettingsRepository settings = DriftSettingsRepository(db);
   late final FinanceRepository finance = DriftFinanceRepository(db);
+  late final PayrollAdjustmentRepository adjustments =
+      DriftPayrollAdjustmentRepository(db);
 
   late final PayrollService payrollService = PayrollService(
     employees: employees,
@@ -27,6 +29,7 @@ class DriftRepositories {
     timesheet: timesheet,
     payments: payments,
     payroll: payroll,
+    adjustments: adjustments,
   );
 }
 
@@ -205,6 +208,68 @@ class DriftTimesheetRepository implements TimesheetRepository {
     end,
     employeeUuid: employeeId,
   )).map(_fromRow).toList();
+}
+
+// ---------------------------------------------------------------------------
+
+class DriftPayrollAdjustmentRepository implements PayrollAdjustmentRepository {
+  final LocalDatabase _db;
+  DriftPayrollAdjustmentRepository(this._db);
+
+  static PayrollAdjustment _fromRow(PayrollAdjustmentRow r) =>
+      PayrollAdjustment(
+        id: r.uuid,
+        employeeId: r.employeeUuid,
+        year: r.year,
+        month: r.month,
+        amount: r.amount,
+        notes: r.notes,
+      );
+
+  static PayrollAdjustmentsCompanion _toCompanion(PayrollAdjustment a) =>
+      PayrollAdjustmentsCompanion(
+        employeeUuid: Value(a.employeeId),
+        year: Value(a.year),
+        month: Value(a.month),
+        amount: Value(a.amount),
+        notes: Value(a.notes),
+      );
+
+  /// Без id — новая; с id — изменить, а если такой нет — добавить с этим
+  /// id (импорт задаёт uuid сам).
+  @override
+  Future<String> save(PayrollAdjustment adjustment) async {
+    final dao = _db.payrollAdjustmentsDao;
+    final id = adjustment.id;
+    if (id != null &&
+        await dao.updateAdjustment(id, _toCompanion(adjustment)) > 0) {
+      return id;
+    }
+    return dao.insertAdjustment(
+      _toCompanion(
+        adjustment,
+      ).copyWith(uuid: id == null ? const Value.absent() : Value(id)),
+    );
+  }
+
+  @override
+  Future<void> delete(String id) =>
+      _db.payrollAdjustmentsDao.softDeleteAdjustment(id);
+
+  @override
+  Future<List<PayrollAdjustment>> forMonth(
+    int year,
+    int month, {
+    String? employeeId,
+  }) async => (await _db.payrollAdjustmentsDao.adjustments(
+    year: year,
+    month: month,
+    employeeUuid: employeeId,
+  )).map(_fromRow).toList();
+
+  @override
+  Future<List<PayrollAdjustment>> all() async =>
+      (await _db.payrollAdjustmentsDao.adjustments()).map(_fromRow).toList();
 }
 
 // ---------------------------------------------------------------------------

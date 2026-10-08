@@ -97,6 +97,7 @@ class PeriodGuard {
       case 'payments':
         return _Days(day('payment_date'), day('payment_date'));
       case 'payroll_results':
+      case 'payroll_adjustments':
         final year = data['year'] as int, month = data['month'] as int;
         return _Days(
           _day(DateTime.utc(year, month, 1)),

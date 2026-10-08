@@ -10,6 +10,7 @@ export 'src/backup_format.dart';
 export 'src/daos/employees_dao.dart';
 export 'src/daos/finance_dao.dart';
 export 'src/daos/payments_dao.dart';
+export 'src/daos/payroll_adjustments_dao.dart';
 export 'src/daos/payroll_dao.dart';
 export 'src/daos/rates_dao.dart';
 export 'src/daos/settings_dao.dart';

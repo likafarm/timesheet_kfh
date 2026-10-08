@@ -105,6 +105,24 @@ class _Payroll implements PayrollRepository {
   }
 }
 
+class _Adjustments implements PayrollAdjustmentRepository {
+  final List<PayrollAdjustment> items;
+  _Adjustments(this.items);
+  @override
+  Future<List<PayrollAdjustment>> all() async => items;
+  @override
+  Future<List<PayrollAdjustment>> forMonth(int year, int month,
+          {String? employeeId}) async =>
+      items
+          .where((a) =>
+              a.year == year &&
+              a.month == month &&
+              (employeeId == null || a.employeeId == employeeId))
+          .toList();
+  @override
+  dynamic noSuchMethod(Invocation i) => throw UnimplementedError();
+}
+
 Employee _employee(String id, {DateTime? dismissed}) => Employee(
       id: id,
       fullName: id,
@@ -371,5 +389,36 @@ void main() {
       expect(withTime.isActiveOn(DateTime(2026, 9, 30, 9, 0)), isFalse);
       expect(withTime.isActiveOn(DateTime(2026, 9, 29, 23, 0)), isTrue);
     });
+  });
+
+  test('корректировка месяца входит в начислено, отчёт и остатки', () async {
+    final adjustments = [
+      const PayrollAdjustment(
+          employeeId: 'работал', year: 2026, month: 9, amount: 13000),
+      const PayrollAdjustment(
+          employeeId: 'работал', year: 2026, month: 9, amount: -500),
+      // Только корректировка, без дней.
+      const PayrollAdjustment(
+          employeeId: 'только выходные', year: 2026, month: 8, amount: 700),
+    ];
+    final withAdj = PayrollService(
+      employees: service.employees,
+      rates: service.rates,
+      timesheet: service.timesheet,
+      payments: service.payments,
+      payroll: payroll,
+      adjustments: _Adjustments(adjustments),
+    );
+    final calc = await withAdj.calculateMonth('работал', 2026, 9);
+    expect(calc.adjustment, 12500);
+    expect(calc.totalSalary, 1500 + 12500);
+
+    final aug = await withAdj.monthReport(2026, 8, lockedMonths: {});
+    final only = aug.results.firstWhere((r) => r.employeeId == 'только выходные');
+    expect(only.totalSalary, 700, reason: 'месяц из одной корректировки');
+
+    final balances = await withAdj.currentBalances(2026, 10, lockedMonths: {});
+    expect(balances['работал'], 14000);
+    expect(balances['только выходные'], 700);
   });
 }

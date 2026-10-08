@@ -214,6 +214,15 @@ const syncTables = <SyncTable>[
       SyncColumn('skipped_work_days', SyncType.integer, min: 0, max: 31),
     ],
   ),
+  // Корректировка начисления за месяц (схема 3): несколько на месяц можно.
+  SyncTable('payroll_adjustments', [
+    _legacyId,
+    _employee,
+    SyncColumn('year', SyncType.integer, min: 1900, max: 2200),
+    SyncColumn('month', SyncType.integer, min: 1, max: 12),
+    SyncColumn('amount', SyncType.real, min: -100000000, max: 100000000),
+    _notes,
+  ]),
   // --- Финансы (этап 8, схема 2) ------------------------------------------
   SyncTable(
     'fin_directions',

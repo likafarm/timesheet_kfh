@@ -19,6 +19,9 @@ void main() {
   Map<String, dynamic> json({
     int fuelAmount = 1001,
     List<Map<String, dynamic>> employees = const [],
+    List<Map<String, dynamic>> timesheet = const [],
+    List<Map<String, dynamic>> accruals = const [],
+    List<Map<String, dynamic>> payments = const [],
   }) {
     final operations = [
       {
@@ -66,7 +69,11 @@ void main() {
       },
     ];
     final control = <String, int>{};
-    for (final o in operations) {
+    for (final o in [
+      ...operations,
+      for (final p in payments)
+        {'sourceRef': p['sourceRef'], 'date': p['date'], 'amount': p['amount']},
+    ]) {
       final sheet = (o['sourceRef'] as String).split('!').first;
       control['$sheet|всего'] =
           (control['$sheet|всего'] ?? 0) + (o['amount'] as int);
@@ -187,6 +194,9 @@ void main() {
         'defaultCategoryId': fuel,
       },
       'employees': employees,
+      'timesheet': timesheet,
+      'accruals': accruals,
+      'payments': payments,
       'control': control,
     };
   }
@@ -409,4 +419,127 @@ void main() {
     final (third, _) = await importer();
     await expectLater(third.run(data), throwsA(isA<FinanceImportException>()));
   });
+
+  test(
+    'табель Excel: дни, выплаты, ставка под дни, корректировка месяца',
+    () async {
+      final petrova = id(40);
+      final data = FinanceImportData.fromJson(
+        json(
+          employees: [
+            {
+              'id': petrova,
+              'name': 'Петрова О.',
+              'position': 'Продавец',
+              'hireDate': '2025-02-03',
+              'dismissalDate': '2025-03-01',
+              'rate': 3000,
+            },
+          ],
+          timesheet: [
+            {
+              'id': id(50),
+              'employeeName': 'Иванов И. П.',
+              'date': '2025-03-03',
+              'days': 1,
+            },
+            {
+              'id': id(51),
+              'employeeName': 'Иванов И. П.',
+              'date': '2025-03-04',
+              'days': 0.5,
+            },
+            {
+              'id': id(52),
+              'employeeName': 'Петрова О.',
+              'date': '2025-02-03',
+              'days': 1,
+            },
+          ],
+          accruals: [
+            {
+              'id': id(60),
+              'employeeName': 'Иванов И. П.',
+              'year': 2025,
+              'month': 3,
+              'excelDays': 2,
+              'tariff': 2000,
+              'bonus': 1000,
+              'premium': 0,
+              'accrued': 5000,
+              'paid': 3000,
+            },
+            {
+              'id': id(61),
+              'employeeName': 'Петрова О.',
+              'year': 2025,
+              'month': 2,
+              'excelDays': 1,
+              'tariff': 3000,
+              'bonus': 0,
+              'premium': 0,
+              'accrued': 3000,
+              'paid': 3000,
+            },
+          ],
+          payments: [
+            {
+              'id': id(70),
+              'employeeName': 'Иванов И.',
+              'date': '2025-04-02',
+              'amount': 300000,
+              'method': 'cash',
+              'notes': 'Зарплата',
+              'sourceRef': 'Расход!50',
+            },
+          ],
+        ),
+      );
+      expect(data.problems(), isEmpty);
+      final (first, _) = await importer();
+      final plan = await first.plan(data);
+      expect(plan.counts['timesheet']![ImportAction.create], 3);
+      expect(plan.counts['payments']![ImportAction.create], 1);
+      expect(plan.counts['payroll_adjustments']![ImportAction.create], 1);
+      expect(
+        plan.employeeFixes.single,
+        contains('ставка'),
+        reason: 'у Иванова нет ставки на дни табеля',
+      );
+      await first.run(data);
+
+      final (check, db) = await importer();
+      expect(await check.verify(data), isEmpty);
+      expect(
+        (await check.plan(data)).changes,
+        0,
+        reason: 'повтор ничего не меняет',
+      );
+      final repos = DriftRepositories(db);
+      final rate = (await repos.rates.history(emp)).single;
+      expect(rate.startDate, DateTime(2025, 3, 3));
+      expect(rate.baseRate, 2000);
+      // 1,5 дня по 2000 = 3000; в Excel 5000 — корректировка 2000.
+      final adjustment = (await repos.adjustments.all()).single;
+      expect(adjustment.amount, 2000);
+      expect(adjustment.notes, contains('надбавки'));
+      final march = await repos.payrollService.calculateMonth(emp, 2025, 3);
+      expect(march.totalSalary, 5000);
+      final pay = (await repos.payments.list()).single;
+      expect(pay.amount, 3000);
+      expect(pay.employeeId, emp);
+      expect(pay.notes, contains('Расход!50'));
+
+      final rows = await check.compareWithTabel(data);
+      final ivanMarch = rows.firstWhere(
+        (r) => r.name == 'Иванов И. П.' && r.month == 3,
+      );
+      expect(ivanMarch.accrued, 5000);
+      expect(ivanMarch.accruedDiffers, isFalse);
+      expect(ivanMarch.paidDiffers, isTrue, reason: 'выдано в апреле');
+      final (text, csv) = formatTabelComparison(rows);
+      expect(text, contains('Петрова О.'));
+      expect(csv.split('\n').first, startsWith('Работник;Месяц'));
+    },
+  );
 }

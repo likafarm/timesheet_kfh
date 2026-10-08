@@ -160,7 +160,7 @@ class FakeSyncServer {
       final d = parseDateIso(day);
       return d.year * 100 + d.month;
     }
-    if (c.table == 'payroll_results') {
+    if (c.table == 'payroll_results' || c.table == 'payroll_adjustments') {
       return (c.data['year'] as int) * 100 + (c.data['month'] as int);
     }
     return null;

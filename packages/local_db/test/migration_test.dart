@@ -86,6 +86,59 @@ void main() {
     await db.close();
   });
 
+  test('2 → 3: схема совпадает со свежей схемой 3', () async {
+    final connection = await verifier.startAt(2);
+    final db = LocalDatabase(connection);
+    await verifier.migrateAndValidate(db, 3);
+    await db.close();
+  });
+
+  test('2 → 3: данные на месте, корректировки работают', () async {
+    final schema = await verifier.schemaAt(2);
+    final raw = schema.rawDatabase;
+    const now = '2026-10-08T10:00:00.000Z';
+    raw.execute(
+      "INSERT INTO sync_state (key, value) VALUES ('device_id', 'dev-1')",
+    );
+    raw.execute(
+      'INSERT INTO company_settings (uuid, updated_at, deleted) '
+      "VALUES ('00000000-0000-0000-0000-000000000001', '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO employees (uuid, full_name, position, hire_date, '
+      'base_rate, field_rate, updated_at, deleted) '
+      "VALUES ('e1', 'Иванов Иван', 'Механизатор', '2025-01-01', 2000, "
+      "3000, '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO fin_accounts (uuid, name, kind, opening_balance, closed, '
+      "sort_order, updated_at, deleted) VALUES ('a1', 'Касса', 'cash', 0, 0, "
+      "0, '$now', 0)",
+    );
+
+    final db = LocalDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 3);
+    final repos = DriftRepositories(db);
+    expect(await db.deviceId(), 'dev-1');
+    expect((await repos.employees.all()).single.fullName, 'Иванов Иван');
+    expect((await repos.finance.accounts()).single.name, 'Касса');
+
+    await repos.adjustments.save(
+      const PayrollAdjustment(
+        employeeId: 'e1',
+        year: 2025,
+        month: 3,
+        amount: 13000,
+        notes: 'надбавка',
+      ),
+    );
+    final calc = await repos.payrollService.calculateMonth('e1', 2025, 3);
+    expect(calc.totalSalary, 13000);
+    final fk = await db.customSelect('PRAGMA foreign_key_check').get();
+    expect(fk, isEmpty);
+    await db.close();
+  });
+
   group('копия перед обновлением схемы', () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('kfh_upgrade_'));

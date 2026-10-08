@@ -2,12 +2,15 @@
 //
 //   cd packages/sync
 //   dart run tool/import_finance.dart --json ../../docs/stage-8/private/finance25_import.json \
-//     --server https://tab.korovatech.ru --login ivan [--dry-run]
+//     --server https://tab.korovatech.ru --login ivan [--dry-run] \
+//     [--compare <сравнение.csv>]
 //
 // Пароль спрашивается без показа на экране (или KFH_IMPORT_PASSWORD — только
 // для стенда). Сначала — проверки без сервера, затем план; запись — только
-// после ответа «да». После записи свежий клиент принимает всё с сервера и
-// сверяет с выгрузкой поле в поле. Повторный запуск безопасен.
+// после ответа «да». После записи свежий клиент принимает всё с сервера,
+// сверяет с выгрузкой поле в поле и сравнивает табель программы с «Табелем
+// 25» по месяцам (--compare — то же в CSV для Excel). Повторный запуск
+// безопасен.
 
 import 'dart:convert';
 import 'dart:io';
@@ -29,6 +32,7 @@ Future<void> main(List<String> args) async {
   final login = option('login');
   final device = option('device') ?? 'import-finance-25';
   final dryRun = args.contains('--dry-run');
+  final comparePath = option('compare');
   if (jsonPath == null || login == null) {
     stderr.writeln(
       'dart run tool/import_finance.dart --json <выгрузка.json> '
@@ -131,5 +135,16 @@ Future<void> main(List<String> args) async {
   }
   print('\nПроверка свежим клиентом: на сервере всё как в выгрузке.');
   print(await check.summary());
+  if (data.accruals.isNotEmpty) {
+    final (text, csv) = formatTabelComparison(
+      await check.compareWithTabel(data),
+    );
+    print('\nСравнение с «Табелем 25»:$text');
+    if (comparePath != null) {
+      // BOM — чтобы Excel открыл кириллицу.
+      File(comparePath).writeAsStringSync('﻿$csv');
+      print('Сравнение в CSV: $comparePath');
+    }
+  }
   exit(0);
 }

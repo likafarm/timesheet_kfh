@@ -22,6 +22,7 @@ const restorableTables = <String>[
   'employee_rates',
   'timesheet',
   'payments',
+  'payroll_adjustments',
   'sick_leave',
   'vacation',
 ];
@@ -200,12 +201,18 @@ String _iso(int y, int m, int d) =>
     '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-'
     '${d.toString().padLeft(2, '0')}';
 
+(String, String) _monthDays(Map<String, Object?> data) {
+  final y = data['year'] as int, m = data['month'] as int;
+  return (_iso(y, m, 1), _iso(y, m, DateTime.utc(y, m + 1, 0).day));
+}
+
 /// Период записи днями ISO (конец null — бессрочно); null — без дат.
 (String, String?)? _period(String table, Map<String, Object?> data) {
   String day(String column) => data[column] as String;
   return switch (table) {
     'timesheet' => (day('date'), day('date')),
     'payments' => (day('payment_date'), day('payment_date')),
+    'payroll_adjustments' => _monthDays(data),
     'employee_rates' => (day('start_date'), data['end_date'] as String?),
     'sick_leave' || 'vacation' => (day('start_date'), day('end_date')),
     _ => null,
