@@ -89,6 +89,20 @@ void main() {
     await shots.tapText(_names.first, last: true);
     await shots.save('payroll_detail');
     await shots.tapText('Закрыть', last: true);
+    // Подсказка «Изменения отменены» от окна расчёта не нужна на снимках.
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger).first)
+        .clearSnackBars();
+
+    await shots.openSection('Финансы');
+    await shots.save('finance');
+    await tester.longPress(find.text('Говядина в тушах'));
+    await shots.settle();
+    await shots.save('finance_operation');
+    await shots.tapText('Отмена', last: true);
+    await shots.tapTooltip('Остатки');
+    await shots.save('finance_balances');
+    await shots.back();
 
     await shots.openSection('Настройки');
     await shots.tapText('Закрытие месяцев');
@@ -120,6 +134,20 @@ void main() {
     await shots.back();
     await shots.openSection('Сервер');
     await shots.save('sync');
+    await shots.stop();
+  }, skip: skip != null);
+
+  testWidgets('телефон: финансы бухгалтера', (tester) async {
+    final shots = _Shots(tester);
+    await shots.start(size: const Size(390, 844), operator: false, phone: true);
+    await shots.tapText('Расход / доход');
+    await tester.enterText(find.byType(TextField).first, '2450');
+    await shots.settle();
+    await shots.tapText('Питание рабочих');
+    await tester.drag(find.byType(ListView).first, const Offset(0, 600));
+    await shots.settle();
+    await shots.save('finance_quick');
+    await shots.back();
     await shots.stop();
   }, skip: skip != null);
 
@@ -217,6 +245,279 @@ Future<void> _seed(LocalDatabase db) async {
       ),
     );
   }
+  await _seedFinance(repos.finance, today);
+}
+
+/// Деньги хозяйства: справочники и операции текущего месяца по сегодня.
+Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
+  // Сервер принимает только канонические uuid.
+  final ids = <String, String>{};
+  String u(String key) => ids.putIfAbsent(
+    key,
+    () =>
+        '00000000-0000-4000-8000-${(ids.length + 1).toString().padLeft(12, '0')}',
+  );
+  final live = u('d-live'), crop = u('d-crop'), general = u('d-general');
+  for (final (i, (id, name)) in [
+    (live, 'Животноводство'),
+    (crop, 'Растениеводство (корма)'),
+    (general, 'Общехозяйственные'),
+  ].indexed) {
+    await f.saveDirection(
+      FinDirection(id: id, name: name, overhead: id == general, sortOrder: i),
+    );
+  }
+  await f.saveAllocationKey(
+    AllocationKey(
+      id: u('k-tractors'),
+      name: 'Трактора',
+      periods: [
+        AllocationPeriod(
+          validFrom: DateTime(2025, 1, 1),
+          shares: {live: 60, crop: 40},
+        ),
+      ],
+    ),
+  );
+  final start = DateTime(today.year, today.month - 1, 1);
+  for (final (i, (id, name, kind, opening)) in [
+    (u('a-cash'), 'Касса', AccountKind.cash, 4520000),
+    (u('a-bank'), 'Расчётный счёт', AccountKind.bank, 61834000),
+    (u('a-card'), 'Карта', AccountKind.card, 25000000),
+  ].indexed) {
+    await f.saveAccount(
+      FinAccount(
+        id: id,
+        name: name,
+        kind: kind,
+        openingBalance: opening,
+        openingDate: start,
+        sortOrder: i,
+      ),
+    );
+  }
+  final groups = [
+    (u('g-feed'), CategoryType.expense, '01. Корма'),
+    (u('g-tech'), CategoryType.expense, '02. Техника'),
+    (u('g-staff'), CategoryType.expense, '03. Персонал'),
+    (u('g-farm'), CategoryType.expense, '04. Хозяйство'),
+    (u('g-sales'), CategoryType.income, '01. Реализация'),
+  ];
+  for (final (i, (id, type, name)) in groups.indexed) {
+    await f.saveCategoryGroup(
+      FinCategoryGroup(id: id, type: type, name: name, sortOrder: i),
+    );
+  }
+  final groupName = {for (final (id, _, name) in groups) id: name};
+  for (final (id, type, group, name, direction, key) in [
+    (
+      u('c-feed'),
+      CategoryType.expense,
+      u('g-feed'),
+      'Корма покупные',
+      live,
+      null,
+    ),
+    (
+      u('c-fuel'),
+      CategoryType.expense,
+      u('g-tech'),
+      'ГСМ',
+      null,
+      u('k-tractors'),
+    ),
+    (
+      u('c-parts'),
+      CategoryType.expense,
+      u('g-tech'),
+      'Запчасти',
+      null,
+      u('k-tractors'),
+    ),
+    (
+      u('c-salary'),
+      CategoryType.expense,
+      u('g-staff'),
+      'Заработная плата',
+      live,
+      null,
+    ),
+    (
+      u('c-food'),
+      CategoryType.expense,
+      u('g-staff'),
+      'Питание рабочих',
+      general,
+      null,
+    ),
+    (u('c-vet'), CategoryType.expense, u('g-farm'), 'Ветпрепараты', live, null),
+    (
+      u('c-meat'),
+      CategoryType.income,
+      u('g-sales'),
+      'Продажа мяса',
+      live,
+      null,
+    ),
+    (u('c-hay'), CategoryType.income, u('g-sales'), 'Продажа сена', crop, null),
+  ]) {
+    await f.saveCategory(
+      FinCategory(
+        id: id,
+        type: type,
+        groupId: group,
+        group: groupName[group]!,
+        name: name,
+        directionId: direction,
+        allocationKeyId: key,
+      ),
+    );
+  }
+  for (final (id, name, kind) in [
+    (u('p-oil'), 'ООО «Нефтебаза»', CounterpartyKind.supplier),
+    (u('p-feed'), 'ИП Комбикорм', CounterpartyKind.supplier),
+    (u('p-shop'), 'Магазин «Хуторок»', CounterpartyKind.supplier),
+    (u('p-meat'), 'ООО «Мясной двор»', CounterpartyKind.buyer),
+    (u('p-bank'), 'Банк', CounterpartyKind.bank),
+  ]) {
+    await f.saveCounterparty(Counterparty(id: id, name: name, kind: kind));
+  }
+  await f.saveDebt(
+    FinDebt(
+      id: u('debt-bank'),
+      counterpartyId: u('p-bank'),
+      kind: DebtKind.received,
+      openingBalance: 150000000,
+      openingDate: start,
+    ),
+  );
+  await f.savePayrollMapping(
+    PayrollFinanceMapping(
+      methodAccounts: {
+        'cash': u('a-cash'),
+        'card': u('a-card'),
+        'transfer': u('a-bank'),
+      },
+      defaultAccountId: u('a-cash'),
+      positionCategories: const {},
+      defaultCategoryId: u('c-salary'),
+    ),
+  );
+  DateTime day(int d) =>
+      DateTime(today.year, today.month, d.clamp(1, today.day));
+  var n = 0;
+  Future<void> op(
+    int d,
+    OperationType type,
+    int amount,
+    String account, {
+    String? category,
+    String? counterparty,
+    String? description,
+    String? toAccount,
+    double? quantity,
+    String? unit,
+  }) => f.addOperation(
+    FinOperation(
+      id: u('op-${n++}'),
+      date: day(d),
+      type: type,
+      amount: amount,
+      accountId: account,
+      toAccountId: toAccount,
+      categoryId: category,
+      counterpartyId: counterparty,
+      description: description,
+      quantity: quantity,
+      unit: unit,
+    ),
+  );
+  const e = OperationType.expense, i = OperationType.income;
+  await op(
+    1,
+    e,
+    4860000,
+    u('a-bank'),
+    category: u('c-feed'),
+    counterparty: u('p-feed'),
+    description: 'Комбикорм КРС',
+    quantity: 3,
+    unit: 'т',
+  );
+  await op(
+    2,
+    e,
+    1830000,
+    u('a-bank'),
+    category: u('c-fuel'),
+    counterparty: u('p-oil'),
+    description: 'Дизельное топливо',
+    quantity: 300,
+    unit: 'л',
+  );
+  await op(
+    2,
+    OperationType.transfer,
+    3000000,
+    u('a-bank'),
+    toAccount: u('a-cash'),
+    description: 'Снятие наличных',
+  );
+  await op(
+    3,
+    e,
+    245000,
+    u('a-card'),
+    category: u('c-food'),
+    counterparty: u('p-shop'),
+    description: 'Продукты, чай, сахар',
+  );
+  await op(
+    4,
+    i,
+    38750000,
+    u('a-bank'),
+    category: u('c-meat'),
+    counterparty: u('p-meat'),
+    description: 'Говядина в тушах',
+    quantity: 775,
+    unit: 'кг',
+  );
+  await op(
+    5,
+    e,
+    1264000,
+    u('a-cash'),
+    category: u('c-parts'),
+    description: 'Фильтры, ремень МТЗ-82',
+  );
+  await op(
+    6,
+    e,
+    387000,
+    u('a-card'),
+    category: u('c-vet'),
+    description: 'Ивермек',
+  );
+  await op(
+    6,
+    i,
+    1500000,
+    u('a-cash'),
+    category: u('c-hay'),
+    description: 'Сено в рулонах',
+    quantity: 10,
+    unit: 'шт',
+  );
+  await op(
+    7,
+    e,
+    198000,
+    u('a-cash'),
+    category: u('c-food'),
+    counterparty: u('p-shop'),
+    description: 'Хлеб, молоко',
+  );
 }
 
 // ------------------------------------------------------------------ снимки
@@ -231,7 +532,11 @@ class _Shots {
 
   _Shots(this.tester);
 
-  Future<void> start({required Size size, required bool operator}) async {
+  Future<void> start({
+    required Size size,
+    required bool operator,
+    bool phone = false,
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     final server = SyncTestServer()..role = operator ? 'operator' : 'admin';
@@ -259,7 +564,7 @@ class _Shots {
         journal: MemorySyncJournal(),
         autoSync: false,
         debugBuild: false,
-        client: operator ? ClientKind.phone : ClientKind.desktop,
+        client: operator || phone ? ClientKind.phone : ClientKind.desktop,
         onLocksChanged: () => _app.loadLockedMonths(),
       );
       await _sync.init();
