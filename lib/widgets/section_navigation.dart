@@ -1,20 +1,61 @@
 // lib/widgets/section_navigation.dart
 //
-// Переход между разделами главного окна (6.8): сводка открывает табель или
-// отчёты на нужном месяце. MainScreen выбирает раздел, экран раздела
-// забирает запрошенный месяц (takeMonth).
+// Разделы главного окна, их группы в меню (8Б.1) и переход между ними
+// (6.8): сводка открывает табель или отчёты на нужном месяце. MainScreen
+// выбирает раздел, экран раздела забирает запрошенный месяц (takeMonth).
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 enum AppSection {
   home,
   timesheet,
   employees,
   payments,
-  finance,
   reports,
+  periods,
+
+  /// Финансы (8Б.1): доходы, расходы — один список операций с отбором по
+  /// виду; у оператора — [finance] (свои доходы и расходы).
+  income,
+  expense,
+  finance,
+  banks,
+  loans,
+  financeReports,
+  financeCatalog,
   sync,
   settings,
+}
+
+/// Группа бокового меню (8Б.1, решение владельца 2026-10-08).
+enum NavGroup {
+  finance('Финансы'),
+  payroll('Зарплата'),
+  service('Сервис');
+
+  final String title;
+  const NavGroup(this.title);
+}
+
+/// Пункт меню главного окна.
+class NavigationItem {
+  final AppSection section;
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final Widget screen;
+
+  /// Группа меню; null — пункт без группы (Главная, разделы оператора).
+  final NavGroup? group;
+
+  NavigationItem({
+    required this.section,
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.screen,
+    this.group,
+  });
 }
 
 class SectionNavigator extends ChangeNotifier {

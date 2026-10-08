@@ -1,33 +1,43 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kfh_domain/kfh_domain.dart' show OperationType;
 import 'package:provider/provider.dart';
 import 'daily_input_screen.dart';
 import 'home_screen.dart';
 import 'reminder_screen.dart';
 import 'employees_screen.dart';
+import 'finance_balances_screen.dart';
+import 'finance_catalog_screen.dart';
+import 'finance_reports_screen.dart';
 import 'finance_screen.dart';
+import 'periods_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
 import 'sync_screen.dart';
 import '../providers/app_provider.dart';
+import '../providers/finance_provider.dart';
 import '../providers/sync_provider.dart';
 import '../services/reminder.dart';
 import '../theme/app_theme.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/section_navigation.dart';
+import '../widgets/side_menu.dart';
 import '../widgets/sync_status_bar.dart';
 import '../widgets/update_banner.dart';
 
-/// Главный экран: узкий экран (телефон) — нижняя навигация, широкий —
-/// тёмная боковая панель (UI_REQUIREMENTS п. 2.2). Набор разделов зависит
+/// Главный экран: узкий экран (телефон) — нижняя навигация и «Ещё» по
+/// группам, широкий — тёмная боковая панель с группами (UI_REQUIREMENTS
+/// п. 2.2, 8Б.1). Набор разделов зависит
 /// от программы: оператору — только табель, сотрудники и вход на сервер.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
-  /// Разделы полной программы (администратор, бухгалтер): первый — сводка.
+  /// Разделы полной программы (администратор, бухгалтер) по группам
+  /// (8Б.1, решение владельца 2026-10-08): Главная, Финансы, Зарплата,
+  /// Сервис.
   static List<NavigationItem> fullSections() => [
     NavigationItem(
       section: AppSection.home,
@@ -37,42 +47,96 @@ class MainScreen extends StatefulWidget {
       screen: const HomeScreen(),
     ),
     NavigationItem(
-      section: AppSection.timesheet,
-      icon: Icons.calendar_today_outlined,
-      selectedIcon: Icons.calendar_today,
-      label: 'Табель',
-      screen: const TimesheetScreen(),
+      section: AppSection.income,
+      group: NavGroup.finance,
+      icon: Icons.south_west,
+      selectedIcon: Icons.south_west,
+      label: 'Доходы',
+      screen: const FinanceScreen(type: OperationType.income),
+    ),
+    NavigationItem(
+      section: AppSection.expense,
+      group: NavGroup.finance,
+      icon: Icons.north_east,
+      selectedIcon: Icons.north_east,
+      label: 'Расходы',
+      screen: const FinanceScreen(type: OperationType.expense),
+    ),
+    NavigationItem(
+      section: AppSection.banks,
+      group: NavGroup.finance,
+      icon: Icons.account_balance_outlined,
+      selectedIcon: Icons.account_balance,
+      label: 'Банки и кассы',
+      screen: const FinanceBalancesScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.loans,
+      group: NavGroup.finance,
+      icon: Icons.handshake_outlined,
+      selectedIcon: Icons.handshake,
+      label: 'Займы',
+      screen: const FinanceCatalogScreen.loans(),
+    ),
+    NavigationItem(
+      section: AppSection.financeReports,
+      group: NavGroup.finance,
+      icon: Icons.insert_chart_outlined,
+      selectedIcon: Icons.insert_chart,
+      label: 'Отчёты',
+      screen: const FinanceReportsScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.financeCatalog,
+      group: NavGroup.finance,
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book,
+      label: 'Справочники',
+      screen: const FinanceCatalogScreen(),
     ),
     NavigationItem(
       section: AppSection.employees,
+      group: NavGroup.payroll,
       icon: Icons.people_outline,
       selectedIcon: Icons.people,
       label: 'Сотрудники',
       screen: const EmployeesScreen(),
     ),
     NavigationItem(
+      section: AppSection.timesheet,
+      group: NavGroup.payroll,
+      icon: Icons.calendar_today_outlined,
+      selectedIcon: Icons.calendar_today,
+      label: 'Табель',
+      screen: const TimesheetScreen(),
+    ),
+    NavigationItem(
       section: AppSection.payments,
+      group: NavGroup.payroll,
       icon: Icons.payments_outlined,
       selectedIcon: Icons.payments,
       label: 'Выплаты',
       screen: const PaymentsScreen(),
     ),
     NavigationItem(
-      section: AppSection.finance,
-      icon: Icons.account_balance_wallet_outlined,
-      selectedIcon: Icons.account_balance_wallet,
-      label: 'Финансы',
-      screen: const FinanceScreen(),
-    ),
-    NavigationItem(
       section: AppSection.reports,
+      group: NavGroup.payroll,
       icon: Icons.bar_chart_outlined,
       selectedIcon: Icons.bar_chart,
-      label: 'Отчёты',
+      label: 'Отчёты по ЗП',
       screen: const ReportsScreen(),
     ),
     NavigationItem(
+      section: AppSection.periods,
+      group: NavGroup.payroll,
+      icon: Icons.lock_outline,
+      selectedIcon: Icons.lock,
+      label: 'Закрытие месяцев',
+      screen: const PeriodsScreen(),
+    ),
+    NavigationItem(
       section: AppSection.settings,
+      group: NavGroup.service,
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
       label: 'Настройки',
@@ -124,6 +188,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late final AppProvider _app;
   late final SyncProvider? _sync = context.read<SyncProvider?>();
   late final List<NavigationItem> _navigationItems;
+  late final FinanceProvider _finance = FinanceProvider(_app)..load();
   final _sections = SectionNavigator();
 
   @override
@@ -151,6 +216,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void dispose() {
     _sections.removeListener(_openRequested);
     _sections.dispose();
+    _finance.dispose();
     _app.removeListener(_showNotice);
     Reminders.instance.requests.removeListener(_showReminder);
     if (_sync case final sync?) Reminders.instance.detach(sync);
@@ -234,9 +300,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   /// Разделы с отдельной кнопкой внизу на телефоне (индексы
-  /// [_navigationItems]) в порядке кнопок; остальные — в «Ещё». У
-  /// бухгалтера и администратора основной раздел — «Финансы» (решение
-  /// владельца 2026-10-08): он первый.
+  /// [_navigationItems]) в порядке кнопок; остальные — в «Ещё» по группам.
+  /// У бухгалтера и администратора основной раздел — расходы (решение
+  /// владельца 2026-10-08: финансы — первыми): быстрый ввод — там.
   List<int> _bottomItems() {
     if (_navigationItems.length <= 5) {
       return [for (var i = 0; i < _navigationItems.length; i++) i];
@@ -250,7 +316,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   static const _phonePrimary = [
-    AppSection.finance,
+    AppSection.expense,
     AppSection.home,
     AppSection.timesheet,
     AppSection.payments,
@@ -270,28 +336,54 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// «Ещё»: разделы, не поместившиеся внизу.
+  /// «Ещё»: разделы, не поместившиеся внизу, — по группам меню.
   Future<void> _showMore(List<int> bar) async {
     final index = await showModalBottomSheet<int>(
       context: context,
       showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (i, item) in _navigationItems.indexed)
-              if (!bar.contains(i))
-                ListTile(
-                  leading: Icon(
-                    i == _selectedIndex ? item.selectedIcon : item.icon,
+      isScrollControlled: true,
+      builder: (context) {
+        final tiles = <Widget>[];
+        NavGroup? group;
+        for (final (i, item) in _navigationItems.indexed) {
+          if (bar.contains(i)) continue;
+          if (item.group != group) {
+            group = item.group;
+            if (group != null) {
+              tiles.add(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    group.title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                  title: Text(item.label),
-                  selected: i == _selectedIndex,
-                  onTap: () => Navigator.pop(context, i),
                 ),
-          ],
-        ),
-      ),
+              );
+            }
+          }
+          tiles.add(
+            ListTile(
+              dense: true,
+              leading: Icon(
+                i == _selectedIndex ? item.selectedIcon : item.icon,
+              ),
+              title: Text(item.label),
+              selected: i == _selectedIndex,
+              onTap: () => Navigator.pop(context, i),
+            ),
+          );
+        }
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+            ),
+            child: ListView(shrinkWrap: true, children: tiles),
+          ),
+        );
+      },
     );
     if (index != null && mounted) _select(index);
   }
@@ -309,8 +401,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       children: [
         const UpdateBanner(),
         Expanded(
-          child: ChangeNotifierProvider.value(
-            value: _sections,
+          child: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: _sections),
+              // Одна модель финансов на все пункты группы (8Б.1).
+              ChangeNotifierProvider.value(value: _finance),
+            ],
             child: IndexedStack(
               index: _selectedIndex,
               children: _navigationItems.map((item) => item.screen).toList(),
@@ -376,38 +472,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            backgroundColor: AppTheme.navigationBackground,
+          SideMenu(
+            items: _navigationItems,
             selectedIndex: _selectedIndex,
-            onDestinationSelected: _select,
-            labelType: NavigationRailLabelType.all,
-            minWidth: 96,
-            indicatorColor: AppTheme.primaryColor,
-            selectedIconTheme: const IconThemeData(
-              color: AppTheme.navigationSelected,
-              size: 26,
-            ),
-            unselectedIconTheme: const IconThemeData(
-              color: AppTheme.navigationForeground,
-              size: 22,
-            ),
-            // От стиля темы: иначе у подписей нет шрифта темы (в вебе —
-            // Roboto), и они рисуются шрифтом по умолчанию.
-            selectedLabelTextStyle: Theme.of(context).textTheme.labelLarge
-                ?.copyWith(
-                  color: AppTheme.navigationSelected,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-            unselectedLabelTextStyle: Theme.of(context).textTheme.labelMedium
-                ?.copyWith(color: AppTheme.navigationForeground, fontSize: 12),
-            destinations: _navigationItems.map((item) {
-              return NavigationRailDestination(
-                icon: Icon(item.icon),
-                selectedIcon: Icon(item.selectedIcon),
-                label: Text(item.label),
-              );
-            }).toList(),
+            onSelected: _select,
           ),
           Expanded(
             child: Column(
@@ -421,20 +489,4 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
     );
   }
-}
-
-class NavigationItem {
-  final AppSection section;
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  final Widget screen;
-
-  NavigationItem({
-    required this.section,
-    required this.icon,
-    required this.selectedIcon,
-    required this.label,
-    required this.screen,
-  });
 }

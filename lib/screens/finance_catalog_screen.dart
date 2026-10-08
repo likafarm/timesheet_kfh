@@ -1,8 +1,9 @@
 // lib/screens/finance_catalog_screen.dart
 //
-// Справочники финансов и займы (8.5.4): кошельки и займы с остатками,
-// статьи (по группам) и группы статей, контрагенты, имущество, направления
-// и ключ распределения.
+// Справочники финансов (8.5.4; с 8Б.1 — пункт меню «Справочники»):
+// кошельки с остатками, статьи (по группам) и группы статей, контрагенты,
+// имущество, направления и ключ распределения. Займы — отдельный пункт
+// меню (тот же экран, [FinanceCatalogScreen.loans]).
 // Удалить можно только неиспользуемую запись — кошелёк закрывают, статью
 // скрывают.
 
@@ -18,11 +19,14 @@ import '../widgets/common_widgets.dart';
 import '../widgets/finance_operation_dialog.dart';
 
 class FinanceCatalogScreen extends StatelessWidget {
-  const FinanceCatalogScreen({super.key});
+  /// Только займы — пункт меню «Займы» (8Б.1).
+  final bool loansOnly;
+
+  const FinanceCatalogScreen({super.key}) : loansOnly = false;
+  const FinanceCatalogScreen.loans({super.key}) : loansOnly = true;
 
   static const tabs = [
     'Кошельки',
-    'Займы',
     'Статьи',
     'Группы статей',
     'Контрагенты',
@@ -33,12 +37,25 @@ class FinanceCatalogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fin = context.watch<FinanceProvider>();
+    if (loansOnly) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Займы')),
+        floatingActionButton: FloatingActionButton(
+          // Пункты меню живут рядом (IndexedStack) — без общего героя.
+          heroTag: null,
+          tooltip: 'Добавить',
+          onPressed: () => editDebt(context, fin),
+          child: const Icon(Icons.add),
+        ),
+        body: _DebtsTab(fin),
+      );
+    }
     return DefaultTabController(
       length: tabs.length,
       child: Builder(
         builder: (context) => Scaffold(
           appBar: AppBar(
-            title: const Text('Справочники финансов'),
+            title: const Text('Справочники'),
             bottom: TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,
@@ -46,6 +63,8 @@ class FinanceCatalogScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
+            // Пункты меню живут рядом (IndexedStack) — без общего героя.
+            heroTag: null,
             tooltip: 'Добавить',
             onPressed: () =>
                 _add(context, fin, DefaultTabController.of(context).index),
@@ -54,7 +73,6 @@ class FinanceCatalogScreen extends StatelessWidget {
           body: TabBarView(
             children: [
               _AccountsTab(fin),
-              _DebtsTab(fin),
               _CategoriesTab(fin),
               _GroupsTab(fin),
               _CounterpartiesTab(fin),
@@ -73,11 +91,10 @@ class FinanceCatalogScreen extends StatelessWidget {
     int tab,
   ) => switch (tab) {
     0 => editAccount(context, fin),
-    1 => editDebt(context, fin),
-    2 => editCategory(context, fin),
-    3 => editCategoryGroup(context, fin),
-    4 => editCounterparty(context, fin),
-    5 => editAsset(context, fin),
+    1 => editCategory(context, fin),
+    2 => editCategoryGroup(context, fin),
+    3 => editCounterparty(context, fin),
+    4 => editAsset(context, fin),
     _ => editDirection(context, fin),
   };
 }

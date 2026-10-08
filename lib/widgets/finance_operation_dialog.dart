@@ -20,6 +20,7 @@ Future<bool> showOperationDialog(
   FinanceProvider finance, {
   FinOperation? operation,
   FinOperation? template,
+  OperationType? type,
 }) async =>
     await showAppDialog<bool>(
       context: context,
@@ -27,6 +28,7 @@ Future<bool> showOperationDialog(
         finance: finance,
         operation: operation,
         template: template,
+        type: type,
       ),
     ) ==
     true;
@@ -49,11 +51,15 @@ class FinanceOperationDialog extends StatefulWidget {
   final FinOperation? operation;
   final FinOperation? template;
 
+  /// Вид новой операции (по пункту меню «Доходы»/«Расходы»).
+  final OperationType? type;
+
   const FinanceOperationDialog({
     super.key,
     required this.finance,
     this.operation,
     this.template,
+    this.type,
   });
 
   @override
@@ -104,7 +110,7 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
   void initState() {
     super.initState();
     final source = editing ?? widget.template;
-    _type = source?.type ?? OperationType.expense;
+    _type = source?.type ?? widget.type ?? OperationType.expense;
     _date = editing?.date ?? calendarDay(DateTime.now());
     _accountId =
         source?.accountId ??

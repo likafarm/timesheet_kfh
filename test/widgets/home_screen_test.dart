@@ -239,9 +239,9 @@ void main() {
     expect(find.text('Должны мы'), findsOneWidget);
     expect(find.text('${formatRub(5000000)} ₽'), findsOneWidget);
     expect(find.text('Доходы и расходы — сентябрь 2026'), findsOneWidget);
-    await tester.tap(find.text('Операции месяца'));
+    await tester.tap(find.text('Расходы месяца'));
     await tester.pump();
-    expect(navigator.takeSection(), AppSection.finance);
+    expect(navigator.takeSection(), AppSection.expense);
     expect(tester.takeException(), isNull);
   });
 

@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? null
                     : _FinanceCards(
                         summary: finance,
-                        openFinance: () => _open(AppSection.finance),
+                        open: (section) => _open(section),
                       );
                 const gap = SizedBox(height: 12, width: 12);
                 if (constraints.maxWidth < 900) {
@@ -617,12 +617,13 @@ class _MonthCard extends StatelessWidget {
 }
 
 /// Плитки финансов (8.7): деньги в кошельках, займы, доходы и расходы
-/// месяца. Нажатие — раздел «Финансы».
+/// месяца. Ссылки — в пункты меню «Банки и кассы» и «Расходы» (8Б.1).
 class _FinanceCards extends StatelessWidget {
   final FinanceSummary summary;
-  final VoidCallback openFinance;
+  /// Переход в пункт меню «Финансов» (8Б.1).
+  final void Function(AppSection section) open;
 
-  const _FinanceCards({required this.summary, required this.openFinance});
+  const _FinanceCards({required this.summary, required this.open});
 
   @override
   Widget build(BuildContext context) {
@@ -653,11 +654,11 @@ class _FinanceCards extends StatelessWidget {
         ],
       ),
     );
-    Widget open(String text) => Align(
+    Widget link(String text, AppSection section) => Align(
       alignment: Alignment.centerRight,
       child: Padding(
         padding: const EdgeInsets.only(right: 8),
-        child: TextButton(onPressed: openFinance, child: Text(text)),
+        child: TextButton(onPressed: () => open(section), child: Text(text)),
       ),
     );
     final m = summary.month;
@@ -672,7 +673,7 @@ class _FinanceCards extends StatelessWidget {
             for (final a in summary.accounts) row(a.account.name, a.balance),
             const Divider(indent: 16, endIndent: 16),
             row('Итого', summary.total, bold: true),
-            open('Финансы'),
+            link('Банки и кассы', AppSection.banks),
           ],
         ),
         if (summary.debts.isNotEmpty) ...[
@@ -704,7 +705,7 @@ class _FinanceCards extends StatelessWidget {
             ),
             if (m.capex != 0) row('в т. ч. капвложения', m.capex),
             row('Итог', m.result, bold: true),
-            open('Операции месяца'),
+            link('Расходы месяца', AppSection.expense),
           ],
         ),
       ],

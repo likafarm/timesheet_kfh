@@ -2,7 +2,7 @@
 //
 // Отчёты финансов (вторая очередь этапа 8): доходы и расходы за год по
 // месяцам — строками по статьям (с группами) или по направлениям; нажатие
-// на сумму возвращает в «Финансы» с отбором по месяцу и строке.
+// на сумму открывает операции этого месяца и строки.
 // Себестоимость кормов — затраты и выручка направления по сезонам урожая.
 // Выгрузка — в Excel.
 
@@ -18,6 +18,7 @@ import '../widgets/common_widgets.dart';
 import '../widgets/excel_export_action.dart';
 import '../widgets/finance_operation_dialog.dart';
 import '../widgets/month_switcher.dart';
+import 'finance_screen.dart';
 
 /// Вид отчёта.
 enum FinanceReportMode {
@@ -30,14 +31,13 @@ enum FinanceReportMode {
 }
 
 /// Открывает отчёт за год [year] (себестоимость кормов — сезоны по
-/// [year]); результат — отбор для списка операций (null — просто
-/// вернулись).
-Future<FinanceFilter?> openFinanceReport(
+/// [year]).
+Future<void> openFinanceReport(
   BuildContext context,
   FinanceProvider fin, {
   required int year,
   FinanceReportMode mode = FinanceReportMode.category,
-}) => Navigator.of(context).push<FinanceFilter>(
+}) => Navigator.of(context).push<void>(
   MaterialPageRoute(
     builder: (_) => ChangeNotifierProvider.value(
       value: fin,
@@ -142,7 +142,8 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
     final type = section.type == CategoryType.income
         ? OperationType.income
         : OperationType.expense;
-    Navigator.of(context).pop(
+    FinanceScreen.push(
+      context,
       FinanceFilter(
         month: DateTime(_year, i + 1),
         type: type,

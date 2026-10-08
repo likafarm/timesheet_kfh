@@ -18,34 +18,63 @@ import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/excel_export_action.dart';
 import '../widgets/finance_operation_dialog.dart';
-import '../widgets/finance_reconcile_dialog.dart';
 import '../widgets/month_switcher.dart';
-import 'finance_balances_screen.dart';
-import 'finance_catalog_screen.dart';
 import 'finance_quick_screen.dart';
-import 'finance_report_screen.dart';
 
+/// Список операций. Пункты меню «Доходы» и «Расходы» (8Б.1) — этот же
+/// экран с отбором по виду [type]; отбор можно сменить. [filter] — готовый
+/// отбор (из отчёта или «Банков и касс»).
 class FinanceScreen extends StatelessWidget {
-  const FinanceScreen({super.key});
+  final OperationType? type;
+  final FinanceFilter? filter;
+
+  const FinanceScreen({super.key, this.type, this.filter});
+
+  /// Список с отбором [filter] поверх текущего окна (модель — та же).
+  static Future<void> push(BuildContext context, FinanceFilter filter) {
+    final fin = context.read<FinanceProvider>();
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: fin,
+          child: FinanceScreen(filter: filter),
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (context) => FinanceProvider(context.read<AppProvider>())..load(),
-    child: const _FinanceView(),
-  );
+  Widget build(BuildContext context) {
+    final view = _FinanceView(type: type, filter: filter);
+    // Модель финансов — общая для пунктов меню (её даёт главное окно);
+    // экран сам по себе (тесты) заводит свою.
+    if (Provider.of<FinanceProvider?>(context, listen: false) != null) {
+      return view;
+    }
+    return ChangeNotifierProvider(
+      create: (context) => FinanceProvider(context.read<AppProvider>())..load(),
+      child: view,
+    );
+  }
 }
 
 class _FinanceView extends StatefulWidget {
-  const _FinanceView();
+  final OperationType? type;
+  final FinanceFilter? filter;
+
+  const _FinanceView({this.type, this.filter});
 
   @override
   State<_FinanceView> createState() => _FinanceViewState();
 }
 
 class _FinanceViewState extends State<_FinanceView> {
-  FinanceFilter _filter = FinanceFilter(
-    month: DateTime(DateTime.now().year, DateTime.now().month),
-  );
+  late FinanceFilter _filter =
+      widget.filter ??
+      FinanceFilter(
+        month: DateTime(DateTime.now().year, DateTime.now().month),
+        type: widget.type,
+      );
 
   // Ширины столбцов — как в «Выплатах»: промежутки 8.
   static const _cNo = 40.0;
@@ -75,6 +104,14 @@ class _FinanceViewState extends State<_FinanceView> {
 
   DateTime get _month => _filter.month!;
 
+  /// Отбор отличается от отбора пункта меню («Расходы» — вид «Расход»).
+  bool get _narrowed =>
+      _filter.accountId != null ||
+      _filter.categoryId != null ||
+      _filter.directionId != null ||
+      _filter.counterpartyId != null ||
+      _filter.type != widget.type;
+
   void _setMonth(DateTime month) => setState(
     () => _filter = _filter.copyWith(
       month: () => DateTime(month.year, month.month),
@@ -100,9 +137,22 @@ class _FinanceViewState extends State<_FinanceView> {
     if (!await ensureMonthOpen(context, day.year, day.month) || !mounted) {
       return;
     }
+    // Вид новой — как в отборе списка («Доходы» — доход).
+    final type = _filter.type;
     final ok = template == null && MonthSwitcher.isCompact(context)
-        ? await openQuickOperation(context, fin)
-        : await showOperationDialog(context, fin, template: template);
+        ? await openQuickOperation(
+            context,
+            fin,
+            type: type == OperationType.income
+                ? OperationType.income
+                : OperationType.expense,
+          )
+        : await showOperationDialog(
+            context,
+            fin,
+            template: template,
+            type: type,
+          );
     if (ok && mounted) {
       ScaffoldMessenger.of(
         context,
@@ -168,65 +218,6 @@ class _FinanceViewState extends State<_FinanceView> {
       ),
     );
     if (ok == true) await fin.deleteOperation(op);
-  }
-
-  void _openCatalog(FinanceProvider fin) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => ChangeNotifierProvider.value(
-        value: fin,
-        child: const FinanceCatalogScreen(),
-      ),
-    ),
-  );
-
-  /// Остатки на конец выбранного месяца (текущего — на сегодня); выбранный
-  /// там кошелёк становится отбором.
-  Future<void> _openBalances(FinanceProvider fin) async {
-    final today = calendarDay(DateTime.now());
-    final monthEnd = DateTime(_month.year, _month.month + 1, 0);
-    final accountId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider.value(
-          value: fin,
-          child: FinanceBalancesScreen(
-            day: monthEnd.isAfter(today) && !_month.isAfter(today)
-                ? today
-                : monthEnd,
-          ),
-        ),
-      ),
-    );
-    if (accountId != null && mounted) {
-      setState(() => _filter = _filter.copyWith(accountId: () => accountId));
-    }
-  }
-
-  /// Отчёт по месяцам за год выбранного месяца; нажатая сумма становится
-  /// отбором списка.
-  Future<void> _openReport(
-    FinanceProvider fin, {
-    FinanceReportMode mode = FinanceReportMode.category,
-  }) async {
-    final filter = await openFinanceReport(
-      context,
-      fin,
-      year: _month.year,
-      mode: mode,
-    );
-    if (filter != null && mounted) setState(() => _filter = filter);
-  }
-
-  Future<void> _reconcile(FinanceProvider fin) async {
-    final ok = await showReconcileDialog(
-      context,
-      fin,
-      accountId: _filter.accountId,
-    );
-    if (ok && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Корректировка записана')));
-    }
   }
 
   /// Список по отбору в Excel — те же строки и итоги, что на экране.
@@ -372,10 +363,14 @@ class _FinanceViewState extends State<_FinanceView> {
           ),
         ),
       ),
-      if (_filter.narrowed)
+      if (_narrowed)
         TextButton.icon(
-          onPressed: () =>
-              setState(() => _filter = FinanceFilter(month: _filter.month)),
+          onPressed: () => setState(
+            () => _filter = FinanceFilter(
+              month: _filter.month,
+              type: widget.type,
+            ),
+          ),
           icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
           label: const Text('Сбросить'),
         ),
@@ -637,7 +632,13 @@ class _FinanceViewState extends State<_FinanceView> {
     final ops = fin.loaded ? fin.operations(_filter) : const <FinOperation>[];
     final appBar = monthAppBar(
       context,
-      title: fin.operator ? 'Мои расходы и доходы' : 'Финансы',
+      title: fin.operator
+          ? 'Мои расходы и доходы'
+          : switch (widget.type) {
+              OperationType.income => 'Доходы',
+              OperationType.expense => 'Расходы',
+              _ => 'Операции',
+            },
       switcher: MonthSwitcher(
         month: _month,
         onPrevious: () => _setMonth(DateTime(_month.year, _month.month - 1)),
@@ -653,43 +654,14 @@ class _FinanceViewState extends State<_FinanceView> {
             onPressed: fin.loaded ? () => _add(fin) : null,
           ),
       ],
-      // Оператор (8.8.4): только свои операции — без остатков, отчётов,
-      // сверки, выгрузки и справочников.
+      // Остатки, отчёты и справочники — пункты бокового меню (8Б.1).
       menu: [
-        if (!fin.operator) ...[
-          AppBarMenuItem(
-            Icons.account_balance_wallet_outlined,
-            'Остатки',
-            fin.loaded ? () => _openBalances(fin) : null,
-          ),
-          AppBarMenuItem(
-            Icons.calendar_view_month,
-            'По месяцам',
-            fin.loaded ? () => _openReport(fin) : null,
-          ),
-          AppBarMenuItem(
-            Icons.agriculture_outlined,
-            'Себестоимость кормов',
-            fin.loaded
-                ? () => _openReport(fin, mode: FinanceReportMode.season)
-                : null,
-          ),
-          AppBarMenuItem(
-            Icons.fact_check_outlined,
-            'Сверка остатка',
-            fin.loaded ? () => _reconcile(fin) : null,
-          ),
+        if (!fin.operator)
           AppBarMenuItem(
             Icons.table_view,
             'Выгрузить в Excel',
             fin.loaded ? () => _export(fin) : null,
           ),
-          AppBarMenuItem(
-            Icons.menu_book_outlined,
-            'Справочники и займы',
-            fin.loaded ? () => _openCatalog(fin) : null,
-          ),
-        ],
         AppBarMenuItem(Icons.refresh, 'Обновить', fin.load),
       ],
     );
@@ -701,7 +673,7 @@ class _FinanceViewState extends State<_FinanceView> {
     }
     final empty = Center(
       child: Text(
-        _filter.narrowed
+        _narrowed
             ? 'Нет операций по отбору за этот месяц'
             : 'Нет операций за этот месяц',
         style: TextStyle(color: Colors.grey[600]),
@@ -712,6 +684,8 @@ class _FinanceViewState extends State<_FinanceView> {
         appBar: appBar,
         // Телефон: быстрый ввод — большой кнопкой под пальцем (8.6).
         floatingActionButton: FloatingActionButton.extended(
+          // «Доходы» и «Расходы» живут рядом (IndexedStack) — без героя.
+          heroTag: null,
           tooltip: 'Новая операция',
           onPressed: () => _add(fin),
           icon: const Icon(Icons.add),
@@ -721,7 +695,7 @@ class _FinanceViewState extends State<_FinanceView> {
           padding: const EdgeInsets.only(bottom: 88),
           children: [
             ExpansionTile(
-              title: Text(_filter.narrowed ? 'Отбор (задан)' : 'Отбор'),
+              title: Text(_narrowed ? 'Отбор (задан)' : 'Отбор'),
               children: [_filters(fin, compact: true)],
             ),
             _totals(fin, ops),

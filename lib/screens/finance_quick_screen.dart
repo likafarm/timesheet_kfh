@@ -17,16 +17,27 @@ import '../widgets/finance_operation_dialog.dart';
 /// Открыть быстрый ввод; true — операция записана.
 Future<bool> openQuickOperation(
   BuildContext context,
-  FinanceProvider finance,
-) async =>
+  FinanceProvider finance, {
+  OperationType type = OperationType.expense,
+}) async =>
     await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => FinanceQuickScreen(finance: finance)),
+      MaterialPageRoute(
+        builder: (_) => FinanceQuickScreen(finance: finance, type: type),
+      ),
     ) ==
     true;
 
 class FinanceQuickScreen extends StatefulWidget {
   final FinanceProvider finance;
-  const FinanceQuickScreen({super.key, required this.finance});
+
+  /// Расход или доход вначале.
+  final OperationType type;
+
+  const FinanceQuickScreen({
+    super.key,
+    required this.finance,
+    this.type = OperationType.expense,
+  });
 
   @override
   State<FinanceQuickScreen> createState() => _FinanceQuickScreenState();
@@ -35,7 +46,7 @@ class FinanceQuickScreen extends StatefulWidget {
 class _FinanceQuickScreenState extends State<FinanceQuickScreen> {
   FinanceProvider get fin => widget.finance;
 
-  OperationType _type = OperationType.expense;
+  late OperationType _type = widget.type;
   final _amount = TextEditingController();
   final _description = TextEditingController();
   String? _accountId;
@@ -120,7 +131,7 @@ class _FinanceQuickScreenState extends State<FinanceQuickScreen> {
   }
 
   Future<void> _detailed() async {
-    final ok = await showOperationDialog(context, fin);
+    final ok = await showOperationDialog(context, fin, type: _type);
     if (ok && mounted) Navigator.of(context).pop(true);
   }
 

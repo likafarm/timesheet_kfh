@@ -5,6 +5,10 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
+import 'package:kfx_time_tracking/providers/finance_provider.dart';
+import 'package:kfx_time_tracking/screens/finance_balances_screen.dart';
+import 'package:kfx_time_tracking/screens/finance_catalog_screen.dart';
+import 'package:kfx_time_tracking/screens/finance_reports_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:kfx_time_tracking/widgets/common_widgets.dart';
@@ -56,6 +60,15 @@ void main() {
     });
     addTearDown(() => tester.runAsync(db.close));
   }
+
+  /// Пункт меню «Финансов» (8Б.1) с общей моделью, как в главном окне.
+  Widget section(Widget screen) => MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: app),
+      ChangeNotifierProvider(create: (_) => FinanceProvider(app)..load()),
+    ],
+    child: MaterialApp(home: screen),
+  );
 
   Future<void> settle(
     WidgetTester tester, [
@@ -132,17 +145,9 @@ void main() {
     tester.view.physicalSize = const Size(1500, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: app,
-        child: const MaterialApp(home: FinanceScreen()),
-      ),
-    );
+    await tester.pumpWidget(section(const FinanceBalancesScreen()));
     await settle(tester);
-    expect(find.byTooltip('Выгрузить в Excel'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Остатки'));
-    await tester.pumpAndSettle();
+    expect(find.text('Банки и кассы'), findsOneWidget);
     expect(find.text('Кошельки'), findsOneWidget);
     expect(find.text('${formatRub(-250000)} ₽'), findsWidgets);
     expect(find.text('Долгов нет'), findsOneWidget);
@@ -176,7 +181,7 @@ void main() {
     expect(fix.accountId, 'a2');
     expect(fix.date, today);
 
-    // Нажатие на кошелёк — отбор по нему в списке.
+    // Нажатие на кошелёк — его операции за месяц.
     // У «Карты» и вид — «Карта»: строка находится дважды.
     await tester.tap(find.widgetWithText(ListTile, 'Карта').first);
     await tester.pumpAndSettle();
@@ -191,15 +196,9 @@ void main() {
     tester.view.physicalSize = const Size(1500, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: app,
-        child: const MaterialApp(home: FinanceScreen()),
-      ),
-    );
+    await tester.pumpWidget(section(const FinanceCatalogScreen()));
     await settle(tester);
-    await tester.tap(find.byTooltip('Справочники и займы'));
-    await tester.pumpAndSettle();
+    expect(find.text('Займы'), findsNothing, reason: 'займы — свой пункт');
     await tester.tap(find.text('Статьи'));
     await tester.pumpAndSettle();
     // Группа «05» есть только текстом у статьи (запись старой программы).
@@ -233,14 +232,9 @@ void main() {
     tester.view.physicalSize = const Size(1500, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: app,
-        child: const MaterialApp(home: FinanceScreen()),
-      ),
-    );
+    await tester.pumpWidget(section(const FinanceReportsScreen()));
     await settle(tester);
-    await tester.tap(find.byTooltip('По месяцам'));
+    await tester.tap(find.text('Доходы и расходы по месяцам'));
     await tester.pumpAndSettle();
     expect(find.text('${today.year}'), findsOneWidget);
     expect(find.text('Корма покупные'), findsOneWidget);
@@ -265,8 +259,14 @@ void main() {
     expect(find.text('Комбикорм'), findsOneWidget);
     expect(find.text('Корма покупные (расход)'), findsOneWidget);
 
+    // Назад — к отчётам.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     // Себестоимость кормов: направления «растениеводство» нет — первое.
-    await tester.tap(find.byTooltip('Себестоимость кормов'));
+    await tester.tap(find.text('Себестоимость кормов'));
     await tester.pumpAndSettle();
     expect(find.text('Сезон ${today.year}'), findsOneWidget);
     expect(find.text('Корма покупные'), findsOneWidget);
@@ -275,7 +275,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Прошлый год — пусто.
-    await tester.tap(find.byTooltip('По месяцам'));
+    await tester.tap(find.text('Доходы и расходы по месяцам'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Предыдущий год'));
     await tester.pumpAndSettle();

@@ -10,7 +10,6 @@ import '../providers/sync_provider.dart';
 import '../services/platform.dart';
 import 'about_screen.dart';
 import 'audit_screen.dart';
-import 'periods_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
 import 'backups_screen.dart';
@@ -272,24 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const Divider(height: 1),
                         ],
 
-                        // Закрытие месяцев — бухгалтер и админ (6.2).
-                        if (context.watch<SyncProvider>().canLockMonths) ...[
-                          ListTile(
-                            leading: const Icon(Icons.lock_clock),
-                            title: const Text('Закрытие месяцев'),
-                            subtitle: const Text(
-                              'Зафиксировать расчёт и запретить правки',
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PeriodsScreen(),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1),
-                        ],
+                        // Закрытие месяцев — пункт меню «Зарплата» (8Б.1).
 
                         // Журнал действий — только админ (6.7).
                         if (context.watch<SyncProvider>().canReadAudit) ...[

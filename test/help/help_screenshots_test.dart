@@ -26,6 +26,7 @@ import 'package:kfx_time_tracking/screens/main_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:kfx_time_tracking/services/backup_service.dart';
 import 'package:kfx_time_tracking/theme/app_theme.dart';
+import 'package:kfx_time_tracking/widgets/side_menu.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -84,7 +85,7 @@ void main() {
     await shots.openSection('Выплаты');
     await shots.save('payments');
 
-    await shots.openSection('Отчёты');
+    await shots.openSection('Отчёты по ЗП');
     await shots.save('reports');
     await shots.tapText(_names.first, last: true);
     await shots.save('payroll_detail');
@@ -94,26 +95,27 @@ void main() {
         .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger).first)
         .clearSnackBars();
 
-    await shots.openSection('Финансы');
+    await shots.openSection('Расходы');
     await shots.save('finance');
-    await tester.longPress(find.text('Говядина в тушах'));
+    await shots.openSection('Доходы');
+    await tester.longPress(find.text('Продажа мяса'));
     await shots.settle();
     await shots.save('finance_operation');
     await shots.tapText('Отмена', last: true);
-    await shots.tapTooltip('Остатки');
+    await shots.openSection('Банки и кассы');
     await shots.save('finance_balances');
-    await shots.back();
-    await shots.tapTooltip('По месяцам');
+    await shots.openSection('Отчёты');
+    await shots.tapText('Доходы и расходы по месяцам');
     await shots.save('finance_report');
     await shots.back();
-    await shots.tapTooltip('Себестоимость кормов');
+    await shots.tapText('Себестоимость кормов');
     await shots.save('finance_season');
     await shots.back();
 
-    await shots.openSection('Настройки');
-    await shots.tapText('Закрытие месяцев');
+    await shots.openSection('Закрытие месяцев');
     await shots.save('periods');
-    await shots.back();
+
+    await shots.openSection('Настройки');
     await shots.tapText('Сервер синхронизации');
     await shots.save('sync_desktop');
     await shots.back();
@@ -656,8 +658,14 @@ class _Shots {
     await settle();
   }
 
+  /// Пункт меню: в боковой панели (компьютер) или внизу (телефон).
   Future<void> openSection(String label) async {
-    await tester.tap(find.text(label).last);
+    final menu = find.byType(SideMenu);
+    await tester.tap(
+      menu.evaluate().isNotEmpty
+          ? find.descendant(of: menu, matching: find.text(label))
+          : find.text(label).last,
+    );
     await settle();
   }
 

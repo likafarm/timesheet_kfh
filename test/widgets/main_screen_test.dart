@@ -13,6 +13,7 @@ import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/providers/sync_provider.dart';
 import 'package:kfx_time_tracking/screens/employee_rate_history_screen.dart';
 import 'package:kfx_time_tracking/screens/main_screen.dart';
+import 'package:kfx_time_tracking/widgets/side_menu.dart';
 import 'package:kfx_time_tracking/screens/periods_screen.dart';
 import 'package:kfx_time_tracking/screens/sync_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
@@ -115,22 +116,68 @@ void main() {
     expect(ex, isNull);
   });
 
-  testWidgets('Windows 1024×768: боковая панель, все разделы', (tester) async {
+  testWidgets('Windows 1024×768: боковое меню по группам (8Б.1)', (
+    tester,
+  ) async {
     await pumpMain(tester, size: const Size(1024, 768), operator: false);
-    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.destinations, hasLength(7));
-    // Первый раздел — сводка (6.8).
-    expect(rail.selectedIndex, 0);
-    expect(find.text('Долг по зарплате на сегодня'), findsOneWidget);
+    expect(find.byType(SideMenu), findsOneWidget);
     expect(find.byType(BottomNavigationBar), findsNothing);
+    // Первый раздел — сводка (6.8).
+    expect(find.text('Долг по зарплате на сегодня'), findsOneWidget);
+    for (final header in ['ФИНАНСЫ', 'ЗАРПЛАТА', 'СЕРВИС']) {
+      expect(find.text(header), findsOneWidget);
+    }
+    final menu = find.byType(SideMenu);
+    for (final label in [
+      'Доходы',
+      'Расходы',
+      'Банки и кассы',
+      'Займы',
+      'Отчёты',
+      'Справочники',
+      'Сотрудники',
+      'Табель',
+      'Выплаты',
+      'Отчёты по ЗП',
+      'Закрытие месяцев',
+      'Настройки',
+    ]) {
+      expect(
+        find.descendant(of: menu, matching: find.text(label)),
+        findsOneWidget,
+        reason: label,
+      );
+    }
 
-    await tester.tap(find.text('Сотрудники'));
+    await tester.tap(find.descendant(of: menu, matching: find.text('Расходы')));
     await tester.pump();
-    expect(rail.destinations, hasLength(7));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
+    await tester.pump();
+    expect(find.byTooltip('Новая операция'), findsOneWidget);
+
+    // Группа сворачивается; выбранный пункт остаётся виден.
+    await tester.tap(find.text('ФИНАНСЫ'));
+    await tester.pump();
+    expect(
+      find.descendant(of: menu, matching: find.text('Доходы')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: menu, matching: find.text('Расходы')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('ФИНАНСЫ'));
+    await tester.pump();
+    expect(
+      find.descendant(of: menu, matching: find.text('Доходы')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('бухгалтер на телефоне (6.9, 8.6): «Финансы» первыми, '
+  testWidgets('бухгалтер на телефоне (6.9, 8.6, 8Б.1): «Расходы» первыми, '
       'внизу четыре раздела и «Ещё», '
       'все разделы без ошибок раскладки', (tester) async {
     await pumpMain(
@@ -179,13 +226,13 @@ void main() {
       find.byType(BottomNavigationBar),
     );
     expect(bar.items.map((i) => i.label), [
-      'Финансы',
+      'Расходы',
       'Главная',
       'Табель',
       'Выплаты',
       'Ещё',
     ]);
-    expect(bar.currentIndex, 0, reason: 'открывается на «Финансах»');
+    expect(bar.currentIndex, 0, reason: 'открывается на «Расходах»');
 
     Future<void> settle() async {
       for (var i = 0; i < 4; i++) {
@@ -213,7 +260,7 @@ void main() {
     }
 
     await settle();
-    await check('Финансы');
+    await check('Расходы');
     expect(find.text('Расход / доход'), findsOneWidget);
     for (final label in ['Главная', 'Табель', 'Выплаты']) {
       await tester.tap(
@@ -225,10 +272,26 @@ void main() {
       await settle();
       await check(label);
     }
-    for (final label in ['Сотрудники', 'Отчёты', 'Настройки']) {
+    for (final label in [
+      'Доходы',
+      'Банки и кассы',
+      'Займы',
+      'Отчёты',
+      'Справочники',
+      'Сотрудники',
+      'Отчёты по ЗП',
+      'Закрытие месяцев',
+      'Настройки',
+    ]) {
       await tester.tap(find.text('Ещё'));
       await settle();
-      await tester.tap(find.widgetWithText(ListTile, label));
+      // «Ещё» — по группам меню.
+      expect(find.text('Финансы'), findsOneWidget, reason: label);
+      expect(find.text('Зарплата'), findsOneWidget, reason: label);
+      final tile = find.widgetWithText(ListTile, label);
+      await tester.ensureVisible(tile);
+      await tester.pump();
+      await tester.tap(tile);
       await settle();
       await check(label);
     }

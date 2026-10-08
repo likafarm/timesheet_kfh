@@ -1,7 +1,8 @@
 // lib/screens/finance_balances_screen.dart
 //
-// Остатки кошельков и займов на конец дня (этап 8.7). Нажатие на кошелёк —
-// отбор операций по нему в «Финансах», «Сверить» — сверка остатка.
+// «Банки и кассы» (8.7, пункт меню с 8Б.1): остатки кошельков и займов на
+// конец дня. Нажатие на кошелёк — его операции за месяц дня, «Сверить» —
+// сверка остатка.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -10,19 +11,20 @@ import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
 import '../widgets/finance_reconcile_dialog.dart';
+import 'finance_screen.dart';
 
 class FinanceBalancesScreen extends StatefulWidget {
-  /// День, на конец которого показать остатки.
-  final DateTime day;
+  /// День, на конец которого показать остатки; null — сегодня.
+  final DateTime? day;
 
-  const FinanceBalancesScreen({super.key, required this.day});
+  const FinanceBalancesScreen({super.key, this.day});
 
   @override
   State<FinanceBalancesScreen> createState() => _FinanceBalancesScreenState();
 }
 
 class _FinanceBalancesScreenState extends State<FinanceBalancesScreen> {
-  late DateTime _day = calendarDay(widget.day);
+  late DateTime _day = calendarDay(widget.day ?? DateTime.now());
 
   Future<void> _pickDay() async {
     final picked = await showDatePicker(
@@ -66,7 +68,7 @@ class _FinanceBalancesScreenState extends State<FinanceBalancesScreen> {
     final debtsGiven = s.debts.where((d) => d.debt.kind == DebtKind.given);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Остатки'),
+        title: const Text('Банки и кассы'),
         actions: [
           TextButton.icon(
             onPressed: () => _reconcile(fin),
@@ -124,8 +126,14 @@ class _FinanceBalancesScreenState extends State<FinanceBalancesScreen> {
                       ),
                     ],
                   ),
-                  // Отбор операций по кошельку в «Финансах».
-                  onTap: () => Navigator.of(context).pop(a.account.id),
+                  // Операции кошелька за месяц выбранного дня.
+                  onTap: () => FinanceScreen.push(
+                    context,
+                    FinanceFilter(
+                      month: DateTime(_day.year, _day.month),
+                      accountId: a.account.id,
+                    ),
+                  ),
                 ),
               ListTile(
                 title: const Text(
