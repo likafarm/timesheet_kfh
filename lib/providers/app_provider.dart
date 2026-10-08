@@ -133,6 +133,33 @@ class AppProvider extends ChangeNotifier {
   bool isMonthLocked(int year, int month) =>
       _lockedMonths.contains(PeriodGuard.monthKey(year, month));
 
+  /// Репозитории базы — для моделей разделов (финансы, этап 8).
+  DriftRepositories get repos => _appDb.repos;
+
+  /// Растёт, когда данные базы поменялись не через этот провайдер:
+  /// приём с сервера, восстановление из копии. Модели разделов по нему
+  /// перечитывают свои данные.
+  int get dataVersion => _dataVersion;
+  int _dataVersion = 0;
+
+  /// Сообщение внизу окна (показывает [MainScreen]).
+  void showNotice(String message) {
+    _notice = message;
+    notifyListeners();
+  }
+
+  /// Правка таблицы [table] не задевает закрытый месяц ([PeriodGuard]);
+  /// иначе — сообщение и false. [after] = null — удаление.
+  bool allowedInOpenPeriod(
+    String table,
+    Map<String, Object?>? before,
+    Map<String, Object?>? after,
+  ) => _allowedInOpenPeriod(table, before, after);
+
+  /// Оператор финансы не видит и не правит (решение владельца, 8.3);
+  /// иначе — сообщение и false.
+  bool financeAllowed() => _notOperator();
+
   /// Есть сообщение для пользователя — забрать его (показывается один раз).
   String? takeNotice() {
     final n = _notice;
@@ -994,6 +1021,7 @@ class AppProvider extends ChangeNotifier {
   /// Синхронизация записала в базу изменения с сервера: перечитать то, что
   /// показывают экраны (те же периоды и фильтры).
   Future<void> reloadAfterSync() async {
+    _dataVersion++;
     await loadAllData();
     final start = _currentPeriodStart, end = _currentPeriodEnd;
     if (start != null && end != null) {
@@ -1087,6 +1115,7 @@ class AppProvider extends ChangeNotifier {
         onReopened: (reopened) {
           _appDb = reopened;
           _databaseGeneration++;
+          _dataVersion++;
         },
       );
       await loadAllData();
