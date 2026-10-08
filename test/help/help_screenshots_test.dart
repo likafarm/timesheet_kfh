@@ -106,6 +106,9 @@ void main() {
     await shots.tapTooltip('По месяцам');
     await shots.save('finance_report');
     await shots.back();
+    await shots.tapTooltip('Себестоимость кормов');
+    await shots.save('finance_season');
+    await shots.back();
 
     await shots.openSection('Настройки');
     await shots.tapText('Закрытие месяцев');
@@ -353,6 +356,14 @@ Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
       general,
       null,
     ),
+    (
+      u('c-film'),
+      CategoryType.expense,
+      u('g-feed'),
+      'Плёнка, сетка',
+      crop,
+      null,
+    ),
     (u('c-vet'), CategoryType.expense, u('g-farm'), 'Ветпрепараты', live, null),
     (
       u('c-meat'),
@@ -511,6 +522,15 @@ Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
     description: 'Сено в рулонах',
     quantity: 10,
     unit: 'шт',
+  );
+  await op(
+    6,
+    e,
+    4150000,
+    u('a-bank'),
+    category: u('c-film'),
+    counterparty: u('p-feed'),
+    description: 'Плёнка для сенажа',
   );
   await op(
     7,

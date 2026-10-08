@@ -10,6 +10,10 @@ import 'calc.dart';
 import 'catalog.dart';
 import 'models.dart';
 
+/// Столбцы отчёта: месяцы или сезоны урожая
+/// ([FinOperation.effectiveSeason]).
+enum CashFlowPeriod { month, season }
+
 /// Чем строки отчёта.
 enum CashFlowBy {
   category('По статьям'),
@@ -23,19 +27,19 @@ enum CashFlowBy {
 const noCategory = '';
 
 /// Строка отчёта: статья или направление ([unassignedDirection] — «не
-/// определено»), суммы по месяцам в копейках.
+/// определено»), суммы по столбцам (месяцам или сезонам) в копейках.
 class CashFlowLine {
   final String id;
   final String name;
-  final List<int> months;
+  final List<int> values;
 
   const CashFlowLine({
     required this.id,
     required this.name,
-    required this.months,
+    required this.values,
   });
 
-  int get total => months.fold(0, (a, b) => a + b);
+  int get total => values.fold(0, (a, b) => a + b);
 }
 
 /// Группа строк: группа статей (по направлениям — одна группа без
@@ -49,8 +53,8 @@ class CashFlowGroup {
 
   const CashFlowGroup({this.id, required this.name, required this.lines});
 
-  List<int> get months => _sum([for (final l in lines) l.months]);
-  int get total => months.fold(0, (a, b) => a + b);
+  List<int> get values => _sum([for (final l in lines) l.values]);
+  int get total => values.fold(0, (a, b) => a + b);
 }
 
 /// Доходы или расходы.
@@ -59,7 +63,7 @@ class CashFlowSection {
   final List<CashFlowGroup> groups;
 
   /// В расходах — капвложения по месяцам (в доходах — возвраты): они уже
-  /// входят в [months], показываются строкой «в т. ч.».
+  /// входят в [values], показываются строкой «в т. ч.».
   final List<int> special;
 
   const CashFlowSection({
@@ -68,9 +72,9 @@ class CashFlowSection {
     required this.special,
   });
 
-  List<int> get months =>
-      _sum([for (final g in groups) g.months], length: special.length);
-  int get total => months.fold(0, (a, b) => a + b);
+  List<int> get values =>
+      _sum([for (final g in groups) g.values], length: special.length);
+  int get total => values.fold(0, (a, b) => a + b);
   int get specialTotal => special.fold(0, (a, b) => a + b);
   bool get isEmpty => groups.every((g) => g.lines.isEmpty);
 }
@@ -79,21 +83,30 @@ class CashFlowReport {
   final CashFlowBy by;
 
   /// Первые числа месяцев отчёта по порядку.
-  final List<DateTime> months;
+  /// Шаг столбцов.
+  final CashFlowPeriod period;
+
+  /// Столбцы: первые числа месяцев или 1 января года сезона — по порядку.
+  final List<DateTime> columns;
+
+  /// Только доля этого направления (себестоимость по сезонам); null — все.
+  final String? directionId;
   final CashFlowSection income;
   final CashFlowSection expense;
 
   const CashFlowReport({
     required this.by,
-    required this.months,
+    this.period = CashFlowPeriod.month,
+    required this.columns,
+    this.directionId,
     required this.income,
     required this.expense,
   });
 
   /// Доходы минус расходы по месяцам.
   List<int> get result => [
-    for (var i = 0; i < months.length; i++)
-      income.months[i] - expense.months[i],
+    for (var i = 0; i < columns.length; i++)
+      income.values[i] - expense.values[i],
   ];
 
   int get resultTotal => income.total - expense.total;
@@ -111,29 +124,40 @@ List<int> _sum(List<List<int>> rows, {int? length}) {
   return result;
 }
 
-/// Отчёт за [count] месяцев с месяца [from]. [operations] — операции
-/// вместе с расходами ЗП из выплат (`payrollExpenses`). Строки без сумм за
-/// период не показываются; статьи — по порядку групп и статей
-/// справочника, направления — по порядку справочника, «не определено» —
-/// последним.
+/// Отчёт за [count] месяцев с месяца [from] (или [count] сезонов урожая с
+/// года [from] — [period]). [operations] — операции вместе с расходами ЗП
+/// из выплат (`payrollExpenses`). [directionId] — только доля этого
+/// направления (с раскладкой ключей). Строки без сумм за период не
+/// показываются; статьи — по порядку групп и статей справочника,
+/// направления — по порядку справочника, «не определено» — последним.
 CashFlowReport cashFlowReport({
   required Iterable<FinOperation> operations,
   required FinanceCatalog catalog,
   required DateTime from,
   int count = 12,
   CashFlowBy by = CashFlowBy.category,
+  CashFlowPeriod period = CashFlowPeriod.month,
+  String? directionId,
 }) {
-  final start = DateTime(from.year, from.month);
-  final months = [
-    for (var i = 0; i < count; i++) DateTime(start.year, start.month + i),
+  final bySeason = period == CashFlowPeriod.season;
+  final start = bySeason
+      ? DateTime(from.year)
+      : DateTime(from.year, from.month);
+  final columns = [
+    for (var i = 0; i < count; i++)
+      bySeason
+          ? DateTime(start.year + i)
+          : DateTime(start.year, start.month + i),
   ];
-  int? indexOf(DateTime date) {
-    final d = calendarDay(date);
-    final i = (d.year - start.year) * 12 + d.month - start.month;
+  int? indexOf(FinOperation op) {
+    final d = calendarDay(op.date);
+    final i = bySeason
+        ? op.effectiveSeason - start.year
+        : (d.year - start.year) * 12 + d.month - start.month;
     return i >= 0 && i < count ? i : null;
   }
 
-  // Вид → id строки → суммы по месяцам; «в т. ч.» — отдельно.
+  // Вид → id строки → суммы по столбцам; «в т. ч.» — отдельно.
   final amounts = {
     CategoryType.income: <String, List<int>>{},
     CategoryType.expense: <String, List<int>>{},
@@ -152,20 +176,27 @@ CashFlowReport cashFlowReport({
       OperationType.expense => CategoryType.expense,
       _ => null,
     };
-    final i = indexOf(op.date);
+    final i = indexOf(op);
     if (type == null || i == null) continue;
+    var split = splitByDirection(op, catalog);
+    if (directionId != null) {
+      final share = split[directionId] ?? 0;
+      if (share == 0) continue;
+      split = {directionId: share};
+    }
+    final amount = split.values.fold(0, (a, b) => a + b);
     final kind = catalog.categories[op.categoryId]?.kind;
     if (kind ==
         (type == CategoryType.income
             ? CategoryKind.refund
             : CategoryKind.capex)) {
-      special[type]![i] += op.amount;
+      special[type]![i] += amount;
     }
     switch (by) {
       case CashFlowBy.category:
-        add(type, op.categoryId ?? noCategory, i, op.amount);
+        add(type, op.categoryId ?? noCategory, i, amount);
       case CashFlowBy.direction:
-        splitByDirection(op, catalog).forEach((d, a) => add(type, d, i, a));
+        split.forEach((d, a) => add(type, d, i, a));
     }
   }
 
@@ -189,10 +220,47 @@ CashFlowReport cashFlowReport({
 
   return CashFlowReport(
     by: by,
-    months: months,
+    period: period,
+    columns: columns,
+    directionId: directionId,
     income: section(CategoryType.income),
     expense: section(CategoryType.expense),
   );
+}
+
+/// Себестоимость кормов (вторая очередь этапа 8): затраты и выручка
+/// направления [directionId] (растениеводство) по статьям за [count]
+/// сезонов урожая по [lastSeason] включительно. Расход по ключу входит
+/// своей долей; накладные (общехозяйственные) не распределяются. Итог
+/// «доходы − расходы» со знаком минус — чистая себестоимость своих кормов.
+CashFlowReport seasonCostReport({
+  required Iterable<FinOperation> operations,
+  required FinanceCatalog catalog,
+  required String directionId,
+  required int lastSeason,
+  int count = 3,
+}) => cashFlowReport(
+  operations: operations,
+  catalog: catalog,
+  from: DateTime(lastSeason - count + 1),
+  count: count,
+  period: CashFlowPeriod.season,
+  directionId: directionId,
+);
+
+/// Направление кормов по умолчанию для [seasonCostReport]: первое, в
+/// названии которого есть «растениевод» или «корм», иначе null.
+String? feedDirection(FinanceCatalog catalog) {
+  final all = [...catalog.directions.values]
+    ..sort((a, b) {
+      final o = a.sortOrder.compareTo(b.sortOrder);
+      return o != 0 ? o : a.name.compareTo(b.name);
+    });
+  for (final d in all) {
+    final name = d.name.toLowerCase();
+    if (name.contains('растениевод') || name.contains('корм')) return d.id;
+  }
+  return null;
 }
 
 List<CashFlowGroup> _categoryGroups(
@@ -225,7 +293,7 @@ List<CashFlowGroup> _categoryGroups(
 
   List<CashFlowLine> lines(List<FinCategory> cs) => [
     for (final c in cs..sort(byOrder))
-      CashFlowLine(id: c.id, name: c.name, months: rows[c.id]!),
+      CashFlowLine(id: c.id, name: c.name, values: rows[c.id]!),
   ];
   final unknownIds = [
     for (final id in rows.keys)
@@ -244,7 +312,7 @@ List<CashFlowGroup> _categoryGroups(
           CashFlowLine(
             id: noCategory,
             name: 'Статья не указана',
-            months: _sum([for (final id in unknownIds) rows[id]!]),
+            values: _sum([for (final id in unknownIds) rows[id]!]),
           ),
         ],
       ),
@@ -266,12 +334,12 @@ List<CashFlowLine> _directionLines(
   ];
   return [
     for (final d in directions)
-      CashFlowLine(id: d.id, name: d.name, months: rows[d.id]!),
+      CashFlowLine(id: d.id, name: d.name, values: rows[d.id]!),
     if (unknown.isNotEmpty)
       CashFlowLine(
         id: unassignedDirection,
         name: 'Направление не определено',
-        months: _sum(unknown),
+        values: _sum(unknown),
       ),
   ];
 }

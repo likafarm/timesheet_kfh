@@ -265,6 +265,15 @@ void main() {
     expect(find.text('Комбикорм'), findsOneWidget);
     expect(find.text('Корма покупные (расход)'), findsOneWidget);
 
+    // Себестоимость кормов: направления «растениеводство» нет — первое.
+    await tester.tap(find.byTooltip('Себестоимость кормов'));
+    await tester.pumpAndSettle();
+    expect(find.text('Сезон ${today.year}'), findsOneWidget);
+    expect(find.text('Корма покупные'), findsOneWidget);
+    expect(find.text('Итог: выручка − затраты'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     // Прошлый год — пусто.
     await tester.tap(find.byTooltip('По месяцам'));
     await tester.pumpAndSettle();

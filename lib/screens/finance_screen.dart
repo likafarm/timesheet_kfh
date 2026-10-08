@@ -203,8 +203,16 @@ class _FinanceViewState extends State<_FinanceView> {
 
   /// Отчёт по месяцам за год выбранного месяца; нажатая сумма становится
   /// отбором списка.
-  Future<void> _openReport(FinanceProvider fin) async {
-    final filter = await openFinanceReport(context, fin, year: _month.year);
+  Future<void> _openReport(
+    FinanceProvider fin, {
+    FinanceReportMode mode = FinanceReportMode.category,
+  }) async {
+    final filter = await openFinanceReport(
+      context,
+      fin,
+      year: _month.year,
+      mode: mode,
+    );
     if (filter != null && mounted) setState(() => _filter = filter);
   }
 
@@ -648,6 +656,13 @@ class _FinanceViewState extends State<_FinanceView> {
           Icons.calendar_view_month,
           'По месяцам',
           fin.loaded ? () => _openReport(fin) : null,
+        ),
+        AppBarMenuItem(
+          Icons.agriculture_outlined,
+          'Себестоимость кормов',
+          fin.loaded
+              ? () => _openReport(fin, mode: FinanceReportMode.season)
+              : null,
         ),
         AppBarMenuItem(
           Icons.fact_check_outlined,

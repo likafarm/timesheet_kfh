@@ -1,9 +1,10 @@
 // lib/screens/finance_report_screen.dart
 //
-// Отчёт «статьи / направления × месяцы» (вторая очередь этапа 8): доходы
-// и расходы за год по месяцам — строками по статьям (с группами) или по
-// направлениям. Нажатие на сумму возвращает в «Финансы» с отбором по
-// месяцу и статье (направлению). Выгрузка — в Excel.
+// Отчёты финансов (вторая очередь этапа 8): доходы и расходы за год по
+// месяцам — строками по статьям (с группами) или по направлениям; нажатие
+// на сумму возвращает в «Финансы» с отбором по месяцу и строке.
+// Себестоимость кормов — затраты и выручка направления по сезонам урожая.
+// Выгрузка — в Excel.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -13,29 +14,47 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../providers/finance_provider.dart';
 import '../services/excel_export.dart';
+import '../widgets/common_widgets.dart';
 import '../widgets/excel_export_action.dart';
 import '../widgets/finance_operation_dialog.dart';
 import '../widgets/month_switcher.dart';
 
-/// Открывает отчёт за год [year]; результат — отбор для списка операций
-/// (null — просто вернулись).
+/// Вид отчёта.
+enum FinanceReportMode {
+  category('По статьям'),
+  direction('По направлениям'),
+  season('Корма по сезонам');
+
+  final String title;
+  const FinanceReportMode(this.title);
+}
+
+/// Открывает отчёт за год [year] (себестоимость кормов — сезоны по
+/// [year]); результат — отбор для списка операций (null — просто
+/// вернулись).
 Future<FinanceFilter?> openFinanceReport(
   BuildContext context,
   FinanceProvider fin, {
   required int year,
+  FinanceReportMode mode = FinanceReportMode.category,
 }) => Navigator.of(context).push<FinanceFilter>(
   MaterialPageRoute(
     builder: (_) => ChangeNotifierProvider.value(
       value: fin,
-      child: FinanceReportScreen(year: year),
+      child: FinanceReportScreen(year: year, mode: mode),
     ),
   ),
 );
 
 class FinanceReportScreen extends StatefulWidget {
   final int year;
+  final FinanceReportMode mode;
 
-  const FinanceReportScreen({super.key, required this.year});
+  const FinanceReportScreen({
+    super.key,
+    required this.year,
+    this.mode = FinanceReportMode.category,
+  });
 
   @override
   State<FinanceReportScreen> createState() => _FinanceReportScreenState();
@@ -52,29 +71,66 @@ String _amount(int kopecks) => kopecks == 0 ? '' : formatRubWhole(kopecks);
 
 class _FinanceReportScreenState extends State<FinanceReportScreen> {
   late int _year = widget.year;
-  CashFlowBy _by = CashFlowBy.category;
+  late FinanceReportMode _mode = widget.mode;
+
+  /// Направление себестоимости; null — по умолчанию ([feedDirection]).
+  String? _directionId;
+
+  /// Сезонов в отчёте себестоимости.
+  static const _seasons = 3;
+
+  bool get _bySeason => _mode == FinanceReportMode.season;
 
   static const _nameWidth = 230.0;
   static const _cellWidth = 96.0;
   static const _totalWidth = 112.0;
 
-  CashFlowReport _report(FinanceProvider fin) => cashFlowReport(
-    operations: fin.allOperations,
-    catalog: fin.catalog,
-    from: DateTime(_year),
-    by: _by,
-  );
+  String? _direction(FinanceProvider fin) {
+    final id = _directionId;
+    if (id != null && fin.catalog.directions.containsKey(id)) return id;
+    return feedDirection(fin.catalog) ?? fin.directions.firstOrNull?.id;
+  }
 
-  Future<void> _export(CashFlowReport report) async {
+  String get _seasonRange => '${_year - _seasons + 1}–$_year';
+
+  CashFlowReport? _report(FinanceProvider fin) {
+    if (!_bySeason) {
+      return cashFlowReport(
+        operations: fin.allOperations,
+        catalog: fin.catalog,
+        from: DateTime(_year),
+        by: _mode == FinanceReportMode.direction
+            ? CashFlowBy.direction
+            : CashFlowBy.category,
+      );
+    }
+    final direction = _direction(fin);
+    if (direction == null) return null;
+    return seasonCostReport(
+      operations: fin.allOperations,
+      catalog: fin.catalog,
+      directionId: direction,
+      lastSeason: _year,
+      count: _seasons,
+    );
+  }
+
+  Future<void> _export(FinanceProvider fin, CashFlowReport report) async {
     final app = context.read<AppProvider>();
     if (app.companySettings == null) await app.loadCompanySettings();
     if (!mounted) return;
+    final direction = fin.catalog.directions[report.directionId]?.name;
     await exportToExcel(
       context,
-      fileName: 'Финансы_по_месяцам_$_year.xlsx',
+      fileName: _bySeason
+          ? 'Себестоимость_по_сезонам_$_year.xlsx'
+          : 'Финансы_по_месяцам_$_year.xlsx',
       build: () async => cashFlowWorkbook(
         report: report,
-        period: '$_year',
+        title: _bySeason
+            ? 'Себестоимость по сезонам $_seasonRange — $direction'
+            : 'Доходы и расходы по месяцам — $_year',
+        sheetName: _bySeason ? 'Сезоны $_seasonRange' : 'По месяцам $_year',
         companySettings: app.companySettings,
       ),
     );
@@ -90,8 +146,8 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
       FinanceFilter(
         month: DateTime(_year, i + 1),
         type: type,
-        categoryId: _by == CashFlowBy.category ? line.id : null,
-        directionId: _by == CashFlowBy.direction ? line.id : null,
+        categoryId: _mode == FinanceReportMode.category ? line.id : null,
+        directionId: _mode == FinanceReportMode.direction ? line.id : null,
       ),
     );
   }
@@ -103,7 +159,11 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
     final compact = MonthSwitcher.isCompact(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(compact ? 'По месяцам' : 'Доходы и расходы по месяцам'),
+        title: Text(
+          _bySeason
+              ? (compact ? 'Корма' : 'Себестоимость кормов по сезонам')
+              : (compact ? 'По месяцам' : 'Доходы и расходы по месяцам'),
+        ),
         actions: [
           IconButton(
             tooltip: 'Предыдущий год',
@@ -112,7 +172,7 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
           ),
           Center(
             child: Text(
-              '$_year',
+              _bySeason ? _seasonRange : '$_year',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
@@ -124,7 +184,7 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
           IconButton(
             tooltip: 'Выгрузить в Excel',
             icon: const Icon(Icons.table_view),
-            onPressed: () => _export(report),
+            onPressed: report == null ? null : () => _export(fin, report),
           ),
         ],
       ),
@@ -133,20 +193,43 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<CashFlowBy>(
-              segments: [
-                for (final b in CashFlowBy.values)
-                  ButtonSegment(value: b, label: Text(b.title)),
-              ],
-              selected: {_by},
-              onSelectionChanged: (s) => setState(() => _by = s.single),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<FinanceReportMode>(
+                segments: [
+                  for (final m in FinanceReportMode.values)
+                    ButtonSegment(value: m, label: Text(m.title)),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (s) => setState(() => _mode = s.single),
+              ),
             ),
           ),
+          if (_bySeason && fin.directions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: SizedBox(
+                width: 320,
+                child: AppDropdown<String>(
+                  labelText: 'Направление',
+                  value: _direction(fin),
+                  items: [
+                    for (final d in fin.directions)
+                      DropdownMenuItem(value: d.id, child: Text(d.name)),
+                  ],
+                  onChanged: (v) => setState(() => _directionId = v),
+                ),
+              ),
+            ),
           Expanded(
-            child: report.isEmpty
+            child: report == null || report.isEmpty
                 ? Center(
                     child: Text(
-                      'Нет доходов и расходов за $_year год',
+                      report == null
+                          ? 'Нет направлений — заведите их в справочниках'
+                          : _bySeason
+                          ? 'Нет затрат и выручки за сезоны $_seasonRange'
+                          : 'Нет доходов и расходов за $_year год',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
                   )
@@ -160,19 +243,32 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
   Widget _table(CashFlowReport report) {
     final theme = Theme.of(context);
     final width =
-        _nameWidth + report.months.length * _cellWidth + _totalWidth + 32;
+        _nameWidth + report.columns.length * _cellWidth + _totalWidth + 32;
     final rows = <Widget>[
       _row(
         report.by == CashFlowBy.category ? 'Статья' : 'Направление',
-        [for (final m in report.months) DateFormat('LLL', 'ru').format(m)],
+        [
+          for (final m in report.columns)
+            _bySeason ? 'Сезон ${m.year}' : DateFormat('LLL', 'ru').format(m),
+        ],
         'Итого',
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         border: true,
       ),
-      ..._section(report, report.income, 'Доходы', 'в т. ч. возвраты'),
-      ..._section(report, report.expense, 'Расходы', 'в т. ч. капвложения'),
+      ..._section(
+        report,
+        report.income,
+        _bySeason ? 'Выручка' : 'Доходы',
+        'в т. ч. возвраты',
+      ),
+      ..._section(
+        report,
+        report.expense,
+        _bySeason ? 'Затраты' : 'Расходы',
+        'в т. ч. капвложения',
+      ),
       _row(
-        'Итог: доходы − расходы',
+        _bySeason ? 'Итог: выручка − затраты' : 'Итог: доходы − расходы',
         [for (final k in report.result) _amount(k)],
         formatRubWhole(report.resultTotal),
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -181,8 +277,16 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
         child: Text(
-          'Суммы — в рублях. Переводы и займы в отчёт не входят. Нажмите на '
-          'сумму — откроются операции месяца по этой строке.',
+          _bySeason
+              ? 'Суммы — в рублях. Сезон — урожай, под который потрачены '
+                    'деньги: по умолчанию — год операции, меняется полем '
+                    '«Сезон урожая» в окне операции. Расход по ключу входит '
+                    'долей направления; общехозяйственные расходы не '
+                    'распределяются. Итог со знаком минус — во сколько '
+                    'обошлись свои корма за сезон.'
+              : 'Суммы — в рублях. Переводы и займы в отчёт не входят. '
+                    'Нажмите на сумму — откроются операции месяца по этой '
+                    'строке.',
           style: theme.textTheme.bodySmall,
         ),
       ),
@@ -215,7 +319,7 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
     return [
       _row(
         name,
-        [for (final k in s.months) _amount(k)],
+        [for (final k in s.values) _amount(k)],
         formatRubWhole(s.total),
         style: bold.copyWith(color: color),
         fill: theme.colorScheme.surfaceContainerHigh,
@@ -224,18 +328,18 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
         if (byCategory)
           _row(
             g.name,
-            [for (final k in g.months) _amount(k)],
+            [for (final k in g.values) _amount(k)],
             formatRubWhole(g.total),
             style: bold,
           ),
         for (final l in g.lines)
           _row(
             l.name,
-            [for (final k in l.months) _amount(k)],
+            [for (final k in l.values) _amount(k)],
             formatRubWhole(l.total),
             style: small,
             indent: byCategory,
-            onTap: (i) => _open(s, l, i),
+            onTap: _bySeason ? null : (i) => _open(s, l, i),
           ),
       ],
       if (s.specialTotal != 0)

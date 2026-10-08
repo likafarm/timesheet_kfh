@@ -340,7 +340,11 @@ void main() {
       from: DateTime(2026),
       count: 2,
     );
-    final bytes = cashFlowWorkbook(report: report, period: '2026').encode();
+    final bytes = cashFlowWorkbook(
+      report: report,
+      title: 'Доходы и расходы по месяцам — 2026',
+      sheetName: 'По месяцам 2026',
+    ).encode();
     save('Финансы_по_месяцам_2026.xlsx', bytes);
     final c = cells(bytes);
     expect(c['B4']!.v, 'Январь 2026');

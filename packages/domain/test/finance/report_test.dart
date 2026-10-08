@@ -139,7 +139,7 @@ void main() {
     );
 
     test('месяцы с первого числа', () {
-      expect(r.months, [
+      expect(r.columns, [
         DateTime(2025, 1),
         DateTime(2025, 2),
         DateTime(2025, 3),
@@ -156,11 +156,11 @@ void main() {
         [for (final l in ex[1].lines) l.name],
         ['Запчасти', 'ГСМ', 'Трактор'],
       );
-      expect(ex[1].lines[1].months, [12500, 0, 0]);
-      expect(ex[1].months, [12500, 100000, 700]);
+      expect(ex[1].lines[1].values, [12500, 0, 0]);
+      expect(ex[1].values, [12500, 100000, 700]);
       expect(ex[2].id, isNull);
       expect(ex[3].lines.single.id, noCategory);
-      expect(ex[3].lines.single.months, [0, 11, 0]);
+      expect(ex[3].lines.single.values, [0, 11, 0]);
       expect(
         [for (final g in ex) ...g.lines].any((l) => l.id == 'unused'),
         isFalse,
@@ -169,10 +169,10 @@ void main() {
     });
 
     test('итоги разделов, «в т. ч.» и результат', () {
-      expect(r.expense.months, [12500, 103011, 750]);
+      expect(r.expense.values, [12500, 103011, 750]);
       expect(r.expense.special, [0, 100000, 0]);
       expect(r.expense.total, 116261);
-      expect(r.income.months, [400000, 0, 900]);
+      expect(r.income.values, [400000, 0, 900]);
       expect(r.income.special, [0, 0, 900]);
       expect(r.result, [387500, -103011, 150]);
       expect(r.resultTotal, r.income.total - r.expense.total);
@@ -185,7 +185,7 @@ void main() {
         from: DateTime(2030),
       );
       expect(empty.isEmpty, isTrue);
-      expect(empty.months, hasLength(12));
+      expect(empty.columns, hasLength(12));
       expect(empty.result, List.filled(12, 0));
     });
   });
@@ -215,11 +215,77 @@ void main() {
         'Направление не определено',
       ],
     );
-    expect(lines[0].months, [601, 700]);
-    expect(lines[1].months, [0, 70]);
-    expect(lines[2].months, [400, 300]);
+    expect(lines[0].values, [601, 700]);
+    expect(lines[1].values, [0, 70]);
+    expect(lines[2].values, [400, 300]);
     expect(lines[3].id, unassignedDirection);
-    expect(r.expense.months, [1001, 1370]);
-    expect(r.income.groups.single.lines.single.months, [0, 500]);
+    expect(r.expense.values, [1001, 1370]);
+    expect(r.income.groups.single.lines.single.values, [0, 500]);
+  });
+
+  group('себестоимость кормов по сезонам', () {
+    FinOperation seasonal(
+      String id,
+      DateTime date,
+      OperationType type,
+      int amount,
+      String category, {
+      int? season,
+    }) => FinOperation(
+      id: id,
+      date: date,
+      type: type,
+      amount: amount,
+      accountId: cash,
+      categoryId: category,
+      season: season,
+    );
+
+    final ops = [
+      // ГСМ по ключу «Трактора»: растениеводству 40 % в 2025, 30 % в 2026.
+      seasonal('1', DateTime(2025, 6, 1), e, 1000, fuel),
+      // Плёнка, купленная зимой под урожай 2026 года.
+      seasonal('2', DateTime(2025, 12, 20), e, 5000, film, season: 2026),
+      seasonal('3', DateTime(2026, 7, 1), e, 1000, fuel),
+      // Животноводство — не входит.
+      seasonal('4', DateTime(2025, 7, 1), e, 777, workers),
+      // Продажа излишков сена — выручка направления.
+      FinOperation(
+        id: '5',
+        date: DateTime(2026, 9, 1),
+        type: i,
+        amount: 2000,
+        accountId: cash,
+        directionId: crops,
+      ),
+    ];
+
+    test('доля направления по сезону урожая', () {
+      final r = seasonCostReport(
+        operations: ops,
+        catalog: catalog,
+        directionId: crops,
+        lastSeason: 2026,
+        count: 2,
+      );
+      expect(r.period, CashFlowPeriod.season);
+      expect(r.columns, [DateTime(2025), DateTime(2026)]);
+      expect(r.expense.values, [400, 5300]);
+      final lines = [for (final g in r.expense.groups) ...g.lines];
+      expect(
+        {for (final l in lines) l.id: l.values},
+        {
+          fuel: [400, 300],
+          film: [0, 5000],
+        },
+      );
+      expect(r.income.values, [0, 2000]);
+      expect(r.result, [-400, -3300]);
+    });
+
+    test('направление кормов по названию', () {
+      expect(feedDirection(catalog), crops);
+      expect(feedDirection(FinanceCatalog()), isNull);
+    });
   });
 }

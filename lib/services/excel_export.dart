@@ -562,13 +562,14 @@ XlsxWorkbook financeWorkbook({
 /// результат — формулами.
 XlsxWorkbook cashFlowWorkbook({
   required CashFlowReport report,
-  required String period,
+  required String title,
+  required String sheetName,
   CompanySettings? companySettings,
 }) {
-  final title = 'Доходы и расходы по месяцам — $period';
+  final bySeason = report.period == CashFlowPeriod.season;
   final book = XlsxWorkbook(title: title, author: _company(companySettings));
-  final sheet = book.addSheet('По месяцам $period')..landscape = true;
-  final n = report.months.length;
+  final sheet = book.addSheet(sheetName)..landscape = true;
+  final n = report.columns.length;
   final totalCol = n + 1;
   final byCategory = report.by == CashFlowBy.category;
   sheet.addRow([XlsxCell.text(title, _title)], height: 20);
@@ -583,7 +584,8 @@ XlsxWorkbook cashFlowWorkbook({
   sheet.addRow([]);
   sheet.addRow([
     XlsxCell.text(byCategory ? 'Статья' : 'Направление', _head),
-    for (final m in report.months) XlsxCell.text(_monthTitle(m), _head),
+    for (final m in report.columns)
+      XlsxCell.text(bySeason ? 'Сезон ${m.year}' : _monthTitle(m), _head),
     XlsxCell.text('Итого', _head),
   ], height: 30);
 
@@ -640,7 +642,7 @@ XlsxWorkbook cashFlowWorkbook({
         groupRows.add(r);
         formulas(
           g.name,
-          g.months,
+          g.values,
           groupLabel,
           groupMoney,
           (c) => range(c, r + 1, r + g.lines.length),
@@ -651,14 +653,14 @@ XlsxWorkbook cashFlowWorkbook({
         final row = [
           XlsxCell.text(byCategory ? '    ${l.name}' : l.name, _cell),
         ];
-        values(l.months, money, row);
+        values(l.values, money, row);
         sheet.addRow(row);
       }
     }
     final total = sheet.rows.length;
     formulas(
       'Всего — ${name.toLowerCase()}',
-      s.months,
+      s.values,
       _total,
       totalMoney,
       (c) => groupRows.isEmpty
@@ -674,10 +676,18 @@ XlsxWorkbook cashFlowWorkbook({
     return total;
   }
 
-  final income = section(report.income, 'Доходы', 'в т. ч. возвраты');
-  final expense = section(report.expense, 'Расходы', 'в т. ч. капвложения');
+  final income = section(
+    report.income,
+    bySeason ? 'Выручка' : 'Доходы',
+    'в т. ч. возвраты',
+  );
+  final expense = section(
+    report.expense,
+    bySeason ? 'Затраты' : 'Расходы',
+    'в т. ч. капвложения',
+  );
   formulas(
-    'Итог: доходы − расходы',
+    bySeason ? 'Итог: выручка − затраты' : 'Итог: доходы − расходы',
     report.result,
     _total,
     totalMoney,
@@ -686,9 +696,13 @@ XlsxWorkbook cashFlowWorkbook({
   sheet.addRow([]);
   sheet.addRow([
     XlsxCell.text(
-      'Переводы между кошельками и займы — не доходы и не расходы, в отчёт '
-      'не входят. Расходы по ключу распределения в отчёте по направлениям '
-      'разложены по долям ключа.',
+      bySeason
+          ? 'Сезон — урожай, под который потрачены деньги (по умолчанию — год '
+                'операции). Расход по ключу входит долей направления; '
+                'общехозяйственные расходы не распределяются.'
+          : 'Переводы между кошельками и займы — не доходы и не расходы, в '
+                'отчёт не входят. Расходы по ключу распределения в отчёте по '
+                'направлениям разложены по долям ключа.',
       _note,
     ),
   ]);
