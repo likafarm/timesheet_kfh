@@ -93,10 +93,58 @@ void main() {
     return days;
   }
 
+  /// Финансы: касса с остатком 10 000 на 01.09.2026, расход 2 500,50 в
+  /// сентябре, займ получен — 50 000.
+  Future<void> seedFinance(LocalDatabase db) async {
+    final f = DriftRepositories(db).finance;
+    await f.saveDirection(
+      const FinDirection(id: 'd-gen', name: 'Общие', overhead: true),
+    );
+    await f.saveAccount(
+      FinAccount(
+        id: 'a-cash',
+        name: 'Касса нал',
+        kind: AccountKind.cash,
+        openingBalance: 1000000,
+        openingDate: DateTime(2026, 9, 1),
+      ),
+    );
+    await f.saveCategory(
+      const FinCategory(
+        id: 'c-fuel',
+        type: CategoryType.expense,
+        group: '04',
+        name: 'ГСМ',
+        directionId: 'd-gen',
+      ),
+    );
+    await f.saveCounterparty(const Counterparty(id: 'cp', name: 'Банк'));
+    await f.saveDebt(
+      FinDebt(
+        id: 'debt',
+        counterpartyId: 'cp',
+        kind: DebtKind.received,
+        openingBalance: 5000000,
+        openingDate: DateTime(2026, 1, 1),
+      ),
+    );
+    await f.addOperation(
+      FinOperation(
+        id: 'op',
+        date: DateTime(2026, 9, 15),
+        type: OperationType.expense,
+        amount: 250050,
+        accountId: 'a-cash',
+        categoryId: 'c-fuel',
+      ),
+    );
+  }
+
   Future<SectionNavigator> pumpHome(
     WidgetTester tester, {
     required Size size,
     bool withData = true,
+    bool withFinance = false,
     void Function(int workdays)? onSeeded,
   }) async {
     tester.view.physicalSize = size;
@@ -108,6 +156,7 @@ void main() {
     await tester.runAsync(() async {
       db = LocalDatabase.memory();
       if (withData) onSeeded?.call(await seed(db));
+      if (withFinance) await seedFinance(db);
       app = AppProvider(AppDatabase(db, ':memory:'));
       await app.loadAllData();
       sync = SyncProvider(
@@ -174,6 +223,37 @@ void main() {
     await settle(tester);
     expect(find.byType(PayrollDetailDialog), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('плитки финансов: деньги, займы, месяц; переход в «Финансы»', (
+    tester,
+  ) async {
+    final navigator = await pumpHome(
+      tester,
+      size: const Size(1280, 1400),
+      withFinance: true,
+    );
+    expect(find.text('Деньги на 29.09.2026'), findsOneWidget);
+    expect(find.text('Касса нал'), findsOneWidget);
+    expect(find.text('${formatRub(1000000 - 250050)} ₽'), findsWidgets);
+    expect(find.text('Должны мы'), findsOneWidget);
+    expect(find.text('${formatRub(5000000)} ₽'), findsOneWidget);
+    expect(find.text('Доходы и расходы — сентябрь 2026'), findsOneWidget);
+    await tester.tap(find.text('Операции месяца'));
+    await tester.pump();
+    expect(navigator.takeSection(), AppSection.finance);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('телефон: плитки финансов без ошибок раскладки', (tester) async {
+    await pumpHome(tester, size: const Size(390, 844), withFinance: true);
+    expect(find.text('Деньги на 29.09.2026'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('без финансов плиток нет', (tester) async {
+    await pumpHome(tester, size: const Size(1280, 900));
+    expect(find.textContaining('Деньги на'), findsNothing);
   });
 
   testWidgets('телефон, пустая база: «Всё в порядке», без ошибок раскладки', (

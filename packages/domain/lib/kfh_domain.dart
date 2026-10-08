@@ -11,6 +11,7 @@ export 'src/finance/models.dart';
 export 'src/finance/money.dart';
 export 'src/finance/payroll_expenses.dart';
 export 'src/finance/rules.dart';
+export 'src/finance/summary.dart';
 export 'src/models/company_settings.dart';
 export 'src/models/employee.dart';
 export 'src/models/employee_rate.dart';

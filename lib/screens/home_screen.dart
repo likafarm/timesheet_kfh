@@ -3,7 +3,9 @@
 // Главный экран-сводка (6.8, админ и бухгалтер): напоминания, долг по
 // зарплате на сегодня, итог текущего месяца и закрытие месяцев. Данные —
 // AppProvider.dashboard (логика — buildDashboard в kfh_domain); каждая
-// строка ведёт туда, где это поправить.
+// строка ведёт туда, где это поправить. Плитки финансов (8.7): остатки
+// кошельков, займы, доходы и расходы месяца — buildFinanceSummary через
+// FinanceProvider.
 
 import 'dart:async';
 
@@ -13,8 +15,10 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import '../providers/finance_provider.dart';
 import '../providers/sync_provider.dart';
 import '../widgets/adaptive_dialog.dart';
+import '../widgets/finance_operation_dialog.dart' show operationTypeColors;
 import '../widgets/payroll_detail_dialog.dart';
 import '../widgets/period_lock_dialogs.dart';
 import '../widgets/section_navigation.dart';
@@ -83,18 +87,40 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = false;
   bool _again = false;
 
+  /// Финансы для плиток: сам перечитывается после правок и синхронизации.
+  late final FinanceProvider _finance;
+
   @override
   void initState() {
     super.initState();
     _app = context.read<AppProvider>()..addListener(_scheduleReload);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    _finance = FinanceProvider(_app)..addListener(_onFinance);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      unawaited(_loadFinance());
+    });
   }
 
   @override
   void dispose() {
     _reload?.cancel();
     _app.removeListener(_scheduleReload);
+    _finance
+      ..removeListener(_onFinance)
+      ..dispose();
     super.dispose();
+  }
+
+  void _onFinance() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadFinance() async {
+    try {
+      await _finance.load();
+    } catch (_) {
+      // Плитки финансов не обязательны: сводка табеля — без них.
+    }
   }
 
   /// Данные изменились (правка, синхронизация, закрытие месяца) —
@@ -181,7 +207,10 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
-            onPressed: _load,
+            onPressed: () {
+              _load();
+              unawaited(_loadFinance());
+            },
           ),
         ],
       ),
@@ -208,11 +237,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   summary: summary,
                   openPeriods: () => _push(const PeriodsScreen()),
                 );
+                final finance = _finance.loaded
+                    ? _finance.summaryAt(summary.today)
+                    : null;
+                final money = finance == null || finance.isEmpty
+                    ? null
+                    : _FinanceCards(
+                        summary: finance,
+                        openFinance: () => _open(AppSection.finance),
+                      );
                 const gap = SizedBox(height: 12, width: 12);
                 if (constraints.maxWidth < 900) {
                   return ListView(
                     padding: const EdgeInsets.all(12),
-                    children: [reminders, gap, debts, gap, month, gap, periods],
+                    children: [
+                      reminders,
+                      gap,
+                      if (money != null) ...[money, gap],
+                      debts,
+                      gap,
+                      month,
+                      gap,
+                      periods,
+                    ],
                   );
                 }
                 return SingleChildScrollView(
@@ -220,7 +267,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: debts),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            if (money != null) ...[money, gap],
+                            debts,
+                          ],
+                        ),
+                      ),
                       gap,
                       Expanded(
                         child: Column(
@@ -556,6 +610,102 @@ class _MonthCard extends StatelessWidget {
               child: const Text('Отчёт за месяц'),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Плитки финансов (8.7): деньги в кошельках, займы, доходы и расходы
+/// месяца. Нажатие — раздел «Финансы».
+class _FinanceCards extends StatelessWidget {
+  final FinanceSummary summary;
+  final VoidCallback openFinance;
+
+  const _FinanceCards({required this.summary, required this.openFinance});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final day = summary.day;
+    Widget row(
+      String label,
+      int kopecks, {
+      bool bold = false,
+      Color? color,
+    }) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: bold ? const TextStyle(fontWeight: FontWeight.w600) : null,
+            ),
+          ),
+          Text(
+            '${formatRub(kopecks)} ₽',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: color ?? (kopecks < 0 ? theme.colorScheme.error : null),
+            ),
+          ),
+        ],
+      ),
+    );
+    Widget open(String text) => Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: TextButton(onPressed: openFinance, child: Text(text)),
+      ),
+    );
+    final m = summary.month;
+    const gap = SizedBox(height: 12);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Block(
+          title: 'Деньги на ${DateFormat('dd.MM.yyyy').format(day)}',
+          icon: Icons.account_balance_wallet_outlined,
+          children: [
+            for (final a in summary.accounts) row(a.account.name, a.balance),
+            const Divider(indent: 16, endIndent: 16),
+            row('Итого', summary.total, bold: true),
+            open('Финансы'),
+          ],
+        ),
+        if (summary.debts.isNotEmpty) ...[
+          gap,
+          _Block(
+            title: 'Займы',
+            icon: Icons.handshake_outlined,
+            children: [
+              if (summary.weOwe != 0) row('Должны мы', summary.weOwe),
+              if (summary.owedToUs != 0) row('Должны нам', summary.owedToUs),
+              const SizedBox(height: 4),
+            ],
+          ),
+        ],
+        gap,
+        _Block(
+          title: 'Доходы и расходы — ${_monthName(day.year, day.month)}',
+          icon: Icons.swap_vert,
+          children: [
+            row(
+              'Доходы',
+              m.income + m.refunds,
+              color: operationTypeColors[OperationType.income],
+            ),
+            row(
+              'Расходы',
+              m.expense + m.capex,
+              color: operationTypeColors[OperationType.expense],
+            ),
+            if (m.capex != 0) row('в т. ч. капвложения', m.capex),
+            row('Итог', m.result, bold: true),
+            open('Операции месяца'),
+          ],
         ),
       ],
     );

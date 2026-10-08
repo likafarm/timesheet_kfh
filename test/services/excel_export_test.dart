@@ -230,4 +230,71 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('финансы: даты и суммы — числами, итоги — формулами по виду', () {
+    final bytes = financeWorkbook(
+      period: 'Сентябрь 2026',
+      filters: const ['кошелёк — Касса'],
+      rows: [
+        FinanceExportRow(
+          date: DateTime(2026, 9, 5),
+          type: OperationType.income.title,
+          amount: 100000,
+          account: 'Касса',
+          what: 'Мясо',
+          direction: 'Животноводство',
+          counterparty: 'Покупатель & Ко',
+          description: 'Бык',
+        ),
+        FinanceExportRow(
+          date: DateTime(2026, 9, 30),
+          type: OperationType.expense.title,
+          amount: 15050,
+          account: 'Касса',
+          what: 'Рабочие',
+          direction: 'Животноводство',
+          counterparty: 'Иванов Иван',
+          description: '',
+          payroll: true,
+        ),
+      ],
+      totals: const FinanceTotals(income: 100000, expense: 15050),
+      balance: ('Остаток «Касса» на 30.09.2026', 84950),
+    ).encode();
+    save('Финансы_2026-09.xlsx', bytes);
+    final c = cells(bytes);
+    expect(c['A3']!.v, contains('кошелёк — Касса'));
+    expect(c['A6']!.v, '1');
+    // Дата — число дня Excel (с форматом даты), не текст.
+    expect(c['B6']!.type, isNull);
+    expect(
+      c['B6']!.v,
+      '${DateTime.utc(2026, 9, 5).difference(DateTime.utc(1899, 12, 30)).inDays}',
+    );
+    expect(c['D6']!.v, '1000');
+    expect(c['D7']!.v, '150.5');
+    expect(c['I7']!.v, 'из табеля');
+    expect(c['B9']!.v, 'Доходы');
+    expect(c['D9']!.f, contains('SUMIF(C6:C7,'));
+    expect(c['D9']!.v, '1000');
+    expect(c['D10']!.v, '150.5');
+    expect(c['B11']!.v, 'Итог');
+    expect(c['D11']!.f, 'D9-D10');
+    expect(c['D11']!.v, '849.5');
+    expect(c['B12']!.v, contains('Остаток'));
+    expect(c['D12']!.v, '849.5');
+    expect(styles(bytes), contains('dd.mm.yyyy'));
+  });
+
+  test('финансы: пустой список собирается', () {
+    final bytes = financeWorkbook(
+      period: 'Октябрь 2026',
+      filters: const [],
+      rows: const [],
+      totals: const FinanceTotals(),
+    ).encode();
+    final c = cells(bytes);
+    expect(c['A3']!.v, contains('все операции'));
+    expect(c['A6']!.v, contains('Нет операций'));
+  });
 }

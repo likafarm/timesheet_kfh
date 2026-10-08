@@ -123,4 +123,65 @@ void main() {
     expect(hay.categoryId, 'c1');
     expect(hay.accountId, 'a2', reason: 'первый открытый кошелёк — «Карта»');
   });
+
+  testWidgets('остатки, сверка с корректировкой, отбор по кошельку', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: FinanceScreen()),
+      ),
+    );
+    await settle(tester);
+    expect(find.byTooltip('Выгрузить в Excel'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Остатки'));
+    await tester.pumpAndSettle();
+    expect(find.text('Кошельки'), findsOneWidget);
+    expect(find.text('${formatRub(-250000)} ₽'), findsWidgets);
+    expect(find.text('Долгов нет'), findsOneWidget);
+
+    // Сверка «Карты»: по записям −2 500, факт −2 400 — излишек 100.
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'Карта'),
+        matching: find.byTooltip('Сверить остаток'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Сверка остатка'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Фактический остаток, ₽'),
+      '-2400',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Излишек — запишется доходом'), findsOneWidget);
+    await settle(tester, () async {
+      await tester.tap(find.text('Записать корректировку'));
+      await tester.pump();
+    });
+    expect(find.text('Сверка остатка'), findsNothing);
+    expect(find.text('${formatRub(-240000)} ₽'), findsWidgets);
+    final ops = await tester.runAsync(
+      () => DriftRepositories(db).finance.operations(),
+    );
+    final fix = ops!.firstWhere((o) => o.type == OperationType.income);
+    expect(fix.amount, 10000);
+    expect(fix.accountId, 'a2');
+    expect(fix.date, today);
+
+    // Нажатие на кошелёк — отбор по нему в списке.
+    // У «Карты» и вид — «Карта»: строка находится дважды.
+    await tester.tap(find.widgetWithText(ListTile, 'Карта').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Кошельки'), findsNothing);
+    expect(find.text('Корректировка по сверке остатка'), findsOneWidget);
+    expect(find.textContaining('Остаток «Карта»'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

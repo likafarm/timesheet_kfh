@@ -12,11 +12,15 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
 import '../providers/finance_provider.dart';
+import '../services/excel_export.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/closed_month.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/excel_export_action.dart';
 import '../widgets/finance_operation_dialog.dart';
+import '../widgets/finance_reconcile_dialog.dart';
 import '../widgets/month_switcher.dart';
+import 'finance_balances_screen.dart';
 import 'finance_catalog_screen.dart';
 import 'finance_quick_screen.dart';
 
@@ -173,6 +177,94 @@ class _FinanceViewState extends State<_FinanceView> {
       ),
     ),
   );
+
+  /// Остатки на конец выбранного месяца (текущего — на сегодня); выбранный
+  /// там кошелёк становится отбором.
+  Future<void> _openBalances(FinanceProvider fin) async {
+    final today = calendarDay(DateTime.now());
+    final monthEnd = DateTime(_month.year, _month.month + 1, 0);
+    final accountId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: fin,
+          child: FinanceBalancesScreen(
+            day: monthEnd.isAfter(today) && !_month.isAfter(today)
+                ? today
+                : monthEnd,
+          ),
+        ),
+      ),
+    );
+    if (accountId != null && mounted) {
+      setState(() => _filter = _filter.copyWith(accountId: () => accountId));
+    }
+  }
+
+  Future<void> _reconcile(FinanceProvider fin) async {
+    final ok = await showReconcileDialog(
+      context,
+      fin,
+      accountId: _filter.accountId,
+    );
+    if (ok && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Корректировка записана')));
+    }
+  }
+
+  /// Список по отбору в Excel — те же строки и итоги, что на экране.
+  Future<void> _export(FinanceProvider fin) async {
+    final app = context.read<AppProvider>();
+    if (app.companySettings == null) await app.loadCompanySettings();
+    if (!mounted) return;
+    final f = _filter;
+    final ops = fin.operations(f);
+    final monthEnd = DateTime(_month.year, _month.month + 1, 0);
+    final accountId = f.accountId;
+    await exportToExcel(
+      context,
+      fileName: excelFileName('Финансы', _month),
+      build: () async => financeWorkbook(
+        period: DateFormat('LLLL yyyy', 'ru')
+            .format(_month)
+            .replaceFirstMapped(RegExp('^.'), (m) => m[0]!.toUpperCase()),
+        filters: [
+          if (f.type != null) 'вид — ${f.type!.title}',
+          if (accountId != null) 'кошелёк — ${fin.accountName(accountId)}',
+          if (f.categoryId != null)
+            'статья — ${fin.categoryName(f.categoryId)}',
+          if (f.directionId != null)
+            'направление — ${fin.catalog.directions[f.directionId]?.name ?? '—'}',
+          if (f.counterpartyId != null)
+            'контрагент — ${fin.counterpartyName(f.counterpartyId)}',
+        ],
+        rows: [
+          for (final op in ops)
+            FinanceExportRow(
+              date: op.date,
+              type: op.type.title,
+              amount: op.amount,
+              account: fin.accountName(op.accountId),
+              what: fin.whatLabel(op),
+              direction: fin.directionLabel(op),
+              counterparty: fin.counterpartyLabel(op),
+              description: op.description ?? '',
+              payroll: FinanceProvider.isPayroll(op),
+            ),
+        ],
+        totals: fin.totals(ops),
+        balance: accountId == null
+            ? null
+            : (
+                'Остаток «${fin.accountName(accountId)}» на '
+                    '${DateFormat('dd.MM.yyyy').format(monthEnd)}',
+                fin.accountBalancesAt(monthEnd)[accountId] ?? 0,
+              ),
+        companySettings: app.companySettings,
+      ),
+    );
+  }
 
   // ------------------------------------------------------------ фильтры
 
@@ -352,23 +444,6 @@ class _FinanceViewState extends State<_FinanceView> {
     return '$sign${formatRub(op.amount)}';
   }
 
-  /// Статья, «куда» перевода или займ.
-  String _what(FinanceProvider fin, FinOperation op) => switch (op.type) {
-    OperationType.income ||
-    OperationType.expense => fin.categoryName(op.categoryId),
-    OperationType.transfer => '→ ${fin.accountName(op.toAccountId)}',
-    OperationType.debt =>
-      '${op.debtMove?.title ?? ''}: ${fin.debtName(op.debtId)}',
-  };
-
-  String _counterparty(FinanceProvider fin, FinOperation op) {
-    if (op.counterpartyId != null) {
-      return fin.counterpartyName(op.counterpartyId);
-    }
-    final employee = fin.employees[op.employeeId];
-    return employee?.fullName ?? '';
-  }
-
   Widget _menu(FinanceProvider fin, FinOperation op) {
     final payroll = FinanceProvider.isPayroll(op);
     return PopupMenuButton<String>(
@@ -490,11 +565,11 @@ class _FinanceViewState extends State<_FinanceView> {
             const SizedBox(width: _gap),
             cell(_cAccount, fin.accountName(op.accountId)),
             const SizedBox(width: _gap),
-            cell(_cCategory, _what(fin, op)),
+            cell(_cCategory, fin.whatLabel(op)),
             const SizedBox(width: _gap),
             cell(_cDirection, fin.directionLabel(op)),
             const SizedBox(width: _gap),
-            cell(_cCounterparty, _counterparty(fin, op)),
+            cell(_cCounterparty, fin.counterpartyLabel(op)),
             const SizedBox(width: _gap),
             cell(_cWhat, what),
             const SizedBox(width: _gap),
@@ -509,10 +584,10 @@ class _FinanceViewState extends State<_FinanceView> {
     final details = [
       DateFormat('dd.MM.yyyy').format(op.date),
       fin.accountName(op.accountId),
-      if (_counterparty(fin, op) case final c when c.isNotEmpty) c,
+      if (fin.counterpartyLabel(op) case final c when c.isNotEmpty) c,
     ].join(' · ');
     return ListTile(
-      title: Text(_what(fin, op), overflow: TextOverflow.ellipsis),
+      title: Text(fin.whatLabel(op), overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [details, ?op.description].join('\n'),
         maxLines: 2,
@@ -556,6 +631,21 @@ class _FinanceViewState extends State<_FinanceView> {
           ),
       ],
       menu: [
+        AppBarMenuItem(
+          Icons.account_balance_wallet_outlined,
+          'Остатки',
+          fin.loaded ? () => _openBalances(fin) : null,
+        ),
+        AppBarMenuItem(
+          Icons.fact_check_outlined,
+          'Сверка остатка',
+          fin.loaded ? () => _reconcile(fin) : null,
+        ),
+        AppBarMenuItem(
+          Icons.table_view,
+          'Выгрузить в Excel',
+          fin.loaded ? () => _export(fin) : null,
+        ),
         AppBarMenuItem(
           Icons.menu_book_outlined,
           'Справочники и займы',

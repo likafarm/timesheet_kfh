@@ -267,4 +267,72 @@ void main() {
       reason: 'доходов не было — первый открытый кошелёк',
     );
   });
+
+  test('сверка остатка: корректировка, статьи заводятся один раз', () async {
+    // Касса: 1 000 на 01.01.2026, выплата ЗП 150 — по записям 850.
+    final day = DateTime(2026, 9, 30);
+    final short = fin.reconciliation(cash, day, 80000);
+    expect(short.expected, 85000);
+    expect(short.difference, -5000);
+    expect(await fin.applyReconciliation(short), isTrue);
+    final fix = fin.allOperations.firstWhere(
+      (o) => o.type == OperationType.expense && !FinanceProvider.isPayroll(o),
+    );
+    expect(fix.amount, 5000);
+    expect(fix.date, day);
+    expect(fin.categoryName(fix.categoryId), reconciliationShortageCategory);
+    // Направлений «накладных» нет — первое по порядку.
+    expect(fix.directionId, isNotNull);
+    expect(fin.accountBalancesAt(day)[cash], 80000);
+
+    // Совпало — записывать нечего.
+    expect(
+      await fin.applyReconciliation(fin.reconciliation(cash, day, 80000)),
+      isFalse,
+    );
+    expect(app.takeNotice(), contains('Расхождения нет'));
+
+    // Излишек — доходом; статья недостачи не дублируется.
+    expect(
+      await fin.applyReconciliation(fin.reconciliation(cash, day, 81000)),
+      isTrue,
+    );
+    expect(fin.accountBalancesAt(day)[cash], 81000);
+    expect(
+      fin.categories.where((c) => c.name.startsWith('Корректировка остатка')),
+      hasLength(2),
+    );
+    expect(
+      await fin.applyReconciliation(fin.reconciliation(cash, day, 80000)),
+      isTrue,
+    );
+    expect(
+      fin.categories.where((c) => c.name.startsWith('Корректировка остатка')),
+      hasLength(2),
+    );
+  });
+
+  test('сверка в закрытом месяце — не записывается', () async {
+    await LocalSyncStore(db).saveLockedMonths([(2026, 9)]);
+    await app.loadLockedMonths();
+    final r = fin.reconciliation(cash, DateTime(2026, 9, 30), 0);
+    expect(await fin.applyReconciliation(r), isFalse);
+    expect(app.takeNotice(), contains('09.2026'));
+    expect(fin.accountBalancesAt()[cash], 85000);
+    expect(
+      fin.categories.where((c) => c.name.startsWith('Корректировка')),
+      isEmpty,
+    );
+  });
+
+  test('сводка: остатки, итоги месяца, подписи строк', () async {
+    await fin.saveOperation(expense());
+    final s = fin.summaryAt(DateTime(2026, 9, 30));
+    expect(s.total, 100000 - 15000 - 50000);
+    expect(s.month.expense, 15000 + 50000);
+    expect(s.debts, isEmpty);
+    final payroll = fin.allOperations.firstWhere(FinanceProvider.isPayroll);
+    expect(fin.counterpartyLabel(payroll), 'Иванов Иван');
+    expect(fin.whatLabel(payroll), 'Рабочие');
+  });
 }

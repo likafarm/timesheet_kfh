@@ -381,3 +381,178 @@ num _columnSum(XlsxSheet sheet, int c, int from, int to) {
   }
   return total;
 }
+
+/// Строка списка операций для [financeWorkbook] — те же подписи, что на
+/// экране «Финансы».
+class FinanceExportRow {
+  final DateTime date;
+  final String type;
+  final int amount; // копейки, всегда больше нуля
+  final String account;
+  final String what;
+  final String direction;
+  final String counterparty;
+  final String description;
+
+  /// Расход ЗП из выплаты табеля (только чтение).
+  final bool payroll;
+
+  const FinanceExportRow({
+    required this.date,
+    required this.type,
+    required this.amount,
+    required this.account,
+    required this.what,
+    required this.direction,
+    required this.counterparty,
+    required this.description,
+    this.payroll = false,
+  });
+}
+
+/// Число дня для Excel (дни от 30.12.1899) — дата остаётся датой.
+int _excelDay(DateTime d) => DateTime.utc(
+  d.year,
+  d.month,
+  d.day,
+).difference(DateTime.utc(1899, 12, 30)).inDays;
+
+/// Список операций «Финансов» по отбору (8.7): строки — как на экране,
+/// итоги — как над списком (доходы и расходы — формулами по столбцу «Вид»).
+/// [period] — «Октябрь 2026»; [filters] — строки «Кошелёк: СБЕР»;
+/// [balance] — остаток выбранного кошелька: подпись и копейки.
+XlsxWorkbook financeWorkbook({
+  required String period,
+  required List<String> filters,
+  required List<FinanceExportRow> rows,
+  required FinanceTotals totals,
+  (String, int)? balance,
+  CompanySettings? companySettings,
+}) {
+  final title = 'Финансы — $period';
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('Финансы $period')..landscape = true;
+  final headers = [
+    '№',
+    'Дата',
+    'Вид',
+    'Сумма',
+    'Кошелёк',
+    'Статья / куда',
+    'Направление',
+    'Контрагент',
+    'Что',
+  ];
+  final lastColumn = headers.length - 1;
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:${xlsxRef(lastColumn, 0)}');
+  sheet.addRow([XlsxCell.text(_company(companySettings), _note)]);
+  sheet.merges.add('A2:${xlsxRef(lastColumn, 1)}');
+  sheet.addRow([
+    XlsxCell.text(
+      filters.isEmpty ? 'Отбор: все операции' : 'Отбор: ${filters.join('; ')}',
+      _note,
+    ),
+  ]);
+  sheet.merges.add('A3:${xlsxRef(lastColumn, 2)}');
+  sheet.addRow([]);
+  sheet.addRow([for (final h in headers) XlsxCell.text(h, _head)], height: 30);
+
+  final money = _cell.copyWith(numFmt: _money);
+  final date = _cell.copyWith(numFmt: 'dd.mm.yyyy', align: 'center');
+  const payrollColor = 0xFF616161;
+  final firstRow = sheet.rows.length;
+  for (final (i, r) in rows.indexed) {
+    XlsxStyle mark(XlsxStyle s) =>
+        r.payroll ? s.copyWith(color: payrollColor) : s;
+    sheet.addRow([
+      XlsxCell.number(i + 1, mark(_cell.copyWith(align: 'center'))),
+      XlsxCell.number(_excelDay(r.date), mark(date)),
+      XlsxCell.text(r.type, mark(_cell)),
+      XlsxCell.number(r.amount / 100, mark(money)),
+      XlsxCell.text(r.account, mark(_cell)),
+      XlsxCell.text(r.what, mark(_cell)),
+      XlsxCell.text(r.direction, mark(_cell)),
+      XlsxCell.text(r.counterparty, mark(_cell)),
+      XlsxCell.text(
+        [
+          if (r.description.isNotEmpty) r.description,
+          if (r.payroll) 'из табеля',
+        ].join(' · '),
+        mark(_cell),
+      ),
+    ]);
+  }
+  if (rows.isEmpty) {
+    sheet.addRow([XlsxCell.text('Нет операций по отбору.', _note)]);
+  }
+  sheet.addRow([]);
+
+  // Итоги — как над списком на экране.
+  final last = firstRow + rows.length - 1;
+  final typeRange = '${xlsxRef(2, firstRow)}:${xlsxRef(2, last)}';
+  final sumRange = '${xlsxRef(3, firstRow)}:${xlsxRef(3, last)}';
+  XlsxCell sumIf(String type, int cached) => XlsxCell(
+    rows.isEmpty
+        ? XlsxNumber(0)
+        : XlsxFormula('SUMIF($typeRange,"$type",$sumRange)', cached / 100),
+    _total.copyWith(numFmt: _money),
+  );
+  const label = _total;
+  final incomeRow = sheet.rows.length;
+  sheet.addRow([
+    const XlsxCell.empty(),
+    XlsxCell.text('Доходы', label),
+    const XlsxCell.empty(label),
+    sumIf(OperationType.income.title, totals.income + totals.refunds),
+  ]);
+  sheet.addRow([
+    const XlsxCell.empty(),
+    XlsxCell.text('Расходы', label),
+    const XlsxCell.empty(label),
+    sumIf(OperationType.expense.title, totals.expense + totals.capex),
+  ]);
+  void plain(String text, int kopecks) => sheet.addRow([
+    const XlsxCell.empty(),
+    XlsxCell.text(text, label),
+    const XlsxCell.empty(label),
+    XlsxCell.number(kopecks / 100, _total.copyWith(numFmt: _money)),
+  ]);
+  if (totals.capex != 0) plain('в т. ч. капвложения', totals.capex);
+  sheet.addRow([
+    const XlsxCell.empty(),
+    XlsxCell.text('Итог', label),
+    const XlsxCell.empty(label),
+    XlsxCell(
+      XlsxFormula(
+        '${xlsxRef(3, incomeRow)}-${xlsxRef(3, incomeRow + 1)}',
+        totals.result / 100,
+      ),
+      _total.copyWith(numFmt: _money),
+    ),
+  ]);
+  if (totals.transfers != 0) plain('Переводы', totals.transfers);
+  if (totals.debtIn != 0 || totals.debtOut != 0) {
+    plain('Займы: пришло', totals.debtIn);
+    plain('Займы: ушло', totals.debtOut);
+  }
+  if (balance != null) plain(balance.$1, balance.$2);
+  for (var r = incomeRow; r < sheet.rows.length; r++) {
+    sheet.merges.add('${xlsxRef(1, r)}:${xlsxRef(2, r)}');
+  }
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(
+      'Серым — выплаты зарплаты из табеля (правятся в «Выплатах»).',
+      _note,
+    ),
+  ]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+
+  const widths = [5.0, 11.0, 10.0, 15.0, 16.0, 30.0, 22.0, 24.0, 40.0];
+  for (final (i, w) in widths.indexed) {
+    sheet.columnWidths[i] = w;
+  }
+  sheet.frozenRows = 5;
+  return book;
+}

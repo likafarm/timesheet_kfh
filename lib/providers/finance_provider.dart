@@ -208,6 +208,65 @@ class FinanceProvider extends ChangeNotifier {
   Map<String, int> debtBalancesAt([DateTime? at]) =>
       debtBalances(_debts, allOperations, at: at);
 
+  /// Остатки кошельков и займов на конец дня [day], итоги его месяца (8.7).
+  FinanceSummary summaryAt(DateTime day) => buildFinanceSummary(
+    catalog: _catalog,
+    operations: allOperations,
+    day: day,
+  );
+
+  // ------------------------------------------------ сверка остатка (8.7)
+
+  /// Сверка кошелька [accountId] с фактом [actual] на конец дня [date].
+  Reconciliation reconciliation(String accountId, DateTime date, int actual) =>
+      reconcile(
+        account: _catalog.accounts[accountId]!,
+        operations: allOperations,
+        date: date,
+        actual: actual,
+      );
+
+  /// Записать корректировку по сверке [r] — доход при излишке, расход при
+  /// недостаче (статьи «Корректировка остатка …»; нет — заводятся). false —
+  /// не записано (расхождения нет, месяц закрыт и т. п.).
+  Future<bool> applyReconciliation(Reconciliation r) async {
+    if (!_allowed()) return false;
+    if (r.difference == 0) return _fail('Расхождения нет — записывать нечего');
+    // Закрытый месяц — до того, как заводить статью.
+    if (!_open('fin_operations', null, {'date': formatDateIso(r.date)})) {
+      return false;
+    }
+    final direction = reconciliationDirection(_catalog);
+    if (direction == null) {
+      return _refuse('Нет ни одного направления — заведите в справочниках');
+    }
+    final type = r.difference > 0 ? CategoryType.income : CategoryType.expense;
+    var category = reconciliationCategory(_catalog, type);
+    if (category == null) {
+      category = FinCategory(
+        id: newId(),
+        type: type,
+        group: type == CategoryType.income
+            ? '3. Прочие поступления'
+            : '08. Управление',
+        name: type == CategoryType.income
+            ? reconciliationSurplusCategory
+            : reconciliationShortageCategory,
+        directionId: direction,
+        sortOrder: _categories.length,
+      );
+      if (!await saveCategory(category)) return false;
+    }
+    final op = reconciliationAdjustment(
+      r,
+      id: newId(),
+      incomeCategoryId: category.id,
+      expenseCategoryId: category.id,
+      directionId: category.directionId ?? direction,
+    )!;
+    return saveOperation(op);
+  }
+
   // ------------------------------------------- быстрый ввод (8.6)
 
   /// Записанные вручную и импортированные операции вида [type], свежие
@@ -288,6 +347,20 @@ class FinanceProvider extends ChangeNotifier {
       return 'Ключ «${_catalog.keys[id]?.name ?? '—'}»';
     }
     return '';
+  }
+
+  /// Статья, «куда» перевода или займ — столбец «Статья / куда».
+  String whatLabel(FinOperation op) => switch (op.type) {
+    OperationType.income ||
+    OperationType.expense => categoryName(op.categoryId),
+    OperationType.transfer => '→ ${accountName(op.toAccountId)}',
+    OperationType.debt => '${op.debtMove?.title ?? ''}: ${debtName(op.debtId)}',
+  };
+
+  /// Контрагент операции, иначе — работник (выплата ЗП, подотчёт).
+  String counterpartyLabel(FinOperation op) {
+    if (op.counterpartyId != null) return counterpartyName(op.counterpartyId);
+    return _employees[op.employeeId]?.fullName ?? '';
   }
 
   /// Займ — подписью «Контрагент (вид)».
