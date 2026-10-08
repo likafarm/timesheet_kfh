@@ -460,4 +460,35 @@ void main() {
     expect(c['C$row']!.v, '1300');
     expect(c['D$row']!.f, 'C$row');
   });
+
+  test('БДДС: отклонение и итоги — формулами', () {
+    final report = BudgetReport(
+      year: 2026,
+      income: const BudgetSection(CategoryType.income, []),
+      expense: BudgetSection(CategoryType.expense, [
+        BudgetGroup('Корма', [
+          BudgetLine(
+            categoryId: 'feed',
+            name: 'Комбикорм',
+            plan: List.filled(12, 10000),
+            fact: List.filled(12, 0)..[0] = 15000,
+          ),
+        ]),
+      ]),
+    );
+    final bytes = budgetWorkbook(
+      report: report,
+      months: const [1],
+      title: 'БДДС — январь 2026',
+    ).encode();
+    save('БДДС_2026.xlsx', bytes);
+    final c = cells(bytes);
+    final row = c.keys
+        .firstWhere((k) => c[k]!.v == '    Комбикорм')
+        .substring(1);
+    expect(c['B$row']!.v, '100');
+    expect(c['C$row']!.v, '150');
+    expect(c['D$row']!.f, 'C$row-B$row');
+    expect(c['E$row']!.f, contains('C$row/B$row'));
+  });
 }

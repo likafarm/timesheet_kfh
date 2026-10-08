@@ -67,8 +67,9 @@ String newUuid() => _uuid.v7();
     PayrollAdjustments,
     // Группы статей (схема 4)
     FinCategoryGroups,
-    // Платёжный календарь (схема 5)
+    // Платёжный календарь и БДДС (схема 5)
     FinPlans,
+    FinBudget,
   ],
   daos: [
     EmployeesDao,
@@ -168,9 +169,12 @@ class LocalDatabase extends _$LocalDatabase {
         await m.addColumn(schema.finCategories, schema.finCategories.groupUuid);
       },
       from4To5: (m, schema) async {
-        // Платёжный календарь: новая таблица, остальное не меняется.
+        // Платёжный календарь и БДДС: новые таблицы, остальное не
+        // меняется.
         await m.createTable(schema.finPlans);
         await m.createIndex(schema.idxFinPlansStart);
+        await m.createTable(schema.finBudget);
+        await m.createIndex(schema.idxFinBudgetKey);
       },
     ),
     beforeOpen: (details) async {

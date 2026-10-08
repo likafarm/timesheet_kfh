@@ -6,6 +6,7 @@
 
 import 'finance/models.dart';
 import 'finance/payroll_expenses.dart';
+import 'finance/budget.dart';
 import 'finance/plans.dart';
 import 'rate_timeline.dart';
 import 'models/company_settings.dart';
@@ -167,6 +168,13 @@ abstract interface class FinanceRepository {
   Future<List<FinPlan>> plans();
   Future<void> savePlan(FinPlan plan);
   Future<void> deletePlan(String id);
+
+  /// БДДС (8Б.5): план года [year] по статьям и месяцам.
+  Future<List<BudgetEntry>> budget(int year);
+
+  /// Записать планы одной транзакцией: по (год, месяц, статья) — новая
+  /// строка или правка; сумма 0 удаляет строку.
+  Future<void> saveBudget(Iterable<BudgetEntry> entries);
 
   Future<void> addOperation(FinOperation operation);
   Future<void> updateOperation(FinOperation operation);

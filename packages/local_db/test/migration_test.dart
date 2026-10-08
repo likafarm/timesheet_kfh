@@ -247,6 +247,25 @@ void main() {
     expect(saved.accountId, 'a1');
     await f.deletePlan('p1');
     expect(await f.plans(), isEmpty);
+
+    // БДДС: план статьи, правка суммы, ноль — удаление.
+    raw.execute(
+      'INSERT INTO fin_categories (uuid, type, group_name, name, kind, '
+      'in_tax_book, hidden, sort_order, updated_at, deleted) '
+      "VALUES ('c1', 'expense', '01', 'Корма', 'current', 1, 0, 0, '$now', 0)",
+    );
+    BudgetEntry entry(int month, int amount) => BudgetEntry(
+      id: 'b$month',
+      year: 2026,
+      month: month,
+      categoryId: 'c1',
+      amount: amount,
+    );
+    await f.saveBudget([entry(1, 1000), entry(2, 2000)]);
+    await f.saveBudget([entry(1, 1500), entry(2, 0)]);
+    final budget = await f.budget(2026);
+    expect([for (final b in budget) (b.month, b.amount)], [(1, 1500)]);
+    expect(await f.budget(2025), isEmpty);
     final fk = await db.customSelect('PRAGMA foreign_key_check').get();
     expect(fk, isEmpty);
     await db.close();

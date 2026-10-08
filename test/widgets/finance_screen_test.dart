@@ -358,4 +358,39 @@ void main() {
     expect(find.textContaining('Разово'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('бюджет: план и факт, правка плана статьи (8Б.5)', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(section(const FinanceReportsScreen()));
+    await settle(tester);
+    await settle(tester, () async {
+      await tester.tap(find.text('Бюджет (БДДС): план и факт'));
+      await tester.pump();
+    });
+    expect(find.text('Корма покупные'), findsOneWidget);
+    await tester.tap(find.text('Корма покупные'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Одинаково в каждый месяц, ₽'),
+      '3000',
+    );
+    await tester.tap(find.text('Во все месяцы'));
+    await tester.pump();
+    await settle(tester, () async {
+      await tester.tap(find.text('Сохранить'));
+      await tester.pump();
+    });
+    final saved = await tester.runAsync(
+      () => DriftRepositories(db).finance.budget(today.year),
+    );
+    expect(saved, hasLength(12));
+    expect(saved!.every((e) => e.amount == 300000), isTrue);
+    expect(find.text('Исполнение'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

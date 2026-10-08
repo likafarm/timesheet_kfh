@@ -38,6 +38,7 @@ const financeTablesOrder = <String>[
   'fin_operations',
   'fin_payroll_mapping',
   'fin_plans',
+  'fin_budget',
 ];
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
@@ -63,6 +64,7 @@ const financeTables = <String, List<String>>{
   'counterparties': [],
   'fin_debts': ['opening_date'],
   'fin_plans': ['start_date', 'until_date'],
+  'fin_budget': [],
   'fin_operations': ['date'],
   'fin_payroll_mapping': [],
 };
@@ -93,6 +95,7 @@ const uniqueKeys = <String, List<String>>{
   'fin_categories': ['type', 'name'],
   'counterparties': ['name'],
   'fin_payroll_mapping': ['kind', 'value'],
+  'fin_budget': ['year', 'month', 'category_uuid'],
 };
 
 final _identifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');

@@ -456,6 +456,56 @@ class DriftFinanceRepository implements FinanceRepository {
   Future<void> deletePlan(String id) =>
       _db.financeDao.softDelete(_db.finPlans, id);
 
+  // --- БДДС (8Б.5) ---------------------------------------------------------
+
+  @override
+  Future<List<BudgetEntry>> budget(int year) async => [
+    for (final r in await _db.financeDao.budgetOf(year))
+      BudgetEntry(
+        id: r.uuid,
+        year: r.year,
+        month: r.month,
+        categoryId: r.categoryUuid,
+        amount: r.amount,
+      ),
+  ];
+
+  @override
+  Future<void> saveBudget(Iterable<BudgetEntry> entries) async {
+    final dao = _db.financeDao;
+    await _db.transaction(() async {
+      final years = {for (final e in entries) e.year};
+      final existing = <(int, int, String), FinBudgetRow>{
+        for (final y in years)
+          for (final r in await dao.budgetOf(y))
+            (r.year, r.month, r.categoryUuid): r,
+      };
+      for (final e in entries) {
+        final before = existing[(e.year, e.month, e.categoryId)];
+        if (e.amount == 0) {
+          if (before != null) await dao.softDelete(_db.finBudget, before.uuid);
+          continue;
+        }
+        if (before != null && before.amount == e.amount) continue;
+        final id = before?.uuid ?? e.id;
+        await dao.saveRow(
+          _db.finBudget,
+          id,
+          (now, editor, isNew) => FinBudgetCompanion(
+            uuid: Value(id),
+            year: Value(e.year),
+            month: Value(e.month),
+            categoryUuid: Value(e.categoryId),
+            amount: Value(e.amount),
+            deleted: const Value(false),
+            updatedAt: Value(now),
+            editedBy: Value(editor),
+          ),
+        );
+      }
+    });
+  }
+
   // --- Операции -----------------------------------------------------------
 
   static FinOperation _operation(FinOperationRow r) => FinOperation(

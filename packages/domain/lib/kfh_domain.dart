@@ -6,6 +6,7 @@ export 'src/backups/snapshot.dart';
 export 'src/client_versions.dart';
 export 'src/dashboard.dart';
 export 'src/finance/balance.dart';
+export 'src/finance/budget.dart';
 export 'src/finance/calc.dart';
 export 'src/finance/catalog.dart';
 export 'src/finance/dds.dart';

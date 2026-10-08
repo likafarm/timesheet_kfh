@@ -21,6 +21,7 @@ mixin _$FinanceDaoMixin on DatabaseAccessor<LocalDatabase> {
   $FinPayrollMappingTable get finPayrollMapping =>
       attachedDatabase.finPayrollMapping;
   $FinPlansTable get finPlans => attachedDatabase.finPlans;
+  $FinBudgetTable get finBudget => attachedDatabase.finBudget;
   FinanceDaoManager get managers => FinanceDaoManager(this);
 }
 
@@ -68,4 +69,6 @@ class FinanceDaoManager {
       );
   $$FinPlansTableTableManager get finPlans =>
       $$FinPlansTableTableManager(_db.attachedDatabase, _db.finPlans);
+  $$FinBudgetTableTableManager get finBudget =>
+      $$FinBudgetTableTableManager(_db.attachedDatabase, _db.finBudget);
 }

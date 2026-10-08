@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
 import 'finance_balance_sheet_screen.dart';
+import 'finance_budget_screen.dart';
 import 'finance_dds_screen.dart';
 import 'finance_report_screen.dart';
 
@@ -77,6 +78,18 @@ class FinanceReportsScreen extends StatelessWidget {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => push(const FinanceDdsScreen()),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: const Text('Бюджет (БДДС): план и факт'),
+                  subtitle: const Text(
+                    'План поступлений и платежей по статьям и месяцам; '
+                    'отклонение от факта',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => push(const FinanceBudgetScreen()),
                 ),
               ),
               report(

@@ -478,6 +478,18 @@ const syncTables = <SyncTable>[
     SyncColumn('skipped', SyncType.text, nullable: true, maxLength: 4000),
     SyncColumn('closed', SyncType.boolean),
   ]),
+  // БДДС — план по статьям и месяцам (схема 5, программы 1.20+).
+  SyncTable(
+    'fin_budget',
+    unique: ['year', 'month', 'category_uuid'],
+    [
+      _legacyId,
+      SyncColumn('year', SyncType.integer, min: 2000, max: 2100),
+      SyncColumn('month', SyncType.integer, min: 1, max: 12),
+      SyncColumn('category_uuid', SyncType.uuid),
+      SyncColumn('amount', SyncType.integer, min: 0, max: _maxKopecks),
+    ],
+  ),
 ];
 
 /// Таблицы до финансов (схема 1). Программы до 1.18 спрашивают изменения

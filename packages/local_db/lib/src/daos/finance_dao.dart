@@ -27,6 +27,7 @@ typedef StampedRow<D> =
     FinOperations,
     FinPayrollMapping,
     FinPlans,
+    FinBudget,
   ],
 )
 class FinanceDao extends DatabaseAccessor<LocalDatabase>
@@ -165,6 +166,11 @@ class FinanceDao extends DatabaseAccessor<LocalDatabase>
       (select(finPlans)
             ..where((t) => t.deleted.equals(false))
             ..orderBy([(t) => OrderingTerm(expression: t.startDate)]))
+          .get();
+
+  Future<List<FinBudgetRow>> budgetOf(int year) =>
+      (select(finBudget)
+            ..where((t) => t.deleted.equals(false) & t.year.equals(year)))
           .get();
 
   Future<List<FinPayrollMappingRow>> allPayrollMapping() =>

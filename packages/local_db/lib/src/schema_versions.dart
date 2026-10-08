@@ -3684,6 +3684,7 @@ final class Schema5 extends i0.VersionedSchema {
     finPayrollMapping,
     payrollAdjustments,
     finPlans,
+    finBudget,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -3708,6 +3709,7 @@ final class Schema5 extends i0.VersionedSchema {
     idxPayrollAdjustmentsEmployee,
     idxFinCategoryGroupsName,
     idxFinPlansStart,
+    idxFinBudgetKey,
   ];
   late final Shape0 companySettings = Shape0(
     source: i0.VersionedTable(
@@ -4281,6 +4283,28 @@ final class Schema5 extends i0.VersionedSchema {
     ),
     alias: null,
   );
+  late final Shape24 finBudget = Shape24(
+    source: i0.VersionedTable(
+      entityName: 'fin_budget',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_47,
+        _column_48,
+        _column_120,
+        _column_97,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
   final i1.Index idxEmployeesFullName = i1.Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -4377,6 +4401,10 @@ final class Schema5 extends i0.VersionedSchema {
     'idx_fin_plans_start',
     'CREATE INDEX idx_fin_plans_start ON fin_plans (start_date)',
   );
+  final i1.Index idxFinBudgetKey = i1.Index(
+    'idx_fin_budget_key',
+    'CREATE UNIQUE INDEX idx_fin_budget_key ON fin_budget (year, month, category_uuid) WHERE deleted = 0',
+  );
 }
 
 class Shape23 extends i0.VersionedTable {
@@ -4451,6 +4479,41 @@ i1.GeneratedColumn<String> _column_119(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
+
+class Shape24 extends i0.VersionedTable {
+  Shape24({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get uuid =>
+      columnsByName['uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get legacyId =>
+      columnsByName['legacy_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get editedBy =>
+      columnsByName['edited_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get remoteUpdatedAt =>
+      columnsByName['remote_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get year =>
+      columnsByName['year']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get month =>
+      columnsByName['month']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get categoryUuid =>
+      columnsByName['category_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get amount =>
+      columnsByName['amount']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<String> _column_120(
+  String aliasedName,
+) => i1.GeneratedColumn<String>(
+  'category_uuid',
+  aliasedName,
+  false,
+  type: i1.DriftSqlType.string,
+  $customConstraints:
+      'NOT NULL REFERENCES fin_categories(uuid)DEFERRABLE INITIALLY DEFERRED',
+);
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,

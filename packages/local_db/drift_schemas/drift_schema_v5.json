@@ -4000,6 +4000,145 @@
     {
       "id": 23,
       "references": [
+        16
+      ],
+      "type": "table",
+      "data": {
+        "name": "fin_budget",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "uuid",
+            "getter_name": "uuid",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "legacy_id",
+            "getter_name": "legacyId",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "updated_at",
+            "getter_name": "updatedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "deleted",
+            "getter_name": "deleted",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"deleted\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"deleted\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "edited_by",
+            "getter_name": "editedBy",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "remote_updated_at",
+            "getter_name": "remoteUpdatedAt",
+            "moor_type": "dateTime",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "year",
+            "getter_name": "year",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "month",
+            "getter_name": "month",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "category_uuid",
+            "getter_name": "categoryUuid",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES fin_categories (uuid) DEFERRABLE INITIALLY DEFERRED",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES fin_categories (uuid) DEFERRABLE INITIALLY DEFERRED"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "fin_categories",
+                    "column": "uuid"
+                  },
+                  "initially_deferred": true,
+                  "on_update": null,
+                  "on_delete": null
+                }
+              }
+            ]
+          },
+          {
+            "name": "amount",
+            "getter_name": "amount",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "uuid"
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "references": [
         1
       ],
       "type": "index",
@@ -4017,7 +4156,7 @@
       }
     },
     {
-      "id": 24,
+      "id": 25,
       "references": [
         2
       ],
@@ -4040,7 +4179,7 @@
       }
     },
     {
-      "id": 25,
+      "id": 26,
       "references": [
         3
       ],
@@ -4054,7 +4193,7 @@
       }
     },
     {
-      "id": 26,
+      "id": 27,
       "references": [
         3
       ],
@@ -4073,7 +4212,7 @@
       }
     },
     {
-      "id": 27,
+      "id": 28,
       "references": [
         4
       ],
@@ -4096,7 +4235,7 @@
       }
     },
     {
-      "id": 28,
+      "id": 29,
       "references": [
         4
       ],
@@ -4115,7 +4254,7 @@
       }
     },
     {
-      "id": 29,
+      "id": 30,
       "references": [
         5
       ],
@@ -4134,7 +4273,7 @@
       }
     },
     {
-      "id": 30,
+      "id": 31,
       "references": [
         6
       ],
@@ -4153,7 +4292,7 @@
       }
     },
     {
-      "id": 31,
+      "id": 32,
       "references": [
         7
       ],
@@ -4167,7 +4306,7 @@
       }
     },
     {
-      "id": 32,
+      "id": 33,
       "references": [
         7
       ],
@@ -4190,7 +4329,7 @@
       }
     },
     {
-      "id": 33,
+      "id": 34,
       "references": [
         10
       ],
@@ -4204,7 +4343,7 @@
       }
     },
     {
-      "id": 34,
+      "id": 35,
       "references": [
         11
       ],
@@ -4218,7 +4357,7 @@
       }
     },
     {
-      "id": 35,
+      "id": 36,
       "references": [
         12
       ],
@@ -4232,7 +4371,7 @@
       }
     },
     {
-      "id": 36,
+      "id": 37,
       "references": [
         13
       ],
@@ -4246,7 +4385,7 @@
       }
     },
     {
-      "id": 37,
+      "id": 38,
       "references": [
         16
       ],
@@ -4260,7 +4399,7 @@
       }
     },
     {
-      "id": 38,
+      "id": 39,
       "references": [
         17
       ],
@@ -4274,7 +4413,7 @@
       }
     },
     {
-      "id": 39,
+      "id": 40,
       "references": [
         19
       ],
@@ -4293,7 +4432,7 @@
       }
     },
     {
-      "id": 40,
+      "id": 41,
       "references": [
         19
       ],
@@ -4316,7 +4455,7 @@
       }
     },
     {
-      "id": 41,
+      "id": 42,
       "references": [
         19
       ],
@@ -4335,7 +4474,7 @@
       }
     },
     {
-      "id": 42,
+      "id": 43,
       "references": [
         20
       ],
@@ -4349,7 +4488,7 @@
       }
     },
     {
-      "id": 43,
+      "id": 44,
       "references": [
         21
       ],
@@ -4372,7 +4511,7 @@
       }
     },
     {
-      "id": 44,
+      "id": 45,
       "references": [
         21
       ],
@@ -4391,7 +4530,7 @@
       }
     },
     {
-      "id": 45,
+      "id": 46,
       "references": [
         15
       ],
@@ -4405,7 +4544,7 @@
       }
     },
     {
-      "id": 46,
+      "id": 47,
       "references": [
         22
       ],
@@ -4421,6 +4560,20 @@
             "order_by": null
           }
         ]
+      }
+    },
+    {
+      "id": 48,
+      "references": [
+        23
+      ],
+      "type": "index",
+      "data": {
+        "on": 23,
+        "name": "idx_fin_budget_key",
+        "sql": "CREATE UNIQUE INDEX idx_fin_budget_key ON fin_budget (year, month, category_uuid) WHERE deleted = 0",
+        "unique": true,
+        "columns": []
       }
     }
   ],
@@ -4629,6 +4782,15 @@
         {
           "dialect": "sqlite",
           "sql": "CREATE TABLE IF NOT EXISTS \"fin_plans\" (\"uuid\" TEXT NOT NULL, \"legacy_id\" INTEGER NULL, \"updated_at\" TEXT NOT NULL, \"deleted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"deleted\" IN (0, 1)), \"edited_by\" TEXT NULL, \"remote_updated_at\" TEXT NULL, \"type\" TEXT NOT NULL, \"amount\" INTEGER NOT NULL, \"start_date\" TEXT NOT NULL, \"recurrence\" TEXT NOT NULL DEFAULT 'none', \"until_date\" TEXT NULL, \"account_uuid\" TEXT NULL REFERENCES fin_accounts (uuid) DEFERRABLE INITIALLY DEFERRED, \"category_uuid\" TEXT NULL REFERENCES fin_categories (uuid) DEFERRABLE INITIALLY DEFERRED, \"counterparty_uuid\" TEXT NULL REFERENCES counterparties (uuid) DEFERRABLE INITIALLY DEFERRED, \"description\" TEXT NULL, \"skipped\" TEXT NULL, \"closed\" INTEGER NOT NULL DEFAULT 0 CHECK (\"closed\" IN (0, 1)), PRIMARY KEY (\"uuid\"));"
+        }
+      ]
+    },
+    {
+      "name": "fin_budget",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"fin_budget\" (\"uuid\" TEXT NOT NULL, \"legacy_id\" INTEGER NULL, \"updated_at\" TEXT NOT NULL, \"deleted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"deleted\" IN (0, 1)), \"edited_by\" TEXT NULL, \"remote_updated_at\" TEXT NULL, \"year\" INTEGER NOT NULL, \"month\" INTEGER NOT NULL, \"category_uuid\" TEXT NOT NULL REFERENCES fin_categories (uuid) DEFERRABLE INITIALLY DEFERRED, \"amount\" INTEGER NOT NULL, PRIMARY KEY (\"uuid\"));"
         }
       ]
     },
@@ -4845,6 +5007,15 @@
         {
           "dialect": "sqlite",
           "sql": "CREATE INDEX idx_fin_plans_start ON fin_plans (start_date)"
+        }
+      ]
+    },
+    {
+      "name": "idx_fin_budget_key",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE UNIQUE INDEX idx_fin_budget_key ON fin_budget (year, month, category_uuid) WHERE deleted = 0"
         }
       ]
     }

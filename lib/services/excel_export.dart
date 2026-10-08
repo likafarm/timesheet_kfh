@@ -1026,3 +1026,147 @@ XlsxWorkbook ddsWorkbook({
   sheet.frozenColumns = 1;
   return book;
 }
+
+/// БДДС (8Б.5): план, факт, отклонение (факт − план) и исполнение по
+/// статьям за месяцы [months] (null — год); итоги групп и разделов,
+/// отклонение и исполнение — формулами.
+XlsxWorkbook budgetWorkbook({
+  required BudgetReport report,
+  required List<int>? months,
+  required String title,
+  CompanySettings? companySettings,
+}) {
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('БДДС');
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:E1');
+  sheet.addRow([XlsxCell.text(_company(companySettings), _note)]);
+  sheet.merges.add('A2:E2');
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text('Статья', _head),
+    XlsxCell.text('План', _head),
+    XlsxCell.text('Факт', _head),
+    XlsxCell.text('Отклонение', _head),
+    XlsxCell.text('Исполнение', _head),
+  ], height: 30);
+
+  final money = _cell.copyWith(numFmt: _money);
+  final percent = _cell.copyWith(numFmt: '0%');
+  final groupLabel = _cell.copyWith(bold: true, fill: _gray);
+  final groupMoney = groupLabel.copyWith(numFmt: _money);
+  final groupPercent = groupLabel.copyWith(numFmt: '0%');
+  final totalMoney = _total.copyWith(numFmt: _money);
+  final totalPercent = _total.copyWith(numFmt: '0%');
+
+  /// Отклонение и исполнение строки [r] — формулами.
+  List<XlsxCell> tail(int r, int plan, int fact, XlsxStyle m, XlsxStyle p) => [
+    XlsxCell(
+      XlsxFormula('${xlsxRef(2, r)}-${xlsxRef(1, r)}', (fact - plan) / 100),
+      m,
+    ),
+    XlsxCell(
+      XlsxFormula(
+        'IF(${xlsxRef(1, r)}=0,"",${xlsxRef(2, r)}/${xlsxRef(1, r)})',
+        plan == 0 ? 0 : fact / plan,
+      ),
+      p,
+    ),
+  ];
+
+  /// Строка-сумма строк [rows] по столбцам плана и факта.
+  int sumRow(
+    String name,
+    List<int> rows,
+    int plan,
+    int fact,
+    XlsxStyle label,
+    XlsxStyle m,
+    XlsxStyle p,
+  ) {
+    final r = sheet.rows.length;
+    String f(int c) =>
+        rows.isEmpty ? '0' : rows.map((x) => xlsxRef(c, x)).join('+');
+    sheet.addRow([
+      XlsxCell.text(name, label),
+      XlsxCell(XlsxFormula(f(1), plan / 100), m),
+      XlsxCell(XlsxFormula(f(2), fact / 100), m),
+      ...tail(r, plan, fact, m, p),
+    ]);
+    return r;
+  }
+
+  int section(BudgetSection s, String name) {
+    final groupRows = <int>[];
+    final header = sheet.rows.length;
+    sheet.addRow([]); // заголовок раздела — после подсчёта строк
+    for (final g in s.groups) {
+      final gr = sheet.rows.length;
+      groupRows.add(gr);
+      final lineRows = [for (var i = 0; i < g.lines.length; i++) gr + 1 + i];
+      sumRow(
+        g.name,
+        lineRows,
+        g.planOf(months),
+        g.factOf(months),
+        groupLabel,
+        groupMoney,
+        groupPercent,
+      );
+      for (final l in g.lines) {
+        final r = sheet.rows.length;
+        final plan = l.planOf(months), fact = l.factOf(months);
+        sheet.addRow([
+          XlsxCell.text('    ${l.name}', _cell),
+          XlsxCell.number(plan / 100, money),
+          XlsxCell.number(fact / 100, money),
+          ...tail(r, plan, fact, money, percent),
+        ]);
+      }
+    }
+    // Заголовок раздела с итогом — на своё место.
+    final plan = s.planOf(months), fact = s.factOf(months);
+    String f(int c) =>
+        groupRows.isEmpty ? '0' : groupRows.map((x) => xlsxRef(c, x)).join('+');
+    sheet.rows[header] = [
+      XlsxCell.text(name, _total),
+      XlsxCell(XlsxFormula(f(1), plan / 100), totalMoney),
+      XlsxCell(XlsxFormula(f(2), fact / 100), totalMoney),
+      ...tail(header, plan, fact, totalMoney, totalPercent),
+    ];
+    sheet.addRow([]);
+    return header;
+  }
+
+  final income = section(report.income, 'Поступления');
+  final expense = section(report.expense, 'Платежи');
+  final r = sheet.rows.length;
+  final plan = report.income.planOf(months) - report.expense.planOf(months);
+  final fact = report.income.factOf(months) - report.expense.factOf(months);
+  sheet.addRow([
+    XlsxCell.text('Итог: поступления − платежи', _total),
+    XlsxCell(
+      XlsxFormula('${xlsxRef(1, income)}-${xlsxRef(1, expense)}', plan / 100),
+      totalMoney,
+    ),
+    XlsxCell(
+      XlsxFormula('${xlsxRef(2, income)}-${xlsxRef(2, expense)}', fact / 100),
+      totalMoney,
+    ),
+    ...tail(r, plan, fact, totalMoney, totalPercent),
+  ]);
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(
+      'Отклонение — факт минус план. Займы и переводы в бюджет не входят.',
+      _note,
+    ),
+  ]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+  sheet.columnWidths[0] = 40;
+  for (var c = 1; c <= 4; c++) {
+    sheet.columnWidths[c] = 16;
+  }
+  sheet.frozenRows = 4;
+  return book;
+}

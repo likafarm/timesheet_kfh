@@ -206,6 +206,25 @@ class FinPlans extends Table with SyncColumns {
   BoolColumn get closed => boolean().withDefault(const Constant(false))();
 }
 
+/// БДДС — план по статьям и месяцам (схема 5).
+@DataClassName('FinBudgetRow')
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_fin_budget_key '
+  'ON fin_budget (year, month, category_uuid) WHERE deleted = 0',
+)
+class FinBudget extends Table with SyncColumns {
+  @override
+  String get tableName => 'fin_budget';
+
+  IntColumn get year => integer()();
+  IntColumn get month => integer()();
+  TextColumn get categoryUuid =>
+      text().references(FinCategories, #uuid, initiallyDeferred: true)();
+
+  /// Копейки, не меньше нуля.
+  IntColumn get amount => integer()();
+}
+
 @DataClassName('FinOperationRow')
 @TableIndex(name: 'idx_fin_operations_date', columns: {#date})
 @TableIndex(name: 'idx_fin_operations_account', columns: {#accountUuid, #date})

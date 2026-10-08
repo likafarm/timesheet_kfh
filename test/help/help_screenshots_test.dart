@@ -113,6 +113,9 @@ void main() {
     await shots.tapText('Движение денег (ДДС)');
     await shots.save('finance_dds');
     await shots.back();
+    await shots.tapText('Бюджет (БДДС): план и факт');
+    await shots.save('finance_budget');
+    await shots.back();
     await shots.tapText('Доходы и расходы по месяцам');
     await shots.save('finance_report');
     await shots.back();
@@ -475,6 +478,22 @@ Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
   ]) {
     await f.savePlan(plan);
   }
+  await f.saveBudget([
+    for (final (cat, amount) in [
+      (u('c-feed'), 4000000),
+      (u('c-fuel'), 2000000),
+      (u('c-food'), 500000),
+      (u('c-meat'), 30000000),
+    ])
+      for (var m = 1; m <= 12; m++)
+        BudgetEntry(
+          id: u('b-$cat-$m'),
+          year: today.year,
+          month: m,
+          categoryId: cat,
+          amount: amount,
+        ),
+  ]);
   await f.savePayrollMapping(
     PayrollFinanceMapping(
       methodAccounts: {

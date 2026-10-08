@@ -3497,6 +3497,129 @@ class FinPlans extends Table with TableInfo {
   bool get dontWriteConstraints => true;
 }
 
+class FinBudget extends Table with TableInfo {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  FinBudget(this.attachedDatabase, [this._alias]);
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> deleted = GeneratedColumn<int>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<String> remoteUpdatedAt = GeneratedColumn<String>(
+    'remote_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> year = GeneratedColumn<int>(
+    'year',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> month = GeneratedColumn<int>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<String> categoryUuid = GeneratedColumn<String>(
+    'category_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL REFERENCES fin_categories(uuid)DEFERRABLE INITIALLY DEFERRED',
+  );
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    year,
+    month,
+    categoryUuid,
+    amount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_budget';
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  Never map(Map<String, dynamic> data, {String? tablePrefix}) {
+    throw UnsupportedError('TableInfo.map in schema verification code');
+  }
+
+  @override
+  FinBudget createAlias(String alias) {
+    return FinBudget(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const ['PRIMARY KEY(uuid)'];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
 class DatabaseAtV5 extends GeneratedDatabase {
   DatabaseAtV5(QueryExecutor e) : super(e);
   late final CompanySettings companySettings = CompanySettings(this);
@@ -3524,6 +3647,7 @@ class DatabaseAtV5 extends GeneratedDatabase {
   late final FinPayrollMapping finPayrollMapping = FinPayrollMapping(this);
   late final PayrollAdjustments payrollAdjustments = PayrollAdjustments(this);
   late final FinPlans finPlans = FinPlans(this);
+  late final FinBudget finBudget = FinBudget(this);
   late final Index idxEmployeesFullName = Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -3620,6 +3744,10 @@ class DatabaseAtV5 extends GeneratedDatabase {
     'idx_fin_plans_start',
     'CREATE INDEX idx_fin_plans_start ON fin_plans (start_date)',
   );
+  late final Index idxFinBudgetKey = Index(
+    'idx_fin_budget_key',
+    'CREATE UNIQUE INDEX idx_fin_budget_key ON fin_budget (year, month, category_uuid) WHERE deleted = 0',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3648,6 +3776,7 @@ class DatabaseAtV5 extends GeneratedDatabase {
     finPayrollMapping,
     payrollAdjustments,
     finPlans,
+    finBudget,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -3672,6 +3801,7 @@ class DatabaseAtV5 extends GeneratedDatabase {
     idxPayrollAdjustmentsEmployee,
     idxFinCategoryGroupsName,
     idxFinPlansStart,
+    idxFinBudgetKey,
   ];
   @override
   int get schemaVersion => 5;

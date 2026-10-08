@@ -563,4 +563,32 @@ void main() {
       isFalse,
     );
   });
+
+  test('БДДС: план статьи, факт, заполнение из прошлого года (8Б.5)', () async {
+    await fin.saveOperation(
+      expense(id: 'op-2025', date: DateTime(2025, 9, 10)),
+    );
+    await fin.saveOperation(expense(id: 'op-2026', amount: 70000));
+    // План ГСМ на 2026: сентябрь 60 000 коп.
+    final months = List.filled(12, 0)..[8] = 60000;
+    expect(await fin.saveBudgetFor(2026, fuel, months), isTrue);
+    final r = fin.budgetReportFor(2026, await fin.budget(2026));
+    final line = r.expense.groups
+        .expand((g) => g.lines)
+        .firstWhere((l) => l.categoryId == fuel);
+    expect(line.planOf([9]), 60000);
+    expect(line.factOf([9]), 70000);
+
+    // Из факта 2025 — только статьи без плана (у ГСМ план есть).
+    expect(await fin.fillBudgetFromLastYear(2026), isTrue);
+    final again = await fin.budget(2026);
+    expect(again.where((e) => e.categoryId == fuel).single.amount, 60000);
+    // На 2027 — заполняется из факта 2026 (сентябрь, до рубля).
+    expect(await fin.fillBudgetFromLastYear(2027), isTrue);
+    final next = await fin.budget(2027);
+    expect(
+      next.where((e) => e.categoryId == fuel && e.month == 9).single.amount,
+      70000,
+    );
+  });
 }

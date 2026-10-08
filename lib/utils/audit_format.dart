@@ -70,6 +70,7 @@ const _entity = {
   'fin_assets': 'имущество',
   'fin_category_groups': 'группа статей',
   'fin_plans': 'план платежа',
+  'fin_budget': 'бюджет статьи',
   'fin_categories': 'статья',
   'counterparties': 'контрагент',
   'fin_debts': 'займ',

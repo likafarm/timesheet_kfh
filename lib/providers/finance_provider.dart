@@ -536,6 +536,71 @@ class FinanceProvider extends ChangeNotifier {
     sourceRef: planSourceRef(o.plan.id, o.day),
   );
 
+  // ------------------------------------------------------------- БДДС
+
+  /// План года [year] (8Б.5); оператору — пусто.
+  Future<List<BudgetEntry>> budget(int year) async =>
+      operator ? const [] : await _repo.budget(year);
+
+  /// БДДС года: план [entries] и факт по операциям (с выплатами ЗП).
+  BudgetReport budgetReportFor(int year, List<BudgetEntry> entries) =>
+      budgetReport(
+        year: year,
+        entries: entries,
+        operations: allOperations,
+        catalog: _catalog,
+      );
+
+  /// План года по факту прошлого (до рубля).
+  Map<String, List<int>> budgetFromLastYear(int year) =>
+      budgetFromFact(year: year, operations: allOperations, catalog: _catalog);
+
+  /// Записать планы статьи [categoryId] на год [year] по месяцам.
+  Future<bool> saveBudgetFor(
+    int year,
+    String categoryId,
+    List<int> months,
+  ) async {
+    if (!_allowed()) return false;
+    if (months.length != 12 || months.any((m) => m < 0)) {
+      return _refuse('План — 12 сумм не меньше нуля');
+    }
+    return _write(
+      () => _repo.saveBudget([
+        for (var m = 0; m < 12; m++)
+          BudgetEntry(
+            id: newId(),
+            year: year,
+            month: m + 1,
+            categoryId: categoryId,
+            amount: months[m],
+          ),
+      ]),
+    );
+  }
+
+  /// Заполнить план года [year] из факта прошлого: только статьи без плана.
+  Future<bool> fillBudgetFromLastYear(int year) async {
+    if (!_allowed()) return false;
+    final planned = {for (final e in await _repo.budget(year)) e.categoryId};
+    final source = budgetFromLastYear(year);
+    return _write(
+      () => _repo.saveBudget([
+        for (final e in source.entries)
+          if (!planned.contains(e.key))
+            for (var m = 0; m < 12; m++)
+              if (e.value[m] > 0)
+                BudgetEntry(
+                  id: newId(),
+                  year: year,
+                  month: m + 1,
+                  categoryId: e.key,
+                  amount: e.value[m],
+                ),
+      ]),
+    );
+  }
+
   // ------------------------------------------------------- справочники
 
   Future<bool> saveAccount(FinAccount a, {FinAccount? before}) async {
