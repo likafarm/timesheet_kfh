@@ -556,3 +556,149 @@ XlsxWorkbook financeWorkbook({
   sheet.frozenRows = 5;
   return book;
 }
+
+/// Отчёт «статьи / направления × месяцы» (вторая очередь этапа 8): строки
+/// — как на экране, суммы — числами; итоги групп, разделов, «Итого» и
+/// результат — формулами.
+XlsxWorkbook cashFlowWorkbook({
+  required CashFlowReport report,
+  required String period,
+  CompanySettings? companySettings,
+}) {
+  final title = 'Доходы и расходы по месяцам — $period';
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('По месяцам $period')..landscape = true;
+  final n = report.months.length;
+  final totalCol = n + 1;
+  final byCategory = report.by == CashFlowBy.category;
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:${xlsxRef(totalCol, 0)}');
+  sheet.addRow([
+    XlsxCell.text(
+      '${_company(companySettings)} · ${report.by.title.toLowerCase()}',
+      _note,
+    ),
+  ]);
+  sheet.merges.add('A2:${xlsxRef(totalCol, 1)}');
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(byCategory ? 'Статья' : 'Направление', _head),
+    for (final m in report.months) XlsxCell.text(_monthTitle(m), _head),
+    XlsxCell.text('Итого', _head),
+  ], height: 30);
+
+  final money = _cell.copyWith(numFmt: _money);
+  final groupLabel = _cell.copyWith(bold: true, fill: _gray);
+  final groupMoney = groupLabel.copyWith(numFmt: _money);
+  final totalMoney = _total.copyWith(numFmt: _money);
+  final noteLabel = _note.copyWith(border: true);
+  final noteMoney = noteLabel.copyWith(numFmt: _money);
+
+  int sum(List<int> months) => months.fold(0, (a, b) => a + b);
+
+  /// Суммы строки: числами, «Итого» — формулой по месяцам.
+  void values(List<int> months, XlsxStyle style, List<XlsxCell> row) {
+    final r = sheet.rows.length;
+    row.addAll([
+      for (final k in months)
+        k == 0 ? XlsxCell.empty(style) : XlsxCell.number(k / 100, style),
+      XlsxCell(
+        XlsxFormula(
+          'SUM(${xlsxRef(1, r)}:${xlsxRef(n, r)})',
+          sum(months) / 100,
+        ),
+        style,
+      ),
+    ]);
+  }
+
+  /// Строка-формула по столбцам: [expression] из ссылки столбца.
+  void formulas(
+    String name,
+    List<int> months,
+    XlsxStyle label,
+    XlsxStyle style,
+    String Function(int column) expression,
+  ) => sheet.addRow([
+    XlsxCell.text(name, label),
+    for (var c = 1; c <= n; c++)
+      XlsxCell(XlsxFormula(expression(c), months[c - 1] / 100), style),
+    XlsxCell(XlsxFormula(expression(totalCol), sum(months) / 100), style),
+  ]);
+
+  String range(int column, int from, int to) =>
+      from > to ? '0' : 'SUM(${xlsxRef(column, from)}:${xlsxRef(column, to)})';
+
+  /// Раздел; возвращает строку его итога.
+  int section(CashFlowSection s, String name, String special) {
+    sheet.addRow([XlsxCell.text(name, _total)]);
+    final groupRows = <int>[];
+    for (final g in s.groups) {
+      if (byCategory) {
+        // Группа: итог — формулой по её статьям ниже.
+        final r = sheet.rows.length;
+        groupRows.add(r);
+        formulas(
+          g.name,
+          g.months,
+          groupLabel,
+          groupMoney,
+          (c) => range(c, r + 1, r + g.lines.length),
+        );
+      }
+      for (final l in g.lines) {
+        if (!byCategory) groupRows.add(sheet.rows.length);
+        final row = [
+          XlsxCell.text(byCategory ? '    ${l.name}' : l.name, _cell),
+        ];
+        values(l.months, money, row);
+        sheet.addRow(row);
+      }
+    }
+    final total = sheet.rows.length;
+    formulas(
+      'Всего — ${name.toLowerCase()}',
+      s.months,
+      _total,
+      totalMoney,
+      (c) => groupRows.isEmpty
+          ? '0'
+          : groupRows.map((r) => xlsxRef(c, r)).join('+'),
+    );
+    if (s.specialTotal != 0) {
+      final row = [XlsxCell.text(special, noteLabel)];
+      values(s.special, noteMoney, row);
+      sheet.addRow(row);
+    }
+    sheet.addRow([]);
+    return total;
+  }
+
+  final income = section(report.income, 'Доходы', 'в т. ч. возвраты');
+  final expense = section(report.expense, 'Расходы', 'в т. ч. капвложения');
+  formulas(
+    'Итог: доходы − расходы',
+    report.result,
+    _total,
+    totalMoney,
+    (c) => '${xlsxRef(c, income)}-${xlsxRef(c, expense)}',
+  );
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(
+      'Переводы между кошельками и займы — не доходы и не расходы, в отчёт '
+      'не входят. Расходы по ключу распределения в отчёте по направлениям '
+      'разложены по долям ключа.',
+      _note,
+    ),
+  ]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+
+  sheet.columnWidths[0] = 34;
+  for (var c = 1; c <= totalCol; c++) {
+    sheet.columnWidths[c] = 14;
+  }
+  sheet.frozenRows = 4;
+  sheet.frozenColumns = 1;
+  return book;
+}

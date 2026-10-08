@@ -23,6 +23,7 @@ import '../widgets/month_switcher.dart';
 import 'finance_balances_screen.dart';
 import 'finance_catalog_screen.dart';
 import 'finance_quick_screen.dart';
+import 'finance_report_screen.dart';
 
 class FinanceScreen extends StatelessWidget {
   const FinanceScreen({super.key});
@@ -198,6 +199,13 @@ class _FinanceViewState extends State<_FinanceView> {
     if (accountId != null && mounted) {
       setState(() => _filter = _filter.copyWith(accountId: () => accountId));
     }
+  }
+
+  /// Отчёт по месяцам за год выбранного месяца; нажатая сумма становится
+  /// отбором списка.
+  Future<void> _openReport(FinanceProvider fin) async {
+    final filter = await openFinanceReport(context, fin, year: _month.year);
+    if (filter != null && mounted) setState(() => _filter = filter);
   }
 
   Future<void> _reconcile(FinanceProvider fin) async {
@@ -635,6 +643,11 @@ class _FinanceViewState extends State<_FinanceView> {
           Icons.account_balance_wallet_outlined,
           'Остатки',
           fin.loaded ? () => _openBalances(fin) : null,
+        ),
+        AppBarMenuItem(
+          Icons.calendar_view_month,
+          'По месяцам',
+          fin.loaded ? () => _openReport(fin) : null,
         ),
         AppBarMenuItem(
           Icons.fact_check_outlined,

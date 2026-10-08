@@ -103,6 +103,9 @@ void main() {
     await shots.tapTooltip('Остатки');
     await shots.save('finance_balances');
     await shots.back();
+    await shots.tapTooltip('По месяцам');
+    await shots.save('finance_report');
+    await shots.back();
 
     await shots.openSection('Настройки');
     await shots.tapText('Закрытие месяцев');

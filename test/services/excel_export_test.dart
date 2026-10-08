@@ -297,4 +297,66 @@ void main() {
     expect(c['A3']!.v, contains('все операции'));
     expect(c['A6']!.v, contains('Нет операций'));
   });
+
+  test('финансы по месяцам: суммы — числами, итоги — формулами', () {
+    final catalog = FinanceCatalog(
+      groups: const [
+        FinCategoryGroup(id: 'gi', type: CategoryType.income, name: 'Продажи'),
+        FinCategoryGroup(id: 'ge', type: CategoryType.expense, name: 'Корма'),
+      ],
+      categories: const [
+        FinCategory(
+          id: 'meat',
+          type: CategoryType.income,
+          groupId: 'gi',
+          group: 'Продажи',
+          name: 'Мясо',
+        ),
+        FinCategory(
+          id: 'feed',
+          type: CategoryType.expense,
+          groupId: 'ge',
+          group: 'Корма',
+          name: 'Комбикорм',
+        ),
+      ],
+    );
+    FinOperation op(String id, int month, OperationType t, int k, String c) =>
+        FinOperation(
+          id: id,
+          date: DateTime(2026, month, 3),
+          type: t,
+          amount: k,
+          accountId: 'a',
+          categoryId: c,
+        );
+    final report = cashFlowReport(
+      operations: [
+        op('1', 1, OperationType.income, 100000, 'meat'),
+        op('2', 2, OperationType.expense, 15050, 'feed'),
+        op('3', 2, OperationType.expense, 50, 'feed'),
+      ],
+      catalog: catalog,
+      from: DateTime(2026),
+      count: 2,
+    );
+    final bytes = cashFlowWorkbook(report: report, period: '2026').encode();
+    save('Финансы_по_месяцам_2026.xlsx', bytes);
+    final c = cells(bytes);
+    expect(c['B4']!.v, 'Январь 2026');
+    expect(c['D4']!.v, 'Итого');
+    expect(c['A5']!.v, 'Доходы');
+    expect(c['A6']!.v, 'Продажи');
+    expect(c['B6']!.f, 'SUM(B7:B7)');
+    expect(c['B7']!.v, '1000');
+    expect(c['D7']!.f, 'SUM(B7:C7)');
+    expect(c['A8']!.v, 'Всего — доходы');
+    expect(c['B8']!.f, 'B6');
+    expect(c['C12']!.v, '151');
+    expect(c['C13']!.f, 'C11');
+    expect(c['A15']!.v, 'Итог: доходы − расходы');
+    expect(c['B15']!.f, 'B8-B13');
+    expect(c['C15']!.v, '-151');
+    expect(c['D15']!.v, '849');
+  });
 }

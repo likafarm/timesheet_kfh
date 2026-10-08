@@ -10,6 +10,7 @@ export 'src/finance/catalog.dart';
 export 'src/finance/models.dart';
 export 'src/finance/money.dart';
 export 'src/finance/payroll_expenses.dart';
+export 'src/finance/report.dart';
 export 'src/finance/rules.dart';
 export 'src/finance/summary.dart';
 export 'src/models/company_settings.dart';

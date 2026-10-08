@@ -225,4 +225,55 @@ void main() {
     expect(find.widgetWithText(AppDropdown<String?>, '05'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('по месяцам: статьи и направления, переход к операциям', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: FinanceScreen()),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('По месяцам'));
+    await tester.pumpAndSettle();
+    expect(find.text('${today.year}'), findsOneWidget);
+    expect(find.text('Корма покупные'), findsOneWidget);
+    expect(find.text('05'), findsOneWidget, reason: 'группа статьи');
+    expect(find.text('Итог: доходы − расходы'), findsOneWidget);
+
+    await tester.tap(find.text('По направлениям'));
+    await tester.pumpAndSettle();
+    expect(find.text('Корма покупные'), findsNothing);
+    expect(find.text('Животноводство'), findsOneWidget);
+
+    await tester.tap(find.text('По статьям'));
+    await tester.pumpAndSettle();
+    // Нажатие на сумму месяца — список операций с отбором.
+    final row = find
+        .ancestor(of: find.text('Корма покупные'), matching: find.byType(Row))
+        .first;
+    await tester.tap(
+      find.descendant(of: row, matching: find.byType(InkWell)).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Комбикорм'), findsOneWidget);
+    expect(find.text('Корма покупные (расход)'), findsOneWidget);
+
+    // Прошлый год — пусто.
+    await tester.tap(find.byTooltip('По месяцам'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Предыдущий год'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Нет доходов и расходов за ${today.year - 1} год'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
