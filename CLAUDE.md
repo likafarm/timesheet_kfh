@@ -35,7 +35,7 @@ flutter build web --release --base-href /app/ --no-web-resources-cdn   # веб-
 .\tool\web_assets.ps1             # web/sqlite3.wasm и web/drift_worker.js — после смены версии sqlite3 или drift
 .\tool\web_test.ps1               # тест базы в браузере (Chrome)
 .\server\deploy\publish_web.ps1     # выкладка веб-версии на VPS; только с согласия владельца
-.\build_installer.ps1               # установщик Inno Setup → installer_output\
+.\build_installer.ps1               # установщик Inno Setup → installer_output\; программу НЕ собирает — сначала flutter build windows --release и проверить версию exe (VersionInfo.ProductVersion), иначе в установщик попадёт старый exe
 .\server\deploy\publish.ps1         # выкладка сервера на VPS (копия базы → миграции → запуск → /health); только с согласия владельца
 .\server\deploy\publish_page.ps1      # только страница /download по текущим версиям; только с согласия владельца
 .\server\deploy\publish_windows.ps1 -Installer installer_output\KFH_TimeTracking_Setup_X.Y.Z.exe   # установщик Windows на /download (автообновление); только с согласия владельца
