@@ -19,6 +19,7 @@ import 'package:kfx_time_tracking/screens/sync_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/sync_test_server.dart';
 
@@ -28,6 +29,7 @@ void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   setUpAll(() => initializeDateFormatting('ru'));
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   setUp(
     () => PackageInfo.setMockInitialValues(
       appName: 'kfh',
@@ -169,6 +171,22 @@ void main() {
       findsOneWidget,
     );
     await tester.tap(find.text('ФИНАНСЫ'));
+    await tester.pump();
+    expect(
+      find.descendant(of: menu, matching: find.text('Доходы')),
+      findsOneWidget,
+    );
+
+    // Меню сворачивается до значков с подсказками и разворачивается.
+    await tester.tap(find.byTooltip('Свернуть меню'));
+    await tester.pump();
+    expect(
+      find.descendant(of: menu, matching: find.text('Доходы')),
+      findsNothing,
+    );
+    expect(tester.getSize(menu).width, lessThan(100));
+    expect(find.byTooltip('Доходы'), findsOneWidget);
+    await tester.tap(find.byTooltip('Развернуть меню'));
     await tester.pump();
     expect(
       find.descendant(of: menu, matching: find.text('Доходы')),

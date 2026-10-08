@@ -3,9 +3,12 @@
 // Боковое меню широкого окна (8Б.1): тёмная панель с группами «Финансы»,
 // «Зарплата», «Сервис» (UI_REQUIREMENTS п. 2.2). Группа сворачивается
 // нажатием на заголовок; выбранный пункт свёрнутой группы остаётся виден.
-// Узкое окно (меньше [wideWidth]) — только значки с подсказками.
+// Кнопка «☰» вверху сворачивает меню до значков с подсказками и
+// разворачивает обратно; выбор запоминается на устройстве. Пока человек
+// не выбирал, узкое окно (меньше [wideWidth]) — только значки.
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
 import 'section_navigation.dart';
@@ -30,12 +33,47 @@ class SideMenu extends StatefulWidget {
 }
 
 class _SideMenuState extends State<SideMenu> {
+  static const _expandedKey = 'kfh_side_menu_expanded';
+
   final _collapsed = <NavGroup>{};
+
+  /// Выбор человека: развёрнуто ли меню (null — не выбирал).
+  bool? _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExpanded();
+  }
+
+  Future<void> _loadExpanded() async {
+    try {
+      final value = (await SharedPreferences.getInstance()).getBool(
+        _expandedKey,
+      );
+      if (value != null && mounted) setState(() => _expanded = value);
+    } catch (_) {
+      // Нет хранилища (тесты) — по ширине окна.
+    }
+  }
+
+  Future<void> _toggle(bool wide) async {
+    setState(() => _expanded = !wide);
+    try {
+      await (await SharedPreferences.getInstance()).setBool(
+        _expandedKey,
+        _expanded!,
+      );
+    } catch (_) {
+      // Не сохранилось — до перезапуска.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= SideMenu.wideWidth;
-    final children = <Widget>[];
+    final wide =
+        _expanded ?? MediaQuery.sizeOf(context).width >= SideMenu.wideWidth;
+    final children = <Widget>[_toggleButton(wide)];
     NavGroup? group;
     for (final (i, item) in widget.items.indexed) {
       if (item.group != group) {
@@ -53,13 +91,28 @@ class _SideMenuState extends State<SideMenu> {
       child: SafeArea(
         right: false,
         child: SizedBox(
-          width: wide ? 248 : 72,
+          width: wide ? 232 : 72,
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: children,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _toggleButton(bool wide) {
+    final button = IconButton(
+      tooltip: wide ? 'Свернуть меню' : 'Развернуть меню',
+      icon: Icon(wide ? Icons.menu_open : Icons.menu),
+      color: AppTheme.navigationForeground,
+      onPressed: () => _toggle(wide),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: wide
+          ? Align(alignment: Alignment.centerLeft, child: button)
+          : Center(child: button),
     );
   }
 
@@ -118,10 +171,7 @@ class _SideMenuState extends State<SideMenu> {
         borderRadius: BorderRadius.circular(10),
         onTap: () => widget.onSelected(index),
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: wide ? 12 : 0,
-            vertical: 10,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: wide ? 12 : 0, vertical: 8),
           child: wide
               ? Row(
                   children: [

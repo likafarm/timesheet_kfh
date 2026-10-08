@@ -248,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         open: (section) => _open(section),
                       );
                 const gap = SizedBox(height: 12, width: 12);
-                if (constraints.maxWidth < 900) {
+                if (constraints.maxWidth < 720) {
                   return ListView(
                     padding: const EdgeInsets.all(12),
                     children: [
