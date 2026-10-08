@@ -956,6 +956,33 @@ class AppProvider extends ChangeNotifier {
     return [for (final k in keys.toList()..sort()) (k ~/ 12, k % 12 + 1)];
   }
 
+  /// Остатки по зарплате на конец дня [day] (управленческий баланс, 8Б.2):
+  /// сотрудник → копейки — остаток на 1-е число месяца + начислено за
+  /// месяц − выплачено по [day] включительно (как «Долг по зарплате» на
+  /// главной). Плюс — долг хозяйства, минус — переплата.
+  Future<Map<String, int>> payrollBalancesOn(DateTime day) async {
+    final d = calendarDay(day);
+    final report = await _payrollService.monthReport(
+      d.year,
+      d.month,
+      lockedMonths: _lockedMonths,
+    );
+    final rubles = <String, double>{...report.startingBalances};
+    for (final r in report.results) {
+      rubles[r.employeeId] = (rubles[r.employeeId] ?? 0) + r.totalSalary;
+    }
+    for (final p in await _paymentsRepo.list(
+      start: DateTime(d.year, d.month, 1),
+      end: d,
+    )) {
+      rubles[p.employeeId] = (rubles[p.employeeId] ?? 0) - p.amount;
+    }
+    return {
+      for (final e in rubles.entries)
+        if (toKopecks(e.value) != 0) e.key: toKopecks(e.value),
+    };
+  }
+
   /// Сводка главного экрана (6.8) на [today] (по умолчанию — сегодня).
   /// Общее состояние провайдера (отчёт, выплаты, табель экранов) не меняет.
   Future<DashboardSummary> dashboard({DateTime? today}) async {

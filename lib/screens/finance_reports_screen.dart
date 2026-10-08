@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
+import 'finance_balance_sheet_screen.dart';
 import 'finance_report_screen.dart';
 
 class FinanceReportsScreen extends StatelessWidget {
@@ -43,6 +44,28 @@ class FinanceReportsScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(12),
             children: [
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.balance),
+                  title: const Text('Управленческий баланс'),
+                  subtitle: const Text(
+                    'Что есть и что должны — на начало года и на дату; '
+                    'капитал хозяйства',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    final fin = context.read<FinanceProvider>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ChangeNotifierProvider.value(
+                          value: fin,
+                          child: const FinanceBalanceSheetScreen(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
               report(
                 Icons.calendar_view_month,
                 'Доходы и расходы по месяцам',

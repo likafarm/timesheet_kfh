@@ -105,6 +105,9 @@ void main() {
     await shots.openSection('Банки и кассы');
     await shots.save('finance_balances');
     await shots.openSection('Отчёты');
+    await shots.tapText('Управленческий баланс');
+    await shots.save('finance_balance_sheet');
+    await shots.back();
     await shots.tapText('Доходы и расходы по месяцам');
     await shots.save('finance_report');
     await shots.back();
@@ -405,6 +408,26 @@ Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
       kind: DebtKind.received,
       openingBalance: 150000000,
       openingDate: start,
+    ),
+  );
+  await f.saveAsset(
+    Asset(
+      id: u('as-mtz'),
+      name: 'Трактор МТЗ-82',
+      kind: AssetKind.machinery,
+      year: 2015,
+      referenceValue: 120000000,
+      allocationKeyId: u('k-tractors'),
+    ),
+  );
+  await f.saveAsset(
+    Asset(
+      id: u('as-press'),
+      name: 'Пресс-подборщик',
+      kind: AssetKind.equipment,
+      year: 2019,
+      referenceValue: 45000000,
+      directionId: crop,
     ),
   );
   await f.savePayrollMapping(

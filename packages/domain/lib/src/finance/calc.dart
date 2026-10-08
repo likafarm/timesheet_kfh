@@ -158,7 +158,16 @@ Map<String, int> debtBalances(
   DateTime? at,
 }) {
   final byId = {for (final d in debts) d.id: d};
-  final result = {for (final d in byId.values) d.id: d.openingBalance};
+  // До дня начального остатка займа ещё не было (как у кошельков).
+  final result = {
+    for (final d in byId.values)
+      d.id:
+          d.openingDate == null ||
+              at == null ||
+              !calendarDay(d.openingDate!).isAfter(calendarDay(at))
+          ? d.openingBalance
+          : 0,
+  };
   for (final op in operations) {
     final debt = op.debtId == null ? null : byId[op.debtId];
     final m = op.debtMove;

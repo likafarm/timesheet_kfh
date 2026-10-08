@@ -363,4 +363,37 @@ void main() {
     expect(c['C15']!.v, '-151');
     expect(c['D15']!.v, '849');
   });
+
+  test('управленческий баланс: итоги и капитал — формулами', () {
+    ManagementBalance balance(DateTime day, int cash, int loan) =>
+        ManagementBalance(
+          day: day,
+          assets: [
+            BalanceSection('Деньги', [BalanceLine('Касса', cash)]),
+          ],
+          liabilities: [
+            BalanceSection('Займы полученные', [BalanceLine('Банк', loan)]),
+          ],
+        );
+    final bytes = managementBalanceWorkbook(
+      start: balance(DateTime(2025, 12, 31), 100000, 50000),
+      end: balance(DateTime(2026, 10, 8), 300000, 40000),
+      startLabel: 'На 01.01.2026',
+      endLabel: 'На 08.10.2026',
+    ).encode();
+    save('Управленческий_баланс.xlsx', bytes);
+    final c = cells(bytes);
+    expect(c['B4']!.v, 'На 01.01.2026');
+    expect(c['A5']!.v, 'Актив — что есть');
+    expect(c['A6']!.v, 'Деньги');
+    expect(c['C6']!.f, 'SUM(C7:C7)');
+    expect(c['C7']!.v, '3000');
+    expect(c['D7']!.f, 'C7-B7');
+    expect(c['A8']!.v, 'Итого актив');
+    expect(c['C8']!.f, 'C6');
+    expect(c['A15']!.v, 'Капитал (актив − пассив)');
+    expect(c['C15']!.f, 'C8-C13');
+    expect(c['C15']!.v, '2600');
+    expect(c['D15']!.v, '2100');
+  });
 }

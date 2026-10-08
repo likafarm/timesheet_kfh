@@ -491,4 +491,12 @@ void main() {
     expect(fin.catalog.groupOf(fuelCat)?.id, 'g-04');
     expect(fin.groupUsages('g-04'), 1);
   });
+
+  test('остатки по зарплате на дату — для баланса (8Б.2)', () async {
+    // Табеля нет, выплачено 150 ₽ 30.09 — переплата.
+    expect(await app.payrollBalancesOn(DateTime(2026, 9, 29)), isEmpty);
+    expect(await app.payrollBalancesOn(DateTime(2026, 9, 30)), {
+      employeeId: -15000,
+    });
+  });
 }

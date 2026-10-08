@@ -285,4 +285,27 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('управленческий баланс: актив, пассив, капитал (8Б.2)', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(section(const FinanceReportsScreen()));
+    await settle(tester);
+    await settle(tester, () async {
+      await tester.tap(find.text('Управленческий баланс'));
+      await tester.pump();
+    });
+    expect(find.text('Итого актив'), findsOneWidget);
+    expect(find.text('Итого пассив'), findsOneWidget);
+    expect(find.text('Капитал (актив − пассив)'), findsOneWidget);
+    // Карта ушла в минус на 2 500 — она в пассиве.
+    expect(find.text('Кредитные карты и кошельки в минусе'), findsOneWidget);
+    expect(find.text('Карта'), findsOneWidget);
+    expect(find.text('${formatRub(-250000)} ₽'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 }

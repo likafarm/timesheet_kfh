@@ -716,3 +716,127 @@ XlsxWorkbook cashFlowWorkbook({
   sheet.frozenColumns = 1;
   return book;
 }
+
+/// Управленческий баланс (8Б.2) на две даты: разделы актива и пассива со
+/// строками, итоги разделов, актива, пассива и капитал — формулами, как и
+/// «Изменение».
+XlsxWorkbook managementBalanceWorkbook({
+  required ManagementBalance start,
+  required ManagementBalance end,
+  required String startLabel,
+  required String endLabel,
+  CompanySettings? companySettings,
+}) {
+  final title =
+      'Управленческий баланс — ${DateFormat('dd.MM.yyyy').format(end.day)}';
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('Баланс');
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:D1');
+  sheet.addRow([XlsxCell.text(_company(companySettings), _note)]);
+  sheet.merges.add('A2:D2');
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text('', _head),
+    XlsxCell.text(startLabel, _head),
+    XlsxCell.text(endLabel, _head),
+    XlsxCell.text('Изменение', _head),
+  ], height: 30);
+
+  final money = _cell.copyWith(numFmt: _money);
+  final groupLabel = _cell.copyWith(bold: true, fill: _gray);
+  final groupMoney = groupLabel.copyWith(numFmt: _money);
+  final totalMoney = _total.copyWith(numFmt: _money);
+
+  XlsxCell change(int r, XlsxStyle style, int cached) => XlsxCell(
+    XlsxFormula('${xlsxRef(2, r)}-${xlsxRef(1, r)}', cached / 100),
+    style,
+  );
+
+  /// Сторона баланса; возвращает строку её итога.
+  int side(
+    String heading,
+    String totalName,
+    List<BalanceSection> a,
+    List<BalanceSection> b,
+  ) {
+    sheet.addRow([XlsxCell.text(heading, _total)]);
+    final sectionRows = <int>[];
+    for (var i = 0; i < b.length; i++) {
+      final names = {
+        for (final l in b[i].lines) l.name,
+        for (final l in a[i].lines) l.name,
+      }.toList();
+      final r = sheet.rows.length;
+      sectionRows.add(r);
+      String sum(int c) => names.isEmpty
+          ? '0'
+          : 'SUM(${xlsxRef(c, r + 1)}:${xlsxRef(c, r + names.length)})';
+      sheet.addRow([
+        XlsxCell.text(b[i].title, groupLabel),
+        XlsxCell(XlsxFormula(sum(1), a[i].total / 100), groupMoney),
+        XlsxCell(XlsxFormula(sum(2), b[i].total / 100), groupMoney),
+        change(r, groupMoney, b[i].total - a[i].total),
+      ]);
+      for (final name in names) {
+        int? amount(BalanceSection s) =>
+            s.lines.where((l) => l.name == name).firstOrNull?.amount;
+        final x = amount(a[i]), y = amount(b[i]);
+        final row = sheet.rows.length;
+        sheet.addRow([
+          XlsxCell.text('    $name', _cell),
+          x == null ? XlsxCell.empty(money) : XlsxCell.number(x / 100, money),
+          y == null ? XlsxCell.empty(money) : XlsxCell.number(y / 100, money),
+          change(row, money, (y ?? 0) - (x ?? 0)),
+        ]);
+      }
+    }
+    final total = sheet.rows.length;
+    String plus(int c) => sectionRows.map((r) => xlsxRef(c, r)).join('+');
+    final ta = a.fold(0, (s, x) => s + x.total);
+    final tb = b.fold(0, (s, x) => s + x.total);
+    sheet.addRow([
+      XlsxCell.text(totalName, _total),
+      XlsxCell(XlsxFormula(plus(1), ta / 100), totalMoney),
+      XlsxCell(XlsxFormula(plus(2), tb / 100), totalMoney),
+      change(total, totalMoney, tb - ta),
+    ]);
+    sheet.addRow([]);
+    return total;
+  }
+
+  final assets = side(
+    'Актив — что есть',
+    'Итого актив',
+    start.assets,
+    end.assets,
+  );
+  final liabilities = side(
+    'Пассив — что должны',
+    'Итого пассив',
+    start.liabilities,
+    end.liabilities,
+  );
+  final r = sheet.rows.length;
+  String diff(int c) => '${xlsxRef(c, assets)}-${xlsxRef(c, liabilities)}';
+  sheet.addRow([
+    XlsxCell.text('Капитал (актив − пассив)', _total),
+    XlsxCell(XlsxFormula(diff(1), start.equity / 100), totalMoney),
+    XlsxCell(XlsxFormula(diff(2), end.equity / 100), totalMoney),
+    change(r, totalMoney, end.equity - start.equity),
+  ]);
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text(
+      'Имущество — по справочной стоимости, без стада и запасов кормов.',
+      _note,
+    ),
+  ]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+  sheet.columnWidths[0] = 44;
+  for (var c = 1; c <= 3; c++) {
+    sheet.columnWidths[c] = 18;
+  }
+  sheet.frozenRows = 4;
+  return book;
+}
