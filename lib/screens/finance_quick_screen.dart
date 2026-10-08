@@ -266,7 +266,7 @@ class _FinanceQuickScreenState extends State<FinanceQuickScreen> {
                     icon: Icons.search,
                     items: categories,
                     nameOf: (c) => c.name,
-                    detailOf: (c) => c.group,
+                    detailOf: fin.groupName,
                     selected: categories
                         .where((c) => c.id == _categoryId)
                         .firstOrNull,

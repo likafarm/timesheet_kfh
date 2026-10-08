@@ -68,6 +68,7 @@ const _entity = {
   'fin_allocation_periods': 'доли ключа распределения',
   'fin_accounts': 'кошелёк',
   'fin_assets': 'имущество',
+  'fin_category_groups': 'группа статей',
   'fin_categories': 'статья',
   'counterparties': 'контрагент',
   'fin_debts': 'займ',
@@ -225,6 +226,7 @@ AuditView describeAudit(AuditEntry e) {
         'fin_operations' => _operation(data),
         'fin_accounts' ||
         'fin_assets' ||
+        'fin_category_groups' ||
         'fin_categories' ||
         'counterparties' ||
         'fin_directions' ||

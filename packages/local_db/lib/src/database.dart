@@ -36,7 +36,7 @@ String newUuid() => _uuid.v7();
 /// Версия схемы drift начинается с 1: это новый файл
 /// (`kfx_time_tracking_v2.db`), старая база v8 в него переносится
 /// конвертером, а не миграцией. Схема 2 (этап 8) — финансы, схема 3 —
-/// корректировки начисления за месяц. Снимки схем —
+/// корректировки начисления за месяц, схема 4 — группы статей. Снимки схем —
 /// `drift_schemas/`, помощник шагов — `schema_versions.dart`
 /// (`drift_dev schema steps`); миграции только добавляют.
 @DriftDatabase(
@@ -64,6 +64,8 @@ String newUuid() => _uuid.v7();
     FinPayrollMapping,
     // Корректировки начисления (схема 3)
     PayrollAdjustments,
+    // Группы статей (схема 4)
+    FinCategoryGroups,
   ],
   daos: [
     EmployeesDao,
@@ -90,7 +92,7 @@ class LocalDatabase extends _$LocalDatabase {
   String? _deviceId;
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// Текущий момент в UTC — для `updated_at`.
   DateTime nowUtc() => _clock().toUtc();
@@ -154,6 +156,13 @@ class LocalDatabase extends _$LocalDatabase {
         await m.createTable(schema.payrollAdjustments);
         await m.createIndex(schema.idxPayrollAdjustmentsMonth);
         await m.createIndex(schema.idxPayrollAdjustmentsEmployee);
+      },
+      from3To4: (m, schema) async {
+        // Группы статей: новая таблица и колонка-ссылка у статьи (null —
+        // группа по названию, как в схеме 3).
+        await m.createTable(schema.finCategoryGroups);
+        await m.createIndex(schema.idxFinCategoryGroupsName);
+        await m.addColumn(schema.finCategories, schema.finCategories.groupUuid);
       },
     ),
     beforeOpen: (details) async {

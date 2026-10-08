@@ -12,6 +12,8 @@ mixin _$FinanceDaoMixin on DatabaseAccessor<LocalDatabase> {
   $EmployeesTable get employees => attachedDatabase.employees;
   $FinAccountsTable get finAccounts => attachedDatabase.finAccounts;
   $FinAssetsTable get finAssets => attachedDatabase.finAssets;
+  $FinCategoryGroupsTable get finCategoryGroups =>
+      attachedDatabase.finCategoryGroups;
   $FinCategoriesTable get finCategories => attachedDatabase.finCategories;
   $CounterpartiesTable get counterparties => attachedDatabase.counterparties;
   $FinDebtsTable get finDebts => attachedDatabase.finDebts;
@@ -42,6 +44,11 @@ class FinanceDaoManager {
       $$FinAccountsTableTableManager(_db.attachedDatabase, _db.finAccounts);
   $$FinAssetsTableTableManager get finAssets =>
       $$FinAssetsTableTableManager(_db.attachedDatabase, _db.finAssets);
+  $$FinCategoryGroupsTableTableManager get finCategoryGroups =>
+      $$FinCategoryGroupsTableTableManager(
+        _db.attachedDatabase,
+        _db.finCategoryGroups,
+      );
   $$FinCategoriesTableTableManager get finCategories =>
       $$FinCategoriesTableTableManager(_db.attachedDatabase, _db.finCategories);
   $$CounterpartiesTableTableManager get counterparties =>

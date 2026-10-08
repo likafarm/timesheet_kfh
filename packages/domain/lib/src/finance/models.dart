@@ -174,11 +174,40 @@ enum CategoryKind {
       values.firstWhere((v) => v.code == code);
 }
 
+/// Группа статей (справочник): «01. Скот», «03. Персонал»… Только для
+/// статей своего вида (доход или расход); порядок групп в списках и
+/// отчётах — [sortOrder].
+class FinCategoryGroup {
+  final String id;
+  final CategoryType type;
+  final String name;
+  final int sortOrder;
+
+  /// Скрытая группа не предлагается для новых статей.
+  final bool hidden;
+
+  const FinCategoryGroup({
+    required this.id,
+    required this.type,
+    required this.name,
+    this.sortOrder = 0,
+    this.hidden = false,
+  });
+}
+
 /// Статья: что купили или за что получили. Каждая статья — один раз;
 /// «на что пошло» — направление (по умолчанию — у статьи).
 class FinCategory {
   final String id;
   final CategoryType type;
+
+  /// Группа из справочника ([FinCategoryGroup]); null — запись старой
+  /// программы, группа — по названию [group] (`FinanceCatalog.groupOf`).
+  final String? groupId;
+
+  /// Название группы — копия из справочника для программ до 1.19 (они
+  /// знают группу только текстом). Переименование группы переносит его в
+  /// статьи.
   final String group;
   final String name;
   final String? directionId;
@@ -191,6 +220,7 @@ class FinCategory {
   const FinCategory({
     required this.id,
     required this.type,
+    this.groupId,
     required this.group,
     required this.name,
     this.directionId,

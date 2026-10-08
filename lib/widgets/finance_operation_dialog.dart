@@ -243,7 +243,7 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
       icon: Icons.category_outlined,
       items: items,
       nameOf: (c) => c.name,
-      detailOf: (c) => c.group,
+      detailOf: fin.groupName,
       selected: items.where((c) => c.id == _categoryId).firstOrNull,
       onSelected: (c) => setState(() => _categoryId = c?.id),
     );

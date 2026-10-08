@@ -90,6 +90,20 @@ class FinAssets extends Table with SyncColumns {
   TextColumn get notes => text().nullable()();
 }
 
+/// Группы статей (схема 4).
+@DataClassName('FinCategoryGroupRow')
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_fin_category_groups_name '
+  'ON fin_category_groups (type, name) WHERE deleted = 0',
+)
+class FinCategoryGroups extends Table with SyncColumns {
+  /// `CategoryType.code`
+  TextColumn get type => text()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get hidden => boolean().withDefault(const Constant(false))();
+}
+
 @DataClassName('FinCategoryRow')
 @TableIndex.sql(
   'CREATE UNIQUE INDEX idx_fin_categories_name '
@@ -98,6 +112,8 @@ class FinAssets extends Table with SyncColumns {
 class FinCategories extends Table with SyncColumns {
   /// `CategoryType.code`
   TextColumn get type => text()();
+
+  /// Название группы — копия для программ 1.18 (ссылка — [groupUuid]).
   TextColumn get groupName => text()();
   TextColumn get name => text()();
   TextColumn get directionUuid => text().nullable().references(
@@ -116,6 +132,14 @@ class FinCategories extends Table with SyncColumns {
   BoolColumn get inTaxBook => boolean().withDefault(const Constant(true))();
   BoolColumn get hidden => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// Группа из справочника (схема 4); null — запись программы 1.18, группа
+  /// ищется по названию.
+  TextColumn get groupUuid => text().nullable().references(
+    FinCategoryGroups,
+    #uuid,
+    initiallyDeferred: true,
+  )();
 }
 
 @DataClassName('CounterpartyRow')

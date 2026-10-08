@@ -131,6 +131,7 @@ abstract interface class FinanceRepository {
   Future<List<AllocationKey>> allocationKeys();
   Future<List<Asset>> assets();
   Future<List<FinCategory>> categories();
+  Future<List<FinCategoryGroup>> categoryGroups();
   Future<List<Counterparty>> counterparties();
   Future<List<FinDebt>> debts();
 
@@ -140,6 +141,10 @@ abstract interface class FinanceRepository {
   Future<void> saveAllocationKey(AllocationKey key);
   Future<void> saveAsset(Asset asset);
   Future<void> saveCategory(FinCategory category);
+
+  /// Группа статей; переименование переносит название в её статьи (одной
+  /// транзакцией).
+  Future<void> saveCategoryGroup(FinCategoryGroup group);
   Future<void> saveCounterparty(Counterparty counterparty);
   Future<void> saveDebt(FinDebt debt);
 
@@ -152,6 +157,7 @@ abstract interface class FinanceRepository {
   Future<void> deleteAccount(String id);
   Future<void> deleteAsset(String id);
   Future<void> deleteCategory(String id);
+  Future<void> deleteCategoryGroup(String id);
   Future<void> deleteCounterparty(String id);
   Future<void> deleteDebt(String id);
   Future<void> deleteAllocationKey(String id);

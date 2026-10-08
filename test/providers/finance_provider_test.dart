@@ -335,4 +335,93 @@ void main() {
     expect(fin.counterpartyLabel(payroll), 'Иванов Иван');
     expect(fin.whatLabel(payroll), 'Рабочие');
   });
+
+  test(
+    'группы статей: статья только с группой своего вида, переименование, удаление',
+    () async {
+      const staff = FinCategoryGroup(
+        id: 'g-staff',
+        type: CategoryType.expense,
+        name: '03. Персонал',
+      );
+      expect(await fin.saveCategoryGroup(staff), isTrue);
+
+      FinCategory cat(
+        String? groupId, {
+        CategoryType type = CategoryType.expense,
+      }) => FinCategory(
+        id: 'c-new',
+        type: type,
+        groupId: groupId,
+        group: '03. Персонал',
+        name: 'Механизаторы',
+        directionId: herd,
+      );
+      expect(await fin.saveCategory(cat(null)), isFalse);
+      expect(app.takeNotice(), contains('Выберите группу'));
+      expect(
+        await fin.saveCategory(cat('g-staff', type: CategoryType.income)),
+        isFalse,
+      );
+      expect(app.takeNotice(), contains('для расходов'));
+      expect(await fin.saveCategory(cat('g-staff')), isTrue);
+      expect(fin.groupUsages('g-staff'), 1);
+
+      // Переименование — новое название у статьи; вид не сменить, пока есть статьи.
+      expect(
+        await fin.saveCategoryGroup(
+          const FinCategoryGroup(
+            id: 'g-staff',
+            type: CategoryType.expense,
+            name: '03. Люди',
+          ),
+          before: staff,
+        ),
+        isTrue,
+      );
+      final renamed = fin.categories.firstWhere((c) => c.id == 'c-new');
+      expect(renamed.group, '03. Люди');
+      expect(fin.groupName(renamed), '03. Люди');
+      expect(
+        await fin.saveCategoryGroup(
+          const FinCategoryGroup(
+            id: 'g-staff',
+            type: CategoryType.income,
+            name: '03. Люди',
+          ),
+          before: staff,
+        ),
+        isFalse,
+      );
+      expect(app.takeNotice(), contains('сменить доход/расход нельзя'));
+
+      expect(
+        await fin.deleteCatalogItem('fin_category_groups', 'g-staff'),
+        isFalse,
+      );
+      expect(app.takeNotice(), contains('используется'));
+      expect(await fin.deleteCatalogItem('fin_categories', 'c-new'), isTrue);
+      expect(
+        await fin.deleteCatalogItem('fin_category_groups', 'g-staff'),
+        isTrue,
+      );
+      expect(fin.categoryGroups, isEmpty);
+    },
+  );
+
+  test('статья старой программы — группа по названию', () async {
+    await DriftRepositories(db).finance.saveCategoryGroup(
+      const FinCategoryGroup(
+        id: 'g-04',
+        type: CategoryType.expense,
+        name: '04',
+      ),
+    );
+    await fin.load();
+    // Статья «ГСМ» заведена с текстом группы «04» без ссылки.
+    final fuelCat = fin.categories.firstWhere((c) => c.id == fuel);
+    expect(fuelCat.groupId, isNull);
+    expect(fin.catalog.groupOf(fuelCat)?.id, 'g-04');
+    expect(fin.groupUsages('g-04'), 1);
+  });
 }

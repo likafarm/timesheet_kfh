@@ -78,6 +78,7 @@ class FinanceProvider extends ChangeNotifier {
   List<AllocationKey> _keys = const [];
   List<Asset> _assets = const [];
   List<FinCategory> _categories = const [];
+  List<FinCategoryGroup> _groups = const [];
   List<Counterparty> _counterparties = const [];
   List<FinDebt> _debts = const [];
   PayrollFinanceMapping? _mapping;
@@ -91,6 +92,7 @@ class FinanceProvider extends ChangeNotifier {
   List<AllocationKey> get allocationKeys => _keys;
   List<Asset> get assets => _assets;
   List<FinCategory> get categories => _categories;
+  List<FinCategoryGroup> get categoryGroups => _groups;
   List<Counterparty> get counterparties => _counterparties;
   List<FinDebt> get debts => _debts;
   PayrollFinanceMapping? get payrollMapping => _mapping;
@@ -133,6 +135,7 @@ class FinanceProvider extends ChangeNotifier {
       _keys = await _repo.allocationKeys();
       _assets = await _repo.assets();
       _categories = await _repo.categories();
+      _groups = await _repo.categoryGroups();
       _counterparties = await _repo.counterparties();
       _debts = await _repo.debts();
       _mapping = await _repo.payrollMapping();
@@ -151,6 +154,7 @@ class FinanceProvider extends ChangeNotifier {
         keys: _keys,
         assets: _assets,
         categories: _categories,
+        groups: _groups,
         counterparties: _counterparties,
         debts: _debts,
       );
@@ -243,12 +247,18 @@ class FinanceProvider extends ChangeNotifier {
     final type = r.difference > 0 ? CategoryType.income : CategoryType.expense;
     var category = reconciliationCategory(_catalog, type);
     if (category == null) {
+      final group = await _groupNamed(
+        type,
+        type == CategoryType.income
+            ? '3. Прочие поступления'
+            : '08. Управление',
+      );
+      if (group == null) return false;
       category = FinCategory(
         id: newId(),
         type: type,
-        group: type == CategoryType.income
-            ? '3. Прочие поступления'
-            : '08. Управление',
+        groupId: group.id,
+        group: group.name,
         name: type == CategoryType.income
             ? reconciliationSurplusCategory
             : reconciliationShortageCategory,
@@ -324,6 +334,9 @@ class FinanceProvider extends ChangeNotifier {
 
   String accountName(String? id) => _catalog.accounts[id]?.name ?? '—';
   String categoryName(String? id) => _catalog.categories[id]?.name ?? '—';
+
+  /// Название группы статьи: из справочника, иначе — текст записи 1.18.
+  String groupName(FinCategory c) => _catalog.groupOf(c)?.name ?? c.group;
   String counterpartyName(String? id) =>
       _catalog.counterparties[id]?.name ?? '';
 
@@ -457,9 +470,50 @@ class FinanceProvider extends ChangeNotifier {
     return _write(() => _repo.saveAccount(a));
   }
 
+  /// Группа вида [type] с названием [name] (нет — заводится); null — не
+  /// записано.
+  Future<FinCategoryGroup?> _groupNamed(CategoryType type, String name) async {
+    for (final g in _catalog.groupsOf(type)) {
+      if (g.name == name) return g;
+    }
+    final group = FinCategoryGroup(
+      id: newId(),
+      type: type,
+      name: name,
+      sortOrder: _catalog.groupsOf(type).length + 1,
+    );
+    return await saveCategoryGroup(group) ? group : null;
+  }
+
+  Future<bool> saveCategoryGroup(
+    FinCategoryGroup g, {
+    FinCategoryGroup? before,
+  }) async {
+    if (!_allowed()) return false;
+    if (g.name.trim().isEmpty) return _refuse('У группы нет названия');
+    if (before != null && before.type != g.type && groupUsages(g.id) > 0) {
+      return _refuse(
+        'В группе есть статьи — сменить доход/расход нельзя. Перенесите '
+        'статьи в другую группу',
+      );
+    }
+    return _write(() => _repo.saveCategoryGroup(g));
+  }
+
+  /// Сколько статей в группе (по ссылке или, у записей 1.18, по названию).
+  int groupUsages(String groupId) =>
+      _categories.where((c) => _catalog.groupOf(c)?.id == groupId).length;
+
   Future<bool> saveCategory(FinCategory c) async {
     if (!_allowed()) return false;
     if (c.name.trim().isEmpty) return _refuse('У статьи нет названия');
+    final group = _catalog.groups[c.groupId];
+    if (group == null) return _refuse('Выберите группу статьи');
+    if (group.type != c.type) {
+      return _refuse(
+        'Группа «${group.name}» — для ${group.type == CategoryType.income ? 'доходов' : 'расходов'}',
+      );
+    }
     if (c.directionId != null && c.allocationKeyId != null) {
       return _refuse('Укажите направление или ключ — не оба сразу');
     }
@@ -555,6 +609,7 @@ class FinanceProvider extends ChangeNotifier {
     final used = switch (table) {
       'fin_accounts' => usages(accountId: id),
       'fin_categories' => usages(categoryId: id),
+      'fin_category_groups' => groupUsages(id),
       'counterparties' => usages(counterpartyId: id),
       'fin_allocation_keys' => usages(keyId: id),
       'fin_assets' => usages(assetId: id),
@@ -571,6 +626,7 @@ class FinanceProvider extends ChangeNotifier {
       () => switch (table) {
         'fin_accounts' => _repo.deleteAccount(id),
         'fin_categories' => _repo.deleteCategory(id),
+        'fin_category_groups' => _repo.deleteCategoryGroup(id),
         'counterparties' => _repo.deleteCounterparty(id),
         'fin_allocation_keys' => _repo.deleteAllocationKey(id),
         'fin_assets' => _repo.deleteAsset(id),

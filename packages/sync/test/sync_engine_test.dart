@@ -344,6 +344,137 @@ void main() {
     expect(a.sleeps, isEmpty);
     expect(await a.store.pendingCount(), 1);
   });
+
+  test(
+    'обновление программы: новая таблица догружается с нуля, курсор не трогается',
+    () async {
+      // Сервер завёл группу и привязал к ней статью, а программа без групп
+      // уже прошла курсором эти записи (таблицу групп она не спрашивала).
+      const g = '01920000-0000-7000-8000-0000000000aa';
+      const c = '01920000-0000-7000-8000-0000000000bb';
+      final at = DateTime.utc(2026, 10, 8, 9);
+      server.put(
+        SyncChange(
+          table: 'fin_category_groups',
+          uuid: g,
+          updatedAt: at,
+          deleted: false,
+          data: const {
+            'legacy_id': null,
+            'type': 'expense',
+            'name': '01. Скот',
+            'sort_order': 1,
+            'hidden': false,
+          },
+        ),
+      );
+      server.put(
+        SyncChange(
+          table: 'fin_categories',
+          uuid: c,
+          updatedAt: at,
+          deleted: false,
+          data: const {
+            'legacy_id': null,
+            'type': 'expense',
+            'group_uuid': g,
+            'group_name': '01. Скот',
+            'name': 'Коровы',
+            'direction_uuid': null,
+            'allocation_key_uuid': null,
+            'kind': 'current',
+            'in_tax_book': true,
+            'hidden': false,
+            'sort_order': 0,
+          },
+        ),
+      );
+      final old = {...allSyncTableNames}..remove('fin_category_groups');
+      final page = server.pull(await a.store.cursor(), 500, old);
+      await a.store.saveCursor(SyncCursor(page.cursor, page.epoch));
+      await a.store.savePulledTables(old);
+      expect(await a.repo.finance.categoryGroups(), isEmpty);
+
+      await a.sync();
+      expect((await a.repo.finance.categoryGroups()).single.id, g);
+      expect((await a.repo.finance.categories()).single.groupId, g);
+      expect(await a.store.pulledTables(), allSyncTableNames);
+      expect((await a.store.cursor()).seq, page.cursor);
+
+      // Второй раз — уже не догружает.
+      final before = server.pullCalls;
+      await a.sync();
+      expect(server.pullCalls - before, 1);
+    },
+  );
+
+  test('ссылка на запись со следующей страницы приёма — принимается', () async {
+    // Статья в журнале раньше своей группы (группу завели позже и статью
+    // перенесли в неё): сервер отдаёт статью уже со ссылкой.
+    const g = '01920000-0000-7000-8000-0000000000cc';
+    const c = '01920000-0000-7000-8000-0000000000dd';
+    final at = DateTime.utc(2026, 10, 8, 9);
+    server.put(
+      SyncChange(
+        table: 'fin_categories',
+        uuid: c,
+        updatedAt: at,
+        deleted: false,
+        data: const {
+          'legacy_id': null,
+          'type': 'expense',
+          'group_uuid': g,
+          'group_name': '02. Корма',
+          'name': 'Сено',
+          'direction_uuid': null,
+          'allocation_key_uuid': null,
+          'kind': 'current',
+          'in_tax_book': true,
+          'hidden': false,
+          'sort_order': 0,
+        },
+      ),
+    );
+    server.put(
+      SyncChange(
+        table: 'fin_category_groups',
+        uuid: g,
+        updatedAt: at,
+        deleted: false,
+        data: const {
+          'legacy_id': null,
+          'type': 'expense',
+          'name': '02. Корма',
+          'sort_order': 2,
+          'hidden': false,
+        },
+      ),
+    );
+    final fresh = Pc(
+      'pc-c',
+      server,
+      DateTime.utc(2026, 10, 8, 10),
+      pullLimit: 1,
+    );
+    addTearDown(fresh.db.close);
+    await fresh.store.markAllSynced();
+    await fresh.sync();
+    expect((await fresh.repo.finance.categories()).single.groupId, g);
+    expect(
+      await fresh.db.customSelect('PRAGMA foreign_key_check').get(),
+      isEmpty,
+    );
+    // Своя запись программы по-прежнему проверяется.
+    await expectLater(
+      fresh.db.customStatement(
+        "INSERT INTO fin_categories (uuid, type, group_name, name, kind, "
+        "in_tax_book, hidden, sort_order, updated_at, deleted, group_uuid) "
+        "VALUES ('x', 'expense', 'x', 'x', 'current', 1, 0, 0, "
+        "'2026-10-08T10:00:00.000Z', 0, 'нет-такой')",
+      ),
+      throwsA(anything),
+    );
+  });
 }
 
 class _Failing implements SyncTransport {

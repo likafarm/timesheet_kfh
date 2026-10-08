@@ -42,6 +42,11 @@ class SyncColumn {
   final num? min;
   final num? max;
 
+  /// Колонка появилась вместе с таблицей [since]: программа, которая этой
+  /// таблицы не знает (не спрашивает её в pull), колонку не получает и
+  /// присылает строку без неё (значит null). Только для nullable.
+  final String? since;
+
   const SyncColumn(
     this.name,
     this.type, {
@@ -50,6 +55,7 @@ class SyncColumn {
     this.allowed,
     this.min,
     this.max,
+    this.since,
   });
 }
 
@@ -322,12 +328,31 @@ const syncTables = <SyncTable>[
     ),
     _notes,
   ]),
+  // Группы статей (схема 4, программы 1.19+).
+  SyncTable(
+    'fin_category_groups',
+    unique: ['type', 'name'],
+    [
+      _legacyId,
+      SyncColumn('type', SyncType.text, allowed: {'income', 'expense'}),
+      SyncColumn('name', SyncType.text, maxLength: 255),
+      _sortOrder,
+      SyncColumn('hidden', SyncType.boolean),
+    ],
+  ),
   SyncTable(
     'fin_categories',
     unique: ['type', 'name'],
     [
       _legacyId,
       SyncColumn('type', SyncType.text, allowed: {'income', 'expense'}),
+      // Ссылка на группу; `group_name` — копия названия для программ 1.18.
+      SyncColumn(
+        'group_uuid',
+        SyncType.uuid,
+        nullable: true,
+        since: 'fin_category_groups',
+      ),
       SyncColumn('group_name', SyncType.text, maxLength: 255),
       SyncColumn('name', SyncType.text, maxLength: 255),
       SyncColumn('direction_uuid', SyncType.uuid, nullable: true),
@@ -446,6 +471,36 @@ const legacySyncTableNames = <String>{
   'vacation',
   'payroll_results',
 };
+
+/// Колонки [table], которых не знает программа, спросившая только таблицы
+/// [tables] ([SyncColumn.since]): их не отдают ей в pull.
+Set<String> unknownColumnsFor(SyncTable table, Set<String> tables) => {
+  for (final c in table.columns)
+    if (c.since != null && !tables.contains(c.since)) c.name,
+};
+
+/// Таблицы, которые база должна принять с сервера с нуля (не трогая
+/// курсор): программа обновилась и знает таблицы, которых раньше не
+/// получала, — пока их не было в запросе, курсор ушёл дальше их записей.
+/// Вместе с новой таблицей — таблицы с колонками, появившимися вместе с ней
+/// ([SyncColumn.since]: прежде сервер отдавал строки без них).
+///
+/// [known] — таблицы, которые база уже получает; null — не записано (база
+/// программы до 1.19): тогда «новые» — те, с которыми появились колонки.
+Set<String> tablesToCatchUp(Set<String>? known, Set<String> all) {
+  final since = {
+    for (final t in syncTables)
+      for (final c in t.columns) ?c.since,
+  };
+  final missing = all.difference(known ?? all.difference(since));
+  return {
+    ...missing,
+    for (final t in syncTables)
+      if (all.contains(t.name) &&
+          t.columns.any((c) => c.since != null && missing.contains(c.since)))
+        t.name,
+  };
+}
 
 /// Таблица по имени или null (имя пришло от клиента — не доверяем).
 SyncTable? syncTableByName(String name) {

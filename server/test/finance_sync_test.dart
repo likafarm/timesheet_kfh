@@ -466,4 +466,136 @@ void main() {
       isNull,
     );
   }, skip: mysqlSkip);
+
+  group('группы статей (сервер 0.10.0)', () {
+    final oldTables = {...all}..remove('fin_category_groups');
+
+    Map<String, dynamic> latest(
+      List<Map<String, dynamic>> changes,
+      String table,
+      String id,
+    ) => changes.lastWhere((c) => c['table'] == table && c['uuid'] == id);
+
+    test(
+      'статья программы 1.18: группа заводится сама, колонка ей не отдаётся',
+      () async {
+        final (dir, _, _, fuel) = await catalog();
+        final parts = uuid();
+        expect(
+          statuses(await push([category(parts, 'Запчасти', dir)])),
+          ['applied'],
+        );
+        final groups = [
+          for (final c in await pull(tables: all))
+            if (c['table'] == 'fin_category_groups') c,
+        ];
+        expect(groups, hasLength(1), reason: 'одна группа на две статьи');
+        final group = groups.single;
+        expect(group['data']['name'], '04. Техника и транспорт');
+        expect(group['data']['sort_order'], 4, reason: 'номер из названия');
+        final full = await pull(tables: all);
+        for (final id in [fuel, parts]) {
+          expect(
+            latest(full, 'fin_categories', id)['data']['group_uuid'],
+            group['uuid'],
+          );
+        }
+
+        final legacy = await pull(tables: oldTables);
+        expect(
+          legacy.map((c) => c['table']),
+          isNot(contains('fin_category_groups')),
+        );
+        final data =
+            latest(legacy, 'fin_categories', fuel)['data'] as Map;
+        expect(data.containsKey('group_uuid'), isFalse);
+        expect(data['group_name'], '04. Техника и транспорт');
+        // Программа 1.18 сама проверяет строку тем же правилом — без колонки
+        // она её примет.
+        expect(
+          () => validateSyncData(syncTableByName('fin_categories')!, {
+            ...data.cast<String, Object?>(),
+          }),
+          returnsNormally,
+        );
+      },
+      skip: mysqlSkip,
+    );
+
+    test('повтор отправки 1.18 — «duplicate», а не «stale»', () async {
+      final dir = uuid();
+      await push([direction(dir, 'Животноводство')]);
+      final c = category(uuid(), 'ГСМ', dir);
+      expect(statuses(await push([c])), ['applied']);
+      expect(statuses(await push([c])), ['duplicate']);
+    }, skip: mysqlSkip);
+
+    test('новая программа: группа и статья со ссылкой; чужой вид — отказ', () async {
+      final dir = uuid(), g = uuid(), gIncome = uuid(), c = uuid();
+      Map<String, Object?> grp(String id, String type, String name) =>
+          row('fin_category_groups', id, {
+            'type': type,
+            'name': name,
+            'sort_order': 7,
+            'hidden': false,
+          });
+      Map<String, Object?> cat(String id, String groupId) =>
+          row('fin_categories', id, {
+            'type': 'expense',
+            'group_uuid': groupId,
+            'group_name': 'Своя группа',
+            'name': 'Сено',
+            'direction_uuid': dir,
+            'allocation_key_uuid': null,
+            'kind': 'current',
+            'in_tax_book': true,
+            'hidden': false,
+            'sort_order': 0,
+          });
+      final results = await push([
+        cat(c, g),
+        grp(g, 'expense', 'Своя группа'),
+        grp(gIncome, 'income', 'Доходы'),
+        direction(dir, 'Корма'),
+      ]);
+      expect(statuses(results), everyElement('applied'), reason: '$results');
+      final full = await pull(tables: all);
+      expect(latest(full, 'fin_categories', c)['data']['group_uuid'], g);
+      expect(
+        full.where((x) => x['table'] == 'fin_category_groups'),
+        hasLength(2),
+        reason: 'лишняя группа не заведена',
+      );
+
+      final wrong = await push([cat(uuid(), gIncome)]);
+      expect(wrong.single['status'], 'rejected');
+      expect(wrong.single['code'], 'invalid');
+    }, skip: mysqlSkip);
+
+    test('запуск сервера привязывает статьи без группы', () async {
+      final (_, _, _, fuel) = await catalog();
+      await testDb.db.execute(
+        'UPDATE fin_categories SET group_uuid = NULL WHERE uuid = :u',
+        {'u': fuel},
+      );
+      final linked = await testDb.db.transaction((conn) async {
+        await const ChangeLog().lock(conn.execute);
+        return CategoryGroups().linkAll(conn.execute);
+      });
+      expect(linked, 1);
+      final r = await testDb.db.execute(
+        'SELECT c.group_uuid AS g, c.edited_by AS e, g.name AS n '
+        'FROM fin_categories c JOIN fin_category_groups g '
+        'ON g.uuid = c.group_uuid WHERE c.uuid = :u',
+        {'u': fuel},
+      );
+      expect(r.rows.single.text('e'), 'server');
+      expect(r.rows.single.text('n'), '04. Техника и транспорт');
+      final again = await testDb.db.transaction((conn) async {
+        await const ChangeLog().lock(conn.execute);
+        return CategoryGroups().linkAll(conn.execute);
+      });
+      expect(again, 0);
+    }, skip: mysqlSkip);
+  });
 }

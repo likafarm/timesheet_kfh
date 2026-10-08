@@ -139,6 +139,67 @@ void main() {
     await db.close();
   });
 
+  test('3 → 4: схема совпадает со свежей схемой 4', () async {
+    final connection = await verifier.startAt(3);
+    final db = LocalDatabase(connection);
+    await verifier.migrateAndValidate(db, 4);
+    await db.close();
+  });
+
+  test('3 → 4: статьи на месте, группа — по названию, затем ссылкой', () async {
+    final schema = await verifier.schemaAt(3);
+    final raw = schema.rawDatabase;
+    const now = '2026-10-08T10:00:00.000Z';
+    raw.execute(
+      "INSERT INTO sync_state (key, value) VALUES ('device_id', 'dev-1')",
+    );
+    raw.execute(
+      'INSERT INTO company_settings (uuid, updated_at, deleted) '
+      "VALUES ('00000000-0000-0000-0000-000000000001', '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO fin_categories (uuid, type, group_name, name, kind, '
+      'in_tax_book, hidden, sort_order, updated_at, deleted) '
+      "VALUES ('c1', 'expense', '01. Скот', 'Коровы', 'current', 1, 0, 0, "
+      "'$now', 0)",
+    );
+
+    final db = LocalDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 4);
+    final f = DriftRepositories(db).finance;
+    final before = (await f.categories()).single;
+    expect(before.groupId, isNull);
+    expect(before.group, '01. Скот');
+
+    // Группа с тем же названием — статья находит её по названию.
+    const cattle = FinCategoryGroup(
+      id: 'g1',
+      type: CategoryType.expense,
+      name: '01. Скот',
+    );
+    await f.saveCategoryGroup(cattle);
+    final catalog = FinanceCatalog(
+      categories: await f.categories(),
+      groups: await f.categoryGroups(),
+    );
+    expect(catalog.groupOf(catalog.categories['c1']!)?.id, 'g1');
+
+    // Переименование — копия названия и ссылка у статьи.
+    await f.saveCategoryGroup(
+      const FinCategoryGroup(
+        id: 'g1',
+        type: CategoryType.expense,
+        name: '01. Скот и молодняк',
+      ),
+    );
+    final after = (await f.categories()).single;
+    expect(after.groupId, 'g1');
+    expect(after.group, '01. Скот и молодняк');
+    final fk = await db.customSelect('PRAGMA foreign_key_check').get();
+    expect(fk, isEmpty);
+    await db.close();
+  });
+
   group('копия перед обновлением схемы', () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('kfh_upgrade_'));

@@ -226,6 +226,66 @@ class DriftFinanceRepository implements FinanceRepository {
   Future<void> deleteAsset(String id) =>
       _db.financeDao.softDelete(_db.finAssets, id);
 
+  // --- Группы статей ------------------------------------------------------
+
+  @override
+  Future<List<FinCategoryGroup>> categoryGroups() async => [
+    for (final r in await _db.financeDao.allCategoryGroups())
+      FinCategoryGroup(
+        id: r.uuid,
+        type: CategoryType.fromCode(r.type),
+        name: r.name,
+        sortOrder: r.sortOrder,
+        hidden: r.hidden,
+      ),
+  ];
+
+  @override
+  Future<void> saveCategoryGroup(FinCategoryGroup g) async {
+    final dao = _db.financeDao;
+    await _db.transaction(() async {
+      final before = await dao.categoryGroupByUuid(g.id);
+      await dao.saveRow(
+        _db.finCategoryGroups,
+        g.id,
+        (now, editor, isNew) => FinCategoryGroupsCompanion(
+          uuid: Value(g.id),
+          type: Value(g.type.code),
+          name: Value(g.name),
+          sortOrder: Value(g.sortOrder),
+          hidden: Value(g.hidden),
+          deleted: const Value(false),
+          updatedAt: Value(now),
+          editedBy: Value(editor),
+        ),
+      );
+      if (before == null || before.name == g.name) return;
+      // Переименование: название-копия у статей группы (программы 1.18
+      // видят группу только им); статьи 1.18 заодно получают ссылку.
+      for (final c in await dao.categoriesOfGroup(
+        g.id,
+        before.type,
+        before.name,
+      )) {
+        await dao.saveRow(
+          _db.finCategories,
+          c.uuid,
+          (now, editor, isNew) => FinCategoriesCompanion(
+            uuid: Value(c.uuid),
+            groupUuid: Value(g.id),
+            groupName: Value(g.name),
+            updatedAt: Value(now),
+            editedBy: Value(editor),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> deleteCategoryGroup(String id) =>
+      _db.financeDao.softDelete(_db.finCategoryGroups, id);
+
   // --- Статьи -------------------------------------------------------------
 
   @override
@@ -234,6 +294,7 @@ class DriftFinanceRepository implements FinanceRepository {
       FinCategory(
         id: r.uuid,
         type: CategoryType.fromCode(r.type),
+        groupId: r.groupUuid,
         group: r.groupName,
         name: r.name,
         directionId: r.directionUuid,
@@ -252,6 +313,7 @@ class DriftFinanceRepository implements FinanceRepository {
     (now, editor, isNew) => FinCategoriesCompanion(
       uuid: Value(c.id),
       type: Value(c.type.code),
+      groupUuid: Value(c.groupId),
       groupName: Value(c.group),
       name: Value(c.name),
       directionUuid: Value(c.directionId),

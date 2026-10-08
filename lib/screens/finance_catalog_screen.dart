@@ -1,7 +1,8 @@
 // lib/screens/finance_catalog_screen.dart
 //
 // Справочники финансов и займы (8.5.4): кошельки и займы с остатками,
-// статьи, контрагенты, имущество, направления и ключ распределения.
+// статьи (по группам) и группы статей, контрагенты, имущество, направления
+// и ключ распределения.
 // Удалить можно только неиспользуемую запись — кошелёк закрывают, статью
 // скрывают.
 
@@ -13,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../providers/finance_provider.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/choice_buttons.dart';
+import '../widgets/common_widgets.dart';
 import '../widgets/finance_operation_dialog.dart';
 
 class FinanceCatalogScreen extends StatelessWidget {
@@ -22,6 +24,7 @@ class FinanceCatalogScreen extends StatelessWidget {
     'Кошельки',
     'Займы',
     'Статьи',
+    'Группы статей',
     'Контрагенты',
     'Имущество',
     'Направления',
@@ -53,6 +56,7 @@ class FinanceCatalogScreen extends StatelessWidget {
               _AccountsTab(fin),
               _DebtsTab(fin),
               _CategoriesTab(fin),
+              _GroupsTab(fin),
               _CounterpartiesTab(fin),
               _AssetsTab(fin),
               _DirectionsTab(fin),
@@ -71,8 +75,9 @@ class FinanceCatalogScreen extends StatelessWidget {
     0 => editAccount(context, fin),
     1 => editDebt(context, fin),
     2 => editCategory(context, fin),
-    3 => editCounterparty(context, fin),
-    4 => editAsset(context, fin),
+    3 => editCategoryGroup(context, fin),
+    4 => editCounterparty(context, fin),
+    5 => editAsset(context, fin),
     _ => editDirection(context, fin),
   };
 }
@@ -160,39 +165,111 @@ class _CategoriesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [...fin.categories]
-      ..sort((a, b) {
-        final t = a.type.index.compareTo(b.type.index);
-        if (t != 0) return t;
-        final g = a.group.compareTo(b.group);
-        return g != 0 ? g : a.name.compareTo(b.name);
-      });
+    // По группам справочника (в их порядке); статьи без группы в
+    // справочнике (записи старых программ) — по названию группы в конце.
+    final byGroup = <String, List<FinCategory>>{};
+    final loose = <String, List<FinCategory>>{};
+    for (final c in fin.categories) {
+      final g = fin.catalog.groupOf(c);
+      if (g != null) {
+        (byGroup[g.id] ??= []).add(c);
+      } else {
+        (loose['${c.type.index}|${c.group}'] ??= []).add(c);
+      }
+    }
+    int byName(FinCategory a, FinCategory b) {
+      final o = a.sortOrder.compareTo(b.sortOrder);
+      return o != 0 ? o : a.name.compareTo(b.name);
+    }
+
+    final sections = <(String, CategoryType, List<FinCategory>)>[
+      for (final type in [CategoryType.expense, CategoryType.income]) ...[
+        for (final g in fin.catalog.groupsOf(type))
+          if (byGroup[g.id] case final list?)
+            (g.name, type, list..sort(byName)),
+        for (final e in loose.entries)
+          if (e.value.first.type == type)
+            (
+              '${e.value.first.group} (нет в справочнике)',
+              type,
+              e.value..sort(byName),
+            ),
+      ],
+    ];
     return _list([
-      for (final c in items)
-        ListTile(
-          leading: Icon(
-            c.type == CategoryType.income
-                ? Icons.trending_up
-                : Icons.trending_down,
-            color: c.type == CategoryType.income
-                ? operationTypeColors[OperationType.income]
-                : operationTypeColors[OperationType.expense],
-          ),
-          title: Text(
-            c.name,
-            style: c.hidden ? const TextStyle(color: Colors.grey) : null,
-          ),
-          subtitle: Text(
-            [
-              c.group,
-              _target(fin, c.directionId, c.allocationKeyId),
-              if (c.kind != CategoryKind.current) c.kind.title,
-              if (c.hidden) 'скрыта',
-            ].where((p) => p.isNotEmpty).join(' · '),
-          ),
-          onTap: () => editCategory(context, fin, c),
-        ),
+      for (final (title, type, items) in sections) ...[
+        _groupHeader(context, title, type),
+        for (final c in items) _categoryTile(context, c),
+      ],
     ]);
+  }
+
+  Widget _groupHeader(BuildContext context, String title, CategoryType type) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: Text(
+          '$title · ${type == CategoryType.income ? 'доходы' : 'расходы'}',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      );
+
+  Widget _categoryTile(BuildContext context, FinCategory c) => ListTile(
+    leading: Icon(
+      c.type == CategoryType.income ? Icons.trending_up : Icons.trending_down,
+      color: c.type == CategoryType.income
+          ? operationTypeColors[OperationType.income]
+          : operationTypeColors[OperationType.expense],
+    ),
+    title: Text(
+      c.name,
+      style: c.hidden ? const TextStyle(color: Colors.grey) : null,
+    ),
+    subtitle: Text(
+      [
+        _target(fin, c.directionId, c.allocationKeyId),
+        if (c.kind != CategoryKind.current) c.kind.title,
+        if (c.hidden) 'скрыта',
+      ].where((p) => p.isNotEmpty).join(' · '),
+    ),
+    onTap: () => editCategory(context, fin, c),
+  );
+}
+
+class _GroupsTab extends StatelessWidget {
+  final FinanceProvider fin;
+  const _GroupsTab(this.fin);
+
+  @override
+  Widget build(BuildContext context) {
+    return _list([
+      for (final type in [CategoryType.expense, CategoryType.income])
+        for (final g in fin.catalog.groupsOf(type))
+          ListTile(
+            leading: Icon(
+              type == CategoryType.income
+                  ? Icons.trending_up
+                  : Icons.trending_down,
+              color: type == CategoryType.income
+                  ? operationTypeColors[OperationType.income]
+                  : operationTypeColors[OperationType.expense],
+            ),
+            title: Text(
+              g.name,
+              style: g.hidden ? const TextStyle(color: Colors.grey) : null,
+            ),
+            subtitle: Text(
+              [
+                type == CategoryType.income ? 'доходы' : 'расходы',
+                'статей: ${fin.groupUsages(g.id)}',
+                'порядок ${g.sortOrder}',
+                if (g.hidden) 'скрыта',
+              ].join(' · '),
+            ),
+            onTap: () => editCategoryGroup(context, fin, g),
+          ),
+    ], empty: 'Групп нет');
   }
 }
 
@@ -654,8 +731,8 @@ Future<void> editCategory(
   FinCategory? c,
 ]) async {
   final name = TextEditingController(text: c?.name ?? '');
-  final group = TextEditingController(text: c?.group ?? '');
   var type = c?.type ?? CategoryType.expense;
+  var groupId = c == null ? null : fin.catalog.groupOf(c)?.id;
   var kind = c?.kind ?? CategoryKind.current;
   var target = _TargetValue(c?.directionId, c?.allocationKeyId);
   var tax = c?.inTaxBook ?? true;
@@ -681,10 +758,33 @@ Future<void> editCategory(
             ),
           ],
           value: type,
-          onChanged: (v) => setState(() => type = v),
+          onChanged: (v) => setState(() {
+            type = v;
+            if (fin.catalog.groups[groupId]?.type != v) groupId = null;
+          }),
         ),
         _field(name, 'Название *'),
-        _field(group, 'Группа', hint: 'например, «04. ГСМ»'),
+        AppDropdown<String?>(
+          labelText: 'Группа *',
+          value: groupId,
+          items: [
+            for (final g in fin.catalog.groupsOf(type))
+              if (!g.hidden || g.id == groupId)
+                DropdownMenuItem(value: g.id, child: Text(g.name)),
+            const DropdownMenuItem(
+              value: _newGroup,
+              child: Text('+ Новая группа…'),
+            ),
+          ],
+          onChanged: (v) async {
+            if (v != _newGroup) {
+              setState(() => groupId = v);
+              return;
+            }
+            final created = await editCategoryGroup(context, fin, null, type);
+            setState(() => groupId = created?.id ?? groupId);
+          },
+        ),
         _targetChoice(
           fin,
           target,
@@ -717,7 +817,8 @@ Future<void> editCategory(
         FinCategory(
           id: c?.id ?? fin.newId(),
           type: type,
-          group: group.text.trim(),
+          groupId: groupId,
+          group: fin.catalog.groups[groupId]?.name ?? '',
           name: name.text.trim(),
           directionId: target.directionId,
           allocationKeyId: target.keyId,
@@ -732,6 +833,90 @@ Future<void> editCategory(
           : () => fin.deleteCatalogItem('fin_categories', c.id),
     ),
   );
+}
+
+/// Пункт «Новая группа…» в списке групп окна статьи.
+const _newGroup = '\u0000new';
+
+/// Окно группы статей; [type] — вид новой группы. Возвращает записанную
+/// группу (null — не записано или удалено).
+Future<FinCategoryGroup?> editCategoryGroup(
+  BuildContext context,
+  FinanceProvider fin, [
+  FinCategoryGroup? g,
+  CategoryType? type,
+]) async {
+  final name = TextEditingController(text: g?.name ?? '');
+  var kind = g?.type ?? type ?? CategoryType.expense;
+  final order = TextEditingController(
+    text: '${g?.sortOrder ?? fin.catalog.groupsOf(kind).length + 1}',
+  );
+  var hidden = g?.hidden ?? false;
+  final used = g == null ? 0 : fin.groupUsages(g.id);
+  FinCategoryGroup? saved;
+  await showAppDialog<bool>(
+    context: context,
+    builder: (context) => _EditDialog(
+      fin: fin,
+      title: g == null ? 'Новая группа статей' : 'Группа статей',
+      fields: (setState) => [
+        if (used == 0)
+          ChoiceGroup<CategoryType>(
+            label: 'Для статей',
+            options: [
+              ChoiceOption(
+                CategoryType.expense,
+                'Расход',
+                operationTypeColors[OperationType.expense]!,
+              ),
+              ChoiceOption(
+                CategoryType.income,
+                'Доход',
+                operationTypeColors[OperationType.income]!,
+              ),
+            ],
+            value: kind,
+            onChanged: (v) => setState(() => kind = v),
+          )
+        else
+          Text(
+            '${kind == CategoryType.income ? 'Доходы' : 'Расходы'} · '
+            'статей в группе: $used. Новое название перейдёт во все.',
+          ),
+        _field(name, 'Название *', hint: 'например, «04. Техника»'),
+        _field(
+          order,
+          'Порядок в списках',
+          keyboard: TextInputType.number,
+          hint: 'меньше — выше',
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Скрыта (не предлагать для новых статей)'),
+          value: hidden,
+          onChanged: (v) => setState(() => hidden = v),
+        ),
+      ],
+      save: () async {
+        final sortOrder = int.tryParse(order.text.trim());
+        if (sortOrder == null) return fin.reject('Порядок — целое число');
+        final group = FinCategoryGroup(
+          id: g?.id ?? fin.newId(),
+          type: kind,
+          name: name.text.trim(),
+          sortOrder: sortOrder,
+          hidden: hidden,
+        );
+        final ok = await fin.saveCategoryGroup(group, before: g);
+        if (ok) saved = group;
+        return ok;
+      },
+      delete: g == null
+          ? null
+          : () => fin.deleteCatalogItem('fin_category_groups', g.id),
+    ),
+  );
+  return saved;
 }
 
 Future<void> editCounterparty(

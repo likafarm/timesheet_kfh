@@ -11184,6 +11184,631 @@ class FinAssetsCompanion extends UpdateCompanion<FinAssetRow> {
   }
 }
 
+class $FinCategoryGroupsTable extends FinCategoryGroups
+    with TableInfo<$FinCategoryGroupsTable, FinCategoryGroupRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinCategoryGroupsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _hiddenMeta = const VerificationMeta('hidden');
+  @override
+  late final GeneratedColumn<bool> hidden = GeneratedColumn<bool>(
+    'hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    type,
+    name,
+    sortOrder,
+    hidden,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fin_category_groups';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinCategoryGroupRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('hidden')) {
+      context.handle(
+        _hiddenMeta,
+        hidden.isAcceptableOrUnknown(data['hidden']!, _hiddenMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  FinCategoryGroupRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinCategoryGroupRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      hidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hidden'],
+      )!,
+    );
+  }
+
+  @override
+  $FinCategoryGroupsTable createAlias(String alias) {
+    return $FinCategoryGroupsTable(attachedDatabase, alias);
+  }
+}
+
+class FinCategoryGroupRow extends DataClass
+    implements Insertable<FinCategoryGroupRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+
+  /// `CategoryType.code`
+  final String type;
+  final String name;
+  final int sortOrder;
+  final bool hidden;
+  const FinCategoryGroupRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.type,
+    required this.name,
+    required this.sortOrder,
+    required this.hidden,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['type'] = Variable<String>(type);
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['hidden'] = Variable<bool>(hidden);
+    return map;
+  }
+
+  FinCategoryGroupsCompanion toCompanion(bool nullToAbsent) {
+    return FinCategoryGroupsCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      type: Value(type),
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+      hidden: Value(hidden),
+    );
+  }
+
+  factory FinCategoryGroupRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinCategoryGroupRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      type: serializer.fromJson<String>(json['type']),
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      hidden: serializer.fromJson<bool>(json['hidden']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'type': serializer.toJson<String>(type),
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'hidden': serializer.toJson<bool>(hidden),
+    };
+  }
+
+  FinCategoryGroupRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? type,
+    String? name,
+    int? sortOrder,
+    bool? hidden,
+  }) => FinCategoryGroupRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    type: type ?? this.type,
+    name: name ?? this.name,
+    sortOrder: sortOrder ?? this.sortOrder,
+    hidden: hidden ?? this.hidden,
+  );
+  FinCategoryGroupRow copyWithCompanion(FinCategoryGroupsCompanion data) {
+    return FinCategoryGroupRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      type: data.type.present ? data.type.value : this.type,
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      hidden: data.hidden.present ? data.hidden.value : this.hidden,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinCategoryGroupRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('type: $type, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('hidden: $hidden')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    type,
+    name,
+    sortOrder,
+    hidden,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinCategoryGroupRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.type == this.type &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder &&
+          other.hidden == this.hidden);
+}
+
+class FinCategoryGroupsCompanion extends UpdateCompanion<FinCategoryGroupRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> type;
+  final Value<String> name;
+  final Value<int> sortOrder;
+  final Value<bool> hidden;
+  final Value<int> rowid;
+  const FinCategoryGroupsCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.type = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinCategoryGroupsCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String type,
+    required String name,
+    this.sortOrder = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       type = Value(type),
+       name = Value(name);
+  static Insertable<FinCategoryGroupRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? type,
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+    Expression<bool>? hidden,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (type != null) 'type': type,
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (hidden != null) 'hidden': hidden,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinCategoryGroupsCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? type,
+    Value<String>? name,
+    Value<int>? sortOrder,
+    Value<bool>? hidden,
+    Value<int>? rowid,
+  }) {
+    return FinCategoryGroupsCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      type: type ?? this.type,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+      hidden: hidden ?? this.hidden,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (hidden.present) {
+      map['hidden'] = Variable<bool>(hidden.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinCategoryGroupsCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('type: $type, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('hidden: $hidden, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $FinCategoriesTable extends FinCategories
     with TableInfo<$FinCategoriesTable, FinCategoryRow> {
   @override
@@ -11367,6 +11992,20 @@ class $FinCategoriesTable extends FinCategories
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _groupUuidMeta = const VerificationMeta(
+    'groupUuid',
+  );
+  @override
+  late final GeneratedColumn<String> groupUuid = GeneratedColumn<String>(
+    'group_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES fin_category_groups (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     uuid,
@@ -11384,6 +12023,7 @@ class $FinCategoriesTable extends FinCategories
     inTaxBook,
     hidden,
     sortOrder,
+    groupUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11506,6 +12146,12 @@ class $FinCategoriesTable extends FinCategories
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('group_uuid')) {
+      context.handle(
+        _groupUuidMeta,
+        groupUuid.isAcceptableOrUnknown(data['group_uuid']!, _groupUuidMeta),
+      );
+    }
     return context;
   }
 
@@ -11575,6 +12221,10 @@ class $FinCategoriesTable extends FinCategories
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      groupUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_uuid'],
+      ),
     );
   }
 
@@ -11600,6 +12250,8 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
 
   /// `CategoryType.code`
   final String type;
+
+  /// Название группы — копия для программ 1.18 (ссылка — [groupUuid]).
   final String groupName;
   final String name;
   final String? directionUuid;
@@ -11610,6 +12262,10 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
   final bool inTaxBook;
   final bool hidden;
   final int sortOrder;
+
+  /// Группа из справочника (схема 4); null — запись программы 1.18, группа
+  /// ищется по названию.
+  final String? groupUuid;
   const FinCategoryRow({
     required this.uuid,
     this.legacyId,
@@ -11626,6 +12282,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
     required this.inTaxBook,
     required this.hidden,
     required this.sortOrder,
+    this.groupUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11655,6 +12312,9 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
     map['in_tax_book'] = Variable<bool>(inTaxBook);
     map['hidden'] = Variable<bool>(hidden);
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || groupUuid != null) {
+      map['group_uuid'] = Variable<String>(groupUuid);
+    }
     return map;
   }
 
@@ -11685,6 +12345,9 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
       inTaxBook: Value(inTaxBook),
       hidden: Value(hidden),
       sortOrder: Value(sortOrder),
+      groupUuid: groupUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(groupUuid),
     );
   }
 
@@ -11711,6 +12374,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
       inTaxBook: serializer.fromJson<bool>(json['inTaxBook']),
       hidden: serializer.fromJson<bool>(json['hidden']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      groupUuid: serializer.fromJson<String?>(json['groupUuid']),
     );
   }
   @override
@@ -11732,6 +12396,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
       'inTaxBook': serializer.toJson<bool>(inTaxBook),
       'hidden': serializer.toJson<bool>(hidden),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'groupUuid': serializer.toJson<String?>(groupUuid),
     };
   }
 
@@ -11751,6 +12416,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
     bool? inTaxBook,
     bool? hidden,
     int? sortOrder,
+    Value<String?> groupUuid = const Value.absent(),
   }) => FinCategoryRow(
     uuid: uuid ?? this.uuid,
     legacyId: legacyId.present ? legacyId.value : this.legacyId,
@@ -11773,6 +12439,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
     inTaxBook: inTaxBook ?? this.inTaxBook,
     hidden: hidden ?? this.hidden,
     sortOrder: sortOrder ?? this.sortOrder,
+    groupUuid: groupUuid.present ? groupUuid.value : this.groupUuid,
   );
   FinCategoryRow copyWithCompanion(FinCategoriesCompanion data) {
     return FinCategoryRow(
@@ -11797,6 +12464,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
       inTaxBook: data.inTaxBook.present ? data.inTaxBook.value : this.inTaxBook,
       hidden: data.hidden.present ? data.hidden.value : this.hidden,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      groupUuid: data.groupUuid.present ? data.groupUuid.value : this.groupUuid,
     );
   }
 
@@ -11817,7 +12485,8 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
           ..write('kind: $kind, ')
           ..write('inTaxBook: $inTaxBook, ')
           ..write('hidden: $hidden, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('groupUuid: $groupUuid')
           ..write(')'))
         .toString();
   }
@@ -11839,6 +12508,7 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
     inTaxBook,
     hidden,
     sortOrder,
+    groupUuid,
   );
   @override
   bool operator ==(Object other) =>
@@ -11858,7 +12528,8 @@ class FinCategoryRow extends DataClass implements Insertable<FinCategoryRow> {
           other.kind == this.kind &&
           other.inTaxBook == this.inTaxBook &&
           other.hidden == this.hidden &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.groupUuid == this.groupUuid);
 }
 
 class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
@@ -11877,6 +12548,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
   final Value<bool> inTaxBook;
   final Value<bool> hidden;
   final Value<int> sortOrder;
+  final Value<String?> groupUuid;
   final Value<int> rowid;
   const FinCategoriesCompanion({
     this.uuid = const Value.absent(),
@@ -11894,6 +12566,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
     this.inTaxBook = const Value.absent(),
     this.hidden = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.groupUuid = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FinCategoriesCompanion.insert({
@@ -11912,6 +12585,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
     this.inTaxBook = const Value.absent(),
     this.hidden = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.groupUuid = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : uuid = Value(uuid),
        updatedAt = Value(updatedAt),
@@ -11934,6 +12608,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
     Expression<bool>? inTaxBook,
     Expression<bool>? hidden,
     Expression<int>? sortOrder,
+    Expression<String>? groupUuid,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -11952,6 +12627,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
       if (inTaxBook != null) 'in_tax_book': inTaxBook,
       if (hidden != null) 'hidden': hidden,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (groupUuid != null) 'group_uuid': groupUuid,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -11972,6 +12648,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
     Value<bool>? inTaxBook,
     Value<bool>? hidden,
     Value<int>? sortOrder,
+    Value<String?>? groupUuid,
     Value<int>? rowid,
   }) {
     return FinCategoriesCompanion(
@@ -11990,6 +12667,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
       inTaxBook: inTaxBook ?? this.inTaxBook,
       hidden: hidden ?? this.hidden,
       sortOrder: sortOrder ?? this.sortOrder,
+      groupUuid: groupUuid ?? this.groupUuid,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -12042,6 +12720,9 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (groupUuid.present) {
+      map['group_uuid'] = Variable<String>(groupUuid.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -12066,6 +12747,7 @@ class FinCategoriesCompanion extends UpdateCompanion<FinCategoryRow> {
           ..write('inTaxBook: $inTaxBook, ')
           ..write('hidden: $hidden, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('groupUuid: $groupUuid, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -16439,6 +17121,8 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
       $FinAllocationPeriodsTable(this);
   late final $FinAccountsTable finAccounts = $FinAccountsTable(this);
   late final $FinAssetsTable finAssets = $FinAssetsTable(this);
+  late final $FinCategoryGroupsTable finCategoryGroups =
+      $FinCategoryGroupsTable(this);
   late final $FinCategoriesTable finCategories = $FinCategoriesTable(this);
   late final $CounterpartiesTable counterparties = $CounterpartiesTable(this);
   late final $FinDebtsTable finDebts = $FinDebtsTable(this);
@@ -16535,6 +17219,10 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     'idx_payroll_adjustments_employee',
     'CREATE INDEX idx_payroll_adjustments_employee ON payroll_adjustments (employee_uuid)',
   );
+  late final Index idxFinCategoryGroupsName = Index(
+    'idx_fin_category_groups_name',
+    'CREATE UNIQUE INDEX idx_fin_category_groups_name ON fin_category_groups (type, name) WHERE deleted = 0',
+  );
   late final EmployeesDao employeesDao = EmployeesDao(this as LocalDatabase);
   late final RatesDao ratesDao = RatesDao(this as LocalDatabase);
   late final TimesheetDao timesheetDao = TimesheetDao(this as LocalDatabase);
@@ -16565,6 +17253,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     finAllocationPeriods,
     finAccounts,
     finAssets,
+    finCategoryGroups,
     finCategories,
     counterparties,
     finDebts,
@@ -16593,6 +17282,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     idxFinPayrollMappingUnique,
     idxPayrollAdjustmentsMonth,
     idxPayrollAdjustmentsEmployee,
+    idxFinCategoryGroupsName,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -24710,6 +25400,422 @@ typedef $$FinAssetsTableProcessedTableManager =
         bool finOperationsRefs,
       })
     >;
+typedef $$FinCategoryGroupsTableCreateCompanionBuilder =
+    FinCategoryGroupsCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String type,
+      required String name,
+      Value<int> sortOrder,
+      Value<bool> hidden,
+      Value<int> rowid,
+    });
+typedef $$FinCategoryGroupsTableUpdateCompanionBuilder =
+    FinCategoryGroupsCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> type,
+      Value<String> name,
+      Value<int> sortOrder,
+      Value<bool> hidden,
+      Value<int> rowid,
+    });
+
+final class $$FinCategoryGroupsTableReferences
+    extends
+        BaseReferences<
+          _$LocalDatabase,
+          $FinCategoryGroupsTable,
+          FinCategoryGroupRow
+        > {
+  $$FinCategoryGroupsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$FinCategoriesTable, List<FinCategoryRow>>
+  _finCategoriesRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.finCategories,
+    aliasName: 'fin_category_groups__uuid__fin_categories__group_uuid',
+  );
+
+  $$FinCategoriesTableProcessedTableManager get finCategoriesRefs {
+    final manager = $$FinCategoriesTableTableManager(
+      $_db,
+      $_db.finCategories,
+    ).filter((f) => f.groupUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(_finCategoriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinCategoryGroupsTableFilterComposer
+    extends Composer<_$LocalDatabase, $FinCategoryGroupsTable> {
+  $$FinCategoryGroupsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> finCategoriesRefs(
+    Expression<bool> Function($$FinCategoriesTableFilterComposer f) f,
+  ) {
+    final $$FinCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.groupUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinCategoryGroupsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $FinCategoryGroupsTable> {
+  $$FinCategoryGroupsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FinCategoryGroupsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $FinCategoryGroupsTable> {
+  $$FinCategoryGroupsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get hidden =>
+      $composableBuilder(column: $table.hidden, builder: (column) => column);
+
+  Expression<T> finCategoriesRefs<T extends Object>(
+    Expression<T> Function($$FinCategoriesTableAnnotationComposer a) f,
+  ) {
+    final $$FinCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.finCategories,
+      getReferencedColumn: (t) => t.groupUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.finCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinCategoryGroupsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $FinCategoryGroupsTable,
+          FinCategoryGroupRow,
+          $$FinCategoryGroupsTableFilterComposer,
+          $$FinCategoryGroupsTableOrderingComposer,
+          $$FinCategoryGroupsTableAnnotationComposer,
+          $$FinCategoryGroupsTableCreateCompanionBuilder,
+          $$FinCategoryGroupsTableUpdateCompanionBuilder,
+          (FinCategoryGroupRow, $$FinCategoryGroupsTableReferences),
+          FinCategoryGroupRow,
+          PrefetchHooks Function({bool finCategoriesRefs})
+        > {
+  $$FinCategoryGroupsTableTableManager(
+    _$LocalDatabase db,
+    $FinCategoryGroupsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinCategoryGroupsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinCategoryGroupsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinCategoryGroupsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinCategoryGroupsCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                type: type,
+                name: name,
+                sortOrder: sortOrder,
+                hidden: hidden,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String type,
+                required String name,
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinCategoryGroupsCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                type: type,
+                name: name,
+                sortOrder: sortOrder,
+                hidden: hidden,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinCategoryGroupsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({finCategoriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (finCategoriesRefs) db.finCategories,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (finCategoriesRefs)
+                    await $_getPrefetchedData<
+                      FinCategoryGroupRow,
+                      $FinCategoryGroupsTable,
+                      FinCategoryRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$FinCategoryGroupsTableReferences
+                          ._finCategoriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$FinCategoryGroupsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).finCategoriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.groupUuid == item.uuid,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FinCategoryGroupsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $FinCategoryGroupsTable,
+      FinCategoryGroupRow,
+      $$FinCategoryGroupsTableFilterComposer,
+      $$FinCategoryGroupsTableOrderingComposer,
+      $$FinCategoryGroupsTableAnnotationComposer,
+      $$FinCategoryGroupsTableCreateCompanionBuilder,
+      $$FinCategoryGroupsTableUpdateCompanionBuilder,
+      (FinCategoryGroupRow, $$FinCategoryGroupsTableReferences),
+      FinCategoryGroupRow,
+      PrefetchHooks Function({bool finCategoriesRefs})
+    >;
 typedef $$FinCategoriesTableCreateCompanionBuilder =
     FinCategoriesCompanion Function({
       required String uuid,
@@ -24727,6 +25833,7 @@ typedef $$FinCategoriesTableCreateCompanionBuilder =
       Value<bool> inTaxBook,
       Value<bool> hidden,
       Value<int> sortOrder,
+      Value<String?> groupUuid,
       Value<int> rowid,
     });
 typedef $$FinCategoriesTableUpdateCompanionBuilder =
@@ -24746,6 +25853,7 @@ typedef $$FinCategoriesTableUpdateCompanionBuilder =
       Value<bool> inTaxBook,
       Value<bool> hidden,
       Value<int> sortOrder,
+      Value<String?> groupUuid,
       Value<int> rowid,
     });
 
@@ -24789,6 +25897,24 @@ final class $$FinCategoriesTableReferences
       $_db.finAllocationKeys,
     ).filter((f) => f.uuid.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_allocationKeyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinCategoryGroupsTable _groupUuidTable(_$LocalDatabase db) => db
+      .finCategoryGroups
+      .createAlias('fin_categories__group_uuid__fin_category_groups__uuid');
+
+  $$FinCategoryGroupsTableProcessedTableManager? get groupUuid {
+    final $_column = $_itemColumn<String>('group_uuid');
+    if ($_column == null) return null;
+    final manager = $$FinCategoryGroupsTableTableManager(
+      $_db,
+      $_db.finCategoryGroups,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupUuidTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -24925,6 +26051,29 @@ class $$FinCategoriesTableFilterComposer
           }) => $$FinAllocationKeysTableFilterComposer(
             $db: $db,
             $table: $db.finAllocationKeys,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinCategoryGroupsTableFilterComposer get groupUuid {
+    final $$FinCategoryGroupsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupUuid,
+      referencedTable: $db.finCategoryGroups,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoryGroupsTableFilterComposer(
+            $db: $db,
+            $table: $db.finCategoryGroups,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -25079,6 +26228,29 @@ class $$FinCategoriesTableOrderingComposer
     );
     return composer;
   }
+
+  $$FinCategoryGroupsTableOrderingComposer get groupUuid {
+    final $$FinCategoryGroupsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupUuid,
+      referencedTable: $db.finCategoryGroups,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinCategoryGroupsTableOrderingComposer(
+            $db: $db,
+            $table: $db.finCategoryGroups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$FinCategoriesTableAnnotationComposer
@@ -25178,6 +26350,30 @@ class $$FinCategoriesTableAnnotationComposer
     return composer;
   }
 
+  $$FinCategoryGroupsTableAnnotationComposer get groupUuid {
+    final $$FinCategoryGroupsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.groupUuid,
+          referencedTable: $db.finCategoryGroups,
+          getReferencedColumn: (t) => t.uuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinCategoryGroupsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.finCategoryGroups,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
   Expression<T> finOperationsRefs<T extends Object>(
     Expression<T> Function($$FinOperationsTableAnnotationComposer a) f,
   ) {
@@ -25220,6 +26416,7 @@ class $$FinCategoriesTableTableManager
           PrefetchHooks Function({
             bool directionUuid,
             bool allocationKeyUuid,
+            bool groupUuid,
             bool finOperationsRefs,
           })
         > {
@@ -25253,6 +26450,7 @@ class $$FinCategoriesTableTableManager
                 Value<bool> inTaxBook = const Value.absent(),
                 Value<bool> hidden = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> groupUuid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FinCategoriesCompanion(
                 uuid: uuid,
@@ -25270,6 +26468,7 @@ class $$FinCategoriesTableTableManager
                 inTaxBook: inTaxBook,
                 hidden: hidden,
                 sortOrder: sortOrder,
+                groupUuid: groupUuid,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -25289,6 +26488,7 @@ class $$FinCategoriesTableTableManager
                 Value<bool> inTaxBook = const Value.absent(),
                 Value<bool> hidden = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> groupUuid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FinCategoriesCompanion.insert(
                 uuid: uuid,
@@ -25306,6 +26506,7 @@ class $$FinCategoriesTableTableManager
                 inTaxBook: inTaxBook,
                 hidden: hidden,
                 sortOrder: sortOrder,
+                groupUuid: groupUuid,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -25320,6 +26521,7 @@ class $$FinCategoriesTableTableManager
               ({
                 directionUuid = false,
                 allocationKeyUuid = false,
+                groupUuid = false,
                 finOperationsRefs = false,
               }) {
                 return PrefetchHooks(
@@ -25373,6 +26575,21 @@ class $$FinCategoriesTableTableManager
                                   )
                                   as T;
                         }
+                        if (groupUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.groupUuid,
+                                    referencedTable:
+                                        $$FinCategoriesTableReferences
+                                            ._groupUuidTable(db),
+                                    referencedColumn:
+                                        $$FinCategoriesTableReferences
+                                            ._groupUuidTable(db)
+                                            .uuid,
+                                  )
+                                  as T;
+                        }
 
                         return state;
                       },
@@ -25422,6 +26639,7 @@ typedef $$FinCategoriesTableProcessedTableManager =
       PrefetchHooks Function({
         bool directionUuid,
         bool allocationKeyUuid,
+        bool groupUuid,
         bool finOperationsRefs,
       })
     >;
@@ -28939,6 +30157,8 @@ class $LocalDatabaseManager {
       $$FinAccountsTableTableManager(_db, _db.finAccounts);
   $$FinAssetsTableTableManager get finAssets =>
       $$FinAssetsTableTableManager(_db, _db.finAssets);
+  $$FinCategoryGroupsTableTableManager get finCategoryGroups =>
+      $$FinCategoryGroupsTableTableManager(_db, _db.finCategoryGroups);
   $$FinCategoriesTableTableManager get finCategories =>
       $$FinCategoriesTableTableManager(_db, _db.finCategories);
   $$CounterpartiesTableTableManager get counterparties =>

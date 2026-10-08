@@ -7,6 +7,7 @@ import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/screens/finance_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
+import 'package:kfx_time_tracking/widgets/common_widgets.dart';
 import 'package:provider/provider.dart';
 
 /// Раздел «Финансы» (8.5): список месяца, отбор, запись операции.
@@ -182,6 +183,46 @@ void main() {
     expect(find.text('Кошельки'), findsNothing);
     expect(find.text('Корректировка по сверке остатка'), findsOneWidget);
     expect(find.textContaining('Остаток «Карта»'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('справочники: статьи по группам, новая группа', (tester) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: FinanceScreen()),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('Справочники и займы'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Статьи'));
+    await tester.pumpAndSettle();
+    // Группа «05» есть только текстом у статьи (запись старой программы).
+    expect(find.text('05 (нет в справочнике) · расходы'), findsOneWidget);
+
+    await tester.tap(find.text('Группы статей'));
+    await tester.pumpAndSettle();
+    expect(find.text('Групп нет'), findsOneWidget);
+    await tester.tap(find.byTooltip('Добавить'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Название *'), '05');
+    await settle(tester, () async {
+      await tester.tap(find.text('Сохранить'));
+      await tester.pump();
+    });
+    expect(find.text('расходы · статей: 1 · порядок 1'), findsOneWidget);
+
+    await tester.tap(find.text('Статьи'));
+    await tester.pumpAndSettle();
+    expect(find.text('05 · расходы'), findsOneWidget);
+    await tester.tap(find.text('Корма покупные'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppDropdown<String?>, '05'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

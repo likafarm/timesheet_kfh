@@ -113,6 +113,12 @@ Future<void> main(List<String> args) async {
       return payroll.recalculateOpenMonths(conn.execute);
     });
     logger.info('расчёты открытых месяцев сверены', {'written': written});
+    // Статьи без группы (до 0.10.0 и от программ 1.18) — привязать.
+    final linked = await db.transaction((conn) async {
+      await const ChangeLog().lock(conn.execute);
+      return CategoryGroups().linkAll(conn.execute);
+    });
+    logger.info('группы статей сверены', {'linked': linked});
   } catch (e, st) {
     logger.error('не удалось пересчитать открытые месяцы',
         error: e, stackTrace: st);

@@ -139,6 +139,11 @@ Map<String, Object?> validateSyncData(SyncTable table, Object? data) {
   final result = <String, Object?>{};
   for (final column in table.columns) {
     if (!data.containsKey(column.name)) {
+      // Программа, не знающая колонки (SyncColumn.since), её не присылает.
+      if (column.since != null && column.nullable) {
+        result[column.name] = null;
+        continue;
+      }
       throw SyncFormatException('${table.name}: нет поля ${column.name}');
     }
     result[column.name] = _checkValue(table, column, data[column.name]);

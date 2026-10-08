@@ -14,6 +14,7 @@ export 'src/auth/refresh_tokens.dart';
 export 'src/auth/users.dart';
 export 'src/config.dart';
 export 'src/database.dart';
+export 'src/finance/category_groups.dart';
 export 'src/http/auth_api.dart';
 export 'src/http/backups_api.dart';
 export 'src/http/client_api.dart';

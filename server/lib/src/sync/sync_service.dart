@@ -6,6 +6,7 @@ import '../audit.dart';
 import '../auth/permissions.dart';
 import '../auth/users.dart';
 import '../database.dart';
+import '../finance/category_groups.dart';
 import '../http/responses.dart';
 import '../logger.dart';
 import '../payroll/payroll_calculator.dart';
@@ -79,13 +80,15 @@ class SyncService {
 
   final _rows = const SyncRows();
   final _log = const ChangeLog();
+  final CategoryGroups _groups;
 
   SyncService(
       {required this.db,
       required this.logger,
       this.payroll,
       DateTime Function()? now})
-      : _now = now ?? DateTime.now;
+      : _now = now ?? DateTime.now,
+        _groups = CategoryGroups(now: now);
 
   // --------------------------------------------------------------- push
 
@@ -161,12 +164,13 @@ class SyncService {
     User user,
     String deviceId,
     int index,
-    SyncChange change,
+    SyncChange incoming,
     PeriodGuard guard,
     Set<String> allowed,
     String? requestId,
     void Function(int? month) impact,
   ) async {
+    var change = incoming;
     PushResult result(String status,
             {String? code, String? message, String? conflictUuid}) =>
         PushResult(index, change.changeId, change.uuid, status,
@@ -192,7 +196,7 @@ class SyncService {
         await sql('RELEASE SAVEPOINT sync_change');
         final same = change.updatedAt == existing.updatedAt &&
             change.deleted == existing.deleted &&
-            _sameData(change.data, existing.data);
+            _sameData(table, change.data, existing.data);
         return same ? result('duplicate') : result('stale');
       }
       final problem = change.table == 'timesheet' && !change.deleted
@@ -210,6 +214,18 @@ class SyncService {
       if (financeProblem != null) {
         await sql('RELEASE SAVEPOINT sync_change');
         return result('rejected', code: 'invalid', message: financeProblem);
+      }
+      if (change.table == 'fin_categories' && !change.deleted) {
+        final grouped = await _categoryGroup(sql, user, deviceId, change,
+            requestId: requestId);
+        if (grouped == null) {
+          await sql('RELEASE SAVEPOINT sync_change');
+          return result('rejected',
+              code: 'invalid',
+              message: 'Группа статьи другого вида (доход/расход) или '
+                  'удалена');
+        }
+        change = grouped;
       }
       final locked = guard.violation(change.table, existing?.data,
           existing?.deleted ?? false, change.data, change.deleted);
@@ -314,8 +330,38 @@ class SyncService {
     };
   }
 
-  static bool _sameData(Map<String, Object?> a, Map<String, Object?> b) =>
-      a.length == b.length && a.keys.every((k) => a[k] == b[k]);
+  /// Те же данные. Колонку, которой не знает программа-отправитель
+  /// ([SyncColumn.since]: пришла пустой), не сравниваем — её заполнил сервер.
+  static bool _sameData(
+          SyncTable table, Map<String, Object?> a, Map<String, Object?> b) =>
+      a.length == b.length &&
+      a.keys.every((k) =>
+          a[k] == b[k] || (a[k] == null && table.column(k)?.since != null));
+
+  /// Статья с группой: без ссылки (программа 1.18) — группа по виду и
+  /// названию (нет — заводится); со ссылкой — группа того же вида. null —
+  /// группа не подходит.
+  Future<SyncChange?> _categoryGroup(
+      SqlExecutor sql, User user, String deviceId, SyncChange change,
+      {String? requestId}) async {
+    final type = change.data['type'] as String;
+    final groupUuid = change.data['group_uuid'] as String?;
+    if (groupUuid != null) {
+      return await _groups.typeOf(sql, groupUuid) == type ? change : null;
+    }
+    final group = await _groups.groupFor(
+        sql, type, change.data['group_name'] as String,
+        userUuid: user.uuid, deviceId: deviceId, requestId: requestId);
+    return SyncChange(
+      table: change.table,
+      uuid: change.uuid,
+      updatedAt: change.updatedAt,
+      deleted: change.deleted,
+      editedBy: change.editedBy,
+      changeId: change.changeId,
+      data: {...change.data, 'group_uuid': group},
+    );
+  }
 
   static Map<String, Object?> _auditValue(SyncChange c) => {
         'updated_at': formatSyncTimestamp(c.updatedAt),
@@ -355,8 +401,8 @@ class SyncService {
       throw ApiException.badRequest('Неизвестные таблицы: ${unknown.join(', ')}');
     }
     final n = limit.clamp(1, maxPullLimit);
-    final readable = readableTables(user.role)
-        .intersection(tables ?? legacySyncTableNames);
+    final asked = tables ?? legacySyncTableNames;
+    final readable = readableTables(user.role).intersection(asked);
     return db.transaction((conn) async {
       final sql = conn.execute;
       final current = await _log.epoch(sql);
@@ -381,11 +427,15 @@ class SyncService {
             if (key.$1 == table.name) key.$2,
         ];
         final hidden = hiddenColumns(user.role, table.name);
+        // Колонки, которых программа не знает (спросила без их таблицы).
+        final unknown = unknownColumnsFor(table, asked);
         for (final row in await _rows.readMany(sql, table, uuids)) {
+          var out = hidden.isEmpty ? row : _hide(row, hidden);
+          if (unknown.isNotEmpty) out = _without(out, unknown);
           changes.add((
             syncTableOrder(table.name),
             lastSeq[(table.name, row.uuid)]!,
-            hidden.isEmpty ? row : _hide(row, hidden),
+            out,
           ));
         }
       }
@@ -395,6 +445,19 @@ class SyncService {
           entries.length == n, current);
     });
   }
+
+  static SyncChange _without(SyncChange row, Set<String> columns) =>
+      SyncChange(
+        table: row.table,
+        uuid: row.uuid,
+        updatedAt: row.updatedAt,
+        deleted: row.deleted,
+        editedBy: row.editedBy,
+        data: {
+          for (final e in row.data.entries)
+            if (!columns.contains(e.key)) e.key: e.value,
+        },
+      );
 
   static SyncChange _hide(SyncChange row, Set<String> hidden) => SyncChange(
         table: row.table,

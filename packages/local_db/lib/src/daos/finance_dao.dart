@@ -20,6 +20,7 @@ typedef StampedRow<D> =
     FinAllocationPeriods,
     FinAccounts,
     FinAssets,
+    FinCategoryGroups,
     FinCategories,
     Counterparties,
     FinDebts,
@@ -110,6 +111,35 @@ class FinanceDao extends DatabaseAccessor<LocalDatabase>
 
   Future<List<FinAssetRow>> allAssets() =>
       (select(finAssets)..where((t) => t.deleted.equals(false))).get();
+
+  Future<List<FinCategoryGroupRow>> allCategoryGroups() =>
+      (select(finCategoryGroups)
+            ..where((t) => t.deleted.equals(false))
+            ..orderBy([
+              (t) => OrderingTerm(expression: t.sortOrder),
+              (t) => OrderingTerm(expression: t.name),
+            ]))
+          .get();
+
+  Future<FinCategoryGroupRow?> categoryGroupByUuid(String uuid) => (select(
+    finCategoryGroups,
+  )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
+
+  /// Живые статьи группы: по ссылке или (записи 1.18) по виду и названию.
+  Future<List<FinCategoryRow>> categoriesOfGroup(
+    String groupUuid,
+    String type,
+    String name,
+  ) =>
+      (select(finCategories)..where(
+            (t) =>
+                t.deleted.equals(false) &
+                (t.groupUuid.equals(groupUuid) |
+                    (t.groupUuid.isNull() &
+                        t.type.equals(type) &
+                        t.groupName.equals(name))),
+          ))
+          .get();
 
   Future<List<FinCategoryRow>> allCategories() =>
       (select(finCategories)

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:kfh_domain/kfh_domain.dart' show tablesToCatchUp;
 import 'package:kfh_local_db/kfh_local_db.dart';
 
 import 'failures.dart';
@@ -100,6 +101,7 @@ class SyncEngine {
     final report = SyncReport();
     if (retryRejected) await store.clearRejections();
     var resync = await _push(report);
+    await _catchUpTables(report);
     resync = await _pull(report, resync: resync);
     if (resync) {
       // Разошлись по уникальному ключу во время приёма — ещё раз с нуля.
@@ -235,6 +237,22 @@ class SyncEngine {
     while (_running != null) {
       await _running;
     }
+    return _refetch(tables);
+  }
+
+  /// Программа обновилась и знает таблицы (или колонки), которых база ещё
+  /// не получала (`tablesToCatchUp`), — пока их не спрашивали, курсор ушёл
+  /// дальше их записей. Принять их с нуля, не трогая курсор; один раз.
+  Future<void> _catchUpTables(SyncReport report) async {
+    final all = allSyncTableNames;
+    if (await store.cursor() != SyncCursor.start) {
+      final tables = tablesToCatchUp(await store.pulledTables(), all);
+      if (tables.isNotEmpty) report.received += await _refetch(tables);
+    }
+    await store.savePulledTables(all);
+  }
+
+  Future<int> _refetch(Set<String> tables) async {
     var cursor = SyncCursor.start;
     var received = 0;
     while (true) {

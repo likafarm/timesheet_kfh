@@ -68,7 +68,8 @@ void main() {
       for (final MapEntry(key: table, value: n) in before.entries) {
         expect(after[table], n, reason: table);
       }
-      for (final table in financeTables.keys) {
+      // Таблицы, которых не было до миграции, — новые и пустые.
+      for (final table in after.keys.where((t) => !before.containsKey(t))) {
         expect(after[table], 0, reason: '$table — новая и пустая');
       }
     },

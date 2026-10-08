@@ -17,6 +17,10 @@ const syncServerKey = 'sync_server';
 /// Ключ списка закрытых на сервере месяцев (`["2026-08", …]`).
 const periodLocksKey = 'period_locks';
 
+/// Ключ списка таблиц, которые база получает с сервера (через запятую):
+/// новые таблицы программы догружаются с нуля (`tablesToCatchUp`).
+const pulledTablesKey = 'sync_tables';
+
 /// Место в журнале изменений сервера: номер и эпоха (после восстановления
 /// сервера из копии эпоха меняется, и курсор теряет смысл).
 class SyncCursor {
@@ -449,14 +453,27 @@ class LocalSyncStore {
   Future<ApplyReport> applyRemote(
     List<SyncChange> changes, {
     SyncCursor? cursor,
-  }) => db.transaction(() async {
-    final report = ApplyReport();
-    for (final change in changes) {
-      await _applyOne(change, report);
+  }) async {
+    // Сервер отдаёт запись в текущем виде уже при первом её упоминании в
+    // журнале: она может ссылаться на запись, заведённую позже (статья,
+    // перенесённая в новую группу), — та придёт следующими страницами.
+    // Поэтому страница пишется без проверки внешних ключей (вне транзакции
+    // прагма действует; внутри чужой транзакции она ничего не меняет).
+    // Целостность держит сервер: к концу приёма ссылки сходятся.
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      return await db.transaction(() async {
+        final report = ApplyReport();
+        for (final change in changes) {
+          await _applyOne(change, report);
+        }
+        if (cursor != null) await saveCursor(cursor);
+        return report;
+      });
+    } finally {
+      await db.customStatement('PRAGMA foreign_keys = ON');
     }
-    if (cursor != null) await saveCursor(cursor);
-    return report;
-  });
+  }
 
   Future<void> _applyOne(SyncChange change, ApplyReport report) async {
     final table = syncTableByName(change.table);
@@ -564,6 +581,17 @@ class LocalSyncStore {
   }
 
   // ----------------------------------------------------------- курсор
+
+  /// Таблицы, которые эта база получает с сервера (`sync_state`); null —
+  /// не записано (база программы до 1.19).
+  Future<Set<String>?> pulledTables() async {
+    final value = await db.syncStateDao.getValue(pulledTablesKey);
+    if (value == null) return null;
+    return value.isEmpty ? <String>{} : value.split(',').toSet();
+  }
+
+  Future<void> savePulledTables(Set<String> tables) => db.syncStateDao
+      .setValue(pulledTablesKey, (tables.toList()..sort()).join(','));
 
   Future<SyncCursor> cursor() async {
     final seq = await db.syncStateDao.getValue(syncCursorKey);

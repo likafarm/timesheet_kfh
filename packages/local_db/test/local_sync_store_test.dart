@@ -498,16 +498,26 @@ void main() {
     test('ошибка в пачке откатывает всю пачку', () async {
       await a.pushAll();
       final emp = await b.addEmployee('Петров Пётр');
-      final day = await b.addWork(emp, DateTime(2026, 9, 1));
-      // Табель без сотрудника — внешний ключ при COMMIT.
+      // Сотрудник верный, следом — изменение незнакомой таблицы.
+      final bogus = SyncChange(
+        table: 'no_such_table',
+        uuid: 'x',
+        updatedAt: DateTime.utc(2026, 9, 27),
+        deleted: false,
+        data: const {},
+      );
       await expectLater(
-        a.store.applyRemote([await b.row('timesheet', day)]),
+        a.store.applyRemote([await b.row('employees', emp), bogus]),
         throwsA(anything),
       );
-      expect(await a.rows('timesheet'), isEmpty);
+      expect(
+        (await a.rows('employees')).map((r) => r.uuid),
+        isNot(contains(emp)),
+      );
       await expectLater(
         a.store.applyRemote([
-          await b.row('timesheet', day),
+          await b.row('employees', emp),
+          bogus,
         ], cursor: const SyncCursor(7, 'e')),
         throwsA(anything),
       );
@@ -515,6 +525,28 @@ void main() {
         await a.store.cursor(),
         SyncCursor.start,
         reason: 'курсор — в той же транзакции',
+      );
+    });
+
+    test('ссылка на запись следующей пачки не мешает приёму', () async {
+      await a.pushAll();
+      final emp = await b.addEmployee('Петров Пётр');
+      final day = await b.addWork(emp, DateTime(2026, 9, 1));
+      // Табель раньше сотрудника: сотрудник придёт следующей пачкой.
+      await a.store.applyRemote([await b.row('timesheet', day)]);
+      await a.store.applyRemote([await b.row('employees', emp)]);
+      expect(await a.rows('timesheet'), hasLength(1));
+      expect(
+        await a.db.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+      // Своя правка программы проверяется как прежде.
+      expect(
+        (await a.db.customSelect('PRAGMA foreign_keys').getSingle())
+            .data
+            .values
+            .single,
+        1,
       );
     });
   });
@@ -618,8 +650,10 @@ void main() {
         PeriodGuard.monthKey(2026, 8),
         PeriodGuard.monthKey(2025, 12),
       });
-      expect(await a.db.syncStateDao.getValue(periodLocksKey),
-          '["2025-12","2026-08"]');
+      expect(
+        await a.db.syncStateDao.getValue(periodLocksKey),
+        '["2025-12","2026-08"]',
+      );
       expect(await a.store.saveLockedMonths([(2025, 12), (2026, 8)]), isFalse);
       expect(await a.store.saveLockedMonths([]), isTrue);
       expect(await a.store.lockedMonths(), isEmpty);
