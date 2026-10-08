@@ -370,7 +370,6 @@ void main() {
       },
       skip: mysqlSkip,
     );
-
   });
 
   group('оператор (сервер 0.11.0)', () {
@@ -401,10 +400,7 @@ void main() {
       expect(bankRow['data']['opening_date'], '2025-01-01');
       // Бухгалтер видит обе и настоящий остаток.
       final full = await pull(tables: all);
-      expect(
-        full.where((c) => c['table'] == 'fin_operations').length,
-        2,
-      );
+      expect(full.where((c) => c['table'] == 'fin_operations').length, 2);
       expect(
         full.firstWhere((c) => c['uuid'] == bank)['data']['opening_balance'],
         2900301,
@@ -467,10 +463,7 @@ void main() {
         'applied',
         'applied',
       ], reason: '$results');
-      expect(
-        results.take(5).map((r) => r['code']),
-        everyElement('forbidden'),
-      );
+      expect(results.take(5).map((r) => r['code']), everyElement('forbidden'));
       // Своя — правится и удаляется.
       final again = await push([
         operation(mine, cash, categoryId: fuel, createdBy: me, amount: 99),
@@ -498,6 +491,55 @@ void main() {
         direction(uuid(), 'Пчёлы'),
       ], role: Role.operator);
       expect(results.map((r) => r['code']), everyElement('forbidden'));
+    }, skip: mysqlSkip);
+  });
+
+  group('платёжный календарь (сервер 0.12.0)', () {
+    Map<String, Object?> plan(
+      String id,
+      String accountId, {
+      String start = '2026-10-31',
+      String? until,
+    }) => row('fin_plans', id, {
+      'type': 'expense',
+      'amount': 1000000,
+      'start_date': start,
+      'recurrence': 'monthly',
+      'until_date': until,
+      'account_uuid': accountId,
+      'category_uuid': null,
+      'counterparty_uuid': null,
+      'description': 'Аренда земли',
+      'skipped': '2026-11-30',
+      'closed': false,
+    });
+
+    test('план проходит обмен; старым программам и оператору — нет', () async {
+      final (_, cash, _, _) = await catalog();
+      final id = uuid();
+      expect(statuses(await push([plan(id, cash)])), ['applied']);
+      final full = await pull(tables: all);
+      final got = full.firstWhere((c) => c['uuid'] == id);
+      expect(got['data']['recurrence'], 'monthly');
+      expect(got['data']['skipped'], '2026-11-30');
+
+      final legacy = await pull();
+      expect(legacy.any((c) => c['table'] == 'fin_plans'), isFalse);
+      final oldApp = await pull(tables: all.difference({'fin_plans'}));
+      expect(oldApp.any((c) => c['table'] == 'fin_plans'), isFalse);
+
+      final operator = await pull(tables: all, role: Role.operator);
+      expect(operator.any((c) => c['table'] == 'fin_plans'), isFalse);
+      final denied = await push([plan(uuid(), cash)], role: Role.operator);
+      expect(denied.single['code'], 'forbidden');
+    }, skip: mysqlSkip);
+
+    test('повтор до дня раньше начала — отказ', () async {
+      final (_, cash, _, _) = await catalog();
+      final results = await push([
+        plan(uuid(), cash, start: '2026-10-31', until: '2026-10-01'),
+      ]);
+      expect(results.single['code'], 'invalid');
     }, skip: mysqlSkip);
   });
 
@@ -602,10 +644,9 @@ void main() {
       () async {
         final (dir, _, _, fuel) = await catalog();
         final parts = uuid();
-        expect(
-          statuses(await push([category(parts, 'Запчасти', dir)])),
-          ['applied'],
-        );
+        expect(statuses(await push([category(parts, 'Запчасти', dir)])), [
+          'applied',
+        ]);
         final groups = [
           for (final c in await pull(tables: all))
             if (c['table'] == 'fin_category_groups') c,
@@ -627,8 +668,7 @@ void main() {
           legacy.map((c) => c['table']),
           isNot(contains('fin_category_groups')),
         );
-        final data =
-            latest(legacy, 'fin_categories', fuel)['data'] as Map;
+        final data = latest(legacy, 'fin_categories', fuel)['data'] as Map;
         expect(data.containsKey('group_uuid'), isFalse);
         expect(data['group_name'], '04. Техника и транспорт');
         // Программа 1.18 сама проверяет строку тем же правилом — без колонки
@@ -651,47 +691,49 @@ void main() {
       expect(statuses(await push([c])), ['duplicate']);
     }, skip: mysqlSkip);
 
-    test('новая программа: группа и статья со ссылкой; чужой вид — отказ', () async {
-      final dir = uuid(), g = uuid(), gIncome = uuid(), c = uuid();
-      Map<String, Object?> grp(String id, String type, String name) =>
-          row('fin_category_groups', id, {
-            'type': type,
-            'name': name,
-            'sort_order': 7,
-            'hidden': false,
-          });
-      Map<String, Object?> cat(String id, String groupId) =>
-          row('fin_categories', id, {
-            'type': 'expense',
-            'group_uuid': groupId,
-            'group_name': 'Своя группа',
-            'name': 'Сено',
-            'direction_uuid': dir,
-            'allocation_key_uuid': null,
-            'kind': 'current',
-            'in_tax_book': true,
-            'hidden': false,
-            'sort_order': 0,
-          });
-      final results = await push([
-        cat(c, g),
-        grp(g, 'expense', 'Своя группа'),
-        grp(gIncome, 'income', 'Доходы'),
-        direction(dir, 'Корма'),
-      ]);
-      expect(statuses(results), everyElement('applied'), reason: '$results');
-      final full = await pull(tables: all);
-      expect(latest(full, 'fin_categories', c)['data']['group_uuid'], g);
-      expect(
-        full.where((x) => x['table'] == 'fin_category_groups'),
-        hasLength(2),
-        reason: 'лишняя группа не заведена',
-      );
+    test(
+      'новая программа: группа и статья со ссылкой; чужой вид — отказ',
+      () async {
+        final dir = uuid(), g = uuid(), gIncome = uuid(), c = uuid();
+        Map<String, Object?> grp(String id, String type, String name) => row(
+          'fin_category_groups',
+          id,
+          {'type': type, 'name': name, 'sort_order': 7, 'hidden': false},
+        );
+        Map<String, Object?> cat(String id, String groupId) =>
+            row('fin_categories', id, {
+              'type': 'expense',
+              'group_uuid': groupId,
+              'group_name': 'Своя группа',
+              'name': 'Сено',
+              'direction_uuid': dir,
+              'allocation_key_uuid': null,
+              'kind': 'current',
+              'in_tax_book': true,
+              'hidden': false,
+              'sort_order': 0,
+            });
+        final results = await push([
+          cat(c, g),
+          grp(g, 'expense', 'Своя группа'),
+          grp(gIncome, 'income', 'Доходы'),
+          direction(dir, 'Корма'),
+        ]);
+        expect(statuses(results), everyElement('applied'), reason: '$results');
+        final full = await pull(tables: all);
+        expect(latest(full, 'fin_categories', c)['data']['group_uuid'], g);
+        expect(
+          full.where((x) => x['table'] == 'fin_category_groups'),
+          hasLength(2),
+          reason: 'лишняя группа не заведена',
+        );
 
-      final wrong = await push([cat(uuid(), gIncome)]);
-      expect(wrong.single['status'], 'rejected');
-      expect(wrong.single['code'], 'invalid');
-    }, skip: mysqlSkip);
+        final wrong = await push([cat(uuid(), gIncome)]);
+        expect(wrong.single['status'], 'rejected');
+        expect(wrong.single['code'], 'invalid');
+      },
+      skip: mysqlSkip,
+    );
 
     test('запуск сервера привязывает статьи без группы', () async {
       final (_, _, _, fuel) = await catalog();

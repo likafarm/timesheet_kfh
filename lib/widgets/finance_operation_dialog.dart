@@ -21,6 +21,7 @@ Future<bool> showOperationDialog(
   FinOperation? operation,
   FinOperation? template,
   OperationType? type,
+  String? sourceRef,
 }) async =>
     await showAppDialog<bool>(
       context: context,
@@ -29,6 +30,7 @@ Future<bool> showOperationDialog(
         operation: operation,
         template: template,
         type: type,
+        sourceRef: sourceRef,
       ),
     ) ==
     true;
@@ -54,12 +56,16 @@ class FinanceOperationDialog extends StatefulWidget {
   /// Вид новой операции (по пункту меню «Доходы»/«Расходы»).
   final OperationType? type;
 
+  /// Ссылка новой операции на источник — оплата раза плана (8Б.4).
+  final String? sourceRef;
+
   const FinanceOperationDialog({
     super.key,
     required this.finance,
     this.operation,
     this.template,
     this.type,
+    this.sourceRef,
   });
 
   @override
@@ -196,7 +202,7 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
       tag: editing?.tag ?? widget.template?.tag,
       notes: _text(_notes),
       source: editing?.source ?? OperationSource.manual,
-      sourceRef: editing?.sourceRef,
+      sourceRef: editing?.sourceRef ?? widget.sourceRef,
       createdBy: editing?.createdBy,
     );
     setState(() => _saving = true);

@@ -408,6 +408,54 @@ class DriftFinanceRepository implements FinanceRepository {
   Future<void> deleteDebt(String id) =>
       _db.financeDao.softDelete(_db.finDebts, id);
 
+  // --- Платёжный календарь (8Б.4) ----------------------------------------
+
+  @override
+  Future<List<FinPlan>> plans() async => [
+    for (final r in await _db.financeDao.allPlans())
+      FinPlan(
+        id: r.uuid,
+        type: OperationType.fromCode(r.type),
+        amount: r.amount,
+        startDate: parseDateIso(r.startDate),
+        repeat: PlanRepeat.fromCode(r.recurrence),
+        untilDate: parseDateIsoOrNull(r.untilDate),
+        accountId: r.accountUuid,
+        categoryId: r.categoryUuid,
+        counterpartyId: r.counterpartyUuid,
+        description: r.description,
+        skipped: decodePlanSkipped(r.skipped),
+        closed: r.closed,
+      ),
+  ];
+
+  @override
+  Future<void> savePlan(FinPlan p) => _db.financeDao.saveRow(
+    _db.finPlans,
+    p.id,
+    (now, editor, isNew) => FinPlansCompanion(
+      uuid: Value(p.id),
+      type: Value(p.type.code),
+      amount: Value(p.amount),
+      startDate: Value(formatDateIso(p.startDate)),
+      recurrence: Value(p.repeat.code),
+      untilDate: Value(formatDateIsoOrNull(p.untilDate)),
+      accountUuid: Value(p.accountId),
+      categoryUuid: Value(p.categoryId),
+      counterpartyUuid: Value(p.counterpartyId),
+      description: Value(p.description),
+      skipped: Value(encodePlanSkipped(p.skipped)),
+      closed: Value(p.closed),
+      deleted: const Value(false),
+      updatedAt: Value(now),
+      editedBy: Value(editor),
+    ),
+  );
+
+  @override
+  Future<void> deletePlan(String id) =>
+      _db.financeDao.softDelete(_db.finPlans, id);
+
   // --- Операции -----------------------------------------------------------
 
   static FinOperation _operation(FinOperationRow r) => FinOperation(

@@ -25,6 +25,7 @@ const recordKindLabels = <String, String>{
   'fin_accounts': 'Кошелёк',
   'fin_assets': 'Имущество',
   'fin_category_groups': 'Группа статей',
+  'fin_plans': 'План платежа',
   'fin_categories': 'Статья',
   'counterparties': 'Контрагент',
   'fin_debts': 'Займ',

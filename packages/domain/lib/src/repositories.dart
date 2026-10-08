@@ -6,6 +6,7 @@
 
 import 'finance/models.dart';
 import 'finance/payroll_expenses.dart';
+import 'finance/plans.dart';
 import 'rate_timeline.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
@@ -161,6 +162,11 @@ abstract interface class FinanceRepository {
   Future<void> deleteCounterparty(String id);
   Future<void> deleteDebt(String id);
   Future<void> deleteAllocationKey(String id);
+
+  /// Платёжный календарь (8Б.4): планы, кроме удалённых.
+  Future<List<FinPlan>> plans();
+  Future<void> savePlan(FinPlan plan);
+  Future<void> deletePlan(String id);
 
   Future<void> addOperation(FinOperation operation);
   Future<void> updateOperation(FinOperation operation);

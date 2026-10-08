@@ -200,6 +200,58 @@ void main() {
     await db.close();
   });
 
+  test('4 → 5: схема совпадает со свежей схемой 5', () async {
+    final connection = await verifier.startAt(4);
+    final db = LocalDatabase(connection);
+    await verifier.migrateAndValidate(db, 5);
+    await db.close();
+  });
+
+  test('4 → 5: данные на месте, платёжный календарь работает', () async {
+    final schema = await verifier.schemaAt(4);
+    final raw = schema.rawDatabase;
+    const now = '2026-10-08T10:00:00.000Z';
+    raw.execute(
+      "INSERT INTO sync_state (key, value) VALUES ('device_id', 'dev-1')",
+    );
+    raw.execute(
+      'INSERT INTO company_settings (uuid, updated_at, deleted) '
+      "VALUES ('00000000-0000-0000-0000-000000000001', '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO fin_accounts (uuid, name, kind, opening_balance, closed, '
+      "sort_order, updated_at, deleted) VALUES ('a1', 'Касса', 'cash', 500, "
+      "0, 0, '$now', 0)",
+    );
+
+    final db = LocalDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 5);
+    final f = DriftRepositories(db).finance;
+    expect((await f.accounts()).single.openingBalance, 500);
+
+    final plan = FinPlan(
+      id: 'p1',
+      type: OperationType.expense,
+      amount: 1000000,
+      startDate: DateTime(2026, 1, 31),
+      repeat: PlanRepeat.monthly,
+      accountId: 'a1',
+      description: 'Аренда земли',
+      skipped: {DateTime(2026, 3, 31), DateTime(2026, 2, 28)},
+    );
+    await f.savePlan(plan);
+    final saved = (await f.plans()).single;
+    expect(saved.repeat, PlanRepeat.monthly);
+    expect(saved.startDate, DateTime(2026, 1, 31));
+    expect(saved.skipped, {DateTime(2026, 2, 28), DateTime(2026, 3, 31)});
+    expect(saved.accountId, 'a1');
+    await f.deletePlan('p1');
+    expect(await f.plans(), isEmpty);
+    final fk = await db.customSelect('PRAGMA foreign_key_check').get();
+    expect(fk, isEmpty);
+    await db.close();
+  });
+
   group('копия перед обновлением схемы', () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('kfh_upgrade_'));

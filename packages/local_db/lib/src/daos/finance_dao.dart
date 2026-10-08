@@ -26,6 +26,7 @@ typedef StampedRow<D> =
     FinDebts,
     FinOperations,
     FinPayrollMapping,
+    FinPlans,
   ],
 )
 class FinanceDao extends DatabaseAccessor<LocalDatabase>
@@ -159,6 +160,12 @@ class FinanceDao extends DatabaseAccessor<LocalDatabase>
 
   Future<List<FinDebtRow>> allDebts() =>
       (select(finDebts)..where((t) => t.deleted.equals(false))).get();
+
+  Future<List<FinPlanRow>> allPlans() =>
+      (select(finPlans)
+            ..where((t) => t.deleted.equals(false))
+            ..orderBy([(t) => OrderingTerm(expression: t.startDate)]))
+          .get();
 
   Future<List<FinPayrollMappingRow>> allPayrollMapping() =>
       (select(finPayrollMapping)..where((t) => t.deleted.equals(false))).get();

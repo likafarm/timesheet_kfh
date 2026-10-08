@@ -17,7 +17,7 @@ const auditKinds = <String, String>{
   'finance': "a.entity IN ('fin_directions', 'fin_allocation_keys', "
       "'fin_allocation_periods', 'fin_accounts', 'fin_assets', "
       "'fin_category_groups', 'fin_categories', 'counterparties', 'fin_debts', 'fin_operations', "
-      "'fin_payroll_mapping')",
+      "'fin_payroll_mapping', 'fin_plans')",
   'periods': "a.action IN ('period_lock', 'period_unlock')",
   'access': "a.action IN ('login', 'login_failed', 'logout', "
       "'password_change', 'password_reset', 'user_create', 'user_update', "

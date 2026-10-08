@@ -20,6 +20,7 @@ enum AppSection {
   expense,
   finance,
   banks,
+  calendar,
   loans,
   financeReports,
   financeCatalog,

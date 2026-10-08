@@ -11,6 +11,7 @@ import 'finance_balances_screen.dart';
 import 'finance_catalog_screen.dart';
 import 'finance_reports_screen.dart';
 import 'finance_screen.dart';
+import 'payment_calendar_screen.dart';
 import 'periods_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
@@ -69,6 +70,14 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.account_balance,
       label: 'Банки и кассы',
       screen: const FinanceBalancesScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.calendar,
+      group: NavGroup.finance,
+      icon: Icons.event_note_outlined,
+      selectedIcon: Icons.event_note,
+      label: 'Платёжный календарь',
+      screen: const PaymentCalendarScreen(),
     ),
     NavigationItem(
       section: AppSection.loans,

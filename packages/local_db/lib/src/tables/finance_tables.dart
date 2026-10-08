@@ -172,6 +172,40 @@ class FinDebts extends Table with SyncColumns {
   TextColumn get notes => text().nullable()();
 }
 
+/// Платёжный календарь (схема 5): плановые поступления и платежи.
+@DataClassName('FinPlanRow')
+@TableIndex(name: 'idx_fin_plans_start', columns: {#startDate})
+class FinPlans extends Table with SyncColumns {
+  /// `OperationType.code`: income или expense.
+  TextColumn get type => text()();
+  IntColumn get amount => integer()();
+  TextColumn get startDate => text()();
+
+  /// `PlanRepeat.code` (`repeat` — служебное слово MySQL).
+  TextColumn get recurrence => text().withDefault(const Constant('none'))();
+  TextColumn get untilDate => text().nullable()();
+  TextColumn get accountUuid => text().nullable().references(
+    FinAccounts,
+    #uuid,
+    initiallyDeferred: true,
+  )();
+  TextColumn get categoryUuid => text().nullable().references(
+    FinCategories,
+    #uuid,
+    initiallyDeferred: true,
+  )();
+  TextColumn get counterpartyUuid => text().nullable().references(
+    Counterparties,
+    #uuid,
+    initiallyDeferred: true,
+  )();
+  TextColumn get description => text().nullable()();
+
+  /// Пропущенные дни: `гггг-мм-дд` через запятую.
+  TextColumn get skipped => text().nullable()();
+  BoolColumn get closed => boolean().withDefault(const Constant(false))();
+}
+
 @DataClassName('FinOperationRow')
 @TableIndex(name: 'idx_fin_operations_date', columns: {#date})
 @TableIndex(name: 'idx_fin_operations_account', columns: {#accountUuid, #date})

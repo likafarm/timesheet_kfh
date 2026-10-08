@@ -37,6 +37,7 @@ const financeTablesOrder = <String>[
   'fin_debts',
   'fin_operations',
   'fin_payroll_mapping',
+  'fin_plans',
 ];
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
@@ -61,6 +62,7 @@ const financeTables = <String, List<String>>{
   'fin_categories': [],
   'counterparties': [],
   'fin_debts': ['opening_date'],
+  'fin_plans': ['start_date', 'until_date'],
   'fin_operations': ['date'],
   'fin_payroll_mapping': [],
 };

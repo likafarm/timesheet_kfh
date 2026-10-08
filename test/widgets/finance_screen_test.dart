@@ -10,6 +10,7 @@ import 'package:kfx_time_tracking/screens/finance_balances_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_catalog_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_reports_screen.dart';
 import 'package:kfx_time_tracking/screens/finance_screen.dart';
+import 'package:kfx_time_tracking/screens/payment_calendar_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:kfx_time_tracking/widgets/common_widgets.dart';
 import 'package:provider/provider.dart';
@@ -324,6 +325,37 @@ void main() {
     expect(find.text('Итого операционная'), findsOneWidget);
     expect(find.text('Корма покупные'), findsOneWidget);
     expect(find.text('Деньги на конец месяца'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('платёжный календарь: прогноз, нехватка, план (8Б.4)', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(
+      () => DriftRepositories(db).finance.savePlan(
+        FinPlan(
+          id: 'p1',
+          type: OperationType.expense,
+          amount: 5000000,
+          startDate: addCalendarDays(today, 3),
+          description: 'Налог ЕСХН',
+        ),
+      ),
+    );
+    await tester.pumpWidget(section(const PaymentCalendarScreen()));
+    await settle(tester);
+    expect(find.text('Налог ЕСХН'), findsOneWidget);
+    // Денег на карте −2 500, платёж 50 000 — не хватит.
+    expect(find.textContaining('не хватит'), findsOneWidget);
+
+    await tester.tap(find.text('Планы'));
+    await tester.pumpAndSettle();
+    expect(find.text('Налог ЕСХН'), findsOneWidget);
+    expect(find.textContaining('Разово'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

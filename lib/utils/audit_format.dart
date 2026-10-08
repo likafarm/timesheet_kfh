@@ -69,6 +69,7 @@ const _entity = {
   'fin_accounts': 'кошелёк',
   'fin_assets': 'имущество',
   'fin_category_groups': 'группа статей',
+  'fin_plans': 'план платежа',
   'fin_categories': 'статья',
   'counterparties': 'контрагент',
   'fin_debts': 'займ',
@@ -224,6 +225,9 @@ AuditView describeAudit(AuditEntry e) {
         'payroll_results' || 'payroll_adjustments' => _month(data),
         'employee_rates' => 'с ${_day('${data?['start_date'] ?? ''}')}',
         'fin_operations' => _operation(data),
+        'fin_plans' =>
+          '${_day('${data?['start_date'] ?? ''}')} ${data?['description'] ?? ''}'
+              .trim(),
         'fin_accounts' ||
         'fin_assets' ||
         'fin_category_groups' ||

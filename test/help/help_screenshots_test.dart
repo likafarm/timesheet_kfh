@@ -104,6 +104,8 @@ void main() {
     await shots.tapText('Отмена', last: true);
     await shots.openSection('Банки и кассы');
     await shots.save('finance_balances');
+    await shots.openSection('Платёжный календарь');
+    await shots.save('finance_calendar');
     await shots.openSection('Отчёты');
     await shots.tapText('Управленческий баланс');
     await shots.save('finance_balance_sheet');
@@ -433,6 +435,46 @@ Future<void> _seedFinance(FinanceRepository f, DateTime today) async {
       directionId: crop,
     ),
   );
+  for (final plan in [
+    FinPlan(
+      id: u('plan-rent'),
+      type: OperationType.expense,
+      amount: 18000000,
+      startDate: DateTime(today.year, today.month, 25),
+      repeat: PlanRepeat.monthly,
+      accountId: u('a-bank'),
+      description: 'Аренда земли',
+    ),
+    FinPlan(
+      id: u('plan-loan'),
+      type: OperationType.expense,
+      amount: 8500000,
+      startDate: addCalendarDays(today, 4),
+      repeat: PlanRepeat.monthly,
+      accountId: u('a-bank'),
+      counterpartyId: u('p-bank'),
+      description: 'Платёж по кредиту',
+    ),
+    FinPlan(
+      id: u('plan-meat'),
+      type: OperationType.income,
+      amount: 45000000,
+      startDate: addCalendarDays(today, 12),
+      accountId: u('a-bank'),
+      counterpartyId: u('p-meat'),
+      description: 'Оплата за бычков',
+    ),
+    FinPlan(
+      id: u('plan-tax'),
+      type: OperationType.expense,
+      amount: 6200000,
+      startDate: DateTime(today.year, today.month + 1, 28),
+      repeat: PlanRepeat.quarterly,
+      description: 'Взносы и НДФЛ',
+    ),
+  ]) {
+    await f.savePlan(plan);
+  }
   await f.savePayrollMapping(
     PayrollFinanceMapping(
       methodAccounts: {

@@ -81,6 +81,7 @@ class FinanceProvider extends ChangeNotifier {
   List<FinCategoryGroup> _groups = const [];
   List<Counterparty> _counterparties = const [];
   List<FinDebt> _debts = const [];
+  List<FinPlan> _plans = const [];
   PayrollFinanceMapping? _mapping;
   List<FinOperation> _manual = const [];
   List<FinOperation> _payroll = const [];
@@ -95,6 +96,9 @@ class FinanceProvider extends ChangeNotifier {
   List<FinCategoryGroup> get categoryGroups => _groups;
   List<Counterparty> get counterparties => _counterparties;
   List<FinDebt> get debts => _debts;
+
+  /// Планы платёжного календаря (8Б.4; оператору — не загружаются).
+  List<FinPlan> get plans => _plans;
   PayrollFinanceMapping? get payrollMapping => _mapping;
   FinanceCatalog get catalog => _catalog;
   Map<String, Employee> get employees => _employees;
@@ -147,6 +151,7 @@ class FinanceProvider extends ChangeNotifier {
       _groups = await _repo.categoryGroups();
       _counterparties = await _repo.counterparties();
       _debts = await _repo.debts();
+      _plans = operator ? const [] : await _repo.plans();
       _mapping = await _repo.payrollMapping();
       _manual = await _repo.operations();
       _employees = {
@@ -467,6 +472,68 @@ class FinanceProvider extends ChangeNotifier {
     unit: op.unit,
     tag: op.tag,
     notes: op.notes,
+  );
+
+  // ------------------------------------------------ платёжный календарь
+
+  /// Разы планов с [from] по [to] (оплаченные и пропущенные отмечены).
+  List<PlanOccurrence> occurrences(DateTime from, DateTime to) =>
+      planOccurrences(
+        plans: _plans,
+        operations: _manual,
+        from: from,
+        to: to,
+      );
+
+  /// Прогноз денег по дням с сегодня (все кошельки + неоплаченные планы;
+  /// просроченные — сегодня).
+  List<ForecastDay> forecast({int days = 60}) {
+    final today = calendarDay(DateTime.now());
+    final money = accountBalancesAt(today).values.fold(0, (s, v) => s + v);
+    return paymentForecast(
+      today: today,
+      money: money,
+      occurrences: occurrences(DateTime(2000), addCalendarDays(today, days)),
+      days: days,
+    );
+  }
+
+  Future<bool> savePlan(FinPlan plan) async {
+    if (!_allowed()) return false;
+    final problem = planProblem(plan);
+    if (problem != null) return _refuse(problem);
+    return _write(() => _repo.savePlan(plan));
+  }
+
+  Future<bool> deletePlan(FinPlan plan) async {
+    if (!_allowed()) return false;
+    return _write(() => _repo.deletePlan(plan.id));
+  }
+
+  /// «Пропустить» раз плана (или вернуть пропущенный).
+  Future<bool> skipOccurrence(PlanOccurrence o, {bool skip = true}) {
+    final days = {...o.plan.skipped};
+    skip ? days.add(o.day) : days.remove(o.day);
+    return savePlan(o.plan.copyWith(skipped: days));
+  }
+
+  /// Операция для оплаты раза плана: сумма, кошелёк, статья, контрагент из
+  /// плана, день — [date] (по умолчанию сегодня), ссылка на план и день.
+  /// Записывает её окно операции (можно поправить сумму и кошелёк).
+  FinOperation paymentFor(PlanOccurrence o, {DateTime? date}) => FinOperation(
+    id: newId(),
+    date: calendarDay(date ?? DateTime.now()),
+    type: o.plan.type,
+    amount: o.plan.amount,
+    accountId:
+        o.plan.accountId ??
+        lastAccount(o.plan.type) ??
+        _accounts.where((a) => !a.closed).firstOrNull?.id ??
+        '',
+    categoryId: o.plan.categoryId,
+    counterpartyId: o.plan.counterpartyId,
+    description: o.plan.description,
+    sourceRef: planSourceRef(o.plan.id, o.day),
   );
 
   // ------------------------------------------------------- справочники

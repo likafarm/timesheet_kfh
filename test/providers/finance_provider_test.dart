@@ -499,4 +499,68 @@ void main() {
       employeeId: -15000,
     });
   });
+
+  test('платёжный календарь: план, пропуск, оплата, прогноз (8Б.4)', () async {
+    final today = calendarDay(DateTime.now());
+    final plan = FinPlan(
+      id: 'plan-rent',
+      type: OperationType.expense,
+      amount: 30000,
+      startDate: today,
+      repeat: PlanRepeat.monthly,
+      accountId: cash,
+      categoryId: fuel,
+      description: 'Аренда',
+    );
+    expect(await fin.savePlan(plan), isTrue);
+    expect(fin.plans.single.description, 'Аренда');
+
+    final first = fin.occurrences(today, today).single;
+    expect(first.open, isTrue);
+    // Прогноз: сегодня — минус план.
+    final money = fin.accountBalancesAt(today).values.fold(0, (s, v) => s + v);
+    expect(fin.forecast().first.balance, money - 30000);
+
+    // Оплата: операция из плана со ссылкой — раз закрыт.
+    final pay = fin.paymentFor(first);
+    expect(pay.sourceRef, planSourceRef('plan-rent', today));
+    expect(pay.accountId, cash);
+    expect(await fin.saveOperation(pay), isTrue);
+    expect(fin.occurrences(today, today).single.payment?.id, pay.id);
+
+    // Пропуск следующего раза.
+    final nextDay = DateTime(today.year, today.month + 1, today.day);
+    final next = fin.occurrences(nextDay, addCalendarDays(nextDay, 3)).first;
+    expect(await fin.skipOccurrence(next), isTrue);
+    expect(fin.plans.single.skipped, contains(next.day));
+    expect(fin.occurrences(next.day, next.day).single.skipped, isTrue);
+
+    // Повтор до дня раньше начала — не записывается.
+    expect(
+      await fin.savePlan(
+        plan.copyWith(untilDate: () => addCalendarDays(today, -1)),
+      ),
+      isFalse,
+    );
+    expect(await fin.deletePlan(fin.plans.single), isTrue);
+    expect(fin.plans, isEmpty);
+  });
+
+  test('оператору планы не загружаются и не пишутся', () async {
+    app.operatorMode = true;
+    app.userUuid = 'u-oper';
+    await fin.load();
+    expect(fin.plans, isEmpty);
+    expect(
+      await fin.savePlan(
+        FinPlan(
+          id: 'p',
+          type: OperationType.expense,
+          amount: 1,
+          startDate: DateTime(2026, 10, 1),
+        ),
+      ),
+      isFalse,
+    );
+  });
 }

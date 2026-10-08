@@ -3656,10 +3656,806 @@ i1.GeneratedColumn<String> _column_115(
   $customConstraints:
       'NULL REFERENCES fin_category_groups(uuid)DEFERRABLE INITIALLY DEFERRED',
 );
+
+final class Schema5 extends i0.VersionedSchema {
+  Schema5({required super.database}) : super(version: 5);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    companySettings,
+    employees,
+    employeeRates,
+    timesheet,
+    payments,
+    sickLeave,
+    vacation,
+    payrollResults,
+    pendingChanges,
+    syncState,
+    finDirections,
+    finAllocationKeys,
+    finAllocationPeriods,
+    finAccounts,
+    finAssets,
+    finCategoryGroups,
+    finCategories,
+    counterparties,
+    finDebts,
+    finOperations,
+    finPayrollMapping,
+    payrollAdjustments,
+    finPlans,
+    idxEmployeesFullName,
+    idxEmployeeRatesEmployee,
+    idxTimesheetUnique,
+    idxTimesheetDate,
+    idxPaymentsEmployeeDate,
+    idxPaymentsDate,
+    idxSickLeaveEmployee,
+    idxVacationEmployee,
+    idxPayrollUnique,
+    idxPayrollPeriod,
+    idxFinDirectionsName,
+    idxFinAllocationKeysName,
+    idxFinAllocationPeriodsUnique,
+    idxFinAccountsName,
+    idxFinCategoriesName,
+    idxCounterpartiesName,
+    idxFinOperationsDate,
+    idxFinOperationsAccount,
+    idxFinOperationsCategory,
+    idxFinPayrollMappingUnique,
+    idxPayrollAdjustmentsMonth,
+    idxPayrollAdjustmentsEmployee,
+    idxFinCategoryGroupsName,
+    idxFinPlansStart,
+  ];
+  late final Shape0 companySettings = Shape0(
+    source: i0.VersionedTable(
+      entityName: 'company_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_16,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape1 employees = Shape1(
+    source: i0.VersionedTable(
+      entityName: 'employees',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_17,
+        _column_18,
+        _column_19,
+        _column_20,
+        _column_21,
+        _column_22,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 employeeRates = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'employee_rates',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_27,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 timesheet = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'timesheet',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_28,
+        _column_29,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 payments = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'payments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_34,
+        _column_35,
+        _column_36,
+        _column_37,
+        _column_38,
+        _column_39,
+        _column_40,
+        _column_32,
+        _column_33,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 sickLeave = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'sick_leave',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_26,
+        _column_41,
+        _column_40,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 vacation = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'vacation',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_26,
+        _column_41,
+        _column_45,
+        _column_42,
+        _column_46,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape7 payrollResults = Shape7(
+    source: i0.VersionedTable(
+      entityName: 'payroll_results',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_47,
+        _column_48,
+        _column_49,
+        _column_50,
+        _column_51,
+        _column_52,
+        _column_53,
+        _column_54,
+        _column_55,
+        _column_56,
+        _column_57,
+        _column_58,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape8 pendingChanges = Shape8(
+    source: i0.VersionedTable(
+      entityName: 'pending_changes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_59,
+        _column_60,
+        _column_61,
+        _column_62,
+        _column_63,
+        _column_33,
+        _column_64,
+        _column_65,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 syncState = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'sync_state',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_66, _column_67],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 finDirections = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'fin_directions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_68,
+        _column_69,
+        _column_70,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape11 finAllocationKeys = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'fin_allocation_keys',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_68,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape12 finAllocationPeriods = Shape12(
+    source: i0.VersionedTable(
+      entityName: 'fin_allocation_periods',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_71,
+        _column_72,
+        _column_73,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 finAccounts = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'fin_accounts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_68,
+        _column_74,
+        _column_75,
+        _column_76,
+        _column_77,
+        _column_78,
+        _column_70,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape14 finAssets = Shape14(
+    source: i0.VersionedTable(
+      entityName: 'fin_assets',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_68,
+        _column_74,
+        _column_79,
+        _column_80,
+        _column_81,
+        _column_82,
+        _column_83,
+        _column_84,
+        _column_85,
+        _column_86,
+        _column_87,
+        _column_88,
+        _column_89,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape21 finCategoryGroups = Shape21(
+    source: i0.VersionedTable(
+      entityName: 'fin_category_groups',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_90,
+        _column_68,
+        _column_70,
+        _column_94,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape22 finCategories = Shape22(
+    source: i0.VersionedTable(
+      entityName: 'fin_categories',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_90,
+        _column_91,
+        _column_68,
+        _column_83,
+        _column_84,
+        _column_92,
+        _column_93,
+        _column_94,
+        _column_70,
+        _column_115,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape16 counterparties = Shape16(
+    source: i0.VersionedTable(
+      entityName: 'counterparties',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_68,
+        _column_95,
+        _column_8,
+        _column_13,
+        _column_77,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape17 finDebts = Shape17(
+    source: i0.VersionedTable(
+      entityName: 'fin_debts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_96,
+        _column_74,
+        _column_75,
+        _column_76,
+        _column_78,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape18 finOperations = Shape18(
+    source: i0.VersionedTable(
+      entityName: 'fin_operations',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_28,
+        _column_90,
+        _column_97,
+        _column_98,
+        _column_99,
+        _column_100,
+        _column_83,
+        _column_84,
+        _column_101,
+        _column_102,
+        _column_103,
+        _column_77,
+        _column_104,
+        _column_105,
+        _column_106,
+        _column_107,
+        _column_108,
+        _column_109,
+        _column_32,
+        _column_110,
+        _column_111,
+        _column_112,
+        _column_33,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape19 finPayrollMapping = Shape19(
+    source: i0.VersionedTable(
+      entityName: 'fin_payroll_mapping',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_74,
+        _column_113,
+        _column_114,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape20 payrollAdjustments = Shape20(
+    source: i0.VersionedTable(
+      entityName: 'payroll_adjustments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_23,
+        _column_47,
+        _column_48,
+        _column_35,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape23 finPlans = Shape23(
+    source: i0.VersionedTable(
+      entityName: 'fin_plans',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_90,
+        _column_97,
+        _column_26,
+        _column_116,
+        _column_117,
+        _column_118,
+        _column_100,
+        _column_103,
+        _column_106,
+        _column_119,
+        _column_78,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index idxEmployeesFullName = i1.Index(
+    'idx_employees_full_name',
+    'CREATE INDEX idx_employees_full_name ON employees (full_name)',
+  );
+  final i1.Index idxEmployeeRatesEmployee = i1.Index(
+    'idx_employee_rates_employee',
+    'CREATE INDEX idx_employee_rates_employee ON employee_rates (employee_uuid, start_date)',
+  );
+  final i1.Index idxTimesheetUnique = i1.Index(
+    'idx_timesheet_unique',
+    'CREATE UNIQUE INDEX idx_timesheet_unique ON timesheet (employee_uuid, date) WHERE deleted = 0',
+  );
+  final i1.Index idxTimesheetDate = i1.Index(
+    'idx_timesheet_date',
+    'CREATE INDEX idx_timesheet_date ON timesheet (date)',
+  );
+  final i1.Index idxPaymentsEmployeeDate = i1.Index(
+    'idx_payments_employee_date',
+    'CREATE INDEX idx_payments_employee_date ON payments (employee_uuid, payment_date)',
+  );
+  final i1.Index idxPaymentsDate = i1.Index(
+    'idx_payments_date',
+    'CREATE INDEX idx_payments_date ON payments (payment_date)',
+  );
+  final i1.Index idxSickLeaveEmployee = i1.Index(
+    'idx_sick_leave_employee',
+    'CREATE INDEX idx_sick_leave_employee ON sick_leave (employee_uuid)',
+  );
+  final i1.Index idxVacationEmployee = i1.Index(
+    'idx_vacation_employee',
+    'CREATE INDEX idx_vacation_employee ON vacation (employee_uuid)',
+  );
+  final i1.Index idxPayrollUnique = i1.Index(
+    'idx_payroll_unique',
+    'CREATE UNIQUE INDEX idx_payroll_unique ON payroll_results (employee_uuid, year, month) WHERE deleted = 0',
+  );
+  final i1.Index idxPayrollPeriod = i1.Index(
+    'idx_payroll_period',
+    'CREATE INDEX idx_payroll_period ON payroll_results (year, month)',
+  );
+  final i1.Index idxFinDirectionsName = i1.Index(
+    'idx_fin_directions_name',
+    'CREATE UNIQUE INDEX idx_fin_directions_name ON fin_directions (name) WHERE deleted = 0',
+  );
+  final i1.Index idxFinAllocationKeysName = i1.Index(
+    'idx_fin_allocation_keys_name',
+    'CREATE UNIQUE INDEX idx_fin_allocation_keys_name ON fin_allocation_keys (name) WHERE deleted = 0',
+  );
+  final i1.Index idxFinAllocationPeriodsUnique = i1.Index(
+    'idx_fin_allocation_periods_unique',
+    'CREATE UNIQUE INDEX idx_fin_allocation_periods_unique ON fin_allocation_periods (key_uuid, valid_from) WHERE deleted = 0',
+  );
+  final i1.Index idxFinAccountsName = i1.Index(
+    'idx_fin_accounts_name',
+    'CREATE UNIQUE INDEX idx_fin_accounts_name ON fin_accounts (name) WHERE deleted = 0',
+  );
+  final i1.Index idxFinCategoriesName = i1.Index(
+    'idx_fin_categories_name',
+    'CREATE UNIQUE INDEX idx_fin_categories_name ON fin_categories (type, name) WHERE deleted = 0',
+  );
+  final i1.Index idxCounterpartiesName = i1.Index(
+    'idx_counterparties_name',
+    'CREATE UNIQUE INDEX idx_counterparties_name ON counterparties (name) WHERE deleted = 0',
+  );
+  final i1.Index idxFinOperationsDate = i1.Index(
+    'idx_fin_operations_date',
+    'CREATE INDEX idx_fin_operations_date ON fin_operations (date)',
+  );
+  final i1.Index idxFinOperationsAccount = i1.Index(
+    'idx_fin_operations_account',
+    'CREATE INDEX idx_fin_operations_account ON fin_operations (account_uuid, date)',
+  );
+  final i1.Index idxFinOperationsCategory = i1.Index(
+    'idx_fin_operations_category',
+    'CREATE INDEX idx_fin_operations_category ON fin_operations (category_uuid)',
+  );
+  final i1.Index idxFinPayrollMappingUnique = i1.Index(
+    'idx_fin_payroll_mapping_unique',
+    'CREATE UNIQUE INDEX idx_fin_payroll_mapping_unique ON fin_payroll_mapping (kind, value) WHERE deleted = 0',
+  );
+  final i1.Index idxPayrollAdjustmentsMonth = i1.Index(
+    'idx_payroll_adjustments_month',
+    'CREATE INDEX idx_payroll_adjustments_month ON payroll_adjustments (year, month)',
+  );
+  final i1.Index idxPayrollAdjustmentsEmployee = i1.Index(
+    'idx_payroll_adjustments_employee',
+    'CREATE INDEX idx_payroll_adjustments_employee ON payroll_adjustments (employee_uuid)',
+  );
+  final i1.Index idxFinCategoryGroupsName = i1.Index(
+    'idx_fin_category_groups_name',
+    'CREATE UNIQUE INDEX idx_fin_category_groups_name ON fin_category_groups (type, name) WHERE deleted = 0',
+  );
+  final i1.Index idxFinPlansStart = i1.Index(
+    'idx_fin_plans_start',
+    'CREATE INDEX idx_fin_plans_start ON fin_plans (start_date)',
+  );
+}
+
+class Shape23 extends i0.VersionedTable {
+  Shape23({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get uuid =>
+      columnsByName['uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get legacyId =>
+      columnsByName['legacy_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get editedBy =>
+      columnsByName['edited_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get remoteUpdatedAt =>
+      columnsByName['remote_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get type =>
+      columnsByName['type']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get amount =>
+      columnsByName['amount']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get startDate =>
+      columnsByName['start_date']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get recurrence =>
+      columnsByName['recurrence']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get untilDate =>
+      columnsByName['until_date']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get accountUuid =>
+      columnsByName['account_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get categoryUuid =>
+      columnsByName['category_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get counterpartyUuid =>
+      columnsByName['counterparty_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get description =>
+      columnsByName['description']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get skipped =>
+      columnsByName['skipped']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get closed =>
+      columnsByName['closed']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<String> _column_116(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'recurrence',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'none\'',
+      defaultValue: const i1.CustomExpression('\'none\''),
+    );
+i1.GeneratedColumn<String> _column_117(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'until_date',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_118(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'account_uuid',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints:
+          'NULL REFERENCES fin_accounts(uuid)DEFERRABLE INITIALLY DEFERRED',
+    );
+i1.GeneratedColumn<String> _column_119(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'skipped',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
+  required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -3678,6 +4474,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from3To4(migrator, schema);
         return 4;
+      case 4:
+        final schema = Schema5(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from4To5(migrator, schema);
+        return 5;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -3688,10 +4489,12 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
+  required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
     from2To3: from2To3,
     from3To4: from3To4,
+    from4To5: from4To5,
   ),
 );

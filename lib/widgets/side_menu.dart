@@ -53,7 +53,7 @@ class _SideMenuState extends State<SideMenu> {
       child: SafeArea(
         right: false,
         child: SizedBox(
-          width: wide ? 224 : 72,
+          width: wide ? 248 : 72,
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: children,

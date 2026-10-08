@@ -457,6 +457,27 @@ const syncTables = <SyncTable>[
       SyncColumn('target_uuid', SyncType.uuid),
     ],
   ),
+  // Платёжный календарь (схема 5, программы 1.20+).
+  SyncTable('fin_plans', [
+    _legacyId,
+    SyncColumn('type', SyncType.text, allowed: {'income', 'expense'}),
+    SyncColumn('amount', SyncType.integer, min: 1, max: _maxKopecks),
+    SyncColumn('start_date', SyncType.date),
+    // Повтор (`repeat` — служебное слово MySQL).
+    SyncColumn(
+      'recurrence',
+      SyncType.text,
+      allowed: {'none', 'monthly', 'quarterly', 'yearly'},
+    ),
+    SyncColumn('until_date', SyncType.date, nullable: true),
+    SyncColumn('account_uuid', SyncType.uuid, nullable: true),
+    SyncColumn('category_uuid', SyncType.uuid, nullable: true),
+    SyncColumn('counterparty_uuid', SyncType.uuid, nullable: true),
+    SyncColumn('description', SyncType.text, nullable: true, maxLength: 500),
+    // Пропущенные дни: `гггг-мм-дд` через запятую.
+    SyncColumn('skipped', SyncType.text, nullable: true, maxLength: 4000),
+    SyncColumn('closed', SyncType.boolean),
+  ]),
 ];
 
 /// Таблицы до финансов (схема 1). Программы до 1.18 спрашивают изменения

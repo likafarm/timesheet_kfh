@@ -244,6 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? null
                     : _FinanceCards(
                         summary: finance,
+                        forecast: _finance.forecast(),
                         open: (section) => _open(section),
                       );
                 const gap = SizedBox(height: 12, width: 12);
@@ -617,13 +618,104 @@ class _MonthCard extends StatelessWidget {
 }
 
 /// Плитки финансов (8.7): деньги в кошельках, займы, доходы и расходы
-/// месяца. Ссылки — в пункты меню «Банки и кассы» и «Расходы» (8Б.1).
+/// месяца; платежи на неделю и нехватка денег по платёжному календарю
+/// (8Б.4). Ссылки — в пункты меню «Финансов» (8Б.1).
 class _FinanceCards extends StatelessWidget {
   final FinanceSummary summary;
+
+  /// Прогноз платёжного календаря на 60 дней.
+  final List<ForecastDay> forecast;
+
   /// Переход в пункт меню «Финансов» (8Б.1).
   final void Function(AppSection section) open;
 
-  const _FinanceCards({required this.summary, required this.open});
+  const _FinanceCards({
+    required this.summary,
+    required this.forecast,
+    required this.open,
+  });
+
+  /// Платежи ближайшей недели и первый день нехватки денег; пусто — нет
+  /// ни того, ни другого.
+  List<Widget> _payments(ThemeData theme, Widget gap) {
+    final today = calendarDay(DateTime.now());
+    final weekEnd = addCalendarDays(today, 7);
+    final week = [
+      for (final d in forecast)
+        if (!d.day.isAfter(weekEnd)) ...d.items,
+    ];
+    final shortfall = firstShortfall(forecast);
+    if (week.isEmpty && shortfall == null) return const [];
+    final day = DateFormat('dd.MM');
+    return [
+      gap,
+      _Block(
+        title: 'Платежи на неделю',
+        icon: Icons.event_note_outlined,
+        children: [
+          if (shortfall != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Text(
+                '${DateFormat('dd.MM.yyyy').format(shortfall.day)} не хватит '
+                '${formatRub(-shortfall.balance)} ₽',
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          for (final o in week.take(5))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      o.day.isBefore(today) ? 'долг' : day.format(o.day),
+                      style: o.day.isBefore(today)
+                          ? TextStyle(color: theme.colorScheme.error)
+                          : null,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      o.plan.description ??
+                          (o.signedAmount > 0 ? 'Поступление' : 'Платёж'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '${o.signedAmount > 0 ? '+' : '−'}'
+                    '${formatRub(o.plan.amount)} ₽',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: operationTypeColors[o.plan.type],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (week.length > 5)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('и ещё ${week.length - 5}'),
+            ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
+                onPressed: () => open(AppSection.calendar),
+                child: const Text('Платёжный календарь'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -688,6 +780,7 @@ class _FinanceCards extends StatelessWidget {
             ],
           ),
         ],
+        ..._payments(theme, gap),
         gap,
         _Block(
           title: 'Доходы и расходы — ${_monthName(day.year, day.month)}',

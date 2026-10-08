@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import 'catalog.dart';
 import 'models.dart';
+import 'plans.dart';
 
 /// Что не так с операцией [op] — текст для человека; null — всё в порядке.
 /// [before] — прежняя версия при правке: закрытый кошелёк и выбывшее
@@ -214,5 +215,6 @@ String? financeRowProblem(String table, Map<String, Object?> data) =>
     switch (table) {
       'fin_operations' => operationRowProblem(data),
       'fin_allocation_periods' => allocationPeriodRowProblem(data),
+      'fin_plans' => planRowProblem(data),
       _ => null,
     };
