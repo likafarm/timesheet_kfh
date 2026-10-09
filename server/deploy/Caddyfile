@@ -50,3 +50,12 @@
 		format json
 	}
 }
+
+# Второй сервер синхронизации (task.korovatech.ru) — отдельный сервис на
+# самом VPS, не в compose-проекте kfh: Caddy ходит к нему через шлюз
+# docker-сети kfh_default (172.18.0.1 — адрес хоста в ней; подсеть
+# закреплена в docker-compose.prod.yml).
+task.korovatech.ru {
+	encode gzip
+	reverse_proxy 172.18.0.1:8787
+}

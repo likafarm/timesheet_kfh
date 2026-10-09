@@ -93,6 +93,18 @@ secrets:
   jwt_secret:
     file: /opt/kfh/secrets/jwt_secret
 
+# Подсеть закреплена: Caddy ходит к сервису task.korovatech.ru на самом
+# VPS по адресу шлюза 172.18.0.1 (сервис слушает только его, ufw пускает
+# к 8787 из 172.16.0.0/12). Без явной подсети Docker при пересоздании
+# сети мог бы выдать другую. host-gateway не подходит — это docker0
+# (172.17.0.1).
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+
 volumes:
   mysql-data:
   caddy-data:
