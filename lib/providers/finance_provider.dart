@@ -614,18 +614,27 @@ class FinanceProvider extends ChangeNotifier {
   );
 
   /// Записать выписку: [fresh] — новые операции (строка, статья,
-  /// контрагент; контрагента без справочника заводит по названию и ИНН
-  /// строки), [matched] — ручные операции, найденные по строкам: им
+  /// контрагент, второй кошелёк перевода; контрагента без справочника
+  /// заводит по названию и ИНН строки; со вторым кошельком — перевод между
+  /// своими кошельками, без статьи и контрагента), [matched] — ручные операции, найденные по строкам: им
   /// ставится ссылка на строку (повторная загрузка их не задвоит). Закрытые
   /// месяцы — как при обычной записи. Возвращает число записанных
   /// операций; null — отказ (объяснение — [lastProblem]).
   Future<int?> importStatement({
     required String accountId,
-    required List<(BankLine, String? categoryId, String? counterpartyId)> fresh,
+    required List<
+      (
+        BankLine,
+        String? categoryId,
+        String? counterpartyId,
+        String? transferAccountId,
+      )
+    >
+    fresh,
     required List<BankLineMatch> matched,
   }) async {
     if (!_allowed()) return null;
-    for (final (line, category, _) in fresh) {
+    for (final (line, category, _, transferTo) in fresh) {
       final message = _app.periodViolation('fin_operations', null, {
         'date': formatDateIso(line.date),
       });
@@ -639,6 +648,7 @@ class FinanceProvider extends ChangeNotifier {
           line: line,
           accountId: accountId,
           categoryId: category,
+          transferAccountId: transferTo,
         ),
         _catalog,
       );
@@ -659,10 +669,11 @@ class FinanceProvider extends ChangeNotifier {
       final byName = <String, String>{
         for (final c in _counterparties) c.name.trim().toLowerCase(): c.id,
       };
-      for (final (line, category, chosen) in fresh) {
+      for (final (line, category, chosen, transferTo) in fresh) {
         var counterparty = chosen;
         final name = line.counterpartyName?.trim();
-        if (counterparty == null &&
+        if (transferTo == null &&
+            counterparty == null &&
             name != null &&
             name.isNotEmpty &&
             !bankInns.contains(line.counterpartyInn)) {
@@ -693,6 +704,7 @@ class FinanceProvider extends ChangeNotifier {
             accountId: accountId,
             categoryId: category,
             counterpartyId: counterparty,
+            transferAccountId: transferTo,
             createdBy: _app.userUuid,
           ),
         );

@@ -230,9 +230,17 @@ class BankLineMatch {
   final String? categoryId;
   final String? counterpartyId;
 
-  /// Контрагент — свой (ИНН хозяйства): скорее перевод между своими
-  /// кошельками или снятие наличных — по умолчанию не записывается.
+  /// Контрагент — свой (ИНН хозяйства).
   final bool own;
+
+  /// Похоже на перевод между своими кошельками (свой ИНН или назначение
+  /// «зачисление собственных средств», «взнос наличных»…): предлагается
+  /// записать переводом, а не доходом или расходом.
+  final bool transfer;
+
+  /// Второй кошелёк перевода — подсказка: прошлый такой же перевод этого
+  /// кошелька, иначе касса; null — подсказать нечего.
+  final String? otherAccountId;
 
   const BankLineMatch(
     this.line,
@@ -241,8 +249,25 @@ class BankLineMatch {
     this.categoryId,
     this.counterpartyId,
     this.own = false,
+    this.transfer = false,
+    this.otherAccountId,
   });
 }
+
+/// Назначения платежа, которые означают перевод между своими кошельками
+/// (решение владельца 2026-10-14: внесение наличных на счёт — перевод
+/// «касса → счёт», а не доход). Список дополняется по образцам выписок.
+final _transferPurposes = RegExp(
+  r'собственных средств|взнос\s+наличн|внесени[еяй]\s+наличн|'
+  r'снятие\s+наличн|выдача\s+наличн|перевод\s+между\s+(своими\s+)?счетами',
+  caseSensitive: false,
+);
+
+/// Строка — перевод между своими кошельками: вторая сторона — свой ИНН
+/// [ownInn] или назначение платежа из [_transferPurposes].
+bool looksLikeTransfer(BankLine line, {String? ownInn}) =>
+    (ownInn != null && line.counterpartyInn == ownInn) ||
+    _transferPurposes.hasMatch(line.purpose);
 
 /// Банк-посредник (эквайринг, карты): по его ИНН статью не подобрать —
 /// подбирается по магазину из назначения платежа.
@@ -269,7 +294,10 @@ String purposeSignature(String purpose) => RegExp(
 /// сумма и вид, ±3 дня, ещё без ссылки на банк — каждая один раз) и новые —
 /// с подсказкой статьи и контрагента по прошлым операциям (тот же ИНН или
 /// название контрагента; у покупок по карте — тот же магазин).
-/// [ownInn] — ИНН хозяйства.
+/// Переводы между своими кошельками ([looksLikeTransfer]) ищутся среди
+/// переводов, где этот кошелёк — «куда» (поступление) или «откуда»
+/// (списание), в том числе загруженных из выписки другого счёта; новому —
+/// подсказка второго кошелька. [ownInn] — ИНН хозяйства.
 List<BankLineMatch> matchBankLines({
   required List<BankLine> lines,
   required String accountId,
@@ -292,6 +320,37 @@ List<BankLineMatch> matchBankLines({
   };
   // Новые сверху: последняя операция с контрагентом — её статья.
   final recent = [...ops]..sort((a, b) => b.date.compareTo(a.date));
+
+  /// Второй кошелёк перевода: прошлый перевод этого кошелька в ту же
+  /// сторону с тем же смыслом назначения, иначе любой прошлый в ту же
+  /// сторону, иначе открытая касса.
+  String? suggestOther(BankLine l) {
+    String? other(FinOperation op) =>
+        l.incoming ? op.accountId : op.toAccountId;
+    bool sameSide(FinOperation op) =>
+        op.type == OperationType.transfer &&
+        (l.incoming ? op.toAccountId == accountId : op.accountId == accountId);
+    final sign = purposeSignature(l.purpose);
+    final past =
+        recent
+            .where(
+              (op) =>
+                  sameSide(op) &&
+                  purposeSignature(op.description ?? '') == sign,
+            )
+            .firstOrNull ??
+        recent.where(sameSide).firstOrNull;
+    final found = past == null ? null : other(past);
+    if (found != null && catalog.accounts[found]?.closed == false) {
+      return found;
+    }
+    for (final a in catalog.accounts.values) {
+      if (a.kind == AccountKind.cash && !a.closed && a.id != accountId) {
+        return a.id;
+      }
+    }
+    return null;
+  }
 
   BankLineMatch decide(BankLine l) {
     final done = byKey[l.key];
@@ -323,7 +382,45 @@ List<BankLineMatch> matchBankLines({
         operation: candidates.first,
       );
     }
+    // Перевод, уже внесённый вручную или из выписки другого счёта.
+    final transfers =
+        [
+          for (final op in ops)
+            if (op.type == OperationType.transfer &&
+                op.amount == l.amount &&
+                (l.incoming
+                    ? op.toAccountId == accountId
+                    : op.accountId == accountId) &&
+                !used.contains(op.id) &&
+                op.sourceRef != l.key &&
+                (calendarDay(op.date).difference(l.date).inDays.abs() <= 3))
+              op,
+        ]..sort(
+          (a, b) => calendarDay(a.date)
+              .difference(l.date)
+              .inDays
+              .abs()
+              .compareTo(calendarDay(b.date).difference(l.date).inDays.abs()),
+        );
+    if (transfers.isNotEmpty) {
+      used.add(transfers.first.id);
+      return BankLineMatch(
+        l,
+        BankLineStatus.matched,
+        operation: transfers.first,
+        transfer: true,
+      );
+    }
     final own = ownInn != null && l.counterpartyInn == ownInn;
+    if (looksLikeTransfer(l, ownInn: ownInn)) {
+      return BankLineMatch(
+        l,
+        BankLineStatus.fresh,
+        own: own,
+        transfer: true,
+        otherAccountId: suggestOther(l),
+      );
+    }
     final viaBank = bankInns.contains(l.counterpartyInn);
     final counterparty = viaBank
         ? null
@@ -381,22 +478,31 @@ List<BankLineMatch> matchBankLines({
 }
 
 /// Операция из строки выписки: кошелёк [accountId], статья и контрагент —
-/// выбранные, описание — назначение платежа (до 500 знаков).
+/// выбранные, описание — назначение платежа (до 500 знаков). С
+/// [transferAccountId] — перевод между своими кошельками: поступление —
+/// «[transferAccountId] → [accountId]», списание — наоборот; без статьи и
+/// контрагента.
 FinOperation bankOperation({
   required String id,
   required BankLine line,
   required String accountId,
   String? categoryId,
   String? counterpartyId,
+  String? transferAccountId,
   String? createdBy,
 }) => FinOperation(
   id: id,
   date: line.date,
-  type: line.type,
+  type: transferAccountId != null ? OperationType.transfer : line.type,
   amount: line.amount,
-  accountId: accountId,
-  categoryId: categoryId,
-  counterpartyId: counterpartyId,
+  accountId: transferAccountId != null && line.incoming
+      ? transferAccountId
+      : accountId,
+  toAccountId: transferAccountId == null
+      ? null
+      : (line.incoming ? accountId : transferAccountId),
+  categoryId: transferAccountId != null ? null : categoryId,
+  counterpartyId: transferAccountId != null ? null : counterpartyId,
   description: line.purpose.length > 500
       ? line.purpose.substring(0, 500)
       : line.purpose,

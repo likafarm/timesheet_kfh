@@ -624,7 +624,7 @@ void main() {
     ]);
     final written = await fin.importStatement(
       accountId: cash,
-      fresh: [(statement.lines[1], fuel, null)],
+      fresh: [(statement.lines[1], fuel, null, null)],
       matched: [matches.first],
     );
     expect(written, 1);
@@ -658,7 +658,7 @@ void main() {
     expect(
       await fin.importStatement(
         accountId: cash,
-        fresh: [(next, null, null)],
+        fresh: [(next, null, null, null)],
         matched: const [],
       ),
       isNull,

@@ -213,6 +213,7 @@ void main() {
       expect(matches[3].categoryId, 'fuel', reason: 'тот же магазин');
       expect(matches[3].counterpartyId, isNull, reason: 'банк — посредник');
       expect(matches[4].own, isTrue);
+      expect(matches[4].transfer, isTrue, reason: 'свой ИНН — перевод');
     });
 
     test('операция из строки помнит ключ', () {
@@ -263,5 +264,190 @@ void main() {
     ).single;
     expect(m.status, BankLineStatus.fresh);
     expect(m.categoryId, 'fees');
+  });
+
+  group('переводы между своими кошельками', () {
+    // Две строки из выписки владельца (сентябрь–октябрь 2026): внесение
+    // наличных — плательщик сам банк, назначение «Зачисление собственных
+    // средств».
+    BankLine deposit(DateTime d, int amount, String doc) => BankLine(
+      date: d,
+      amount: amount,
+      incoming: true,
+      docNumber: doc,
+      purpose: 'Зачисление собственных средств;'
+          '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')}/${d.year}',
+      counterpartyName: 'ПАО Сбербанк',
+      counterpartyInn: '7707083893',
+      counterpartyAccount: '30233810642000600001',
+    );
+    final first = deposit(DateTime(2026, 9, 11), 1000000, '33995');
+    final second = deposit(DateTime(2026, 10, 1), 5000000, '574956');
+    final catalog = FinanceCatalog(
+      accounts: const [
+        FinAccount(id: 'sber', name: 'СБЕР', kind: AccountKind.bank),
+        FinAccount(id: 'safe', name: 'Сейф', kind: AccountKind.cash),
+        FinAccount(id: 'card', name: 'Карта', kind: AccountKind.card),
+      ],
+    );
+
+    test('назначение и свой ИНН узнаются как перевод', () {
+      expect(looksLikeTransfer(first), isTrue);
+      for (final purpose in [
+        'Взнос наличных через АТМ',
+        'Внесение наличных денежных средств',
+        'Снятие наличных по карте',
+        'Выдача наличных',
+        'Перевод между своими счетами',
+      ]) {
+        expect(
+          looksLikeTransfer(
+            BankLine(
+              date: DateTime(2026, 9, 1),
+              amount: 1,
+              incoming: true,
+              purpose: purpose,
+            ),
+          ),
+          isTrue,
+          reason: purpose,
+        );
+      }
+      final own = BankLine(
+        date: DateTime(2026, 9, 1),
+        amount: 1,
+        incoming: false,
+        purpose: 'Перевод',
+        counterpartyInn: '860323863100',
+      );
+      expect(looksLikeTransfer(own), isFalse);
+      expect(looksLikeTransfer(own, ownInn: '860323863100'), isTrue);
+      final refund = BankLine(
+        date: DateTime(2026, 9, 17),
+        amount: 30000,
+        incoming: true,
+        purpose: 'Возврат покупки PURCHASE_CB в ТУ Сбербанка OZON по карте',
+        counterpartyInn: '7707083893',
+      );
+      expect(looksLikeTransfer(refund), isFalse);
+    });
+
+    test('новый перевод: подсказка кассы, запись «касса → счёт»', () {
+      final m = matchBankLines(
+        lines: [first],
+        accountId: 'sber',
+        operations: const [],
+        catalog: catalog,
+      ).single;
+      expect(m.status, BankLineStatus.fresh);
+      expect(m.transfer, isTrue);
+      expect(m.categoryId, isNull);
+      expect(m.otherAccountId, 'safe');
+
+      final o = bankOperation(
+        id: 'x',
+        line: first,
+        accountId: 'sber',
+        categoryId: 'ignored',
+        counterpartyId: 'ignored',
+        transferAccountId: 'safe',
+      );
+      expect(o.type, OperationType.transfer);
+      expect(o.accountId, 'safe');
+      expect(o.toAccountId, 'sber');
+      expect(o.categoryId, isNull);
+      expect(o.counterpartyId, isNull);
+      expect(o.sourceRef, first.key);
+      expect(operationProblem(o, catalog), isNull);
+
+      // Списание (снятие наличных) — наоборот: «счёт → касса».
+      final out = bankOperation(
+        id: 'y',
+        line: BankLine(
+          date: DateTime(2026, 9, 12),
+          amount: 500000,
+          incoming: false,
+          purpose: 'Снятие наличных',
+        ),
+        accountId: 'sber',
+        transferAccountId: 'safe',
+      );
+      expect((out.accountId, out.toAccountId), ('sber', 'safe'));
+    });
+
+    test('второй кошелёк — по прошлому такому же переводу', () {
+      final past = bankOperation(
+        id: 'p',
+        line: first,
+        accountId: 'sber',
+        transferAccountId: 'card',
+      );
+      final m = matchBankLines(
+        lines: [second],
+        accountId: 'sber',
+        operations: [past],
+        catalog: catalog,
+      ).single;
+      expect(m.status, BankLineStatus.fresh);
+      expect(m.otherAccountId, 'card');
+    });
+
+    test('повторная загрузка и перевод, внесённый вручную', () {
+      final loaded = bankOperation(
+        id: 'p',
+        line: first,
+        accountId: 'sber',
+        transferAccountId: 'safe',
+      );
+      final manual = FinOperation(
+        id: 'm',
+        date: DateTime(2026, 9, 30),
+        type: OperationType.transfer,
+        amount: 5000000,
+        accountId: 'safe',
+        toAccountId: 'sber',
+      );
+      final matches = matchBankLines(
+        lines: [first, second],
+        accountId: 'sber',
+        operations: [loaded, manual],
+        catalog: catalog,
+      );
+      expect(matches[0].status, BankLineStatus.imported);
+      expect(matches[1].status, BankLineStatus.matched);
+      expect(matches[1].operation?.id, 'm');
+      expect(matches[1].transfer, isTrue);
+    });
+
+    test('перевод из выписки другого счёта находится, а не задваивается', () {
+      // Перевод «карта → СБЕР» уже загружен из выписки карты.
+      final fromCard = FinOperation(
+        id: 'c',
+        date: DateTime(2026, 10, 1),
+        type: OperationType.transfer,
+        amount: 5000000,
+        accountId: 'card',
+        toAccountId: 'sber',
+        source: OperationSource.bank,
+        sourceRef: 'bank:2026-10-01:574956:5000000:out',
+      );
+      final m = matchBankLines(
+        lines: [second],
+        accountId: 'sber',
+        operations: [fromCard],
+        catalog: catalog,
+      ).single;
+      expect(m.status, BankLineStatus.matched);
+      expect(m.operation?.id, 'c');
+      // Перевод в другой кошелёк — не тот.
+      final elsewhere = matchBankLines(
+        lines: [second],
+        accountId: 'card',
+        operations: [fromCard],
+        catalog: catalog,
+      ).single;
+      expect(elsewhere.status, BankLineStatus.fresh);
+    });
   });
 }

@@ -4,8 +4,10 @@
 // (Excel) → кошелёк → строки: уже загруженные, найденные среди введённых
 // вручную (им ставится ссылка — дублей не будет) и новые с подсказкой
 // статьи и контрагента по прошлым операциям. Новые без статьи не
-// записываются, пока статью не выберут; свои счета (ИНН хозяйства — снятие
-// наличных, перевод на карту) по умолчанию не отмечены.
+// записываются, пока статью не выберут. Переводы между своими кошельками
+// (внесение наличных, свой ИНН — решение владельца 2026-10-14) пишутся
+// переводом: второй кошелёк выбирается кнопками, вид строки можно
+// переключить «Доход/Расход ↔ Перевод».
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,7 @@ import '../providers/app_provider.dart';
 import '../providers/finance_provider.dart';
 import '../services/xlsx_reader.dart';
 import '../widgets/adaptive_dialog.dart';
+import '../widgets/choice_buttons.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/finance_operation_dialog.dart';
 
@@ -35,12 +38,25 @@ class _Row {
   bool take;
   String? categoryId;
 
+  /// Записать переводом между своими кошельками.
+  bool transfer;
+
+  /// Второй кошелёк перевода.
+  String? otherAccountId;
+
   _Row(this.match)
-    : take =
+    : transfer = match.transfer,
+      otherAccountId = match.otherAccountId,
+      categoryId = match.categoryId,
+      take =
           match.status == BankLineStatus.fresh &&
-          !match.own &&
-          match.categoryId != null,
-      categoryId = match.categoryId;
+          (match.transfer
+              ? match.otherAccountId != null
+              : !match.own && match.categoryId != null);
+
+  /// Строку можно записать: у перевода есть второй кошелёк, у дохода и
+  /// расхода — статья.
+  bool get ready => transfer ? otherAccountId != null : categoryId != null;
 }
 
 class _BankImportScreenState extends State<BankImportScreen> {
@@ -105,6 +121,7 @@ class _BankImportScreenState extends State<BankImportScreen> {
     final rows = [
       for (final r in _rows!)
         if (r.match.status == BankLineStatus.fresh &&
+            !r.transfer &&
             r.categoryId == null &&
             r.match.line.type == type)
           r,
@@ -204,10 +221,10 @@ class _BankImportScreenState extends State<BankImportScreen> {
     final rows = _rows!, account = _accountId!;
     final fresh = [
       for (final r in rows)
-        if (r.take &&
-            r.match.status == BankLineStatus.fresh &&
-            r.categoryId != null)
-          (r.match.line, r.categoryId, r.match.counterpartyId),
+        if (r.take && r.match.status == BankLineStatus.fresh && r.ready)
+          r.transfer
+              ? (r.match.line, null, null, r.otherAccountId)
+              : (r.match.line, r.categoryId, r.match.counterpartyId, null),
     ];
     final matched = [
       for (final r in rows)
@@ -255,14 +272,12 @@ class _BankImportScreenState extends State<BankImportScreen> {
         : rows
               .where(
                 (r) =>
-                    r.take &&
-                    r.match.status == BankLineStatus.fresh &&
-                    r.categoryId != null,
+                    r.take && r.match.status == BankLineStatus.fresh && r.ready,
               )
               .length;
     final noCategory = rows == null
         ? 0
-        : rows.where((r) => r.take && r.categoryId == null).length;
+        : rows.where((r) => r.take && !r.ready).length;
     return Scaffold(
       appBar: AppBar(title: const Text('Загрузка выписки')),
       body: ListView(
@@ -339,8 +354,8 @@ class _BankImportScreenState extends State<BankImportScreen> {
                       child: Text(
                         noCategory == 0
                             ? 'К записи: $toWrite'
-                            : 'К записи: $toWrite; без статьи: $noCategory '
-                                  '(не запишутся)',
+                            : 'К записи: $toWrite; без статьи или '
+                                  'кошелька: $noCategory (не запишутся)',
                       ),
                     ),
                     FilledButton(
@@ -362,8 +377,8 @@ class _BankImportScreenState extends State<BankImportScreen> {
   List<Widget> _summary(ThemeData theme, List<_Row> rows) {
     int count(BankLineStatus s) =>
         rows.where((r) => r.match.status == s).length;
-    final own = rows.where(
-      (r) => r.match.status == BankLineStatus.fresh && r.match.own,
+    final transfers = rows.where(
+      (r) => r.match.status == BankLineStatus.fresh && r.transfer,
     );
     return [
       const SizedBox(height: 8),
@@ -377,11 +392,8 @@ class _BankImportScreenState extends State<BankImportScreen> {
             'Новых: ${count(BankLineStatus.fresh)}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          if (own.isNotEmpty)
-            Text(
-              'из них свои счета: ${own.length} — проверьте',
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
+          if (transfers.isNotEmpty)
+            Text('из них переводы между своими: ${transfers.length}'),
         ],
       ),
       Wrap(
@@ -391,6 +403,7 @@ class _BankImportScreenState extends State<BankImportScreen> {
             if (rows.any(
               (r) =>
                   r.match.status == BankLineStatus.fresh &&
+                  !r.transfer &&
                   r.categoryId == null &&
                   r.match.line.type == type,
             ))
@@ -412,6 +425,10 @@ class _BankImportScreenState extends State<BankImportScreen> {
   Widget _tile(ThemeData theme, _Row r) {
     final l = r.match.line;
     final category = fin.catalog.categories[r.categoryId];
+    final others = [
+      for (final a in fin.accounts)
+        if (!a.closed && a.id != _accountId) a,
+    ];
     return Card(
       child: CheckboxListTile(
         value: r.take,
@@ -442,27 +459,75 @@ class _BankImportScreenState extends State<BankImportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l.purpose, maxLines: 2, overflow: TextOverflow.ellipsis),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _chooseCategory(r),
-                icon: Icon(
-                  Icons.category_outlined,
-                  size: 16,
-                  color: category == null ? theme.colorScheme.error : null,
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ChoiceButton(
+                  label: l.type.title,
+                  color: operationTypeColors[l.type] ?? Colors.grey,
+                  selected: !r.transfer,
+                  dense: true,
+                  onPressed: () => setState(() {
+                    r.transfer = false;
+                    r.take = !r.match.own && r.categoryId != null;
+                  }),
                 ),
-                label: Text(
-                  category?.name ?? 'Выбрать статью',
-                  style: TextStyle(
+                ChoiceButton(
+                  label: 'Перевод',
+                  color:
+                      operationTypeColors[OperationType.transfer] ??
+                      Colors.grey,
+                  selected: r.transfer,
+                  dense: true,
+                  onPressed: () => setState(() {
+                    r.transfer = true;
+                    r.take = r.otherAccountId != null;
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (r.transfer)
+              ChoiceGroup<String?>(
+                label: l.incoming ? 'Откуда пришли деньги' : 'Куда ушли деньги',
+                options: [
+                  for (final a in others)
+                    ChoiceOption<String?>(
+                      a.id,
+                      a.name,
+                      theme.colorScheme.primary,
+                    ),
+                ],
+                value: r.otherAccountId,
+                onChanged: (v) => setState(() {
+                  r.otherAccountId = v;
+                  r.take = true;
+                }),
+              )
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => _chooseCategory(r),
+                  icon: Icon(
+                    Icons.category_outlined,
+                    size: 16,
                     color: category == null ? theme.colorScheme.error : null,
+                  ),
+                  label: Text(
+                    category?.name ?? 'Выбрать статью',
+                    style: TextStyle(
+                      color: category == null ? theme.colorScheme.error : null,
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (r.match.own)
+            if (r.match.own && !r.transfer)
               Text(
-                'Свой счёт: снятие наличных или перевод — лучше внести '
-                'переводом в «Расходах»',
+                'Вторая сторона — ваш ИНН: скорее перевод между своими '
+                'кошельками',
                 style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
               ),
           ],

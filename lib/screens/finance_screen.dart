@@ -195,29 +195,9 @@ class _FinanceViewState extends State<_FinanceView> {
         !mounted) {
       return;
     }
-    final ok = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: const Text('Удалить операцию?'),
-        content: Text(
-          '${DateFormat('dd.MM.yyyy').format(op.date)} · '
-          '${op.type.title} · ${formatRub(op.amount)} ₽'
-          '${op.description == null ? '' : '\n${op.description}'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) await fin.deleteOperation(op);
+    if (await confirmDeleteOperation(context, op)) {
+      await fin.deleteOperation(op);
+    }
   }
 
   /// Список по отбору в Excel — те же строки и итоги, что на экране.

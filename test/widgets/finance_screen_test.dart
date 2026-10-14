@@ -140,6 +140,47 @@ void main() {
     expect(hay.accountId, 'a2', reason: 'первый открытый кошелёк — «Карта»');
   });
 
+  testWidgets('удаление из окна операции — с вопросом', (tester) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: FinanceScreen()),
+      ),
+    );
+    await settle(tester);
+
+    // Открыть операцию двойным нажатием; «Отмена» в вопросе — не удаляет.
+    await tester.tap(find.text('Комбикорм'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('Комбикорм'));
+    await tester.pumpAndSettle();
+    expect(find.text('Операция'), findsOneWidget);
+    await tester.tap(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Удалить операцию?'), findsOneWidget);
+    await tester.tap(find.text('Отмена').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Удалить операцию?'), findsNothing);
+    expect(find.text('Операция'), findsOneWidget);
+
+    await tester.tap(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    await settle(tester, () async {
+      await tester.tap(find.text('Удалить').last);
+      await tester.pump();
+    });
+    expect(find.text('Операция'), findsNothing);
+    expect(find.text('Комбикорм'), findsNothing);
+    final left = await tester.runAsync(
+      () => DriftRepositories(db).finance.operations(),
+    );
+    expect(left, isEmpty);
+  });
+
   testWidgets('остатки, сверка с корректировкой, отбор по кошельку', (
     tester,
   ) async {
@@ -442,6 +483,65 @@ void main() {
       () => DriftRepositories(db).finance.operations(),
     );
     expect(ops!.where((o) => o.source == OperationSource.bank), hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('загрузка выписки: внесение наличных — перевод «касса → карта»', (
+    tester,
+  ) async {
+    await setUpApp(tester);
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final statement = BankStatement(
+      account: '40802',
+      lines: [
+        BankLine(
+          date: today,
+          amount: 1000000,
+          incoming: true,
+          docNumber: '33995',
+          purpose: 'Зачисление собственных средств',
+          counterpartyName: 'ПАО Сбербанк',
+          counterpartyInn: '7707083893',
+        ),
+      ],
+    );
+    await tester.pumpWidget(section(BankImportScreen(statement: statement)));
+    await settle(tester);
+    await tester.tap(find.byType(AppDropdown<String?>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Карта').last);
+    await tester.pumpAndSettle();
+    expect(find.text('из них переводы между своими: 1'), findsOneWidget);
+    expect(find.text('Откуда пришли деньги'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Перевод'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Касса'), findsOneWidget);
+    expect(find.text('Выбрать статью'), findsNothing);
+    expect(find.text('К записи: 1'), findsOneWidget);
+
+    // Переключить в доход — нужна статья; обратно — снова перевод.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Доход'));
+    await tester.pumpAndSettle();
+    expect(find.text('Выбрать статью'), findsOneWidget);
+    expect(find.text('К записи: 0'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Перевод'));
+    await tester.pumpAndSettle();
+    expect(find.text('К записи: 1'), findsOneWidget);
+
+    await settle(tester, () async {
+      await tester.tap(find.text('Записать'));
+      await tester.pump();
+    });
+    final ops = await tester.runAsync(
+      () => DriftRepositories(db).finance.operations(),
+    );
+    final t = ops!.singleWhere((o) => o.source == OperationSource.bank);
+    expect(t.type, OperationType.transfer);
+    expect((t.accountId, t.toAccountId), ('a1', 'a2'));
+    expect(t.amount, 1000000);
+    expect(t.categoryId, isNull);
+    expect(t.counterpartyId, isNull);
     expect(tester.takeException(), isNull);
   });
 }

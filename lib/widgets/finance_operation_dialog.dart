@@ -35,6 +35,35 @@ Future<bool> showOperationDialog(
     ) ==
     true;
 
+/// Спросить, удалять ли операцию [op]. true — удалять.
+Future<bool> confirmDeleteOperation(
+  BuildContext context,
+  FinOperation op,
+) async =>
+    await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: const Text('Удалить операцию?'),
+        content: Text(
+          '${DateFormat('dd.MM.yyyy').format(op.date)} · '
+          '${op.type.title} · ${formatRub(op.amount)} ₽'
+          '${op.description == null ? '' : '\n${op.description}'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    ) ==
+    true;
+
 /// Цвета видов операции.
 const operationTypeColors = {
   OperationType.expense: Color(0xFFC62828),
@@ -207,6 +236,21 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
     );
     setState(() => _saving = true);
     final ok = await fin.saveOperation(op, before: editing);
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _problem = ok ? null : fin.lastProblem;
+    });
+    if (ok) Navigator.of(context).pop(true);
+  }
+
+  /// Удаление открытой операции — с вопросом; отказ (закрытый месяц,
+  /// чужая операция оператора) — текстом в окне.
+  Future<void> _delete() async {
+    final op = editing!;
+    if (!await confirmDeleteOperation(context, op) || !mounted) return;
+    setState(() => _saving = true);
+    final ok = await fin.deleteOperation(op);
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -551,6 +595,12 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
         ),
       ),
       actions: [
+        if (editing != null)
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: _saving ? null : _delete,
+            child: const Text('Удалить'),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Отмена'),
