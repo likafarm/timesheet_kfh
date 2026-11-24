@@ -112,6 +112,21 @@ class DriftPriceListRepository implements PriceListRepository {
       });
 
   @override
+  Future<void> saveImport({
+    required List<ProductGroup> groups,
+    required List<Product> products,
+    required List<ProductPrice> prices,
+  }) => _db.transaction(() async {
+    for (final g in groups) {
+      await saveGroup(g);
+    }
+    for (final p in products) {
+      await saveProduct(p);
+    }
+    await savePrices(prices);
+  });
+
+  @override
   Future<void> deletePrice(String id) =>
       _db.salesDao.softDelete(_db.productPrices, id);
 }

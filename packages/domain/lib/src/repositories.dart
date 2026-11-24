@@ -208,4 +208,11 @@ abstract interface class PriceListRepository {
   /// товара с одного дня — [DuplicateEntryException].
   Future<void> savePrices(Iterable<ProductPrice> prices);
   Future<void> deletePrice(String id);
+
+  /// Загрузка из Excel: группы, товары и цены одной транзакцией.
+  Future<void> saveImport({
+    required List<ProductGroup> groups,
+    required List<Product> products,
+    required List<ProductPrice> prices,
+  });
 }

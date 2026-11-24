@@ -20,6 +20,7 @@ import '../widgets/adaptive_dialog.dart';
 import '../widgets/excel_export_action.dart';
 import 'price_catalog_screen.dart';
 import 'price_edition_screen.dart';
+import 'price_import_screen.dart';
 
 final _date = DateFormat('dd.MM.yyyy');
 
@@ -39,6 +40,19 @@ class _PriceListScreenState extends State<PriceListScreen> {
 
   /// Выбранная редакция; null — действующая сегодня.
   DateTime? _edition;
+
+  /// «Загрузить из Excel»: после записи — показать загруженную редакцию.
+  Future<void> _import() async {
+    final from = await Navigator.of(context).push<DateTime>(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: _prices,
+          child: const PriceImportScreen(),
+        ),
+      ),
+    );
+    if (from != null && mounted) setState(() => _edition = from);
+  }
 
   @override
   void dispose() {
@@ -89,6 +103,12 @@ class _PriceListScreenState extends State<PriceListScreen> {
                 ),
                 if (p.canEdit)
                   IconButton(
+                    tooltip: 'Загрузить из Excel',
+                    icon: const Icon(Icons.upload_file),
+                    onPressed: _import,
+                  ),
+                if (p.canEdit)
+                  IconButton(
                     tooltip: 'Товары и группы',
                     icon: const Icon(Icons.inventory_2_outlined),
                     onPressed: () => Navigator.of(context).push(
@@ -126,7 +146,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
             body: !p.loaded
                 ? const Center(child: CircularProgressIndicator())
                 : p.products.isEmpty
-                ? _Empty(canEdit: p.canEdit)
+                ? _Empty(canEdit: p.canEdit, onImport: _import)
                 : Align(
                     alignment: Alignment.topLeft,
                     // На широком экране цена не уезжает от названия.
@@ -158,7 +178,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
 
 class _Empty extends StatelessWidget {
   final bool canEdit;
-  const _Empty({required this.canEdit});
+  final VoidCallback onImport;
+  const _Empty({required this.canEdit, required this.onImport});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -171,12 +192,20 @@ class _Empty extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             canEdit
-                ? 'Прайс пуст. Заведите группы и товары с ценами — кнопка '
-                      '«Товары и группы» вверху.'
+                ? 'Прайс пуст. Загрузите его из Excel или заведите группы и '
+                      'товары с ценами — кнопка «Товары и группы» вверху.'
                 : 'Прайс пока не заполнен — его ведут администратор и '
                       'бухгалтер.',
             textAlign: TextAlign.center,
           ),
+          if (canEdit) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onImport,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Загрузить из Excel'),
+            ),
+          ],
         ],
       ),
     ),

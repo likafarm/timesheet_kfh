@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfx_time_tracking/providers/app_provider.dart';
+import 'package:kfx_time_tracking/providers/price_list_provider.dart';
+import 'package:kfx_time_tracking/screens/price_import_screen.dart';
 import 'package:kfx_time_tracking/screens/price_list_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:provider/provider.dart';
@@ -108,6 +110,50 @@ void main() {
     expect(
       products!.firstWhere((p) => p.name == 'Голова').unit,
       ProductUnit.pcs,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('загрузка из Excel: проверка и запись', (tester) async {
+    await setUpApp(tester);
+    final file = parsePriceSheet([
+      ['Прайс-лист, вводится с 01.12.2026'],
+      ['№', 'Наименование продукции', 'Цена, руб.', 'Единица'],
+      [null, 'Говядина'],
+      ['1', 'Вырезка', '1932', 'кг'],
+      [null, 'Субпродукты'],
+      ['2', 'Голова', '1000', 'шт'],
+    ]);
+    final prices = PriceListProvider(app);
+    await tester.runAsync(prices.load);
+    addTearDown(prices.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: MaterialApp(
+          home: ChangeNotifierProvider.value(
+            value: prices,
+            child: PriceImportScreen(initial: file, initialName: 'прайс.xlsx'),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('Вводится с 01.12.2026'), findsOneWidget);
+    expect(find.text('Новых товаров: 1'), findsOneWidget);
+    expect(find.text('Новых цен: 1'), findsOneWidget);
+    expect(find.textContaining('Было 1 840 ₽, +5 %'), findsOneWidget);
+    await tester.tap(find.text('Записать'));
+    await settle(tester);
+    final saved = await tester.runAsync(
+      () => DriftRepositories(db).priceList.prices(),
+    );
+    expect(
+      saved!.map((p) => (p.price, p.validFrom)),
+      containsAll([
+        (193200, DateTime(2026, 12, 1)),
+        (100000, DateTime(2026, 12, 1)),
+      ]),
     );
     expect(tester.takeException(), isNull);
   });

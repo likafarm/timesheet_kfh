@@ -154,3 +154,18 @@ BankStatement readBankStatement(Uint8List bytes) {
   throw last ??
       const BankStatementException('В файле не нашлось выписки СберБизнеса');
 }
+
+/// Прайс-лист из файла Excel (11.1): первый лист, где нашлась таблица с
+/// «Наименование» и «Цена».
+ImportedPriceList readPriceList(Uint8List bytes) {
+  final sheets = xlsxSheetCount(bytes);
+  PriceImportException? last;
+  for (var i = 0; i < (sheets == 0 ? 1 : sheets); i++) {
+    try {
+      return parsePriceSheet(readXlsx(bytes, sheet: i));
+    } on PriceImportException catch (e) {
+      last = e;
+    }
+  }
+  throw last ?? const PriceImportException('В файле не нашлось прайс-листа');
+}

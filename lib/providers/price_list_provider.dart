@@ -225,6 +225,30 @@ class PriceListProvider extends ChangeNotifier {
     return ok ? changes.length : null;
   }
 
+  /// План загрузки прайса из Excel [file] с даты [from] (ничего не пишет).
+  PriceImportPlan planImport(ImportedPriceList file, DateTime from) =>
+      planPriceImport(
+        file: file,
+        validFrom: from,
+        groups: _groups,
+        products: _products,
+        prices: _prices,
+        newId: newId,
+      );
+
+  /// Записать загрузку одной транзакцией.
+  Future<bool> applyImport(PriceImportPlan plan) async {
+    if (!_allowed()) return false;
+    if (plan.isEmpty) return _fail('Цены не изменились — записывать нечего');
+    return _write(
+      () => _repo.saveImport(
+        groups: plan.groups,
+        products: plan.products,
+        prices: plan.prices,
+      ),
+    );
+  }
+
   /// Исправить цену [price] (сумму) — без новой редакции.
   Future<bool> correctPrice(ProductPrice price, int kopecks) async {
     if (!_allowed()) return false;
