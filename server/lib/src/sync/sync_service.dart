@@ -214,8 +214,10 @@ class SyncService {
             message: 'Табель за ${_humanDay(change.data['date'])}: $problem. '
                 'Исправьте отметку этого дня');
       }
-      final financeProblem =
-          change.deleted ? null : financeRowProblem(change.table, change.data);
+      final financeProblem = change.deleted
+          ? null
+          : financeRowProblem(change.table, change.data) ??
+              salesRowProblem(change.table, change.data);
       if (financeProblem != null) {
         await sql('RELEASE SAVEPOINT sync_change');
         return result('rejected', code: 'invalid', message: financeProblem);
@@ -309,6 +311,8 @@ class SyncService {
               'timesheet' || 'payroll_results' =>
                 'Такая запись уже есть (другая запись того же сотрудника за '
                     'тот же день или месяц)',
+              'product_prices' =>
+                'У товара уже есть цена с этого дня — исправьте её',
               _ => 'Такая запись уже есть (то же название)',
             },
             await _conflictingUuid(sql, table, change));

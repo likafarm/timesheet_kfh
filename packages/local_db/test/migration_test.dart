@@ -271,6 +271,69 @@ void main() {
     await db.close();
   });
 
+  test('5 → 6: схема совпадает со свежей схемой 6', () async {
+    final connection = await verifier.startAt(5);
+    final db = LocalDatabase(connection);
+    await verifier.migrateAndValidate(db, 6);
+    await db.close();
+  });
+
+  test('5 → 6: данные на месте, прайс-лист работает', () async {
+    final schema = await verifier.schemaAt(5);
+    final raw = schema.rawDatabase;
+    const now = '2026-11-24T10:00:00.000Z';
+    raw.execute(
+      "INSERT INTO sync_state (key, value) VALUES ('device_id', 'dev-1')",
+    );
+    raw.execute(
+      'INSERT INTO company_settings (uuid, updated_at, deleted) '
+      "VALUES ('00000000-0000-0000-0000-000000000001', '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO fin_accounts (uuid, name, kind, opening_balance, closed, '
+      "sort_order, updated_at, deleted) VALUES ('a1', 'Касса', 'cash', 500, "
+      "0, 0, '$now', 0)",
+    );
+
+    final db = LocalDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 6);
+    final repos = DriftRepositories(db);
+    expect((await repos.finance.accounts()).single.openingBalance, 500);
+
+    final p = repos.priceList;
+    await p.saveGroup(const ProductGroup(id: 'g1', name: 'Говядина'));
+    await p.saveProduct(
+      const Product(id: 'p1', groupId: 'g1', name: 'Вырезка'),
+    );
+    await p.savePrices([
+      ProductPrice(
+        id: 'x1',
+        productId: 'p1',
+        validFrom: DateTime(2026, 3, 1),
+        price: 184000,
+      ),
+    ]);
+    expect((await p.prices()).single.validFrom, DateTime(2026, 3, 1));
+    // Две цены товара с одного дня — нельзя.
+    await expectLater(
+      p.savePrices([
+        ProductPrice(
+          id: 'x2',
+          productId: 'p1',
+          validFrom: DateTime(2026, 3, 1),
+          price: 1,
+        ),
+      ]),
+      throwsA(isA<DuplicateEntryException>()),
+    );
+    // Товар с ценами не удаляется, группа с товаром — тоже.
+    await expectLater(p.deleteProduct('p1'), throwsStateError);
+    await expectLater(p.deleteGroup('g1'), throwsStateError);
+    final fk = await db.customSelect('PRAGMA foreign_key_check').get();
+    expect(fk, isEmpty);
+    await db.close();
+  });
+
   group('копия перед обновлением схемы', () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('kfh_upgrade_'));

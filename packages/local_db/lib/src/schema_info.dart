@@ -16,12 +16,13 @@ const employeeTables = <String, List<String>>{
 
 /// Все бизнес-таблицы v2 (со служебными полями синхронизации) в порядке
 /// вставки: настройки, таблицы с сотрудником (из базы v8), корректировки
-/// начисления (схема 3), финансы.
+/// начисления (схема 3), финансы, продажи (схема 6).
 const businessTables = <String>[
   'company_settings',
   ...employeeTablesOrder,
   'payroll_adjustments',
   ...financeTablesOrder,
+  ...salesTablesOrder,
 ];
 
 /// Таблицы финансов в порядке вставки.
@@ -40,6 +41,20 @@ const financeTablesOrder = <String>[
   'fin_plans',
   'fin_budget',
 ];
+
+/// Таблицы продаж (этап 11, схема 6) в порядке вставки.
+const salesTablesOrder = <String>[
+  'product_groups',
+  'products',
+  'product_prices',
+];
+
+/// Поля-даты таблиц продаж.
+const salesTables = <String, List<String>>{
+  'product_groups': [],
+  'products': [],
+  'product_prices': ['valid_from'],
+};
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
 const employeeTablesOrder = <String>[
@@ -81,7 +96,10 @@ const syncColumns = <String>{
 
 /// Поля-даты (`гггг-мм-дд`) таблицы; пусто — дат нет или таблица не бизнес.
 List<String> dateColumnsOf(String table) =>
-    employeeTables[table] ?? financeTables[table] ?? const [];
+    employeeTables[table] ??
+    financeTables[table] ??
+    salesTables[table] ??
+    const [];
 
 /// Уникальные ключи среди неудалённых строк (кроме uuid).
 const uniqueKeys = <String, List<String>>{
@@ -96,6 +114,9 @@ const uniqueKeys = <String, List<String>>{
   'counterparties': ['name'],
   'fin_payroll_mapping': ['kind', 'value'],
   'fin_budget': ['year', 'month', 'category_uuid'],
+  'product_groups': ['name'],
+  'products': ['name'],
+  'product_prices': ['product_uuid', 'valid_from'],
 };
 
 final _identifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');

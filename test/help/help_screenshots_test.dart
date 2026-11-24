@@ -123,6 +123,9 @@ void main() {
     await shots.save('finance_season');
     await shots.back();
 
+    await shots.openSection('Прайс-лист');
+    await shots.save('price_list');
+
     await shots.openSection('Закрытие месяцев');
     await shots.save('periods');
 
@@ -265,6 +268,59 @@ Future<void> _seed(LocalDatabase db) async {
     );
   }
   await _seedFinance(repos.finance, today);
+  await _seedPrices(repos.priceList, today);
+}
+
+/// Прайс-лист (11.1): две группы, редакция весны и новая — с первого
+/// числа прошлого месяца.
+Future<void> _seedPrices(PriceListRepository p, DateTime today) async {
+  const meat = '01900000-0000-7000-8000-00000000a001';
+  const offal = '01900000-0000-7000-8000-00000000a002';
+  await p.saveGroup(
+    const ProductGroup(id: meat, name: 'Говядина охлаждённая'),
+  );
+  await p.saveGroup(
+    const ProductGroup(id: offal, name: 'Субпродукты говяжьи', sortOrder: 1),
+  );
+  final items = <(String, String, int, int, ProductUnit)>[
+    (meat, 'Вырезка', 1600, 1840, ProductUnit.kg),
+    (meat, 'Говядина бескостная (мякоть)', 1000, 1150, ProductUnit.kg),
+    (meat, 'Говядина охлаждённая (набор)', 800, 920, ProductUnit.kg),
+    (meat, 'Грудина', 550, 630, ProductUnit.kg),
+    (meat, 'Ребро', 500, 575, ProductUnit.kg),
+    (offal, 'Голова', 1000, 1000, ProductUnit.pcs),
+    (offal, 'Печень', 450, 520, ProductUnit.kg),
+    (offal, 'Язык', 1000, 1150, ProductUnit.kg),
+  ];
+  final spring = DateTime(2025, 5, 1);
+  final current = DateTime(today.year, today.month - 1, 1);
+  final prices = <ProductPrice>[];
+  for (final (i, (group, name, before, after, unit)) in items.indexed) {
+    final id = '01900000-0000-7000-8000-00000000b${i.toString().padLeft(3, '0')}';
+    await p.saveProduct(
+      Product(id: id, groupId: group, name: name, unit: unit, sortOrder: i),
+    );
+    prices.add(
+      ProductPrice(
+        id: '01900000-0000-7000-8000-00000000c${i.toString().padLeft(3, '0')}',
+        productId: id,
+        validFrom: spring,
+        price: before * 100,
+      ),
+    );
+    if (after != before) {
+      prices.add(
+        ProductPrice(
+          id:
+              '01900000-0000-7000-8000-00000000d${i.toString().padLeft(3, '0')}',
+          productId: id,
+          validFrom: current,
+          price: after * 100,
+        ),
+      );
+    }
+  }
+  await p.savePrices(prices);
 }
 
 /// Деньги хозяйства: справочники и операции текущего месяца по сегодня.
@@ -748,11 +804,20 @@ class _Shots {
   /// Пункт меню: в боковой панели (компьютер) или внизу (телефон).
   Future<void> openSection(String label) async {
     final menu = find.byType(SideMenu);
-    await tester.tap(
-      menu.evaluate().isNotEmpty
-          ? find.descendant(of: menu, matching: find.text(label))
-          : find.text(label).last,
-    );
+    if (menu.evaluate().isNotEmpty) {
+      // Пункт может быть ниже края панели — сначала прокрутить к нему.
+      final item = find.descendant(of: menu, matching: find.text(label));
+      await tester.scrollUntilVisible(
+        item,
+        80,
+        scrollable: find
+            .descendant(of: menu, matching: find.byType(Scrollable))
+            .first,
+      );
+      await tester.tap(item);
+    } else {
+      await tester.tap(find.text(label).last);
+    }
     await settle();
   }
 

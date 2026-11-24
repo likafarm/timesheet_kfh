@@ -1170,3 +1170,65 @@ XlsxWorkbook budgetWorkbook({
   sheet.frozenRows = 4;
   return book;
 }
+
+/// Прайс-лист на дату (этап 11.1): группы и товары с ценой; столбец
+/// «Изменение» — к прежней цене товара, если она менялась в этой редакции.
+XlsxWorkbook priceListWorkbook({
+  required PriceListView view,
+  CompanySettings? companySettings,
+}) {
+  final edition = view.edition;
+  final title = edition == null
+      ? 'Прайс-лист'
+      : 'Прайс-лист, вводится с ${DateFormat('dd.MM.yyyy').format(edition)}';
+  final book = XlsxWorkbook(title: title, author: _company(companySettings));
+  final sheet = book.addSheet('Прайс');
+  sheet.addRow([XlsxCell.text(title, _title)], height: 20);
+  sheet.merges.add('A1:E1');
+  sheet.addRow([XlsxCell.text(_company(companySettings), _note)]);
+  sheet.merges.add('A2:E2');
+  sheet.addRow([]);
+  sheet.addRow([
+    XlsxCell.text('№', _head),
+    XlsxCell.text('Наименование продукции', _head),
+    XlsxCell.text('Цена, руб.', _head),
+    XlsxCell.text('Единица', _head),
+    XlsxCell.text('Изменение', _head),
+  ], height: 30);
+  final money = _cell.copyWith(numFmt: '#,##0.00');
+  final percent = _cell.copyWith(numFmt: '+0.0%;-0.0%;0%');
+  final group = _cell.copyWith(bold: true, fill: _gray);
+  var n = 0;
+  for (final s in view.sections) {
+    final r = sheet.addRow([
+      XlsxCell.empty(group),
+      XlsxCell.text(s.group.name, group),
+      XlsxCell.empty(group),
+      XlsxCell.empty(group),
+      XlsxCell.empty(group),
+    ]);
+    sheet.merges.add('B$r:E$r');
+    for (final row in s.rows) {
+      final price = row.price;
+      if (price == null) continue;
+      final change = row.change;
+      sheet.addRow([
+        XlsxCell.number(++n, _cell),
+        XlsxCell.text(row.product.name, _cell),
+        XlsxCell.number(price.price / 100, money),
+        XlsxCell.text(row.product.unit.title, _cell),
+        change == null ? const XlsxCell.empty(_cell) : XlsxCell.number(change, percent),
+      ]);
+    }
+  }
+  sheet.addRow([]);
+  sheet.addRow([XlsxCell.text(_stamp(), _note)]);
+  sheet.columnWidths
+    ..[0] = 6
+    ..[1] = 40
+    ..[2] = 14
+    ..[3] = 10
+    ..[4] = 12;
+  sheet.frozenRows = 4;
+  return book;
+}

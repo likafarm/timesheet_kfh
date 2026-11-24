@@ -10,11 +10,13 @@ import 'daos/payments_dao.dart';
 import 'daos/payroll_adjustments_dao.dart';
 import 'daos/payroll_dao.dart';
 import 'daos/rates_dao.dart';
+import 'daos/sales_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/sync_state_dao.dart';
 import 'daos/timesheet_dao.dart';
 import 'schema_versions.dart';
 import 'tables/finance_tables.dart';
+import 'tables/sales_tables.dart';
 import 'tables/tables.dart';
 
 part 'database.g.dart';
@@ -37,7 +39,7 @@ String newUuid() => _uuid.v7();
 /// (`kfx_time_tracking_v2.db`), старая база v8 в него переносится
 /// конвертером, а не миграцией. Схема 2 (этап 8) — финансы, схема 3 —
 /// корректировки начисления за месяц, схема 4 — группы статей, схема 5 —
-/// платёжный календарь. Снимки схем —
+/// платёжный календарь и БДДС, схема 6 (этап 11) — прайс-лист. Снимки схем —
 /// `drift_schemas/`, помощник шагов — `schema_versions.dart`
 /// (`drift_dev schema steps`); миграции только добавляют.
 @DriftDatabase(
@@ -70,6 +72,10 @@ String newUuid() => _uuid.v7();
     // Платёжный календарь и БДДС (схема 5)
     FinPlans,
     FinBudget,
+    // Прайс-лист (этап 11, схема 6)
+    ProductGroups,
+    Products,
+    ProductPrices,
   ],
   daos: [
     EmployeesDao,
@@ -81,6 +87,7 @@ String newUuid() => _uuid.v7();
     SyncStateDao,
     FinanceDao,
     PayrollAdjustmentsDao,
+    SalesDao,
   ],
 )
 class LocalDatabase extends _$LocalDatabase {
@@ -96,7 +103,7 @@ class LocalDatabase extends _$LocalDatabase {
   String? _deviceId;
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   /// Текущий момент в UTC — для `updated_at`.
   DateTime nowUtc() => _clock().toUtc();
@@ -175,6 +182,15 @@ class LocalDatabase extends _$LocalDatabase {
         await m.createIndex(schema.idxFinPlansStart);
         await m.createTable(schema.finBudget);
         await m.createIndex(schema.idxFinBudgetKey);
+      },
+      from5To6: (m, schema) async {
+        // Прайс-лист: новые таблицы, остальное не меняется.
+        await m.createTable(schema.productGroups);
+        await m.createTable(schema.products);
+        await m.createTable(schema.productPrices);
+        await m.createIndex(schema.idxProductGroupsName);
+        await m.createIndex(schema.idxProductsName);
+        await m.createIndex(schema.idxProductPricesKey);
       },
     ),
     beforeOpen: (details) async {

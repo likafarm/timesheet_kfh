@@ -12,6 +12,7 @@ import '../help/help_content.dart';
 import '../help/help_pdf.dart';
 import '../utils/string_utils.dart';
 import 'file_share.dart';
+import 'price_list_pdf.dart';
 import 'platform.dart';
 
 /// Формирование и вывод на печать табеля и детального отчёта по сотруднику.
@@ -358,6 +359,25 @@ class PrintService {
       version: version,
     );
     final name = 'Инструкция для ${role.genitive}';
+    if (isAndroidApp) {
+      await deliverFile('$name.pdf', bytes, pdfMimeType);
+      return;
+    }
+    await Printing.layoutPdf(onLayout: (_) async => bytes, name: name);
+  }
+
+  /// Прайс-лист (этап 11.1): печать или PDF; на телефоне — файл в
+  /// «Поделиться».
+  static Future<void> printPriceList(
+    PriceListView view, {
+    CompanySettings? settings,
+  }) async {
+    final bytes = await buildPriceListPdf(
+      view,
+      asset: rootBundle.load,
+      directorName: _directorName(settings),
+    );
+    final name = priceListFileName(view.edition);
     if (isAndroidApp) {
       await deliverFile('$name.pdf', bytes, pdfMimeType);
       return;

@@ -543,6 +543,76 @@ void main() {
     }, skip: mysqlSkip);
   });
 
+  group('прайс-лист (сервер 0.13.0)', () {
+    Map<String, Object?> group(String id, String name) =>
+        row('product_groups', id, {'name': name, 'sort_order': 0});
+    Map<String, Object?> product(String id, String groupId, String name) =>
+        row('products', id, {
+          'group_uuid': groupId,
+          'name': name,
+          'unit': 'kg',
+          'sort_order': 0,
+          'hidden': false,
+          'notes': null,
+        });
+    Map<String, Object?> price(
+      String id,
+      String productId,
+      String from,
+      int kopecks,
+    ) => row('product_prices', id, {
+      'product_uuid': productId,
+      'valid_from': from,
+      'price': kopecks,
+    });
+
+    test('цены проходят обмен; оператор видит, но не пишет', () async {
+      final g = uuid(), p = uuid(), x = uuid();
+      final results = await push([
+        price(x, p, '2026-03-01', 184000),
+        product(p, g, 'Вырезка'),
+        group(g, 'Говядина охлаждённая'),
+      ]);
+      expect(statuses(results), everyElement('applied'), reason: '$results');
+      final full = await pull(tables: all);
+      final got = full.firstWhere((c) => c['uuid'] == x);
+      expect(got['data']['price'], 184000);
+      expect(got['data']['valid_from'], '2026-03-01');
+
+      // Программы до 1.21 таблиц прайса не спрашивают — не получают.
+      final oldApp = await pull(tables: all.difference(priceListTables));
+      expect(oldApp.any((c) => priceListTables.contains(c['table'])), isFalse);
+      expect(
+        (await pull()).any((c) => priceListTables.contains(c['table'])),
+        isFalse,
+      );
+
+      final operator = await pull(tables: all, role: Role.operator);
+      expect({
+        for (final c in operator) c['table'],
+      }, containsAll(priceListTables));
+      final denied = await push([
+        price(uuid(), p, '2026-12-01', 190000),
+      ], role: Role.operator);
+      expect(denied.single['code'], 'forbidden');
+    }, skip: mysqlSkip);
+
+    test('вторая цена с того же дня и пустое название — отказ', () async {
+      final g = uuid(), p = uuid();
+      await push([
+        group(g, 'Субпродукты'),
+        product(p, g, 'Печень'),
+        price(uuid(), p, '2026-03-01', 52000),
+      ]);
+      final twice = await push([price(uuid(), p, '2026-03-01', 1)]);
+      expect(twice.single['code'], 'unique_conflict');
+      final blank = await push([product(uuid(), g, '  ')]);
+      expect(blank.single['code'], 'invalid');
+      final zero = await push([price(uuid(), p, '2026-04-01', 0)]);
+      expect(zero.single['status'], 'rejected');
+    }, skip: mysqlSkip);
+  });
+
   group('закрытые месяцы', () {
     setUp(() async {
       if (!mysqlEnabled) return;

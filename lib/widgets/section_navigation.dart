@@ -24,6 +24,9 @@ enum AppSection {
   loans,
   financeReports,
   financeCatalog,
+
+  /// Продажи (этап 11): прайс-лист.
+  priceList,
   sync,
   settings,
 }
@@ -31,6 +34,7 @@ enum AppSection {
 /// Группа бокового меню (8Б.1, решение владельца 2026-10-08).
 enum NavGroup {
   finance('Финансы'),
+  sales('Продажи'),
   payroll('Зарплата'),
   service('Сервис');
 

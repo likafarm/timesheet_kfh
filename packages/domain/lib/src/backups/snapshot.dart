@@ -31,9 +31,11 @@ const restorableTables = <String>[
 /// запись табеля на день.
 final _uniqueKeys = <String, List<String>>{
   'timesheet': ['employee_uuid', 'date'],
-  // Финансы: названия и версии ключей — из описания обмена.
+  // Финансы и прайс: названия и версии ключей — из описания обмена.
   for (final t in syncTables)
-    if (t.name.startsWith('fin_') || t.name == 'counterparties')
+    if (t.name.startsWith('fin_') ||
+        t.name.startsWith('product') ||
+        t.name == 'counterparties')
       if (t.unique.isNotEmpty) t.name: t.unique,
 };
 

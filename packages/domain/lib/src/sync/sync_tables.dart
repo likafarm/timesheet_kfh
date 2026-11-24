@@ -6,6 +6,8 @@
 // изменении отдельно (см. SyncChange), здесь — только данные записи и
 // legacy_id.
 
+import '../sales/price_list.dart' show maxProductPrice;
+
 /// Тип значения в JSON обмена.
 enum SyncType {
   /// Строка.
@@ -488,6 +490,40 @@ const syncTables = <SyncTable>[
       SyncColumn('month', SyncType.integer, min: 1, max: 12),
       SyncColumn('category_uuid', SyncType.uuid),
       SyncColumn('amount', SyncType.integer, min: 0, max: _maxKopecks),
+    ],
+  ),
+  // Прайс-лист (этап 11.1, схема 6, программы 1.21+): группы, товары и
+  // цены с даты.
+  SyncTable(
+    'product_groups',
+    unique: ['name'],
+    [
+      _legacyId,
+      SyncColumn('name', SyncType.text, maxLength: 255),
+      SyncColumn('sort_order', SyncType.integer),
+    ],
+  ),
+  SyncTable(
+    'products',
+    unique: ['name'],
+    [
+      _legacyId,
+      SyncColumn('group_uuid', SyncType.uuid),
+      SyncColumn('name', SyncType.text, maxLength: 255),
+      SyncColumn('unit', SyncType.text, allowed: {'kg', 'pcs', 'pack', 'can'}),
+      SyncColumn('sort_order', SyncType.integer),
+      SyncColumn('hidden', SyncType.boolean),
+      SyncColumn('notes', SyncType.text, nullable: true, maxLength: 1000),
+    ],
+  ),
+  SyncTable(
+    'product_prices',
+    unique: ['product_uuid', 'valid_from'],
+    [
+      _legacyId,
+      SyncColumn('product_uuid', SyncType.uuid),
+      SyncColumn('valid_from', SyncType.date),
+      SyncColumn('price', SyncType.integer, min: 1, max: maxProductPrice),
     ],
   ),
 ];

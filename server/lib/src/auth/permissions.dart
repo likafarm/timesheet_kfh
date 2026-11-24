@@ -7,6 +7,7 @@ import 'users.dart';
 ///   ещё свои расходы и доходы и справочники для них
 ///   ([operatorFinanceReadable]; чужие операции не выдаются — см.
 ///   [rowVisible]);
+///   с 0.13.0 — ещё просмотр прайс-листа ([priceListTables]);
 /// - бухгалтер — все данные (кроме пользователей);
 /// - админ — всё.
 final _allTables = {for (final t in syncTables) t.name};
@@ -22,6 +23,7 @@ Set<String> readableTables(Role role) => switch (role) {
           'employees',
           'timesheet',
           ...operatorFinanceReadable,
+          ...priceListTables,
         },
     };
 

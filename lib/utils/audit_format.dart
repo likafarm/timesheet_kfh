@@ -43,6 +43,7 @@ const auditKindLabels = <String, String>{
   'periods': 'Закрытие месяцев',
   'settings': 'Реквизиты',
   'finance': 'Финансы',
+  'prices': 'Прайс-лист',
   'access': 'Входы и пользователи',
 };
 
@@ -76,6 +77,9 @@ const _entity = {
   'fin_debts': 'займ',
   'fin_operations': 'операция',
   'fin_payroll_mapping': 'соответствие выплат ЗП',
+  'product_groups': 'группа прайса',
+  'products': 'товар',
+  'product_prices': 'цена товара',
 };
 
 /// Подписи полей по таблицам; поля не из списка не показываются.
@@ -235,7 +239,10 @@ AuditView describeAudit(AuditEntry e) {
         'fin_categories' ||
         'counterparties' ||
         'fin_directions' ||
-        'fin_allocation_keys' => '${data?['name'] ?? ''}',
+        'fin_allocation_keys' ||
+        'product_groups' ||
+        'products' => '${data?['name'] ?? ''}',
+        'product_prices' => 'с ${_day('${data?['valid_from'] ?? ''}')}',
         _ => '',
       },
     ]..removeWhere((p) => p.isEmpty);

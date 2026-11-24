@@ -9,6 +9,7 @@ import 'finance/payroll_expenses.dart';
 import 'finance/budget.dart';
 import 'finance/plans.dart';
 import 'rate_timeline.dart';
+import 'sales/price_list.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
 import 'models/employee_rate.dart';
@@ -189,4 +190,22 @@ abstract interface class FinanceRepository {
     String? accountId,
     int? season,
   });
+}
+
+/// Прайс-лист (этап 11.1): группы, товары и цены с даты. Удаление мягкое.
+abstract interface class PriceListRepository {
+  Future<List<ProductGroup>> groups();
+  Future<List<Product>> products();
+  Future<List<ProductPrice>> prices();
+
+  /// Повтор названия — [DuplicateEntryException].
+  Future<void> saveGroup(ProductGroup group);
+  Future<void> deleteGroup(String id);
+  Future<void> saveProduct(Product product);
+  Future<void> deleteProduct(String id);
+
+  /// Записать цены одной транзакцией (новые и исправленные). Две цены
+  /// товара с одного дня — [DuplicateEntryException].
+  Future<void> savePrices(Iterable<ProductPrice> prices);
+  Future<void> deletePrice(String id);
 }

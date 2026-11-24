@@ -92,9 +92,14 @@ class _SideMenuState extends State<SideMenu> {
         right: false,
         child: SizedBox(
           width: wide ? 232 : 72,
-          child: ListView(
+          // Пунктов немного — строятся все сразу, прокрутка — на низком
+          // окне (с группой «Продажи» меню выше 768 точек).
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            children: children,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            ),
           ),
         ),
       ),

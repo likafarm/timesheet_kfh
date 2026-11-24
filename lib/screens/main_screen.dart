@@ -13,6 +13,7 @@ import 'finance_reports_screen.dart';
 import 'finance_screen.dart';
 import 'payment_calendar_screen.dart';
 import 'periods_screen.dart';
+import 'price_list_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
@@ -104,6 +105,14 @@ class MainScreen extends StatefulWidget {
       screen: const FinanceCatalogScreen(),
     ),
     NavigationItem(
+      section: AppSection.priceList,
+      group: NavGroup.sales,
+      icon: Icons.sell_outlined,
+      selectedIcon: Icons.sell,
+      label: 'Прайс-лист',
+      screen: const PriceListScreen(),
+    ),
+    NavigationItem(
       section: AppSection.employees,
       group: NavGroup.payroll,
       icon: Icons.people_outline,
@@ -155,7 +164,8 @@ class MainScreen extends StatefulWidget {
 
   /// Разделы программы оператора (телефон). 6.10: первый — табель, ввод
   /// за день — кнопкой в его заголовке, как в полной программе. 8.8.4:
-  /// «Финансы» — свои расходы и доходы.
+  /// «Финансы» — свои расходы и доходы. 11.1: прайс-лист — только просмотр
+  /// и печать.
   static List<NavigationItem> operatorSections() => [
     NavigationItem(
       section: AppSection.timesheet,
@@ -177,6 +187,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.people,
       label: 'Сотрудники',
       screen: const EmployeesScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.priceList,
+      icon: Icons.sell_outlined,
+      selectedIcon: Icons.sell,
+      label: 'Прайс',
+      screen: const PriceListScreen(),
     ),
     NavigationItem(
       section: AppSection.sync,
@@ -389,7 +406,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             constraints: BoxConstraints(
               maxHeight: MediaQuery.sizeOf(context).height * 0.8,
             ),
-            child: ListView(shrinkWrap: true, children: tiles),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: tiles),
+            ),
           ),
         );
       },

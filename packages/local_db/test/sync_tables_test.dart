@@ -18,6 +18,7 @@ void main() {
     expect(syncTables.map((t) => t.name).toSet(), businessTables.toSet());
     expect(syncTables.map((t) => t.name), businessTables);
     expect(financeTablesOrder.toSet(), financeTables.keys.toSet());
+    expect(salesTablesOrder.toSet(), salesTables.keys.toSet());
   });
 
   test('уникальные ключи совпадают', () {

@@ -31,6 +31,7 @@ export 'src/payroll_service.dart';
 export 'src/production_calendar.dart';
 export 'src/rate_timeline.dart';
 export 'src/repositories.dart';
+export 'src/sales/price_list.dart';
 export 'src/sync/period_guard.dart';
 export 'src/sync/sync_change.dart';
 export 'src/sync/sync_export.dart';

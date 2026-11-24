@@ -155,8 +155,10 @@ void main() {
     await db.close();
     opened = null;
     final raw = sql.sqlite3.open(v2Path());
-    // Схема 1 — без таблиц финансов (схема 2) и корректировок (схема 3).
+    // Схема 1 — без таблиц финансов (схема 2), корректировок (схема 3) и
+    // прайс-листа (схема 6).
     for (final table in [
+      ...salesTablesOrder.reversed,
       'payroll_adjustments',
       ...financeTables.keys.toList().reversed,
     ]) {

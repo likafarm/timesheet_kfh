@@ -107,6 +107,7 @@ void main() {
       'Табель',
       'Финансы',
       'Сотрудники',
+      'Прайс',
       'Сервер',
     ]);
     expect(bar.currentIndex, 0);
@@ -126,7 +127,7 @@ void main() {
     expect(find.byType(BottomNavigationBar), findsNothing);
     // Первый раздел — сводка (6.8).
     expect(find.text('Долг по зарплате на сегодня'), findsOneWidget);
-    for (final header in ['ФИНАНСЫ', 'ЗАРПЛАТА', 'СЕРВИС']) {
+    for (final header in ['ФИНАНСЫ', 'ПРОДАЖИ', 'ЗАРПЛАТА', 'СЕРВИС']) {
       expect(find.text(header), findsOneWidget);
     }
     final menu = find.byType(SideMenu);
@@ -137,6 +138,7 @@ void main() {
       'Займы',
       'Отчёты',
       'Справочники',
+      'Прайс-лист',
       'Сотрудники',
       'Табель',
       'Выплаты',
@@ -296,6 +298,7 @@ void main() {
       'Займы',
       'Отчёты',
       'Справочники',
+      'Прайс-лист',
       'Сотрудники',
       'Отчёты по ЗП',
       'Закрытие месяцев',

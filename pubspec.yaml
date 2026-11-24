@@ -1,7 +1,7 @@
 name: kfx_time_tracking
 description: "Учёт рабочего времени в КФХ"
 publish_to: "none"
-version: 1.20.2+33
+version: 1.21.0+34
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -79,6 +79,8 @@ flutter:
     - assets/fonts/
     # Снимки экранов для справки (test/help/help_screenshots_test.dart).
     - assets/help/
+    # Логотип хозяйства для печати прайс-листа (этап 11.1).
+    - assets/branding/
   # Шрифт интерфейса веб-версии (кириллица без загрузки шрифтов с серверов
   # Google); те же файлы — для печати PDF.
   fonts:

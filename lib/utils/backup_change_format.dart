@@ -32,6 +32,9 @@ const recordKindLabels = <String, String>{
   'fin_debts': 'Займ',
   'fin_operations': 'Операция',
   'fin_payroll_mapping': 'Соответствие выплат ЗП',
+  'product_groups': 'Группа прайса',
+  'products': 'Товар',
+  'product_prices': 'Цена товара',
 };
 
 /// Что за запись: «Иванов Иван · 03.09.2026», «Иванов Иван · с 01.03.2025».
@@ -50,7 +53,16 @@ String recordSubject(
       if (data['description'] case final String text when text.isNotEmpty) text,
     ].where((p) => p.isNotEmpty).join(' · ');
   }
-  if (table.startsWith('fin_') || table == 'counterparties') {
+  if (table == 'product_prices') {
+    final price = data['price'];
+    return [
+      'с ${day('valid_from')}',
+      if (price is int) '${formatPrice(price)} ₽',
+    ].join(' · ');
+  }
+  if (table.startsWith('fin_') ||
+      table == 'counterparties' ||
+      table.startsWith('product')) {
     return '${data['name'] ?? data['valid_from'] ?? data['value'] ?? ''}';
   }
   final who = table == 'employees'
