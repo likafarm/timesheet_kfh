@@ -1,9 +1,12 @@
 // lib/screens/price_catalog_screen.dart
 //
-// «Прайс-лист → Товары и группы» (этап 11.1, админ и бухгалтер): группы и
-// товары по порядку (стрелки — переставить), добавить, переименовать,
-// скрыть («Не продаётся»). Удалить можно только товар без цен (с ценами —
-// скрыть: история остаётся) и пустую группу.
+// «Прайс-лист → Товары и порядок» (этап 11.1, админ и бухгалтер; доработка
+// по просьбе владельца 2026-11-24): группы и товары одним списком по
+// порядку прайса. Порядок — перетаскиванием за ручку ≡ (группа переезжает
+// вместе с товарами, товар можно перетащить в другую группу); у группы —
+// «+ товар», внизу — «Новая группа». Нажатие на товар — правка (название,
+// группа, единица, «Не продаётся»). Удалить можно только товар без цен (с
+// ценами — скрыть: история остаётся) и пустую группу.
 
 import 'package:flutter/material.dart';
 import 'package:kfh_domain/kfh_domain.dart';
@@ -19,88 +22,120 @@ class PriceCatalogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<PriceListProvider>();
-    final groups = p.groups;
+    final entries = p.catalog;
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Товары и группы')),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: groups.isEmpty
-            ? () => showGroupDialog(context, p)
-            : () => showProductDialog(context, p),
-        icon: const Icon(Icons.add),
-        label: Text(groups.isEmpty ? 'Группа' : 'Товар'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 88),
-        children: [
-          ListTile(
-            leading: const Icon(Icons.create_new_folder_outlined),
-            title: const Text('Новая группа'),
-            onTap: () => showGroupDialog(context, p),
+      appBar: AppBar(title: const Text('Товары и порядок')),
+      body: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ReorderableListView.builder(
+            // Ручка ≡ — и мышью, и пальцем сразу, без долгого нажатия.
+            buildDefaultDragHandles: false,
+            padding: const EdgeInsets.only(bottom: 32),
+            header: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Text(
+                entries.isEmpty
+                    ? 'Начните с группы — например, «Говядина охлаждённая».'
+                    : 'Порядок — как в печати: перетащите строку за ≡. Группа '
+                          'переезжает вместе с товарами, товар можно перетащить '
+                          'в другую группу. Нажмите на товар, чтобы изменить его.',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+            footer: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => showGroupDialog(context, p),
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  label: const Text('Новая группа'),
+                ),
+              ),
+            ),
+            itemCount: entries.length,
+            onReorderItem: p.reorder,
+            itemBuilder: (context, i) => switch (entries[i]) {
+              CatalogGroupEntry(:final group) => _GroupTile(
+                key: ValueKey('g:${group.id}'),
+                p: p,
+                group: group,
+                index: i,
+              ),
+              CatalogProductEntry(:final product) => _ProductTile(
+                key: ValueKey('p:${product.id}'),
+                p: p,
+                product: product,
+                index: i,
+              ),
+            },
           ),
-          const Divider(height: 1),
-          for (final (gi, g) in groups.indexed) ...[
-            _GroupTile(p, g, gi),
-            for (final (i, product) in productsOfGroup(
-              p.products,
-              g.id,
-            ).indexed)
-              _ProductTile(p, product, i, productsOfGroup(p.products, g.id)),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
+Widget _handle(int index) => ReorderableDragStartListener(
+  index: index,
+  child: const MouseRegion(
+    cursor: SystemMouseCursors.grab,
+    child: Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Icon(Icons.drag_handle),
+    ),
+  ),
+);
+
 class _GroupTile extends StatelessWidget {
   final PriceListProvider p;
   final ProductGroup group;
   final int index;
-  const _GroupTile(this.p, this.group, this.index);
+  const _GroupTile({
+    super.key,
+    required this.p,
+    required this.group,
+    required this.index,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    return Material(
       color: theme.colorScheme.surfaceContainerHighest,
-      child: ListTile(
-        title: Text(
-          group.name,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
           children: [
-            IconButton(
-              tooltip: 'Выше',
-              icon: const Icon(Icons.arrow_upward),
-              onPressed: index == 0 ? null : () => p.moveGroup(index, -1),
+            Tooltip(message: 'Перетащить группу', child: _handle(index)),
+            Expanded(
+              child: Text(
+                group.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ),
-            IconButton(
-              tooltip: 'Ниже',
-              icon: const Icon(Icons.arrow_downward),
-              onPressed: index == p.groups.length - 1
-                  ? null
-                  : () => p.moveGroup(index, 1),
+            TextButton.icon(
+              onPressed: () => showProductDialog(context, p, groupId: group.id),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Товар'),
             ),
             PopupMenuButton<String>(
-              tooltip: 'Действия',
+              tooltip: 'Действия с группой',
               onSelected: (a) async {
                 switch (a) {
                   case 'rename':
                     await showGroupDialog(context, p, group: group);
-                  case 'product':
-                    await showProductDialog(context, p, groupId: group.id);
                   case 'delete':
                     await p.deleteGroup(group.id);
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'product', child: Text('Добавить товар')),
                 PopupMenuItem(value: 'rename', child: Text('Переименовать')),
                 PopupMenuItem(value: 'delete', child: Text('Удалить группу')),
               ],
@@ -116,45 +151,34 @@ class _ProductTile extends StatelessWidget {
   final PriceListProvider p;
   final Product product;
   final int index;
-  final List<Product> siblings;
-  const _ProductTile(this.p, this.product, this.index, this.siblings);
+  const _ProductTile({
+    super.key,
+    required this.p,
+    required this.product,
+    required this.index,
+  });
 
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.only(left: 32, right: 8),
-      title: Text(
-        product.name,
-        style: product.hidden ? TextStyle(color: muted) : null,
-      ),
-      subtitle: Text(
-        [
-          product.unit.title,
-          if (product.hidden) 'не продаётся',
-          ?product.notes,
-        ].join(' · '),
-      ),
-      onTap: () => showProductDialog(context, p, product: product),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Выше',
-            icon: const Icon(Icons.arrow_upward, size: 20),
-            onPressed: index == 0
-                ? null
-                : () => p.moveProduct(siblings, index, -1),
-          ),
-          IconButton(
-            tooltip: 'Ниже',
-            icon: const Icon(Icons.arrow_downward, size: 20),
-            onPressed: index == siblings.length - 1
-                ? null
-                : () => p.moveProduct(siblings, index, 1),
-          ),
-        ],
+    return Material(
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.only(left: 24, right: 8),
+        leading: Tooltip(message: 'Перетащить товар', child: _handle(index)),
+        title: Text(
+          product.name,
+          style: product.hidden ? TextStyle(color: muted) : null,
+        ),
+        subtitle: Text(
+          [
+            product.unit.title,
+            if (product.hidden) 'не продаётся',
+            ?product.notes,
+          ].join(' · '),
+        ),
+        trailing: const Icon(Icons.edit_outlined, size: 18),
+        onTap: () => showProductDialog(context, p, product: product),
       ),
     );
   }

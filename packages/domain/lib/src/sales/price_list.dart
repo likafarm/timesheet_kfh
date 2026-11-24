@@ -390,3 +390,89 @@ String formatPrice(int kopecks) {
   final text = formatRub(kopecks);
   return text.endsWith(',00') ? text.substring(0, text.length - 3) : text;
 }
+
+// ------------------------------------------------------- порядок в прайсе
+
+/// Строка списка «Товары и порядок»: заголовок группы или товар.
+sealed class CatalogEntry {
+  const CatalogEntry();
+  String get id;
+}
+
+class CatalogGroupEntry extends CatalogEntry {
+  final ProductGroup group;
+  const CatalogGroupEntry(this.group);
+  @override
+  String get id => 'g:${group.id}';
+}
+
+class CatalogProductEntry extends CatalogEntry {
+  final Product product;
+  const CatalogProductEntry(this.product);
+  @override
+  String get id => 'p:${product.id}';
+}
+
+/// Группы и их товары одним списком — по порядку прайса.
+List<CatalogEntry> catalogEntries(
+  Iterable<ProductGroup> groups,
+  Iterable<Product> products,
+) => [
+  for (final g in sortedGroups(groups)) ...[
+    CatalogGroupEntry(g),
+    for (final p in productsOfGroup(products, g.id)) CatalogProductEntry(p),
+  ],
+];
+
+/// Перетаскивание строки [oldIndex] на место [newIndex] (как
+/// `onReorderItem` у `ReorderableListView`: место — после удаления строки
+/// из списка). Группа
+/// переезжает вместе с товарами; товар попадает в группу, под заголовком
+/// которой оказался (выше всех заголовков — в первую группу). Возвращает
+/// только изменившиеся группы и товары (новый порядок и группа).
+({List<ProductGroup> groups, List<Product> products}) reorderCatalog({
+  required List<ProductGroup> groups,
+  required List<Product> products,
+  required int oldIndex,
+  required int newIndex,
+}) {
+  final entries = catalogEntries(groups, products);
+  if (oldIndex < 0 || oldIndex >= entries.length) {
+    return (groups: const [], products: const []);
+  }
+  final target = newIndex.clamp(0, entries.length - 1);
+  final moved = entries.removeAt(oldIndex);
+  entries.insert(target, moved);
+
+  final changedGroups = <ProductGroup>[];
+  final changedProducts = <Product>[];
+  if (moved is CatalogGroupEntry) {
+    // Новый порядок групп — по заголовкам; товары остаются в своих.
+    final order = [
+      for (final e in entries)
+        if (e is CatalogGroupEntry) e.group,
+    ];
+    for (final (i, g) in order.indexed) {
+      if (g.sortOrder != i) changedGroups.add(g.copyWith(sortOrder: i));
+    }
+    return (groups: changedGroups, products: changedProducts);
+  }
+  final heads = entries.whereType<CatalogGroupEntry>();
+  if (heads.isEmpty) return (groups: changedGroups, products: changedProducts);
+  final firstGroup = heads.first.group;
+  String groupId = firstGroup.id;
+  final order = <String, int>{};
+  // Товары выше первого заголовка — в начало первой группы.
+  for (final e in entries) {
+    if (e is CatalogGroupEntry) {
+      groupId = e.group.id;
+      continue;
+    }
+    final p = (e as CatalogProductEntry).product;
+    final index = order[groupId] = (order[groupId] ?? -1) + 1;
+    if (p.groupId != groupId || p.sortOrder != index) {
+      changedProducts.add(p.copyWith(groupId: groupId, sortOrder: index));
+    }
+  }
+  return (groups: changedGroups, products: changedProducts);
+}

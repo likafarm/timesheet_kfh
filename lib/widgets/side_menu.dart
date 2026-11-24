@@ -90,8 +90,12 @@ class _SideMenuState extends State<SideMenu> {
       color: AppTheme.navigationBackground,
       child: SafeArea(
         right: false,
+        // На всю высоту окна, пункты — от верхнего края: колонка в
+        // прокрутке берёт высоту по содержимому, и без height строка
+        // главного окна ставила бы панель по центру.
         child: SizedBox(
           width: wide ? 232 : 72,
+          height: double.infinity,
           // Пунктов немного — строятся все сразу, прокрутка — на низком
           // окне (с группой «Продажи» меню выше 768 точек).
           child: SingleChildScrollView(

@@ -103,8 +103,9 @@ void main() {
       ),
       isFalse,
     );
-    final siblings = productsOfGroup(prices.products, 'g1');
-    expect(await prices.moveProduct(siblings, 1, -1), isTrue);
+    // Список: 0 Говядина, 1 Вырезка, 2 Пашина — «Пашина» наверх группы.
+    expect(prices.catalog.map((e) => e.id), ['g:g1', 'p:p1', 'p:p2']);
+    expect(await prices.reorder(2, 1), isTrue);
     expect(productsOfGroup(prices.products, 'g1').map((p) => p.id), [
       'p2',
       'p1',

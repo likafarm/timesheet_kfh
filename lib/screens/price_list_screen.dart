@@ -3,7 +3,7 @@
 // «Продажи → Прайс-лист» (этап 11.1): прайс на выбранную редакцию по
 // группам — цена, единица, изменение к прежней цене. Нажатие на товар —
 // история его цен (исправить или удалить ошибочную цену). Печать по образцу
-// владельца и Excel — у всех ролей; «Новая редакция» и «Товары и группы» —
+// владельца и Excel — у всех ролей; «Новая редакция» и «Товары и порядок» —
 // у администратора и бухгалтера (решение владельца 2026-11-24).
 
 import 'package:flutter/material.dart';
@@ -108,9 +108,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
                     onPressed: _import,
                   ),
                 if (p.canEdit)
-                  IconButton(
-                    tooltip: 'Товары и группы',
-                    icon: const Icon(Icons.inventory_2_outlined),
+                  _CatalogButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ChangeNotifierProvider.value(
@@ -176,6 +174,32 @@ class _PriceListScreenState extends State<PriceListScreen> {
   }
 }
 
+/// «Товары и порядок»: на широком экране — с подписью, на телефоне — значок.
+class _CatalogButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _CatalogButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    const label = 'Товары и порядок';
+    if (MediaQuery.sizeOf(context).width < 700) {
+      return IconButton(
+        tooltip: label,
+        icon: const Icon(Icons.reorder),
+        onPressed: onPressed,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: FilledButton.tonalIcon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.reorder),
+        label: const Text(label),
+      ),
+    );
+  }
+}
+
 class _Empty extends StatelessWidget {
   final bool canEdit;
   final VoidCallback onImport;
@@ -193,7 +217,7 @@ class _Empty extends StatelessWidget {
           Text(
             canEdit
                 ? 'Прайс пуст. Загрузите его из Excel или заведите группы и '
-                      'товары с ценами — кнопка «Товары и группы» вверху.'
+                      'товары с ценами — кнопка «Товары и порядок» вверху.'
                 : 'Прайс пока не заполнен — его ведут администратор и '
                       'бухгалтер.',
             textAlign: TextAlign.center,

@@ -87,7 +87,7 @@ void main() {
     await settleImpl(tester);
 
     // Новый товар в справочнике — с первой ценой.
-    await tester.tap(find.byTooltip('Товары и группы'));
+    await tester.tap(find.text('Товары и порядок'));
     await settleImpl(tester);
     await tester.tap(find.text('Товар'));
     await settleImpl(tester);
@@ -111,6 +111,33 @@ void main() {
       products!.firstWhere((p) => p.name == 'Голова').unit,
       ProductUnit.pcs,
     );
+
+    // Новая группа и перетаскивание «Головы» за ручку в неё.
+    await tester.tap(find.text('Новая группа'));
+    await settleImpl(tester);
+    await tester.enterText(find.byType(TextField).last, 'Субпродукты');
+    await tester.tap(find.text('Сохранить'));
+    await settleImpl(tester);
+    final handles = find.byIcon(Icons.drag_handle);
+    // Говядина, Вырезка, Голова, Субпродукты.
+    expect(handles, findsNWidgets(4));
+    final gesture = await tester.startGesture(tester.getCenter(handles.at(2)));
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await gesture.up();
+    await settleImpl(tester);
+    final moved = await tester.runAsync(() async {
+      final repo = DriftRepositories(db).priceList;
+      final groups = await repo.groups();
+      final head = (await repo.products()).firstWhere(
+        (p) => p.name == 'Голова',
+      );
+      return groups.firstWhere((g) => g.id == head.groupId).name;
+    });
+    expect(moved, 'Субпродукты');
     expect(tester.takeException(), isNull);
   });
 
@@ -163,7 +190,7 @@ void main() {
     expect(find.text('Вырезка'), findsOneWidget);
     expect(find.byTooltip('Печать / PDF'), findsOneWidget);
     expect(find.text('Новая редакция'), findsNothing);
-    expect(find.byTooltip('Товары и группы'), findsNothing);
+    expect(find.text('Товары и порядок'), findsNothing);
   });
 }
 

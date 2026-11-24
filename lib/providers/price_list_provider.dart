@@ -166,34 +166,36 @@ class PriceListProvider extends ChangeNotifier {
     return _write(() => _repo.deleteProduct(id));
   }
 
-  /// Поменять местами соседей по порядку: [items] — список в нынешнем
-  /// порядке, [index] переезжает на [index] + [delta].
-  Future<bool> moveProduct(List<Product> items, int index, int delta) async {
-    if (!_allowed()) return false;
-    final target = index + delta;
-    if (target < 0 || target >= items.length) return false;
-    final order = [...items];
-    final moved = order.removeAt(index);
-    order.insert(target, moved);
-    return _write(() async {
-      for (final (i, p) in order.indexed) {
-        if (p.sortOrder != i) await _repo.saveProduct(p.copyWith(sortOrder: i));
-      }
-    });
-  }
+  /// Группы и товары одним списком — для «Товары и порядок».
+  List<CatalogEntry> get catalog => catalogEntries(_groups, _products);
 
-  Future<bool> moveGroup(int index, int delta) async {
+  /// Перетаскивание строки [oldIndex] списка [catalog] на место [newIndex]
+  /// (после удаления строки, как `onReorderItem`)
+  /// ([reorderCatalog]). Новый порядок виден сразу, запись — одной
+  /// транзакцией; не записалось — список перечитывается из базы.
+  Future<bool> reorder(int oldIndex, int newIndex) async {
     if (!_allowed()) return false;
-    final target = index + delta;
-    if (target < 0 || target >= _groups.length) return false;
-    final order = [..._groups];
-    final moved = order.removeAt(index);
-    order.insert(target, moved);
-    return _write(() async {
-      for (final (i, g) in order.indexed) {
-        if (g.sortOrder != i) await _repo.saveGroup(g.copyWith(sortOrder: i));
-      }
-    });
+    final r = reorderCatalog(
+      groups: _groups,
+      products: _products,
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+    );
+    if (r.groups.isEmpty && r.products.isEmpty) return true;
+    final groups = {for (final g in r.groups) g.id: g};
+    final products = {for (final p in r.products) p.id: p};
+    _groups = sortedGroups([for (final g in _groups) groups[g.id] ?? g]);
+    _products = [for (final p in _products) products[p.id] ?? p];
+    notifyListeners();
+    final ok = await _write(
+      () => _repo.saveImport(
+        groups: r.groups,
+        products: r.products,
+        prices: const [],
+      ),
+    );
+    if (!ok) await load();
+    return ok;
   }
 
   /// Новая редакция с [from]: [newPrices] — id товара → копейки. Пишутся

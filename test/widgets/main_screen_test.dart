@@ -119,6 +119,19 @@ void main() {
     expect(ex, isNull);
   });
 
+  testWidgets('высокое окно: боковое меню на всю высоту, пункты сверху', (
+    tester,
+  ) async {
+    await pumpMain(tester, size: const Size(1280, 1600), operator: false);
+    final menu = find.byType(SideMenu);
+    expect(tester.getTopLeft(menu).dy, 0);
+    expect(tester.getSize(menu).height, 1600);
+    final home = find.descendant(of: menu, matching: find.text('Главная'));
+    // Выше — только кнопка «Свернуть меню»; по центру было бы ~700.
+    expect(tester.getTopLeft(home).dy, lessThan(120));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Windows 1024×768: боковое меню по группам (8Б.1)', (
     tester,
   ) async {
