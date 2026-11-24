@@ -526,6 +526,22 @@ const syncTables = <SyncTable>[
       SyncColumn('price', SyncType.integer, min: 1, max: maxProductPrice),
     ],
   ),
+  // Покупатели (этап 11.3, схема 7, программы 1.22+).
+  SyncTable('customers', [
+    _legacyId,
+    SyncColumn('name', SyncType.text, maxLength: 255),
+    SyncColumn('phone', SyncType.text, nullable: true, maxLength: 64),
+    SyncColumn('address', SyncType.text, nullable: true, maxLength: 500),
+    SyncColumn(
+      'channel',
+      SyncType.text,
+      nullable: true,
+      allowed: {'telegram', 'whatsapp', 'max', 'vk', 'sms', 'phone', 'other'},
+    ),
+    SyncColumn('contact', SyncType.text, nullable: true, maxLength: 255),
+    SyncColumn('notes', SyncType.text, nullable: true, maxLength: 2000),
+    SyncColumn('counterparty_uuid', SyncType.uuid, nullable: true),
+  ]),
 ];
 
 /// Таблицы до финансов (схема 1). Программы до 1.18 спрашивают изменения

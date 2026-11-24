@@ -8,6 +8,7 @@
 // Деньги — копейки целым числом (как в финансах).
 
 import '../finance/money.dart';
+import 'customers.dart' show customerRowProblem;
 import '../utils/date_utils.dart';
 
 /// Таблицы прайс-листа: читают все роли, пишут админ и бухгалтер
@@ -143,6 +144,7 @@ String? salesRowProblem(
     '${data['name'] ?? ''}'.trim().isEmpty ? 'Укажите название группы' : null,
   'products' =>
     '${data['name'] ?? ''}'.trim().isEmpty ? 'Укажите название товара' : null,
+  'customers' => customerRowProblem(data),
   _ => null,
 };
 

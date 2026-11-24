@@ -44,6 +44,7 @@ const auditKindLabels = <String, String>{
   'settings': 'Реквизиты',
   'finance': 'Финансы',
   'prices': 'Прайс-лист',
+  'customers': 'Покупатели',
   'access': 'Входы и пользователи',
 };
 
@@ -80,6 +81,7 @@ const _entity = {
   'product_groups': 'группа прайса',
   'products': 'товар',
   'product_prices': 'цена товара',
+  'customers': 'покупатель',
 };
 
 /// Подписи полей по таблицам; поля не из списка не показываются.
@@ -241,7 +243,8 @@ AuditView describeAudit(AuditEntry e) {
         'fin_directions' ||
         'fin_allocation_keys' ||
         'product_groups' ||
-        'products' => '${data?['name'] ?? ''}',
+        'products' ||
+        'customers' => '${data?['name'] ?? ''}',
         'product_prices' => 'с ${_day('${data?['valid_from'] ?? ''}')}',
         _ => '',
       },

@@ -6,8 +6,8 @@ import 'sync_stamping.dart';
 
 part 'sales_dao.g.dart';
 
-/// Продажи (этап 11): прайс-лист — группы, товары, цены.
-@DriftAccessor(tables: [ProductGroups, Products, ProductPrices])
+/// Продажи (этап 11): прайс-лист — группы, товары, цены; покупатели.
+@DriftAccessor(tables: [ProductGroups, Products, ProductPrices, Customers])
 class SalesDao extends DatabaseAccessor<LocalDatabase>
     with _$SalesDaoMixin, SyncStamping {
   SalesDao(super.db);
@@ -37,6 +37,12 @@ class SalesDao extends DatabaseAccessor<LocalDatabase>
       (select(productPrices)
             ..where((t) => t.deleted.equals(false))
             ..orderBy([(t) => OrderingTerm(expression: t.validFrom)]))
+          .get();
+
+  Future<List<CustomerRow>> allCustomers() =>
+      (select(customers)
+            ..where((t) => t.deleted.equals(false))
+            ..orderBy([(t) => OrderingTerm(expression: t.name)]))
           .get();
 
   /// Живые товары группы [groupUuid].

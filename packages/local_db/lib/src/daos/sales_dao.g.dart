@@ -7,6 +7,9 @@ mixin _$SalesDaoMixin on DatabaseAccessor<LocalDatabase> {
   $ProductGroupsTable get productGroups => attachedDatabase.productGroups;
   $ProductsTable get products => attachedDatabase.products;
   $ProductPricesTable get productPrices => attachedDatabase.productPrices;
+  $EmployeesTable get employees => attachedDatabase.employees;
+  $CounterpartiesTable get counterparties => attachedDatabase.counterparties;
+  $CustomersTable get customers => attachedDatabase.customers;
   SalesDaoManager get managers => SalesDaoManager(this);
 }
 
@@ -19,4 +22,13 @@ class SalesDaoManager {
       $$ProductsTableTableManager(_db.attachedDatabase, _db.products);
   $$ProductPricesTableTableManager get productPrices =>
       $$ProductPricesTableTableManager(_db.attachedDatabase, _db.productPrices);
+  $$EmployeesTableTableManager get employees =>
+      $$EmployeesTableTableManager(_db.attachedDatabase, _db.employees);
+  $$CounterpartiesTableTableManager get counterparties =>
+      $$CounterpartiesTableTableManager(
+        _db.attachedDatabase,
+        _db.counterparties,
+      );
+  $$CustomersTableTableManager get customers =>
+      $$CustomersTableTableManager(_db.attachedDatabase, _db.customers);
 }

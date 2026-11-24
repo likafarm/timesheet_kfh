@@ -35,6 +35,7 @@ const recordKindLabels = <String, String>{
   'product_groups': 'Группа прайса',
   'products': 'Товар',
   'product_prices': 'Цена товара',
+  'customers': 'Покупатель',
 };
 
 /// Что за запись: «Иванов Иван · 03.09.2026», «Иванов Иван · с 01.03.2025».
@@ -62,7 +63,8 @@ String recordSubject(
   }
   if (table.startsWith('fin_') ||
       table == 'counterparties' ||
-      table.startsWith('product')) {
+      table.startsWith('product') ||
+      table == 'customers') {
     return '${data['name'] ?? data['valid_from'] ?? data['value'] ?? ''}';
   }
   final who = table == 'employees'

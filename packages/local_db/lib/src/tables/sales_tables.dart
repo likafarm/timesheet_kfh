@@ -6,6 +6,7 @@
 
 import 'package:drift/drift.dart';
 
+import 'finance_tables.dart';
 import 'tables.dart';
 
 @DataClassName('ProductGroupRow')
@@ -46,4 +47,24 @@ class ProductPrices extends Table with SyncColumns {
       text().references(Products, #uuid, initiallyDeferred: true)();
   TextColumn get validFrom => text()();
   IntColumn get price => integer()();
+}
+
+/// Покупатели (этап 11.3, схема 7): отдельно от контрагентов финансов.
+/// `counterparty_uuid` — контрагент, на которого пишутся оплаты (11.6).
+@DataClassName('CustomerRow')
+@TableIndex(name: 'idx_customers_name', columns: {#name})
+class Customers extends Table with SyncColumns {
+  TextColumn get name => text()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get address => text().nullable()();
+
+  /// `CustomerChannel.code`
+  TextColumn get channel => text().nullable()();
+  TextColumn get contact => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get counterpartyUuid => text().nullable().references(
+    Counterparties,
+    #uuid,
+    initiallyDeferred: true,
+  )();
 }

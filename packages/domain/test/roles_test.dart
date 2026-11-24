@@ -3,12 +3,15 @@ import 'package:test/test.dart';
 
 /// Роли и права на таблицы (11.2: специалист по продажам).
 void main() {
-  test('продавец получает прайс и реквизиты, ничего не пишет', () {
+  test('продавец получает прайс и реквизиты, пишет покупателей', () {
     expect(roleReadableTables(roleSales), {
       'company_settings',
       ...priceListTables,
+      'customers',
     });
-    expect(roleWritableTables(roleSales), isEmpty);
+    expect(roleWritableTables(roleSales), {'customers'});
+    // Телефоны и адреса покупателей оператору не выдаются.
+    expect(roleReadableTables(roleOperator), isNot(contains('customers')));
     expect(isFullRole(roleSales), isFalse);
     expect(roleTitle(roleSales), 'специалист по продажам');
   });
@@ -37,9 +40,10 @@ void main() {
     // После бухгалтера продавцу и оператору ничего не нужно.
     expect(tablesToRefetch(from: roleAccountant, to: roleSales), isEmpty);
     expect(tablesToRefetch(from: roleAdmin, to: roleOperator), isEmpty);
-    // После оператора продавцу — только реквизиты.
+    // После оператора продавцу — реквизиты и покупатели.
     expect(tablesToRefetch(from: roleOperator, to: roleSales), {
       'company_settings',
+      'customers',
     });
   });
 }

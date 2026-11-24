@@ -19,6 +19,7 @@ export 'src/daos/sync_state_dao.dart';
 export 'src/daos/timesheet_dao.dart';
 export 'src/database.dart';
 export 'src/raw_tables.dart';
+export 'src/repositories/drift_customer_repository.dart';
 export 'src/repositories/drift_finance_repository.dart';
 export 'src/repositories/drift_price_list_repository.dart';
 export 'src/repositories/drift_repositories.dart';

@@ -9,6 +9,7 @@ import 'finance/payroll_expenses.dart';
 import 'finance/budget.dart';
 import 'finance/plans.dart';
 import 'rate_timeline.dart';
+import 'sales/customers.dart';
 import 'sales/price_list.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
@@ -215,4 +216,11 @@ abstract interface class PriceListRepository {
     required List<Product> products,
     required List<ProductPrice> prices,
   });
+}
+
+/// Покупатели (этап 11.3). Удаление мягкое.
+abstract interface class CustomerRepository {
+  Future<List<Customer>> customers();
+  Future<void> saveCustomer(Customer customer);
+  Future<void> deleteCustomer(String id);
 }

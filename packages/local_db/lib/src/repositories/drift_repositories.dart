@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 
 import '../database.dart';
+import 'drift_customer_repository.dart';
 import 'drift_finance_repository.dart';
 import 'drift_price_list_repository.dart';
 
@@ -22,6 +23,7 @@ class DriftRepositories {
   late final SettingsRepository settings = DriftSettingsRepository(db);
   late final FinanceRepository finance = DriftFinanceRepository(db);
   late final PriceListRepository priceList = DriftPriceListRepository(db);
+  late final CustomerRepository customers = DriftCustomerRepository(db);
   late final PayrollAdjustmentRepository adjustments =
       DriftPayrollAdjustmentRepository(db);
 

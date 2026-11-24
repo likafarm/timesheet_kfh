@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kfh_domain/kfh_domain.dart' show OperationType;
 import 'package:provider/provider.dart';
+import 'customers_screen.dart';
 import 'daily_input_screen.dart';
 import 'home_screen.dart';
 import 'reminder_screen.dart';
@@ -113,6 +114,14 @@ class MainScreen extends StatefulWidget {
       screen: const PriceListScreen(),
     ),
     NavigationItem(
+      section: AppSection.customers,
+      group: NavGroup.sales,
+      icon: Icons.people_alt_outlined,
+      selectedIcon: Icons.people_alt,
+      label: 'Покупатели',
+      screen: const CustomersScreen(),
+    ),
+    NavigationItem(
       section: AppSection.employees,
       group: NavGroup.payroll,
       icon: Icons.people_outline,
@@ -205,8 +214,8 @@ class MainScreen extends StatefulWidget {
   ];
 
   /// Разделы специалиста по продажам (11.2, решение владельца
-  /// 2026-11-24; телефон, Windows и веб): прайс-лист и сервер. Покупатели,
-  /// заказы и выдачи добавятся в 11.3–11.5.
+  /// 2026-11-24; телефон, Windows и веб): прайс-лист, покупатели (11.3) и
+  /// сервер. Заказы и выдачи добавятся в 11.4–11.5.
   static List<NavigationItem> salesSections() => [
     NavigationItem(
       section: AppSection.priceList,
@@ -214,6 +223,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.sell,
       label: 'Прайс-лист',
       screen: const PriceListScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.customers,
+      icon: Icons.people_alt_outlined,
+      selectedIcon: Icons.people_alt,
+      label: 'Покупатели',
+      screen: const CustomersScreen(),
     ),
     NavigationItem(
       section: AppSection.sync,

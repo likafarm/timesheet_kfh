@@ -334,6 +334,54 @@ void main() {
     await db.close();
   });
 
+  test('6 → 7: схема совпадает со свежей схемой 7', () async {
+    final connection = await verifier.startAt(6);
+    final db = LocalDatabase(connection);
+    await verifier.migrateAndValidate(db, 7);
+    await db.close();
+  });
+
+  test('6 → 7: прайс на месте, покупатели работают', () async {
+    final schema = await verifier.schemaAt(6);
+    final raw = schema.rawDatabase;
+    const now = '2026-11-25T10:00:00.000Z';
+    raw.execute(
+      "INSERT INTO sync_state (key, value) VALUES ('device_id', 'dev-1')",
+    );
+    raw.execute(
+      'INSERT INTO company_settings (uuid, updated_at, deleted) '
+      "VALUES ('00000000-0000-0000-0000-000000000001', '$now', 0)",
+    );
+    raw.execute(
+      'INSERT INTO product_groups (uuid, name, sort_order, updated_at, '
+      "deleted) VALUES ('g1', 'Говядина', 0, '$now', 0)",
+    );
+
+    final db = LocalDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 7);
+    final repos = DriftRepositories(db);
+    expect((await repos.priceList.groups()).single.name, 'Говядина');
+
+    await repos.customers.saveCustomer(
+      const Customer(
+        id: 'c1',
+        name: 'Ольга',
+        phone: ' +7 916 683-18-54 ',
+        channel: CustomerChannel.telegram,
+        contact: '',
+      ),
+    );
+    final saved = (await repos.customers.customers()).single;
+    expect(saved.phone, '+7 916 683-18-54');
+    expect(saved.channel, CustomerChannel.telegram);
+    expect(saved.contact, isNull, reason: 'пустое — null');
+    await repos.customers.deleteCustomer('c1');
+    expect(await repos.customers.customers(), isEmpty);
+    final fk = await db.customSelect('PRAGMA foreign_key_check').get();
+    expect(fk, isEmpty);
+    await db.close();
+  });
+
   group('копия перед обновлением схемы', () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('kfh_upgrade_'));

@@ -20571,6 +20571,791 @@ class ProductPricesCompanion extends UpdateCompanion<ProductPriceRow> {
   }
 }
 
+class $CustomersTable extends Customers
+    with TableInfo<$CustomersTable, CustomerRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<int> legacyId = GeneratedColumn<int>(
+    'legacy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _editedByMeta = const VerificationMeta(
+    'editedBy',
+  );
+  @override
+  late final GeneratedColumn<String> editedBy = GeneratedColumn<String>(
+    'edited_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _channelMeta = const VerificationMeta(
+    'channel',
+  );
+  @override
+  late final GeneratedColumn<String> channel = GeneratedColumn<String>(
+    'channel',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _contactMeta = const VerificationMeta(
+    'contact',
+  );
+  @override
+  late final GeneratedColumn<String> contact = GeneratedColumn<String>(
+    'contact',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _counterpartyUuidMeta = const VerificationMeta(
+    'counterpartyUuid',
+  );
+  @override
+  late final GeneratedColumn<String> counterpartyUuid = GeneratedColumn<String>(
+    'counterparty_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES counterparties (uuid) DEFERRABLE INITIALLY DEFERRED',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    phone,
+    address,
+    channel,
+    contact,
+    notes,
+    counterpartyUuid,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'customers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CustomerRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('edited_by')) {
+      context.handle(
+        _editedByMeta,
+        editedBy.isAcceptableOrUnknown(data['edited_by']!, _editedByMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    }
+    if (data.containsKey('channel')) {
+      context.handle(
+        _channelMeta,
+        channel.isAcceptableOrUnknown(data['channel']!, _channelMeta),
+      );
+    }
+    if (data.containsKey('contact')) {
+      context.handle(
+        _contactMeta,
+        contact.isAcceptableOrUnknown(data['contact']!, _contactMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('counterparty_uuid')) {
+      context.handle(
+        _counterpartyUuidMeta,
+        counterpartyUuid.isAcceptableOrUnknown(
+          data['counterparty_uuid']!,
+          _counterpartyUuidMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  CustomerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomerRow(
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}legacy_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      editedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}edited_by'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      ),
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      ),
+      channel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channel'],
+      ),
+      contact: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contact'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      counterpartyUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}counterparty_uuid'],
+      ),
+    );
+  }
+
+  @override
+  $CustomersTable createAlias(String alias) {
+    return $CustomersTable(attachedDatabase, alias);
+  }
+}
+
+class CustomerRow extends DataClass implements Insertable<CustomerRow> {
+  final String uuid;
+
+  /// `id` строки в старой базе v8 — для сверки после переноса.
+  final int? legacyId;
+  final DateTime updatedAt;
+  final bool deleted;
+
+  /// Кто изменил запись последним: пока — id устройства.
+  final String? editedBy;
+
+  /// `updated_at` версии, полученной с сервера (этап 3).
+  final DateTime? remoteUpdatedAt;
+  final String name;
+  final String? phone;
+  final String? address;
+
+  /// `CustomerChannel.code`
+  final String? channel;
+  final String? contact;
+  final String? notes;
+  final String? counterpartyUuid;
+  const CustomerRow({
+    required this.uuid,
+    this.legacyId,
+    required this.updatedAt,
+    required this.deleted,
+    this.editedBy,
+    this.remoteUpdatedAt,
+    required this.name,
+    this.phone,
+    this.address,
+    this.channel,
+    this.contact,
+    this.notes,
+    this.counterpartyUuid,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || legacyId != null) {
+      map['legacy_id'] = Variable<int>(legacyId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || editedBy != null) {
+      map['edited_by'] = Variable<String>(editedBy);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    if (!nullToAbsent || channel != null) {
+      map['channel'] = Variable<String>(channel);
+    }
+    if (!nullToAbsent || contact != null) {
+      map['contact'] = Variable<String>(contact);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || counterpartyUuid != null) {
+      map['counterparty_uuid'] = Variable<String>(counterpartyUuid);
+    }
+    return map;
+  }
+
+  CustomersCompanion toCompanion(bool nullToAbsent) {
+    return CustomersCompanion(
+      uuid: Value(uuid),
+      legacyId: legacyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyId),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      editedBy: editedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(editedBy),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      name: Value(name),
+      phone: phone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phone),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      channel: channel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(channel),
+      contact: contact == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contact),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      counterpartyUuid: counterpartyUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(counterpartyUuid),
+    );
+  }
+
+  factory CustomerRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomerRow(
+      uuid: serializer.fromJson<String>(json['uuid']),
+      legacyId: serializer.fromJson<int?>(json['legacyId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      editedBy: serializer.fromJson<String?>(json['editedBy']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      address: serializer.fromJson<String?>(json['address']),
+      channel: serializer.fromJson<String?>(json['channel']),
+      contact: serializer.fromJson<String?>(json['contact']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      counterpartyUuid: serializer.fromJson<String?>(json['counterpartyUuid']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'uuid': serializer.toJson<String>(uuid),
+      'legacyId': serializer.toJson<int?>(legacyId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'editedBy': serializer.toJson<String?>(editedBy),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'name': serializer.toJson<String>(name),
+      'phone': serializer.toJson<String?>(phone),
+      'address': serializer.toJson<String?>(address),
+      'channel': serializer.toJson<String?>(channel),
+      'contact': serializer.toJson<String?>(contact),
+      'notes': serializer.toJson<String?>(notes),
+      'counterpartyUuid': serializer.toJson<String?>(counterpartyUuid),
+    };
+  }
+
+  CustomerRow copyWith({
+    String? uuid,
+    Value<int?> legacyId = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
+    Value<String?> editedBy = const Value.absent(),
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    String? name,
+    Value<String?> phone = const Value.absent(),
+    Value<String?> address = const Value.absent(),
+    Value<String?> channel = const Value.absent(),
+    Value<String?> contact = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    Value<String?> counterpartyUuid = const Value.absent(),
+  }) => CustomerRow(
+    uuid: uuid ?? this.uuid,
+    legacyId: legacyId.present ? legacyId.value : this.legacyId,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    editedBy: editedBy.present ? editedBy.value : this.editedBy,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    name: name ?? this.name,
+    phone: phone.present ? phone.value : this.phone,
+    address: address.present ? address.value : this.address,
+    channel: channel.present ? channel.value : this.channel,
+    contact: contact.present ? contact.value : this.contact,
+    notes: notes.present ? notes.value : this.notes,
+    counterpartyUuid: counterpartyUuid.present
+        ? counterpartyUuid.value
+        : this.counterpartyUuid,
+  );
+  CustomerRow copyWithCompanion(CustomersCompanion data) {
+    return CustomerRow(
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      editedBy: data.editedBy.present ? data.editedBy.value : this.editedBy,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      name: data.name.present ? data.name.value : this.name,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      address: data.address.present ? data.address.value : this.address,
+      channel: data.channel.present ? data.channel.value : this.channel,
+      contact: data.contact.present ? data.contact.value : this.contact,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      counterpartyUuid: data.counterpartyUuid.present
+          ? data.counterpartyUuid.value
+          : this.counterpartyUuid,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerRow(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('address: $address, ')
+          ..write('channel: $channel, ')
+          ..write('contact: $contact, ')
+          ..write('notes: $notes, ')
+          ..write('counterpartyUuid: $counterpartyUuid')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    uuid,
+    legacyId,
+    updatedAt,
+    deleted,
+    editedBy,
+    remoteUpdatedAt,
+    name,
+    phone,
+    address,
+    channel,
+    contact,
+    notes,
+    counterpartyUuid,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomerRow &&
+          other.uuid == this.uuid &&
+          other.legacyId == this.legacyId &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.editedBy == this.editedBy &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.name == this.name &&
+          other.phone == this.phone &&
+          other.address == this.address &&
+          other.channel == this.channel &&
+          other.contact == this.contact &&
+          other.notes == this.notes &&
+          other.counterpartyUuid == this.counterpartyUuid);
+}
+
+class CustomersCompanion extends UpdateCompanion<CustomerRow> {
+  final Value<String> uuid;
+  final Value<int?> legacyId;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<String?> editedBy;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String> name;
+  final Value<String?> phone;
+  final Value<String?> address;
+  final Value<String?> channel;
+  final Value<String?> contact;
+  final Value<String?> notes;
+  final Value<String?> counterpartyUuid;
+  final Value<int> rowid;
+  const CustomersCompanion({
+    this.uuid = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.address = const Value.absent(),
+    this.channel = const Value.absent(),
+    this.contact = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.counterpartyUuid = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomersCompanion.insert({
+    required String uuid,
+    this.legacyId = const Value.absent(),
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.editedBy = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    required String name,
+    this.phone = const Value.absent(),
+    this.address = const Value.absent(),
+    this.channel = const Value.absent(),
+    this.contact = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.counterpartyUuid = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : uuid = Value(uuid),
+       updatedAt = Value(updatedAt),
+       name = Value(name);
+  static Insertable<CustomerRow> custom({
+    Expression<String>? uuid,
+    Expression<int>? legacyId,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<String>? editedBy,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? name,
+    Expression<String>? phone,
+    Expression<String>? address,
+    Expression<String>? channel,
+    Expression<String>? contact,
+    Expression<String>? notes,
+    Expression<String>? counterpartyUuid,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (uuid != null) 'uuid': uuid,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (editedBy != null) 'edited_by': editedBy,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (address != null) 'address': address,
+      if (channel != null) 'channel': channel,
+      if (contact != null) 'contact': contact,
+      if (notes != null) 'notes': notes,
+      if (counterpartyUuid != null) 'counterparty_uuid': counterpartyUuid,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomersCompanion copyWith({
+    Value<String>? uuid,
+    Value<int?>? legacyId,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<String?>? editedBy,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String>? name,
+    Value<String?>? phone,
+    Value<String?>? address,
+    Value<String?>? channel,
+    Value<String?>? contact,
+    Value<String?>? notes,
+    Value<String?>? counterpartyUuid,
+    Value<int>? rowid,
+  }) {
+    return CustomersCompanion(
+      uuid: uuid ?? this.uuid,
+      legacyId: legacyId ?? this.legacyId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      editedBy: editedBy ?? this.editedBy,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      channel: channel ?? this.channel,
+      contact: contact ?? this.contact,
+      notes: notes ?? this.notes,
+      counterpartyUuid: counterpartyUuid ?? this.counterpartyUuid,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<int>(legacyId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (editedBy.present) {
+      map['edited_by'] = Variable<String>(editedBy.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (channel.present) {
+      map['channel'] = Variable<String>(channel.value);
+    }
+    if (contact.present) {
+      map['contact'] = Variable<String>(contact.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (counterpartyUuid.present) {
+      map['counterparty_uuid'] = Variable<String>(counterpartyUuid.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomersCompanion(')
+          ..write('uuid: $uuid, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('editedBy: $editedBy, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('address: $address, ')
+          ..write('channel: $channel, ')
+          ..write('contact: $contact, ')
+          ..write('notes: $notes, ')
+          ..write('counterpartyUuid: $counterpartyUuid, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
@@ -20608,6 +21393,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $ProductGroupsTable productGroups = $ProductGroupsTable(this);
   late final $ProductsTable products = $ProductsTable(this);
   late final $ProductPricesTable productPrices = $ProductPricesTable(this);
+  late final $CustomersTable customers = $CustomersTable(this);
   late final Index idxEmployeesFullName = Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -20720,6 +21506,10 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     'idx_product_prices_key',
     'CREATE UNIQUE INDEX idx_product_prices_key ON product_prices (product_uuid, valid_from) WHERE deleted = 0',
   );
+  late final Index idxCustomersName = Index(
+    'idx_customers_name',
+    'CREATE INDEX idx_customers_name ON customers (name)',
+  );
   late final EmployeesDao employeesDao = EmployeesDao(this as LocalDatabase);
   late final RatesDao ratesDao = RatesDao(this as LocalDatabase);
   late final TimesheetDao timesheetDao = TimesheetDao(this as LocalDatabase);
@@ -20763,6 +21553,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     productGroups,
     products,
     productPrices,
+    customers,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -20791,6 +21582,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     idxProductGroupsName,
     idxProductsName,
     idxProductPricesKey,
+    idxCustomersName,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -30538,6 +31330,23 @@ final class $$CounterpartiesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$CustomersTable, List<CustomerRow>>
+  _customersRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+    db.customers,
+    aliasName: 'counterparties__uuid__customers__counterparty_uuid',
+  );
+
+  $$CustomersTableProcessedTableManager get customersRefs {
+    final manager = $$CustomersTableTableManager($_db, $_db.customers).filter(
+      (f) => f.counterpartyUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_customersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$CounterpartiesTableFilterComposer
@@ -30693,6 +31502,31 @@ class $$CounterpartiesTableFilterComposer
           }) => $$FinPlansTableFilterComposer(
             $db: $db,
             $table: $db.finPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> customersRefs(
+    Expression<bool> Function($$CustomersTableFilterComposer f) f,
+  ) {
+    final $$CustomersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.customers,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomersTableFilterComposer(
+            $db: $db,
+            $table: $db.customers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -30932,6 +31766,31 @@ class $$CounterpartiesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> customersRefs<T extends Object>(
+    Expression<T> Function($$CustomersTableAnnotationComposer a) f,
+  ) {
+    final $$CustomersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.customers,
+      getReferencedColumn: (t) => t.counterpartyUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.customers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CounterpartiesTableTableManager
@@ -30952,6 +31811,7 @@ class $$CounterpartiesTableTableManager
             bool finDebtsRefs,
             bool finOperationsRefs,
             bool finPlansRefs,
+            bool customersRefs,
           })
         > {
   $$CounterpartiesTableTableManager(
@@ -31041,6 +31901,7 @@ class $$CounterpartiesTableTableManager
                 finDebtsRefs = false,
                 finOperationsRefs = false,
                 finPlansRefs = false,
+                customersRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -31048,6 +31909,7 @@ class $$CounterpartiesTableTableManager
                     if (finDebtsRefs) db.finDebts,
                     if (finOperationsRefs) db.finOperations,
                     if (finPlansRefs) db.finPlans,
+                    if (customersRefs) db.customers,
                   ],
                   addJoins:
                       <
@@ -31148,6 +32010,27 @@ class $$CounterpartiesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (customersRefs)
+                        await $_getPrefetchedData<
+                          CounterpartyRow,
+                          $CounterpartiesTable,
+                          CustomerRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CounterpartiesTableReferences
+                              ._customersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CounterpartiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).customersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.counterpartyUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -31173,6 +32056,7 @@ typedef $$CounterpartiesTableProcessedTableManager =
         bool finDebtsRefs,
         bool finOperationsRefs,
         bool finPlansRefs,
+        bool customersRefs,
       })
     >;
 typedef $$FinDebtsTableCreateCompanionBuilder =
@@ -36469,6 +37353,478 @@ typedef $$ProductPricesTableProcessedTableManager =
       ProductPriceRow,
       PrefetchHooks Function({bool productUuid})
     >;
+typedef $$CustomersTableCreateCompanionBuilder =
+    CustomersCompanion Function({
+      required String uuid,
+      Value<int?> legacyId,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      required String name,
+      Value<String?> phone,
+      Value<String?> address,
+      Value<String?> channel,
+      Value<String?> contact,
+      Value<String?> notes,
+      Value<String?> counterpartyUuid,
+      Value<int> rowid,
+    });
+typedef $$CustomersTableUpdateCompanionBuilder =
+    CustomersCompanion Function({
+      Value<String> uuid,
+      Value<int?> legacyId,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<String?> editedBy,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String> name,
+      Value<String?> phone,
+      Value<String?> address,
+      Value<String?> channel,
+      Value<String?> contact,
+      Value<String?> notes,
+      Value<String?> counterpartyUuid,
+      Value<int> rowid,
+    });
+
+final class $$CustomersTableReferences
+    extends BaseReferences<_$LocalDatabase, $CustomersTable, CustomerRow> {
+  $$CustomersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $CounterpartiesTable _counterpartyUuidTable(_$LocalDatabase db) => db
+      .counterparties
+      .createAlias('customers__counterparty_uuid__counterparties__uuid');
+
+  $$CounterpartiesTableProcessedTableManager? get counterpartyUuid {
+    final $_column = $_itemColumn<String>('counterparty_uuid');
+    if ($_column == null) return null;
+    final manager = $$CounterpartiesTableTableManager(
+      $_db,
+      $_db.counterparties,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_counterpartyUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CustomersTableFilterComposer
+    extends Composer<_$LocalDatabase, $CustomersTable> {
+  $$CustomersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contact => $composableBuilder(
+    column: $table.contact,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CounterpartiesTableFilterComposer get counterpartyUuid {
+    final $$CounterpartiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableFilterComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CustomersTableOrderingComposer
+    extends Composer<_$LocalDatabase, $CustomersTable> {
+  $$CustomersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get editedBy => $composableBuilder(
+    column: $table.editedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contact => $composableBuilder(
+    column: $table.contact,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CounterpartiesTableOrderingComposer get counterpartyUuid {
+    final $$CounterpartiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CustomersTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $CustomersTable> {
+  $$CustomersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<int> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get editedBy =>
+      $composableBuilder(column: $table.editedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get channel =>
+      $composableBuilder(column: $table.channel, builder: (column) => column);
+
+  GeneratedColumn<String> get contact =>
+      $composableBuilder(column: $table.contact, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$CounterpartiesTableAnnotationComposer get counterpartyUuid {
+    final $$CounterpartiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.counterpartyUuid,
+      referencedTable: $db.counterparties,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CounterpartiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.counterparties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CustomersTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $CustomersTable,
+          CustomerRow,
+          $$CustomersTableFilterComposer,
+          $$CustomersTableOrderingComposer,
+          $$CustomersTableAnnotationComposer,
+          $$CustomersTableCreateCompanionBuilder,
+          $$CustomersTableUpdateCompanionBuilder,
+          (CustomerRow, $$CustomersTableReferences),
+          CustomerRow,
+          PrefetchHooks Function({bool counterpartyUuid})
+        > {
+  $$CustomersTableTableManager(_$LocalDatabase db, $CustomersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> uuid = const Value.absent(),
+                Value<int?> legacyId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> channel = const Value.absent(),
+                Value<String?> contact = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> counterpartyUuid = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomersCompanion(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                phone: phone,
+                address: address,
+                channel: channel,
+                contact: contact,
+                notes: notes,
+                counterpartyUuid: counterpartyUuid,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String uuid,
+                Value<int?> legacyId = const Value.absent(),
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<String?> editedBy = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                required String name,
+                Value<String?> phone = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> channel = const Value.absent(),
+                Value<String?> contact = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> counterpartyUuid = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomersCompanion.insert(
+                uuid: uuid,
+                legacyId: legacyId,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                editedBy: editedBy,
+                remoteUpdatedAt: remoteUpdatedAt,
+                name: name,
+                phone: phone,
+                address: address,
+                channel: channel,
+                contact: contact,
+                notes: notes,
+                counterpartyUuid: counterpartyUuid,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CustomersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({counterpartyUuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (counterpartyUuid) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.counterpartyUuid,
+                                referencedTable: $$CustomersTableReferences
+                                    ._counterpartyUuidTable(db),
+                                referencedColumn: $$CustomersTableReferences
+                                    ._counterpartyUuidTable(db)
+                                    .uuid,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CustomersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $CustomersTable,
+      CustomerRow,
+      $$CustomersTableFilterComposer,
+      $$CustomersTableOrderingComposer,
+      $$CustomersTableAnnotationComposer,
+      $$CustomersTableCreateCompanionBuilder,
+      $$CustomersTableUpdateCompanionBuilder,
+      (CustomerRow, $$CustomersTableReferences),
+      CustomerRow,
+      PrefetchHooks Function({bool counterpartyUuid})
+    >;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -36527,4 +37883,6 @@ class $LocalDatabaseManager {
       $$ProductsTableTableManager(_db, _db.products);
   $$ProductPricesTableTableManager get productPrices =>
       $$ProductPricesTableTableManager(_db, _db.productPrices);
+  $$CustomersTableTableManager get customers =>
+      $$CustomersTableTableManager(_db, _db.customers);
 }

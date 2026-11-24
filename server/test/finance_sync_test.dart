@@ -621,6 +621,63 @@ void main() {
       expect({for (final r in denied) r['code']}, {'forbidden'});
     }, skip: mysqlSkip);
 
+    test('покупатели (0.14.0): продавец ведёт, оператор не видит', () async {
+      final id = uuid();
+      Map<String, Object?> customer(String name, {String? phone}) =>
+          row('customers', id, {
+            'name': name,
+            'phone': phone,
+            'address': 'Калуга, Вишневского 17',
+            'channel': 'telegram',
+            'contact': 'Pevneva Larissa',
+            'notes': null,
+            'counterparty_uuid': null,
+          }, updatedAt: at(phone == null ? 10 : 5));
+      expect(
+        statuses(await push([customer('Лариса Певнева')], role: Role.sales)),
+        ['applied'],
+      );
+      expect(
+        statuses(
+          await push([
+            customer('Лариса Певнева', phone: '+79055371459'),
+          ], role: Role.sales),
+        ),
+        ['applied'],
+      );
+      final sales = await pull(tables: all, role: Role.sales);
+      expect(
+        sales.lastWhere((c) => c['uuid'] == id)['data']['phone'],
+        '+79055371459',
+      );
+      final operator = await pull(tables: all, role: Role.operator);
+      expect(operator.any((c) => c['table'] == 'customers'), isFalse);
+      final denied = await push([
+        row('customers', uuid(), {
+          'name': 'Чужой',
+          'phone': null,
+          'address': null,
+          'channel': null,
+          'contact': null,
+          'notes': null,
+          'counterparty_uuid': null,
+        }),
+      ], role: Role.operator);
+      expect(denied.single['code'], 'forbidden');
+      final blank = await push([
+        row('customers', uuid(), {
+          'name': ' ',
+          'phone': null,
+          'address': null,
+          'channel': null,
+          'contact': null,
+          'notes': null,
+          'counterparty_uuid': null,
+        }),
+      ], role: Role.sales);
+      expect(blank.single['code'], 'invalid');
+    }, skip: mysqlSkip);
+
     test('вторая цена с того же дня и пустое название — отказ', () async {
       final g = uuid(), p = uuid();
       await push([

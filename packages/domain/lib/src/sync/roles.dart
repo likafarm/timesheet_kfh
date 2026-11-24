@@ -10,8 +10,9 @@
 // - оператор — табель и просмотр сотрудников (без ставок), свои расходы и
 //   доходы и справочники для них (8.8.4), просмотр прайс-листа (11.1);
 // - специалист по продажам (этап 11.2, решение владельца 2026-11-24) —
-//   прайс-лист и реквизиты хозяйства (для печати) только на чтение;
-//   покупатели, заказы и выдачи добавятся в 11.3–11.5.
+//   прайс-лист и реквизиты хозяйства (для печати) только на чтение,
+//   покупатели (11.3) — чтение и запись; заказы и выдачи — в 11.4–11.5.
+//   Оператор покупателей (телефоны, адреса) не получает.
 
 import '../finance/operator_rules.dart';
 import '../sales/price_list.dart' show priceListTables;
@@ -48,15 +49,18 @@ Set<String> roleReadableTables(String role) => switch (role) {
     ...operatorFinanceReadable,
     ...priceListTables,
   },
-  roleSales => {'company_settings', ...priceListTables},
+  roleSales => {'company_settings', ...priceListTables, ...salesRoleTables},
   _ => const {},
 };
+
+/// Таблицы продаж, которые ведёт специалист по продажам (11.3–11.5).
+const salesRoleTables = {'customers'};
 
 /// Таблицы, которые роль может записать.
 Set<String> roleWritableTables(String role) => switch (role) {
   roleAdmin || roleAccountant => _allTables,
   roleOperator => {'timesheet', ...operatorFinanceWritable},
-  roleSales => const {},
+  roleSales => salesRoleTables,
   _ => const {},
 };
 

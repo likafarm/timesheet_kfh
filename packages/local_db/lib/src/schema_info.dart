@@ -42,11 +42,12 @@ const financeTablesOrder = <String>[
   'fin_budget',
 ];
 
-/// Таблицы продаж (этап 11, схема 6) в порядке вставки.
+/// Таблицы продаж (этап 11: прайс — схема 6, покупатели — схема 7) в порядке вставки.
 const salesTablesOrder = <String>[
   'product_groups',
   'products',
   'product_prices',
+  'customers',
 ];
 
 /// Поля-даты таблиц продаж.
@@ -54,6 +55,7 @@ const salesTables = <String, List<String>>{
   'product_groups': [],
   'products': [],
   'product_prices': ['valid_from'],
+  'customers': [],
 };
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
