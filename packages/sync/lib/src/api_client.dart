@@ -203,6 +203,41 @@ class KfhApiClient {
     ];
   }
 
+  /// Новый пользователь (только админ): пароль временный — при первом
+  /// входе его нужно сменить.
+  Future<SessionUser> createUser({
+    required String login,
+    required String fullName,
+    required String role,
+    required String password,
+  }) async => SessionUser.fromJson(
+    await postJson('/users', {
+      'login': login,
+      'full_name': fullName,
+      'role': role,
+      'password': password,
+    }),
+  );
+
+  /// Изменить ФИО, роль или «действует» (только админ).
+  Future<SessionUser> updateUser(
+    String uuid, {
+    String? fullName,
+    String? role,
+    bool? isActive,
+  }) async => SessionUser.fromJson(
+    await _authorized(
+      'PATCH',
+      '/users/$uuid',
+      body: {'full_name': ?fullName, 'role': ?role, 'is_active': ?isActive},
+    ),
+  );
+
+  /// Новый временный пароль пользователю (только админ): его входы
+  /// гаснут, при входе пароль нужно сменить.
+  Future<void> resetPassword(String uuid, String password) =>
+      postJson('/users/$uuid/reset-password', {'password': password});
+
   /// Журнал действий сервера (6.7, только админ): [since]/[until] — моменты
   /// (переводятся в UTC), [kind] — `timesheet`, `payments`, `rates`,
   /// `employees`, `payroll`, `settings`, `periods`, `access`; [before] —

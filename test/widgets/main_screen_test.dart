@@ -45,6 +45,7 @@ void main() {
     required Size size,
     required bool operator,
     bool phone = false,
+    bool sales = false,
     Future<void> Function(LocalDatabase db)? seed,
   }) async {
     tester.view.physicalSize = size;
@@ -56,7 +57,8 @@ void main() {
     await tester.runAsync(() async {
       db = LocalDatabase.memory();
       await seed?.call(db);
-      app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: operator);
+      app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: operator)
+        ..salesMode = sales;
       await app.loadAllData();
       sync = SyncProvider(
         appVersion: () async => '1.3.0',
@@ -93,6 +95,37 @@ void main() {
       await tester.pump();
     }
   }
+
+  testWidgets('специалист по продажам: прайс и сервер, прайс без правки', (
+    tester,
+  ) async {
+    await pumpMain(
+      tester,
+      size: const Size(1280, 800),
+      operator: false,
+      sales: true,
+    );
+    final menu = find.byType(SideMenu);
+    for (final label in ['Прайс-лист', 'Сервер']) {
+      expect(
+        find.descendant(of: menu, matching: find.text(label)),
+        findsOneWidget,
+        reason: label,
+      );
+    }
+    for (final label in ['Табель', 'Расходы', 'Сотрудники', 'Настройки']) {
+      expect(
+        find.descendant(of: menu, matching: find.text(label)),
+        findsNothing,
+        reason: label,
+      );
+    }
+    // Первый раздел — прайс: печать есть, правки нет.
+    expect(find.byTooltip('Печать / PDF'), findsOneWidget);
+    expect(find.text('Товары и порядок'), findsNothing);
+    expect(find.byTooltip('Загрузить из Excel'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('оператор на телефоне: нижняя навигация, первый — табель', (
     tester,

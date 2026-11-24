@@ -114,6 +114,7 @@ class _MyAppState extends State<MyApp> {
       final user = _sync.user;
       if (user != null) {
         _app.operatorMode = user.isOperator;
+        _app.salesMode = user.isSales;
         _app.userUuid = user.uuid;
       }
     });

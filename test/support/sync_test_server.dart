@@ -50,6 +50,21 @@ class SyncTestServer {
   int pushes = 0;
   int pulls = 0;
 
+  /// Пользователи сервера (11.2, «Настройки → Пользователи»).
+  final users = <Map<String, Object?>>[
+    {
+      'uuid': userUuid,
+      'login': 'ivan',
+      'full_name': 'Иван Иванов',
+      'role': 'admin',
+      'is_active': true,
+      'must_change_password': false,
+    },
+  ];
+
+  /// Пароли, заданные админом: логин → пароль.
+  final passwords = <String, String>{};
+
   /// Приём (pull) отказывает — ошибка без повторов.
   bool failPull = false;
 
@@ -111,6 +126,40 @@ class SyncTestServer {
     }
     if (sessionExpired) {
       return _error(401, 'token_invalid', 'Требуется вход в систему');
+    }
+    final path = r.url.path;
+    if (path == '/users' || path.startsWith('/users/')) {
+      if (role != 'admin') return _error(403, 'forbidden', 'Только админ');
+      final body = r.body.isEmpty
+          ? const <String, Object?>{}
+          : jsonDecode(r.body) as Map<String, Object?>;
+      if (path == '/users' && r.method == 'GET') return _json({'users': users});
+      if (path == '/users' && r.method == 'POST') {
+        if (users.any((u) => u['login'] == body['login'])) {
+          return _error(409, 'login_taken', 'Такой логин уже занят');
+        }
+        final user = {
+          'uuid':
+              '01900000-0000-7000-8000-0000000001${users.length.toString().padLeft(2, '0')}',
+          'login': body['login'],
+          'full_name': body['full_name'],
+          'role': body['role'],
+          'is_active': true,
+          'must_change_password': true,
+        };
+        users.add(user);
+        passwords[body['login'] as String] = body['password'] as String;
+        return _json(user, 201);
+      }
+      final parts = path.split('/');
+      final user = users.firstWhere((u) => u['uuid'] == parts[2]);
+      if (parts.length == 4 && parts[3] == 'reset-password') {
+        passwords[user['login'] as String] = body['password'] as String;
+        user['must_change_password'] = true;
+        return http.Response('', 204);
+      }
+      user.addAll(body);
+      return _json(user);
     }
     switch (r.url.path) {
       case '/sync/push':

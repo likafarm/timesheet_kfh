@@ -54,7 +54,7 @@ void main() {
         const RequestInfo(),
       )).accessToken,
     };
-    for (final role in [Role.accountant, Role.operator]) {
+    for (final role in [Role.accountant, Role.operator, Role.sales]) {
       final user = await auth.createUser(
         admin,
         login: role.name,
@@ -595,6 +595,30 @@ void main() {
         price(uuid(), p, '2026-12-01', 190000),
       ], role: Role.operator);
       expect(denied.single['code'], 'forbidden');
+    }, skip: mysqlSkip);
+
+    test('продавец (0.14.0): прайс и реквизиты — только чтение', () async {
+      final g = uuid(), p = uuid();
+      await push([
+        group(g, 'Говядина'),
+        product(p, g, 'Вырезка'),
+        price(uuid(), p, '2026-03-01', 184000),
+      ]);
+      final (_, cash, _, _) = await catalog();
+      final got = await pull(tables: all, role: Role.sales);
+      final tables = {for (final c in got) c['table'] as String};
+      expect(tables, containsAll(priceListTables));
+      expect(
+        tables.difference({'company_settings', ...priceListTables}),
+        isEmpty,
+        reason: 'ни финансов, ни сотрудников, ни табеля',
+      );
+      final denied = await push([
+        price(uuid(), p, '2026-12-01', 190000),
+        operation(uuid(), cash, createdBy: uuids[Role.sales]),
+      ], role: Role.sales);
+      expect(statuses(denied), everyElement('rejected'));
+      expect({for (final r in denied) r['code']}, {'forbidden'});
     }, skip: mysqlSkip);
 
     test('вторая цена с того же дня и пустое название — отказ', () async {

@@ -337,7 +337,7 @@ void main() {
           isA<SyncUserException>().having(
             (e) => e.message,
             'message',
-            contains('Не удалось принять с сервера ставки и выплаты'),
+            contains('Не удалось принять с сервера данные'),
           ),
         ),
       );

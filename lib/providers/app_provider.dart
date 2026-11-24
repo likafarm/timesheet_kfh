@@ -28,6 +28,20 @@ class AppProvider extends ChangeNotifier {
     if (!value) loadEmployees();
   }
 
+  /// Специалист по продажам (11.2): прайс-лист (позже — покупатели и
+  /// заказы); табеля, зарплат и финансов хозяйства нет.
+  bool get salesMode => _salesMode;
+  bool _salesMode = false;
+
+  set salesMode(bool value) {
+    if (value == _salesMode) return;
+    _salesMode = value;
+    notifyListeners();
+  }
+
+  /// Вся программа: администратор или бухгалтер.
+  bool get fullMode => !_operatorMode && !_salesMode;
+
   /// uuid вошедшего пользователя сервера (автор операций финансов,
   /// 8.8.4); null — вход не выполнен.
   String? get userUuid => _userUuid;

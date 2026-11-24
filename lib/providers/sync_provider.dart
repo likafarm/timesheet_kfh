@@ -10,7 +10,11 @@ import 'package:drift/drift.dart' show TableUpdate, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kfh_domain/kfh_domain.dart'
-    show PlatformVersion, compareVersions, operatorFinanceReadable, syncTables;
+    show
+        PlatformVersion,
+        compareVersions,
+        operatorFinanceReadable,
+        tablesToRefetch;
 import 'package:kfh_local_db/kfh_local_db.dart';
 import 'package:kfh_sync/kfh_sync.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -67,10 +71,10 @@ class SyncProvider extends ChangeNotifier {
   /// синхронизация — повторная сверка с сервером (как при привязке).
   static const relinkKey = 'sync_relink';
 
-  /// Ключ в `sync_state` (телефон, 6.9): для какой роли сейчас принимается
-  /// база — `operator` (оператор получает не всё: ни выплат, ни ставок) или
-  /// `full`. Нет ключа — база принята до 6.9, когда на телефоне был только
-  /// оператор.
+  /// Ключ в `sync_state` (6.9, 11.2): для какой роли сейчас принимается
+  /// база — `operator`, `sales` (они получают не всё, [roleReadableTables])
+  /// или `full`. Нет ключа — на телефоне база принята до 6.9, когда там был
+  /// только оператор; на компьютере — полной программой.
   static const dataRoleKey = 'sync_data_role';
 
   /// Ключ в `sync_state` (8.8.4): телефон оператора один раз догрузил с
@@ -82,8 +86,7 @@ class SyncProvider extends ChangeNotifier {
   /// Сервер, который выдаёт оператору финансы.
   static const operatorFinanceServerVersion = '0.11.0';
 
-  static String _dataRole(SessionUser user) =>
-      user.isOperator ? 'operator' : 'full';
+  static String _dataRole(SessionUser user) => user.isFull ? 'full' : user.role;
 
   /// Сервер на этом компьютере (стенд), а не рабочий. Для эмулятора
   /// Android компьютер разработчика — 10.0.2.2.
@@ -447,23 +450,20 @@ class SyncProvider extends ChangeNotifier {
 
   /// Таблицы, которые оператор не получает или получает не полностью
   /// (сотрудники — без ставок): их догружает бухгалтер или админ.
-  static final _hiddenFromOperator = {
-    for (final t in syncTables)
-      if (t.name != 'timesheet') t.name,
-  };
-
-  /// Телефон (6.9; 6.10 — решение владельца 2026-09-30): база принималась
-  /// для другой роли — сначала отправить неотправленное (от имени
-  /// вошедшего). Данные телефона не стираются: после бухгалтера или админа
-  /// оператору закрытое просто не показывается; после оператора бухгалтеру
-  /// или админу с нуля догружаются таблицы, которых оператор не получал
-  /// ([SyncEngine.refetch]). Не вышло отправить или догрузить — отказ во
-  /// входе, данные на месте (догрузка повторится при следующем входе).
+  /// Телефон и компьютер (6.9; 6.10 — решение владельца 2026-09-30; 11.2):
+  /// база принималась для другой роли — сначала отправить неотправленное
+  /// (от имени вошедшего). Данные устройства не стираются: закрытое от
+  /// вошедшей роли просто не показывается, а таблицы, которых прежняя роль
+  /// не получала, догружаются с нуля ([SyncEngine.refetch]). Не вышло
+  /// отправить или догрузить — отказ во входе, данные на месте (догрузка
+  /// повторится при следующем входе). Веб — база стирается при выходе.
   Future<void> _prepareForRole(SessionUser user) async {
-    if (client != ClientKind.phone) return;
+    if (client == ClientKind.web) return;
     final linked = await _store.linkedServer();
     if (linked == null) return;
-    final role = await _db.syncStateDao.getValue(dataRoleKey) ?? 'operator';
+    final role =
+        await _db.syncStateDao.getValue(dataRoleKey) ??
+        (client == ClientKind.phone ? 'operator' : 'full');
     if (role == _dataRole(user)) return;
 
     Future<Never> refuse(String reason) async {
@@ -478,7 +478,7 @@ class SyncProvider extends ChangeNotifier {
     if (_pending > _rejected) {
       if (linked != _server) {
         await refuse(
-          'На этом телефоне есть неотправленные правки прошлого '
+          'На этом устройстве есть неотправленные правки прошлого '
           'пользователя (${_pending - _rejected}) для сервера $linked. '
           'Сначала отправьте их туда.',
         );
@@ -487,7 +487,7 @@ class SyncProvider extends ChangeNotifier {
         await _syncEngine.run();
       } on SyncFailure catch (e) {
         await refuse(
-          'На этом телефоне есть неотправленные правки прошлого '
+          'На этом устройстве есть неотправленные правки прошлого '
           'пользователя. Отправить их не удалось (${_explain(e)}) — войдите, '
           'когда будет связь.',
         );
@@ -500,20 +500,26 @@ class SyncProvider extends ChangeNotifier {
         await _store.clearRejections();
         await refreshPending();
         await refuse(
-          'На этом телефоне остались неотправленные правки прошлого '
+          'На этом устройстве остались неотправленные правки прошлого '
           'пользователя ($left): от роли «${user.roleTitle}» сервер их не '
           'принял. Пусть их отправит тот, кто вносил: войдёт на этом '
-          'телефоне и синхронизирует.',
+          'устройстве и синхронизирует.',
         );
       }
     }
-    if (!user.isOperator) {
+    // Роль данных `full` — админ или бухгалтер (их права одинаковы).
+    String roleOf(String dataRole) => dataRole == 'full' ? 'admin' : dataRole;
+    final missing = tablesToRefetch(
+      from: roleOf(role),
+      to: roleOf(_dataRole(user)),
+    );
+    if (missing.isNotEmpty) {
       try {
-        await _syncEngine.refetch(_hiddenFromOperator);
+        await _syncEngine.refetch(missing);
       } on SyncFailure catch (e) {
         await refuse(
-          'Не удалось принять с сервера ставки и выплаты, которых на этом '
-          'телефоне не было у оператора (${_explain(e)}). Войдите, когда '
+          'Не удалось принять с сервера данные, которых на этом устройстве '
+          'не было у прежнего пользователя (${_explain(e)}). Войдите, когда '
           'будет связь.',
         );
       }
@@ -764,7 +770,7 @@ class SyncProvider extends ChangeNotifier {
 
   /// Закрывать месяцы могут бухгалтер и админ (нужен вход и связь).
   bool get canLockMonths =>
-      _phase == SyncPhase.ready && _user != null && !_user!.isOperator;
+      _phase == SyncPhase.ready && _user != null && _user!.isFull;
 
   /// Открывать закрытые месяцы — только админ (решение владельца
   /// 2026-09-28).
@@ -974,6 +980,47 @@ class SyncProvider extends ChangeNotifier {
 
   /// Пользователи сервера — для отбора в журнале (только админ).
   Future<List<SessionUser>> serverUsers() => _ask(() => _api!.users());
+
+  /// Управление пользователями (11.2, только админ): нужен вход и связь.
+  bool get canManageUsers => canUnlockMonths;
+
+  Future<T> _askAdmin<T>(Future<T> Function() request) {
+    if (!canManageUsers) {
+      throw const SyncUserException('Пользователей ведёт администратор');
+    }
+    return _ask(request);
+  }
+
+  Future<SessionUser> createServerUser({
+    required String login,
+    required String fullName,
+    required String role,
+    required String password,
+  }) => _askAdmin(
+    () => _api!.createUser(
+      login: login,
+      fullName: fullName,
+      role: role,
+      password: password,
+    ),
+  );
+
+  Future<SessionUser> updateServerUser(
+    String uuid, {
+    String? fullName,
+    String? role,
+    bool? isActive,
+  }) => _askAdmin(
+    () => _api!.updateUser(
+      uuid,
+      fullName: fullName,
+      role: role,
+      isActive: isActive,
+    ),
+  );
+
+  Future<void> resetServerPassword(String uuid, String password) =>
+      _askAdmin(() => _api!.resetPassword(uuid, password));
 
   Future<T> _ask<T>(Future<T> Function() request) async {
     if (!canLockMonths) {

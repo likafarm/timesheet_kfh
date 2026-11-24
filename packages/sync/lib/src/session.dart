@@ -1,3 +1,5 @@
+import 'package:kfh_domain/kfh_domain.dart' as domain;
+
 /// Какая программа входит на сервер.
 enum ClientKind {
   /// Полная программа для Windows: администратор и бухгалтер.
@@ -24,9 +26,12 @@ class SessionUser {
   final String login;
   final String fullName;
 
-  /// `admin` | `accountant` | `operator`.
+  /// `admin` | `accountant` | `operator` | `sales` (11.2).
   final String role;
   final bool mustChangePassword;
+
+  /// Учётная запись действует (список пользователей у админа).
+  final bool isActive;
 
   const SessionUser({
     required this.uuid,
@@ -34,18 +39,25 @@ class SessionUser {
     required this.fullName,
     required this.role,
     this.mustChangePassword = false,
+    this.isActive = true,
   });
 
-  bool get isAdmin => role == 'admin';
-  bool get isOperator => role == 'operator';
+  bool get isAdmin => role == domain.roleAdmin;
+  bool get isOperator => role == domain.roleOperator;
+
+  /// Специалист по продажам (11.2): прайс, позже — покупатели и заказы.
+  bool get isSales => role == domain.roleSales;
+
+  /// Админ или бухгалтер — вся программа.
+  bool get isFull => domain.isFullRole(role);
 
   /// Может ли роль работать в этой программе (решения владельца
-  /// 2026-09-27 и 2026-09-29): на Windows и в веб-версии — админ и
-  /// бухгалтер, на телефоне — все роли (разделы — по роли).
+  /// 2026-09-27, 2026-09-29 и 2026-11-24): на Windows и в веб-версии —
+  /// админ, бухгалтер и специалист по продажам, на телефоне — все роли
+  /// (разделы — по роли). Роли, которых программа не знает, не входят.
   bool canUseOn(ClientKind client) => switch (client) {
-    ClientKind.desktop ||
-    ClientKind.web => role == 'admin' || role == 'accountant',
-    ClientKind.phone => const {'admin', 'accountant', 'operator'}.contains(role),
+    ClientKind.desktop || ClientKind.web => isFull || isSales,
+    ClientKind.phone => domain.allRoles.contains(role),
   };
 
   /// Почему роль не может работать в этой программе (null — может).
@@ -54,22 +66,22 @@ class SessionUser {
     return switch (client) {
       ClientKind.desktop =>
         'Роль «$roleTitle» не работает в программе для Windows — нужна '
-            'учётная запись администратора или бухгалтера.',
+            'учётная запись администратора, бухгалтера или специалиста по '
+            'продажам.${domain.allRoles.contains(role) ? '' : _update}',
       ClientKind.phone =>
-        'Роль «$roleTitle» не работает в программе для телефона.',
+        'Роль «$roleTitle» не работает в программе для телефона.$_update',
       ClientKind.web =>
         'Роль «$roleTitle» не работает в веб-версии — нужна учётная запись '
-            'администратора или бухгалтера. Оператор работает в программе '
-            'для телефона.',
+            'администратора, бухгалтера или специалиста по продажам. '
+            'Оператор работает в программе для телефона.'
+            '${domain.allRoles.contains(role) ? '' : _update}',
     };
   }
 
-  String get roleTitle => switch (role) {
-    'admin' => 'администратор',
-    'accountant' => 'бухгалтер',
-    'operator' => 'оператор',
-    _ => role,
-  };
+  static const _update =
+      ' Возможно, эта версия программы старше роли — обновите программу.';
+
+  String get roleTitle => domain.roleTitle(role);
 
   factory SessionUser.fromJson(Map<String, Object?> json) => SessionUser(
     uuid: json['uuid'] as String,
@@ -77,6 +89,7 @@ class SessionUser {
     fullName: json['full_name'] as String? ?? '',
     role: json['role'] as String,
     mustChangePassword: json['must_change_password'] == true,
+    isActive: json['is_active'] != false,
   );
 
   Map<String, Object?> toJson() => {

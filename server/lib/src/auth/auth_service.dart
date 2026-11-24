@@ -515,7 +515,7 @@ class AuthService {
     final role = Role.tryParse(value);
     if (role == null) {
       throw const ApiException(400, 'validation',
-          'Роль — admin, accountant или operator');
+          'Роль — admin, accountant, operator или sales');
     }
     return role;
   }

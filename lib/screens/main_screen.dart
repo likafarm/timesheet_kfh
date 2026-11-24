@@ -204,6 +204,26 @@ class MainScreen extends StatefulWidget {
     ),
   ];
 
+  /// Разделы специалиста по продажам (11.2, решение владельца
+  /// 2026-11-24; телефон, Windows и веб): прайс-лист и сервер. Покупатели,
+  /// заказы и выдачи добавятся в 11.3–11.5.
+  static List<NavigationItem> salesSections() => [
+    NavigationItem(
+      section: AppSection.priceList,
+      icon: Icons.sell_outlined,
+      selectedIcon: Icons.sell,
+      label: 'Прайс-лист',
+      screen: const PriceListScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.sync,
+      icon: Icons.cloud_outlined,
+      selectedIcon: Icons.cloud,
+      label: 'Сервер',
+      screen: const SyncScreen(),
+    ),
+  ];
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
@@ -224,6 +244,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _app = context.read<AppProvider>();
     _navigationItems = _app.operatorMode
         ? MainScreen.operatorSections()
+        : _app.salesMode
+        ? MainScreen.salesSections()
         : MainScreen.fullSections();
     _app.addListener(_showNotice);
     _sections.addListener(_openRequested);

@@ -290,7 +290,7 @@ class PeriodService {
   }
 
   static void _requireAccountant(User actor) {
-    if (actor.role == Role.operator) {
+    if (!actor.role.isFull) {
       throw const ApiException(
           403, 'forbidden', 'Закрывать и открывать месяцы может бухгалтер или админ');
     }

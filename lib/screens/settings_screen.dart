@@ -10,6 +10,7 @@ import '../providers/sync_provider.dart';
 import '../services/platform.dart';
 import 'about_screen.dart';
 import 'audit_screen.dart';
+import 'users_screen.dart';
 import 'sync_screen.dart';
 import 'database_viewer_screen.dart';
 import 'backups_screen.dart';
@@ -272,6 +273,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
 
                         // Закрытие месяцев — пункт меню «Зарплата» (8Б.1).
+
+                        // Пользователи сервера — только админ (11.2).
+                        if (context.watch<SyncProvider>().canManageUsers) ...[
+                          ListTile(
+                            leading: const Icon(Icons.manage_accounts),
+                            title: const Text('Пользователи'),
+                            subtitle: const Text(
+                              'Учётные записи и роли: администратор, '
+                              'бухгалтер, оператор, специалист по продажам',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const UsersScreen(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1),
+                        ],
 
                         // Журнал действий — только админ (6.7).
                         if (context.watch<SyncProvider>().canReadAudit) ...[

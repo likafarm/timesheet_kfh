@@ -70,7 +70,7 @@ void main() {
       Role.admin: (await auth.login('admin', 'admin-pass-1', const RequestInfo()))
           .accessToken,
     };
-    for (final role in [Role.accountant, Role.operator]) {
+    for (final role in [Role.accountant, Role.operator, Role.sales]) {
       await auth.createUser(admin,
           login: role.name,
           fullName: 'Пользователь ${role.name}',
@@ -521,6 +521,21 @@ void main() {
       expect((json['saved'], json['unchanged'], json['removed']), (0, 1, 1));
     }, skip: mysqlSkip);
   });
+
+  test('продавец (0.14.0): ни закрытия месяцев, ни расчётов, ни табеля', () async {
+    await seed();
+    var (s, json) = await call('POST', '/periods/locks',
+        body: {'year': 2026, 'month': 9}, role: Role.sales);
+    expect(s, 403, reason: '$json');
+    (s, json) = await call('GET', '/payroll/calculation?year=2026&month=9',
+        role: Role.sales);
+    expect(s, 403, reason: '$json');
+    (s, json) = await call('GET', '/timesheet?year=2026&month=9',
+        role: Role.sales);
+    expect(s, 403, reason: '$json');
+    (s, json) = await call('GET', '/settings', role: Role.sales);
+    expect(s, 200, reason: 'реквизиты — для печати прайса');
+  }, skip: mysqlSkip);
 
   group('закрытые месяцы', () {
     test('закрыть, увидеть, запретить правки и пересчёт, открыть', () async {

@@ -37,7 +37,7 @@ class PriceListProvider extends ChangeNotifier {
   List<DateTime> get editions => priceEditions(_prices);
 
   /// Прайс правят админ и бухгалтер.
-  bool get canEdit => !_app.operatorMode;
+  bool get canEdit => _app.fullMode;
 
   CompanySettings? get settings => _app.companySettings;
 

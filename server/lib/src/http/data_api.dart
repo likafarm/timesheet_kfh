@@ -296,7 +296,7 @@ class DataApi {
 
   Future<User> _accountant(Request request) async {
     final user = await auth.requireUser(request);
-    if (user.role == Role.operator) throw forbidden;
+    if (!user.role.isFull) throw forbidden;
     return user;
   }
 

@@ -10,7 +10,13 @@ typedef SqlExecutor = Future<IResultSet> Function(String sql,
 enum Role {
   admin,
   accountant,
-  operator;
+  operator,
+
+  /// Специалист по продажам (этап 11.2, сервер 0.14.0).
+  sales;
+
+  /// Видит и правит все данные: админ или бухгалтер.
+  bool get isFull => this == admin || this == accountant;
 
   static Role? tryParse(Object? value) {
     for (final role in values) {
