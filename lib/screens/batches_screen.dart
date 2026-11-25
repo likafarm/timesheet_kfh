@@ -329,7 +329,7 @@ class BatchScreen extends StatelessWidget {
               ),
               PopupMenuItem(
                 value: _Print.labels,
-                child: Text('Этикетки 50×70 (принтер этикеток)'),
+                child: Text('Этикетки 70×50 (принтер этикеток)'),
               ),
               PopupMenuItem(
                 value: _Print.tags,

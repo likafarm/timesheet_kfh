@@ -2,7 +2,7 @@
 //
 // Печать выдачи (этап 11.5): список пакетов (кому, что, фактический вес,
 // сумма; пометка, если итог сильно отличается от предварительного),
-// этикетки 50 × 70 мм для принтера этикеток, бирки на листе А4 (8 на
+// этикетки 70 × 50 мм для принтера этикеток, бирки на листе А4 (8 на
 // лист) и маршрут доставки (адрес, телефон,
 // сумма, графа для отметки).
 
@@ -37,6 +37,12 @@ class BatchPrintLine {
   /// Не выдана (не хватило) — бирка не нужна.
   final bool missing;
 
+  /// Группа прайса («Говядина охлаждённая»).
+  final String group;
+
+  /// Цена за единицу: «1 840 ₽/кг»; пусто — своя сумма или нет цены.
+  final String price;
+
   const BatchPrintLine({
     required this.product,
     required this.ordered,
@@ -44,6 +50,8 @@ class BatchPrintLine {
     this.composition = '',
     this.amount,
     this.missing = false,
+    this.group = '',
+    this.price = '',
   });
 
   /// Товар с составом — для списка пакетов.
@@ -86,7 +94,21 @@ class BatchPrintOrder {
 class BatchPrint {
   final String title;
   final List<BatchPrintOrder> orders;
-  const BatchPrint({required this.title, required this.orders});
+
+  /// День выдачи, «дд.мм.гггг».
+  final String day;
+
+  /// Хозяйство и его телефон — для этикеток (из настроек).
+  final String? company;
+  final String? phone;
+
+  const BatchPrint({
+    required this.title,
+    required this.orders,
+    this.day = '',
+    this.company,
+    this.phone,
+  });
 }
 
 /// Данные для печати выдачи [b] из [p].
@@ -136,6 +158,10 @@ BatchPrint batchPrintData(OrdersProvider p, SaleBatch b) {
                     '${x.weight == null ? '' : ' ${_qty(x.weight!)}'}',
           ].join(', '),
           missing: l.state == LineState.missing,
+          group: p.groupName(product?.groupId) ?? '',
+          price: l.pricing == LinePricing.fixed || l.price == null
+              ? ''
+              : '${_rub(l.price!)}/${ps.isNotEmpty ? 'кг' : product?.unit.title ?? 'кг'}',
           ordered: [
             if (l.orderedQty != null && l.orderedUnit != null)
               l.orderedUnit == OrderedUnit.rub
@@ -177,9 +203,14 @@ BatchPrint batchPrintData(OrdersProvider p, SaleBatch b) {
     );
   }
   final title = (b.title ?? '').trim();
+  final settings = p.companySettings;
+  String? opt(String? v) => (v ?? '').trim().isEmpty ? null : v!.trim();
   return BatchPrint(
     title: 'Выдача ${_day.format(b.day)}${title.isEmpty ? '' : ' · $title'}',
     orders: orders,
+    day: _day.format(b.day),
+    company: opt(settings?.companyName),
+    phone: opt(settings?.phone),
   );
 }
 
@@ -463,12 +494,18 @@ Future<Uint8List> buildBatchTagsPdf(
 }
 
 /// Размер этикетки принтера этикеток (решение владельца 2026-11-25):
-/// 50 × 70 мм, прямая термопечать (Godex G530U через драйвер Windows).
-final labelFormat = PdfPageFormat(50 * PdfPageFormat.mm, 70 * PdfPageFormat.mm);
+/// 70 × 50 мм (ширина × высота), прямая термопечать (Godex G530U через
+/// драйвер Windows).
+final labelFormat = PdfPageFormat(70 * PdfPageFormat.mm, 50 * PdfPageFormat.mm);
+
+/// Чёрно-белый логотип для термопечати (цветной вышел бы серой рябью).
+const labelLogoAsset = 'assets/branding/logo_mono.png';
 
 /// Этикетки на пакеты для принтера этикеток: страница PDF = одна
-/// этикетка [labelFormat], та же раскладка, что у бирок ([batchTags]).
-/// Только чёрный, без рамок и серого: прямая термопечать.
+/// этикетка [labelFormat] — логотип хозяйства, номер заказа и пакет,
+/// покупатель, товар (группа, состав набора), дата выдачи, цена за
+/// единицу, вес и сумма, телефон хозяйства. Только чёрный: прямая
+/// термопечать.
 Future<Uint8List> buildBatchLabelsPdf(
   BatchPrint data, {
   required Future<ByteData> Function(String path) asset,
@@ -477,6 +514,14 @@ Future<Uint8List> buildBatchLabelsPdf(
     title: '${data.title} — этикетки',
     theme: await _theme(asset),
   );
+  pw.MemoryImage? logo;
+  try {
+    logo = pw.MemoryImage((await asset(labelLogoAsset)).buffer.asUint8List());
+  } catch (_) {
+    // Логотипа нет — название хозяйства текстом.
+  }
+  const small = pw.TextStyle(fontSize: 6.5);
+  final rule = pw.Container(height: 0.8, color: PdfColors.black);
   final tags = batchTags(data);
   for (final t in tags) {
     final o = t.order;
@@ -484,60 +529,106 @@ Future<Uint8List> buildBatchLabelsPdf(
     doc.addPage(
       pw.Page(
         pageFormat: labelFormat,
-        margin: const pw.EdgeInsets.all(3 * PdfPageFormat.mm),
+        margin: const pw.EdgeInsets.all(2.5 * PdfPageFormat.mm),
         build: (_) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            // Шапка: «Ферма ЛИКА» слева, заказ и покупатель справа.
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Expanded(
-                  child: pw.Text(o.label, style: _bold.copyWith(fontSize: 20)),
-                ),
-                if (t.count > 1)
-                  pw.Text(
-                    '${t.index}/${t.count}',
-                    style: _bold.copyWith(fontSize: 11),
+                pw.SizedBox(
+                  width: 26 * PdfPageFormat.mm,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Ферма', style: _bold.copyWith(fontSize: 7)),
+                      if (logo != null)
+                        pw.Image(logo, width: 26 * PdfPageFormat.mm)
+                      else
+                        pw.Text(
+                          data.company ?? 'КФХ',
+                          style: _bold.copyWith(fontSize: 11),
+                        ),
+                    ],
                   ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        t.count > 1
+                            ? '${o.label}  ${t.index}/${t.count}'
+                            : o.label,
+                        style: _bold.copyWith(fontSize: 15),
+                      ),
+                      pw.Text(
+                        o.customer,
+                        style: _bold.copyWith(fontSize: 8),
+                        maxLines: 1,
+                        textAlign: pw.TextAlign.right,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            pw.Text(
-              o.customer,
-              style: _bold.copyWith(fontSize: 10),
-              maxLines: 2,
-            ),
-            if (o.phone != null)
-              pw.Text(o.phone!, style: const pw.TextStyle(fontSize: 8)),
-            pw.Text(
-              o.delivery ? 'Доставка: ${o.address ?? ''}' : 'Самовывоз',
-              style: const pw.TextStyle(fontSize: 7),
-              maxLines: 2,
-            ),
-            pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 3),
-              child: pw.Container(height: 0.8, color: PdfColors.black),
-            ),
+            pw.SizedBox(height: 2),
+            rule,
+            pw.SizedBox(height: 2),
+            // Товар.
             pw.Text(
               l.product,
-              style: _bold.copyWith(fontSize: 11),
-              maxLines: 3,
+              style: _bold.copyWith(fontSize: 10.5),
+              maxLines: 2,
             ),
+            if (l.group.isNotEmpty) pw.Text(l.group, style: small, maxLines: 1),
             if (l.composition.isNotEmpty)
-              pw.Text(
-                l.composition,
-                style: const pw.TextStyle(fontSize: 7.5),
-                maxLines: 5,
-              ),
+              pw.Text('Состав: ${l.composition}', style: small, maxLines: 2),
             pw.Spacer(),
-            pw.Text(l.fact, style: _bold.copyWith(fontSize: 16)),
-            if (o.kind != OrderKind.sale)
-              pw.Text(o.kind.title, style: _bold.copyWith(fontSize: 12))
-            else if (l.amount != null)
-              pw.Text(_rub(l.amount!), style: _bold.copyWith(fontSize: 14)),
-            if (t.count > 1 && o.kind == OrderKind.sale)
+            pw.Row(
+              children: [
+                pw.Expanded(child: pw.Text('Дата: ${data.day}', style: small)),
+                if (l.price.isNotEmpty)
+                  pw.Text('Цена: ${l.price}', style: small),
+              ],
+            ),
+            pw.SizedBox(height: 1),
+            rule,
+            pw.SizedBox(height: 1),
+            // Вес и сумма — крупно.
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Expanded(
+                  child: pw.Text(l.fact, style: _bold.copyWith(fontSize: 15)),
+                ),
+                if (o.kind != OrderKind.sale)
+                  pw.Text(o.kind.title, style: _bold.copyWith(fontSize: 11))
+                else if (l.amount != null)
+                  pw.Text(_rub(l.amount!), style: _bold.copyWith(fontSize: 15)),
+              ],
+            ),
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Text(
+                    o.delivery ? 'Доставка: ${o.address ?? ''}' : 'Самовывоз',
+                    style: small,
+                    maxLines: 1,
+                  ),
+                ),
+                if (t.count > 1 && o.kind == OrderKind.sale)
+                  pw.Text('весь заказ ${_dueText(o)}', style: small),
+              ],
+            ),
+            if (data.phone != null)
               pw.Text(
-                'весь заказ: ${_dueText(o)}',
-                style: const pw.TextStyle(fontSize: 7),
+                '${data.company ?? ''}  тел. ${data.phone}'.trim(),
+                style: const pw.TextStyle(fontSize: 6),
+                maxLines: 1,
               ),
           ],
         ),

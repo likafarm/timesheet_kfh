@@ -392,7 +392,7 @@ class PrintService {
     '${data.title} — пакеты',
   );
 
-  /// Этикетки 50 × 70 мм — на принтер этикеток (драйвер Windows): каждая
+  /// Этикетки 70 × 50 мм — на принтер этикеток (драйвер Windows): каждая
   /// страница — одна этикетка.
   static Future<void> printBatchLabels(BatchPrint data) => _outputBytes(
     buildBatchLabelsPdf(data, asset: rootBundle.load),

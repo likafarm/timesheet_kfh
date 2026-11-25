@@ -42,6 +42,11 @@ void main() {
     app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: false)
       ..salesMode = true;
     final repos = DriftRepositories(db);
+    final current = await repos.settings.get();
+    await repos.settings.save(
+      current.copyWith(companyName: 'КФХ «Пример»', phone: '+7 900 000-00-00'),
+    );
+    await app.loadCompanySettings();
     await repos.customers.saveCustomer(
       const Customer(id: 'c1', name: 'Ольга', phone: '89001234567'),
     );
@@ -222,6 +227,11 @@ void main() {
     expect(tags.map((t) => t.line.product), ['Вырезка', 'Набор']);
     expect(tags.last.line.composition, 'Ребро 3,1');
     expect(tags.first.count, 2);
+    // Этикетка: группа прайса, цена за единицу, день выдачи.
+    expect(tags.first.line.group, 'Говядина');
+    expect(tags.first.line.price, startsWith('1'));
+    expect(tags.first.line.price, endsWith('₽/кг'));
+    expect(data.day, matches(RegExp(r'^\d\d\.\d\d\.\d{4}$')));
     expect(data.orders.last.delivery, isTrue);
     Future<ByteData> asset(String path) async =>
         ByteData.sublistView(await File(path).readAsBytes());

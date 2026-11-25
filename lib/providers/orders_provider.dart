@@ -42,6 +42,17 @@ class OrdersProvider extends ChangeNotifier {
 
   bool get canEdit => !_app.operatorMode;
 
+  /// Настройки хозяйства (название, телефон — для этикеток).
+  CompanySettings? get companySettings => _app.companySettings;
+
+  /// Название группы прайса; null — нет такой.
+  String? groupName(String? id) {
+    for (final g in _groups) {
+      if (g.id == id) return g.name;
+    }
+    return null;
+  }
+
   String newId() => newUuid();
 
   void _onApp() {
