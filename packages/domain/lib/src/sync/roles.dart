@@ -11,10 +11,13 @@
 //   доходы и справочники для них (8.8.4), просмотр прайс-листа (11.1);
 // - специалист по продажам (этап 11.2, решение владельца 2026-11-24) —
 //   прайс-лист и реквизиты хозяйства (для печати) только на чтение,
-//   покупатели (11.3) — чтение и запись; заказы и выдачи — в 11.4–11.5.
-//   Оператор покупателей (телефоны, адреса) не получает.
+//   покупатели, заказы и выдачи (11.3–11.5) — чтение и запись; в финансах
+//   (11.6) — справочники для оплаты и оплаты заказов, пишет свои оплаты
+//   по заказам и новых контрагентов. Оператор покупателей (телефоны,
+//   адреса) не получает.
 
 import '../finance/operator_rules.dart';
+import '../sales/payments.dart';
 import '../sales/price_list.dart' show priceListTables;
 import 'sync_tables.dart';
 
@@ -49,7 +52,12 @@ Set<String> roleReadableTables(String role) => switch (role) {
     ...operatorFinanceReadable,
     ...priceListTables,
   },
-  roleSales => {'company_settings', ...priceListTables, ...salesRoleTables},
+  roleSales => {
+    'company_settings',
+    ...priceListTables,
+    ...salesRoleTables,
+    ...salesFinanceReadable,
+  },
   _ => const {},
 };
 
@@ -65,18 +73,21 @@ const salesRoleTables = {
 Set<String> roleWritableTables(String role) => switch (role) {
   roleAdmin || roleAccountant => _allTables,
   roleOperator => {'timesheet', ...operatorFinanceWritable},
-  roleSales => salesRoleTables,
+  roleSales => {...salesRoleTables, ...salesFinanceWritable},
   _ => const {},
 };
 
 /// Поля, которых роль не видит: при выдаче заменяются нулём (пустые —
 /// пустотой). Оператору ставки сотрудников, остатки кошельков и стоимость
 /// имущества не нужны.
-Set<String> roleHiddenColumns(String role, String table) => role != roleOperator
-    ? const {}
-    : table == 'employees'
-    ? const {'base_rate', 'field_rate'}
-    : operatorFinanceHidden[table] ?? const {};
+Set<String> roleHiddenColumns(String role, String table) => switch (role) {
+  roleOperator =>
+    table == 'employees'
+        ? const {'base_rate', 'field_rate'}
+        : operatorFinanceHidden[table] ?? const {},
+  roleSales => salesFinanceHidden[table] ?? const {},
+  _ => const {},
+};
 
 /// Таблицы, которые роль получает не целиком: со скрытыми полями
 /// ([roleHiddenColumns]) или только часть записей (оператору — только его
@@ -88,6 +99,7 @@ Set<String> roleLimitedTables(String role) => switch (role) {
     ...operatorFinanceHidden.keys,
     'fin_operations',
   },
+  roleSales => {...salesFinanceHidden.keys, 'fin_operations'},
   _ => const {},
 };
 

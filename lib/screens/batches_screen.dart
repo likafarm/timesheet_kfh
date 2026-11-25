@@ -730,6 +730,12 @@ class _SummaryView extends StatelessWidget {
     final s = p.summaryOf(batchId);
     final items = p.pickListOf(batchId);
     final b = p.batch(batchId);
+    var paid = 0, debt = 0;
+    for (final o in p.liveOrdersOf(batchId)) {
+      final pay = p.paymentOf(o);
+      paid += pay.paid;
+      if (o.status != OrderStatus.accepted && pay.left > 0) debt += pay.left;
+    }
     Widget row(String label, String value, {Color? color}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -768,6 +774,15 @@ class _SummaryView extends StatelessWidget {
               s.final_ ? 'К оплате' : 'К оплате (предварительно)',
               '${s.final_ ? '' : '≈ '}${rub(s.due)}',
             ),
+            // Оплата (11.6): получено по заказам выдачи и долг по собранным
+            // и выданным.
+            row('Оплачено', rub(paid)),
+            if (debt > 0)
+              row(
+                'Долг по собранным и выданным',
+                rub(debt),
+                color: theme.colorScheme.error,
+              ),
             if (s.missing > 0)
               row(
                 'Не выдано строк',

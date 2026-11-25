@@ -8,11 +8,13 @@ import 'package:kfx_time_tracking/providers/app_provider.dart';
 import 'package:kfx_time_tracking/screens/orders_screen.dart';
 import 'package:kfx_time_tracking/services/app_database.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// «Продажи → Заказы» (11.4): новый заказ — покупатель, товар из прайса,
 /// заказано 2 кг; номер ДДМ-1 и предварительная сумма; факт — к оплате.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   late LocalDatabase db;
   late AppProvider app;

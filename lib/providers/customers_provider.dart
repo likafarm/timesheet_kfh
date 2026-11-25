@@ -45,10 +45,42 @@ class CustomersProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Долг или аванс покупателя по всем заказам (11.6).
+  Map<String, CustomerBalance> get balances => _balances;
+  Map<String, CustomerBalance> _balances = const {};
+
   Future<void> load() async {
     _customers = searchCustomers(await _repo.customers(), '');
+    _balances = await _loadBalances();
     _loaded = true;
     notifyListeners();
+  }
+
+  Future<Map<String, CustomerBalance>> _loadBalances() async {
+    final repos = _app.repos;
+    final orders = await repos.orders.orders();
+    if (orders.isEmpty) return const {};
+    final products = {
+      for (final p in await repos.priceList.products()) p.id: p,
+    };
+    final linesByOrder = <String, List<SaleOrderLine>>{};
+    for (final l in await repos.orders.lines()) {
+      (linesByOrder[l.orderId] ??= []).add(l);
+    }
+    final payments = paymentsByOrder(await repos.finance.operations());
+    final byCustomer = <String, List<SaleOrder>>{};
+    for (final o in orders) {
+      (byCustomer[o.customerId] ??= []).add(o);
+    }
+    return {
+      for (final MapEntry(key: id, value: list) in byCustomer.entries)
+        id: customerBalance(
+          list,
+          (orderId) =>
+              orderTotals(linesByOrder[orderId] ?? const [], orderId, products),
+          payments,
+        ),
+    };
   }
 
   List<Customer> search(String query) => searchCustomers(_customers, query);

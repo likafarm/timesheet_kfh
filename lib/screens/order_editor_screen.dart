@@ -16,6 +16,7 @@ import '../providers/orders_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/choice_buttons.dart';
+import '../widgets/order_payments.dart';
 
 final _date = DateFormat('dd.MM.yyyy');
 
@@ -489,6 +490,14 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
                 ),
               const Divider(height: 32),
               _TotalsView(totals),
+              const Divider(height: 32),
+              if (_isNew)
+                Text(
+                  'Оплату можно внести после сохранения заказа',
+                  style: TextStyle(color: muted),
+                )
+              else
+                OrderPaymentsView(order: _order, totals: totals),
               if (_problem != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

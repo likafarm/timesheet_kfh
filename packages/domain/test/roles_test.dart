@@ -8,8 +8,17 @@ void main() {
       'company_settings',
       ...priceListTables,
       ...salesRoleTables,
+      ...salesFinanceReadable,
     });
-    expect(roleWritableTables(roleSales), salesRoleTables);
+    expect(roleWritableTables(roleSales), {
+      ...salesRoleTables,
+      'fin_operations',
+      'counterparties',
+    });
+    // Остатков кошельков продавец не видит; займов и ЗП не получает.
+    expect(roleHiddenColumns(roleSales, 'fin_accounts'), {'opening_balance'});
+    expect(roleReadableTables(roleSales), isNot(contains('fin_debts')));
+    expect(roleReadableTables(roleSales), isNot(contains('payments')));
     expect(salesRoleTables, containsAll(['customers', 'sale_orders']));
     // Телефоны и адреса покупателей оператору не выдаются.
     expect(roleReadableTables(roleOperator), isNot(contains('customers')));
@@ -42,9 +51,17 @@ void main() {
     expect(tablesToRefetch(from: roleAccountant, to: roleSales), isEmpty);
     expect(tablesToRefetch(from: roleAdmin, to: roleOperator), isEmpty);
     // После оператора продавцу — реквизиты и покупатели.
+    // (и финансы, полученные оператором не целиком).
     expect(tablesToRefetch(from: roleOperator, to: roleSales), {
       'company_settings',
       ...salesRoleTables,
+      'fin_accounts',
+      'fin_operations',
     });
+    // После продавца бухгалтеру — и все операции финансов.
+    expect(
+      tablesToRefetch(from: roleSales, to: roleAccountant),
+      containsAll(['fin_operations', 'fin_accounts', 'fin_debts']),
+    );
   });
 }

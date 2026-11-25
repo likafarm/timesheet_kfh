@@ -195,6 +195,7 @@ void main() {
     int amount = 150000,
     String date = '2026-09-10',
     String? createdBy = 'buh',
+    String? sourceRef,
     DateTime? updatedAt,
   }) => row('fin_operations', id, updatedAt: updatedAt, {
     'date': date,
@@ -217,7 +218,7 @@ void main() {
     'tag': null,
     'notes': null,
     'source': 'manual',
-    'source_ref': null,
+    'source_ref': sourceRef,
     'created_by': createdBy,
     'created_at': '2026-09-10T12:00:00.000',
   });
@@ -609,9 +610,18 @@ void main() {
       final tables = {for (final c in got) c['table'] as String};
       expect(tables, containsAll(priceListTables));
       expect(
-        tables.difference({'company_settings', ...priceListTables}),
+        tables.difference({
+          'company_settings',
+          ...priceListTables,
+          ...salesFinanceReadable,
+        }),
         isEmpty,
-        reason: 'ни финансов, ни сотрудников, ни табеля',
+        reason: 'ни сотрудников, ни табеля; из финансов — справочники',
+      );
+      // Остатков кошельков продавец не видит.
+      expect(
+        got.firstWhere((c) => c['uuid'] == cash)['data']['opening_balance'],
+        0,
       );
       final denied = await push([
         price(uuid(), p, '2026-12-01', 190000),
@@ -619,6 +629,55 @@ void main() {
       ], role: Role.sales);
       expect(statuses(denied), everyElement('rejected'));
       expect({for (final r in denied) r['code']}, {'forbidden'});
+    }, skip: mysqlSkip);
+
+    test('оплата (0.14.0): продавец пишет свои оплаты по заказам', () async {
+      final (_, cash, _, fuel) = await catalog();
+      final me = uuids[Role.sales]!;
+      final paid = uuid(), theirs = uuid(), other = uuid();
+      final ref = 'order:${uuid()}';
+      // Бухгалтер: оплата по заказу и посторонний расход.
+      await push([
+        operation(theirs, cash, categoryId: fuel, sourceRef: ref),
+        operation(other, cash, categoryId: fuel),
+      ]);
+      final results = await push([
+        operation(paid, cash, categoryId: fuel, createdBy: me, sourceRef: ref),
+        // Не по заказу, от чужого имени, чужую, перевод — нельзя.
+        operation(uuid(), cash, categoryId: fuel, createdBy: me),
+        operation(uuid(), cash, categoryId: fuel, sourceRef: ref),
+        operation(
+          theirs,
+          cash,
+          categoryId: fuel,
+          createdBy: me,
+          sourceRef: ref,
+          amount: 1,
+        ),
+        operation(
+          uuid(),
+          cash,
+          type: 'transfer',
+          toAccountId: cash,
+          createdBy: me,
+          sourceRef: ref,
+        ),
+      ], role: Role.sales);
+      expect(statuses(results), [
+        'applied',
+        'rejected',
+        'rejected',
+        'rejected',
+        'rejected',
+      ], reason: '$results');
+      expect(results.skip(1).map((r) => r['code']), everyElement('forbidden'));
+      // Видит все оплаты по заказам (и чужие), но не прочие операции.
+      final got = await pull(tables: all, role: Role.sales);
+      final ops = {
+        for (final c in got)
+          if (c['table'] == 'fin_operations') c['uuid'],
+      };
+      expect(ops, {paid, theirs});
     }, skip: mysqlSkip);
 
     test('покупатели (0.14.0): продавец ведёт, оператор не видит', () async {
@@ -678,85 +737,95 @@ void main() {
       expect(blank.single['code'], 'invalid');
     }, skip: mysqlSkip);
 
-    test('заказы (0.14.0): часть набора раньше набора, оператору — нет', () async {
-      final g = uuid(), set = uuid(), rib = uuid();
-      await push([
-        group(g, 'Говядина'),
-        product(set, g, 'Набор'),
-        product(rib, g, 'Ребро'),
-      ]);
-      final customer = uuid(), batch = uuid(), order = uuid();
-      final line = uuid(), part = uuid();
-      Map<String, Object?> orderLine(
-        String id, {
-        String? parent,
-        required String productId,
-        double? weight,
-        String pricing = 'list',
-        int? price,
-      }) => row('sale_order_lines', id, {
-        'order_uuid': order,
-        'parent_line_uuid': parent,
-        'product_uuid': productId,
-        'sort_order': 0,
-        'ordered_qty': parent == null ? 3.0 : null,
-        'ordered_unit': parent == null ? 'kg' : null,
-        'ordered_text': null,
-        'weight': weight,
-        'pieces': null,
-        'pricing': pricing,
-        'price': price,
-        'fixed_amount': null,
-        'state': 'open',
-        'note': null,
-        'added': false,
-      });
-      final results = await push([
-        orderLine(part, parent: line, productId: rib, weight: 0.7, price: 57500),
-        orderLine(line, productId: set, pricing: 'parts', price: 92000),
-        row('sale_orders', order, {
-          'batch_uuid': batch,
-          'customer_uuid': customer,
-          'number': 1,
-          'kind': 'sale',
-          'delivery': 'delivery',
-          'address': 'Калуга',
-          'comment': null,
-          'status': 'new',
-          'created_by': uuids[Role.sales],
-        }),
-        row('sale_batches', batch, {
-          'day': '2026-11-28',
-          'day_to': null,
-          'title': null,
-          'notes': null,
-        }),
-        row('customers', customer, {
-          'name': 'Ольга',
-          'phone': null,
-          'address': null,
-          'channel': null,
-          'contact': null,
-          'notes': null,
-          'counterparty_uuid': null,
-        }),
-      ], role: Role.sales);
-      expect(statuses(results), everyElement('applied'), reason: '$results');
-      final sales = await pull(tables: all, role: Role.sales);
-      final got = sales.firstWhere((c) => c['uuid'] == part);
-      expect(got['data']['parent_line_uuid'], line);
-      expect(got['data']['weight'], 0.7);
-      final operator = await pull(tables: all, role: Role.operator);
-      expect(
-        operator.any((c) => (c['table'] as String).startsWith('sale_')),
-        isFalse,
-      );
-      // Своя цена без цены — отказ.
-      final bad = await push([
-        orderLine(uuid(), productId: set, pricing: 'manual'),
-      ], role: Role.sales);
-      expect(bad.single['code'], 'invalid');
-    }, skip: mysqlSkip);
+    test(
+      'заказы (0.14.0): часть набора раньше набора, оператору — нет',
+      () async {
+        final g = uuid(), set = uuid(), rib = uuid();
+        await push([
+          group(g, 'Говядина'),
+          product(set, g, 'Набор'),
+          product(rib, g, 'Ребро'),
+        ]);
+        final customer = uuid(), batch = uuid(), order = uuid();
+        final line = uuid(), part = uuid();
+        Map<String, Object?> orderLine(
+          String id, {
+          String? parent,
+          required String productId,
+          double? weight,
+          String pricing = 'list',
+          int? price,
+        }) => row('sale_order_lines', id, {
+          'order_uuid': order,
+          'parent_line_uuid': parent,
+          'product_uuid': productId,
+          'sort_order': 0,
+          'ordered_qty': parent == null ? 3.0 : null,
+          'ordered_unit': parent == null ? 'kg' : null,
+          'ordered_text': null,
+          'weight': weight,
+          'pieces': null,
+          'pricing': pricing,
+          'price': price,
+          'fixed_amount': null,
+          'state': 'open',
+          'note': null,
+          'added': false,
+        });
+        final results = await push([
+          orderLine(
+            part,
+            parent: line,
+            productId: rib,
+            weight: 0.7,
+            price: 57500,
+          ),
+          orderLine(line, productId: set, pricing: 'parts', price: 92000),
+          row('sale_orders', order, {
+            'batch_uuid': batch,
+            'customer_uuid': customer,
+            'number': 1,
+            'kind': 'sale',
+            'delivery': 'delivery',
+            'address': 'Калуга',
+            'comment': null,
+            'status': 'new',
+            'created_by': uuids[Role.sales],
+          }),
+          row('sale_batches', batch, {
+            'day': '2026-11-28',
+            'day_to': null,
+            'title': null,
+            'notes': null,
+          }),
+          row('customers', customer, {
+            'name': 'Ольга',
+            'phone': null,
+            'address': null,
+            'channel': null,
+            'contact': null,
+            'notes': null,
+            'counterparty_uuid': null,
+          }),
+        ], role: Role.sales);
+        expect(statuses(results), everyElement('applied'), reason: '$results');
+        final sales = await pull(tables: all, role: Role.sales);
+        final got = sales.firstWhere((c) => c['uuid'] == part);
+        expect(got['data']['parent_line_uuid'], line);
+        expect(got['data']['weight'], 0.7);
+        final operator = await pull(tables: all, role: Role.operator);
+        expect(
+          operator.any((c) => (c['table'] as String).startsWith('sale_')),
+          isFalse,
+        );
+        // Своя цена без цены — отказ.
+        final bad = await push([
+          orderLine(uuid(), productId: set, pricing: 'manual'),
+        ], role: Role.sales);
+        expect(bad.single['code'], 'invalid');
+      },
+      skip: mysqlSkip,
+    );
 
     test('вторая цена с того же дня и пустое название — отказ', () async {
       final g = uuid(), p = uuid();

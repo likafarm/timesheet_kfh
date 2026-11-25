@@ -281,6 +281,7 @@ class SyncService {
   /// расходы) и новые контрагенты; null — можно.
   static String? _operatorProblem(
       User user, SyncChange change, SyncChange? existing) {
+    if (user.role == Role.sales) return _salesProblem(user, change, existing);
     if (user.role != Role.operator) return null;
     switch (change.table) {
       case 'fin_operations':
@@ -295,6 +296,29 @@ class SyncService {
         return existing == null
             ? null
             : 'Оператор только заводит новых контрагентов — исправляют '
+                'бухгалтер и администратор';
+    }
+    return null;
+  }
+
+  /// Продавец в финансах (11.6): свои оплаты и возвраты по заказам и
+  /// новые контрагенты; null — можно.
+  static String? _salesProblem(
+      User user, SyncChange change, SyncChange? existing) {
+    switch (change.table) {
+      case 'fin_operations':
+        return salesOperationProblem(
+          userUuid: user.uuid,
+          exists: existing != null,
+          existingCreatedBy: existing?.data['created_by'] as String?,
+          type: change.data['type'] as String? ?? '',
+          createdBy: change.data['created_by'] as String?,
+          sourceRef: change.data['source_ref'] as String?,
+        );
+      case 'counterparties':
+        return existing == null
+            ? null
+            : 'Продавец только заводит новых контрагентов — исправляют '
                 'бухгалтер и администратор';
     }
     return null;

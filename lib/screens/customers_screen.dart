@@ -126,8 +126,28 @@ class _CustomerTile extends StatelessWidget {
     final c = customer;
     final phone = formatPhone(c.phone);
     final how = [?c.channel?.short, ?c.contact].join(' ');
+    final theme = Theme.of(context);
+    final balance = context.watch<CustomersProvider>().balances[c.id];
     return ListTile(
-      title: Text(c.name),
+      title: Row(
+        children: [
+          Expanded(child: Text(c.name)),
+          if (balance != null && balance.debt > 0)
+            Text(
+              'долг ${formatPrice(balance.debt)} ₽',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            )
+          else if (balance != null && balance.advance > 0)
+            Text(
+              'аванс ${formatPrice(balance.advance)} ₽',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+        ],
+      ),
       subtitle: Text(
         [
           if (phone.isNotEmpty) phone,

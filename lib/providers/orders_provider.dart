@@ -78,6 +78,7 @@ class OrdersProvider extends ChangeNotifier {
     _products = {for (final p in await repos.priceList.products()) p.id: p};
     _prices = await repos.priceList.prices();
     await _loadTolerance();
+    await _loadFinance();
     _loaded = true;
     notifyListeners();
   }
@@ -117,6 +118,24 @@ class OrdersProvider extends ChangeNotifier {
       final c = da == null || db == null
           ? a.batchId.compareTo(b.batchId)
           : da.compareTo(db);
+      return c != 0 ? c : a.number.compareTo(b.number);
+    });
+  }
+
+  /// Недоплаченные заказы всех выдач (собранные и выданные продажи):
+  /// по дню выдачи, старые сначала.
+  List<SaleOrder> get debtOrders {
+    final day = {for (final b in _batches) b.id: b.day};
+    return [
+      for (final o in _orders)
+        if (o.kind == OrderKind.sale &&
+            (o.status == OrderStatus.issued ||
+                o.status == OrderStatus.assembled) &&
+            paymentOf(o).left > 0)
+          o,
+    ]..sort((a, b) {
+      final da = day[a.batchId], db = day[b.batchId];
+      final c = da == null || db == null ? 0 : da.compareTo(db);
       return c != 0 ? c : a.number.compareTo(b.number);
     });
   }
@@ -229,9 +248,12 @@ class OrdersProvider extends ChangeNotifier {
   double _tolerance = defaultWeightTolerance;
   static const _toleranceKey = 'sales_weight_tolerance';
 
+  /// Настройки устройства не должны задерживать экран заказов.
+  static const _prefsWait = Duration(seconds: 2);
+
   Future<void> _loadTolerance() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
       _tolerance = prefs.getDouble(_toleranceKey) ?? defaultWeightTolerance;
     } catch (_) {
       _tolerance = defaultWeightTolerance;
@@ -242,7 +264,7 @@ class OrdersProvider extends ChangeNotifier {
     _tolerance = value.clamp(0.01, 1.0);
     notifyListeners();
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
       await prefs.setDouble(_toleranceKey, _tolerance);
     } catch (_) {
       // Не записалось — допуск действует до перезапуска.
@@ -348,6 +370,223 @@ class OrdersProvider extends ChangeNotifier {
     await load();
     return n;
   }
+
+  // ------------------------------------------------------------- оплата
+
+  List<FinAccount> _accounts = const [];
+  List<FinCategory> _categories = const [];
+  List<FinDirection> _directions = const [];
+  Map<String, List<FinOperation>> _payments = const {};
+
+  /// Открытые кошельки — куда пришли деньги.
+  List<FinAccount> get accounts => [
+    for (final a in _accounts)
+      if (!a.closed) a,
+  ];
+
+  List<FinCategory> categoriesOf(CategoryType type) => [
+    for (final c in _categories)
+      if (c.type == type && !c.hidden) c,
+  ]..sort((a, b) => a.name.compareTo(b.name));
+
+  FinCategory? get saleCategory => defaultSaleCategory(_categories);
+  FinCategory? get refundCategory => defaultRefundCategory(_categories);
+
+  String accountName(String id) =>
+      _accounts.where((a) => a.id == id).firstOrNull?.name ?? '?';
+
+  /// Оплаты заказа (и возвраты), по дате.
+  List<FinOperation> paymentsOf(String orderId) =>
+      _payments[orderId] ?? const [];
+
+  OrderPayment paymentOf(SaleOrder order) =>
+      orderPayment(order, totals(order.id), paymentsOf(order.id));
+
+  /// Долг или аванс покупателя по всем его заказам.
+  CustomerBalance balanceOf(String customerId) => customerBalance(
+    [
+      for (final o in _orders)
+        if (o.customerId == customerId) o,
+    ],
+    totals,
+    _payments,
+  );
+
+  /// Оплату может удалить: бухгалтер и админ — любую, продавец — свою.
+  bool canDeletePayment(FinOperation op) =>
+      canEdit && (_app.fullMode || op.createdBy == _app.userUuid);
+
+  /// Последний кошелёк оплаты — на этом устройстве.
+  String? get lastAccountId => _lastAccountId;
+  String? _lastAccountId;
+  static const _accountKey = 'sales_payment_account';
+
+  Future<void> _loadFinance() async {
+    final f = _app.repos.finance;
+    _accounts = await f.accounts();
+    _categories = await f.categories();
+    _directions = await f.directions();
+    _payments = paymentsByOrder(await f.operations());
+    try {
+      final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
+      _lastAccountId = prefs.getString(_accountKey);
+    } catch (_) {
+      _lastAccountId = null;
+    }
+  }
+
+  /// Контрагент финансов для покупателя: уже связанный, иначе — новый
+  /// (покупатель запоминает связь).
+  Future<String> _counterpartyFor(Customer c) async {
+    final linked = c.counterpartyId;
+    if (linked != null) return linked;
+    final cp = Counterparty(
+      id: newId(),
+      name: c.name,
+      kind: CounterpartyKind.buyer,
+      phone: c.phone,
+    );
+    await _app.repos.finance.saveCounterparty(cp);
+    await _app.repos.customers.saveCustomer(
+      c.copyWith(counterpartyId: () => cp.id),
+    );
+    return cp.id;
+  }
+
+  /// Записать оплату (или возврат — [refund]) по заказу [order]: доход
+  /// (расход) финансов со ссылкой на заказ, контрагент — покупатель.
+  Future<bool> addPayment(
+    SaleOrder order, {
+    required int amount,
+    required String accountId,
+    required String categoryId,
+    required DateTime date,
+    bool refund = false,
+    String? notes,
+  }) async {
+    _lastProblem = null;
+    if (!canEdit) return _fail('Оплаты вносят продавец и бухгалтер');
+    if (order.kind != OrderKind.sale && !refund) {
+      return _fail('Заказ «${order.kind.title}» — без оплаты');
+    }
+    final customer = _customers[order.customerId];
+    if (customer == null) return _fail('Покупатель заказа не найден');
+    final category = _categories.where((c) => c.id == categoryId).firstOrNull;
+    if (category == null) return _fail('Статья не найдена');
+    final directionId = saleDirectionId(category, _directions);
+    if (directionId == null && category.allocationKeyId == null) {
+      return _fail(
+        'Не записано: у статьи «${category.name}» нет направления, и в '
+        'справочнике нет направления «Реализация» — попросите бухгалтера '
+        'указать направление у статьи',
+      );
+    }
+    try {
+      final counterpartyId = await _counterpartyFor(customer);
+      final op = FinOperation(
+        id: newId(),
+        date: calendarDay(date),
+        type: refund ? OperationType.expense : OperationType.income,
+        amount: amount,
+        accountId: accountId,
+        categoryId: categoryId,
+        directionId: directionId,
+        allocationKeyId: directionId == null ? category.allocationKeyId : null,
+        counterpartyId: counterpartyId,
+        description:
+            '${refund ? 'Возврат по заказу' : 'Оплата заказа'} '
+            '${label(order)} · ${customer.name}',
+        notes: notes,
+        sourceRef: orderSourceRef(order.id),
+        createdBy: _app.userUuid,
+      );
+      final catalog = FinanceCatalog(
+        accounts: _accounts,
+        directions: _directions,
+        categories: _categories,
+      );
+      final problem = operationProblem(op, catalog);
+      if (problem != null) return _fail('Не записано: $problem');
+      await _app.repos.finance.addOperation(op);
+      _lastAccountId = accountId;
+      try {
+        final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
+        await prefs.setString(_accountKey, accountId);
+      } catch (_) {
+        // Кошелёк не запомнился — выберут снова.
+      }
+    } catch (e) {
+      return _fail('Не записано: $e');
+    }
+    await load();
+    return true;
+  }
+
+  Future<bool> deletePayment(FinOperation op) async {
+    _lastProblem = null;
+    if (!canDeletePayment(op)) {
+      return _fail('Продавец удаляет только свои оплаты');
+    }
+    try {
+      await _app.repos.finance.deleteOperation(op.id);
+    } catch (e) {
+      return _fail('Не удалено: $e');
+    }
+    await load();
+    return true;
+  }
+
+  /// Сообщение покупателю: что собрано и сколько к оплате.
+  String customerMessage(SaleOrder order) {
+    final b = batch(order.batchId);
+    final t = totals(order.id);
+    final pay = paymentOf(order);
+    final (:top, :parts) = orderLines(linesOf(order.id), order.id);
+    final lines = <String>[];
+    for (final l in top) {
+      if (l.state == LineState.missing) continue;
+      final product = _products[l.productId];
+      final ps = parts[l.id] ?? const <SaleOrderLine>[];
+      final qty = factQty(l, product, parts: ps);
+      final byWeight =
+          ps.isNotEmpty || (product?.unit ?? ProductUnit.kg) == ProductUnit.kg;
+      final unit = byWeight ? 'кг' : product?.unit.title ?? 'шт';
+      final amount = lineAmount(l, _products, parts: ps);
+      lines.add(
+        '• ${product?.name ?? '?'}'
+        '${qty == null ? '' : ' — ${_qtyText(qty)} $unit'}'
+        '${amount == null ? '' : ', ${formatPrice(amount)} ₽'}',
+      );
+    }
+    final missing = top.where((l) => l.state == LineState.missing).length;
+    final customer = _customers[order.customerId];
+    return [
+      'Здравствуйте${customer == null ? '' : ', ${customer.name}'}!',
+      'Ваш заказ ${label(order)}'
+          '${b == null ? '' : ' на ${_dayText(b.day)}'}'
+          '${t.complete ? ' собран' : ''}:',
+      ...lines,
+      if (missing > 0) 'Не хватило позиций: $missing.',
+      if (t.weight > 0) 'Общий вес: ${_qtyText(t.weight)} кг.',
+      if (order.kind == OrderKind.sale) ...[
+        '${t.complete ? 'К оплате' : 'Предварительно к оплате'}: '
+            '${formatPrice(pay.due)} ₽.',
+        if (pay.paid > 0) 'Оплачено: ${formatPrice(pay.paid)} ₽.',
+        if (pay.paid > 0 && pay.left > 0)
+          'Осталось доплатить: ${formatPrice(pay.left)} ₽.',
+        if (pay.left < 0 && t.complete)
+          'Переплата ${formatPrice(-pay.left)} ₽ — зачтём в следующий заказ.',
+      ],
+    ].join('\n');
+  }
+
+  static String _qtyText(double v) => v
+      .toStringAsFixed(3)
+      .replaceFirst(RegExp(r'\.?0+$'), '')
+      .replaceAll('.', ',');
+
+  static String _dayText(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
 
   // ------------------------------------------------------------- правка
 

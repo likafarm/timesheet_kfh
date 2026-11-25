@@ -30,6 +30,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   )..load();
   String? _batchId;
   OrderStatus? _status;
+
+  /// «Долги»: собранные и выданные заказы с недоплатой — по всем выдачам.
+  bool _debts = false;
   final _query = TextEditingController();
 
   @override
@@ -50,8 +53,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
           final q = _query.text.trim();
           // «Принят» — все невыданные заказы, по всем выдачам (в том числе
           // прошедшим): иначе принятый, но забытый заказ не найти.
-          final allBatches = _status == OrderStatus.accepted;
-          final all = allBatches
+          final allBatches = _debts || _status == OrderStatus.accepted;
+          final all = _debts
+              ? p.debtOrders
+              : allBatches
               ? p.acceptedOrders
               : batch == null
               ? <SaleOrder>[]
@@ -61,13 +66,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
               : {for (final c in searchCustomers(p.customers.values, q)) c.id};
           final list = [
             for (final o in all)
-              if ((_status == null || o.status == _status) &&
+              if ((_debts || _status == null || o.status == _status) &&
                   (matched == null || matched.contains(o.customerId)))
                 o,
           ];
-          final sum = list
-              .where((o) => o.status != OrderStatus.cancelled)
-              .fold<int>(0, (s, o) => s + p.totals(o.id).due);
+          final sum = _debts
+              ? list.fold<int>(0, (s, o) => s + p.paymentOf(o).left)
+              : list
+                    .where((o) => o.status != OrderStatus.cancelled)
+                    .fold<int>(0, (s, o) => s + p.totals(o.id).due);
           return Scaffold(
             appBar: AppBar(title: const Text('Заказы')),
             floatingActionButton: p.canEdit && p.loaded
@@ -92,7 +99,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                             child: allBatches
                                 ? Text(
-                                    'Принятые заказы всех выдач',
+                                    _debts
+                                        ? 'Недоплаченные заказы всех выдач'
+                                        : 'Принятые заказы всех выдач',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.titleMedium,
@@ -132,17 +141,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               children: [
                                 ChoiceChip(
                                   label: const Text('Все'),
-                                  selected: _status == null,
-                                  onSelected: (_) =>
-                                      setState(() => _status = null),
+                                  selected: !_debts && _status == null,
+                                  onSelected: (_) => setState(() {
+                                    _status = null;
+                                    _debts = false;
+                                  }),
                                 ),
                                 for (final s in OrderStatus.values)
                                   ChoiceChip(
                                     label: Text(s.title),
-                                    selected: _status == s,
-                                    onSelected: (_) =>
-                                        setState(() => _status = s),
+                                    selected: !_debts && _status == s,
+                                    onSelected: (_) => setState(() {
+                                      _status = s;
+                                      _debts = false;
+                                    }),
                                   ),
+                                ChoiceChip(
+                                  label: const Text('Долги'),
+                                  selected: _debts,
+                                  onSelected: (_) => setState(() {
+                                    _debts = true;
+                                    _status = null;
+                                  }),
+                                ),
                               ],
                             ),
                           ),
@@ -163,8 +184,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                               child: Text(
-                                'Заказов: ${list.length}, на сумму ≈ '
-                                '${rub(sum)}',
+                                _debts
+                                    ? 'Заказов: ${list.length}, долг '
+                                          '${rub(sum)}'
+                                    : 'Заказов: ${list.length}, на сумму ≈ '
+                                          '${rub(sum)}',
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
                             ),
@@ -274,9 +298,28 @@ class _OrderTile extends StatelessWidget {
             '${totals.complete ? '' : '≈ '}${rub(totals.due)}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          Text(order.status.title, style: theme.textTheme.bodySmall),
+          Text(
+            [order.status.title, ?_payText(p.paymentOf(order))].join(' · '),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: switch (p.paymentOf(order).state) {
+                PaymentState.unpaid || PaymentState.partial
+                    when order.status != OrderStatus.accepted =>
+                  theme.colorScheme.error,
+                _ => null,
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+/// Оплата заказа одной строкой для списка; null — нечего сказать.
+String? _payText(OrderPayment pay) => switch (pay.state) {
+  PaymentState.none => null,
+  PaymentState.unpaid => 'не оплачен',
+  PaymentState.partial => 'долг ${rub(pay.left)}',
+  PaymentState.paid => 'оплачен',
+  PaymentState.overpaid => 'переплата ${rub(-pay.left)}',
+};
