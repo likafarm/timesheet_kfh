@@ -11,6 +11,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../help/help_content.dart';
 import '../help/help_pdf.dart';
 import '../utils/string_utils.dart';
+import 'batch_pdf.dart';
 import 'file_share.dart';
 import 'price_list_pdf.dart';
 import 'platform.dart';
@@ -378,6 +379,31 @@ class PrintService {
       directorName: _directorName(settings),
     );
     final name = priceListFileName(view.edition);
+    if (isAndroidApp) {
+      await deliverFile('$name.pdf', bytes, pdfMimeType);
+      return;
+    }
+    await Printing.layoutPdf(onLayout: (_) async => bytes, name: name);
+  }
+
+  /// Выдача (этап 11.5): список пакетов, бирки, маршрут доставки.
+  static Future<void> printBatchPackages(BatchPrint data) => _outputBytes(
+    buildBatchPackagesPdf(data, asset: rootBundle.load),
+    '${data.title} — пакеты',
+  );
+
+  static Future<void> printBatchTags(BatchPrint data) => _outputBytes(
+    buildBatchTagsPdf(data, asset: rootBundle.load),
+    '${data.title} — бирки',
+  );
+
+  static Future<void> printBatchRoute(BatchPrint data) => _outputBytes(
+    buildBatchRoutePdf(data, asset: rootBundle.load),
+    '${data.title} — доставка',
+  );
+
+  static Future<void> _outputBytes(Future<Uint8List> build, String name) async {
+    final bytes = await build;
     if (isAndroidApp) {
       await deliverFile('$name.pdf', bytes, pdfMimeType);
       return;

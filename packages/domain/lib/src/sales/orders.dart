@@ -344,6 +344,10 @@ int? lineAmount(
   List<SaleOrderLine> parts = const [],
 }) {
   if (line.state == LineState.missing) return 0;
+  // Набор, у которого не все части на весах, ещё не посчитан.
+  if (parts.any((p) => p.state == LineState.open && p.weight == null)) {
+    return line.pricing == LinePricing.fixed ? line.fixedAmount : null;
+  }
   switch (line.pricing) {
     case LinePricing.fixed:
       return line.fixedAmount;
@@ -489,6 +493,16 @@ OrderTotals orderTotals(
     unknown: unknown,
     weight: weight,
   );
+}
+
+/// Состояние набора по его частям: все сняты — не выдан, все собраны или
+/// сняты — собран, иначе — не собран; null — частей нет.
+LineState? setStateOf(List<SaleOrderLine> parts) {
+  if (parts.isEmpty) return null;
+  if (parts.any((p) => p.state == LineState.open)) return LineState.open;
+  return parts.every((p) => p.state == LineState.missing)
+      ? LineState.missing
+      : LineState.assembled;
 }
 
 // ------------------------------------------------------ отклонение веса

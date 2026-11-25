@@ -106,7 +106,13 @@ void main() {
       sales: true,
     );
     final menu = find.byType(SideMenu);
-    for (final label in ['Заказы', 'Прайс-лист', 'Покупатели', 'Сервер']) {
+    for (final label in [
+      'Заказы',
+      'Выдачи',
+      'Прайс-лист',
+      'Покупатели',
+      'Сервер',
+    ]) {
       expect(
         find.descendant(of: menu, matching: find.text(label)),
         findsOneWidget,

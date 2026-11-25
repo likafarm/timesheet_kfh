@@ -13,6 +13,7 @@ import 'finance_catalog_screen.dart';
 import 'finance_reports_screen.dart';
 import 'finance_screen.dart';
 import 'orders_screen.dart';
+import 'batches_screen.dart';
 import 'payment_calendar_screen.dart';
 import 'periods_screen.dart';
 import 'price_list_screen.dart';
@@ -113,6 +114,14 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.shopping_basket,
       label: 'Заказы',
       screen: const OrdersScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.batches,
+      group: NavGroup.sales,
+      icon: Icons.inventory_2_outlined,
+      selectedIcon: Icons.inventory_2,
+      label: 'Выдачи',
+      screen: const BatchesScreen(),
     ),
     NavigationItem(
       section: AppSection.priceList,
@@ -224,7 +233,7 @@ class MainScreen extends StatefulWidget {
 
   /// Разделы специалиста по продажам (11.2, решение владельца
   /// 2026-11-24; телефон, Windows и веб): заказы (11.4), прайс-лист,
-  /// покупатели (11.3) и сервер. Выдачи и сборка — 11.5.
+  /// выдачи (11.5), покупатели (11.3) и сервер.
   static List<NavigationItem> salesSections() => [
     NavigationItem(
       section: AppSection.orders,
@@ -232,6 +241,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.shopping_basket,
       label: 'Заказы',
       screen: const OrdersScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.batches,
+      icon: Icons.inventory_2_outlined,
+      selectedIcon: Icons.inventory_2,
+      label: 'Выдачи',
+      screen: const BatchesScreen(),
     ),
     NavigationItem(
       section: AppSection.priceList,

@@ -8,6 +8,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 import 'package:kfh_local_db/kfh_local_db.dart' show newUuid;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_provider.dart';
 
@@ -65,6 +66,7 @@ class OrdersProvider extends ChangeNotifier {
     _groups = sortedGroups(await repos.priceList.groups());
     _products = {for (final p in await repos.priceList.products()) p.id: p};
     _prices = await repos.priceList.prices();
+    await _loadTolerance();
     _loaded = true;
     notifyListeners();
   }
@@ -193,6 +195,147 @@ class OrdersProvider extends ChangeNotifier {
           fixedAmount: l.fixedAmount,
         ),
     ];
+  }
+
+  // ------------------------------------------------------------- выдачи
+
+  /// Заказы выдачи без отменённых, по номеру.
+  List<SaleOrder> liveOrdersOf(String batchId) => batchOrders(_orders, batchId);
+
+  /// Строки выдачи по порядку заказов (набор — с частями).
+  List<BatchEntry> entriesOf(String batchId) =>
+      batchEntries(liveOrdersOf(batchId), _lines);
+
+  BatchSummary summaryOf(String batchId) =>
+      batchSummary(liveOrdersOf(batchId), _lines, _products);
+
+  List<PickItem> pickListOf(String batchId) =>
+      pickList(entriesOf(batchId), _products, groups: _groups);
+
+  /// Допуск отклонения веса от заказанного (доля: 0.15 — 15 %). Хранится
+  /// на устройстве (решение 11.5: свой у каждого, кто взвешивает).
+  double get tolerance => _tolerance;
+  double _tolerance = defaultWeightTolerance;
+  static const _toleranceKey = 'sales_weight_tolerance';
+
+  Future<void> _loadTolerance() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _tolerance = prefs.getDouble(_toleranceKey) ?? defaultWeightTolerance;
+    } catch (_) {
+      _tolerance = defaultWeightTolerance;
+    }
+  }
+
+  Future<void> setTolerance(double value) async {
+    _tolerance = value.clamp(0.01, 1.0);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_toleranceKey, _tolerance);
+    } catch (_) {
+      // Не записалось — допуск действует до перезапуска.
+    }
+  }
+
+  /// Записать выдачу (название, примечание, последний день).
+  Future<bool> saveBatch(SaleBatch batch) async {
+    _lastProblem = null;
+    if (!canEdit) return _fail('Выдачи ведут продавец и бухгалтер');
+    try {
+      await _repo.saveBatch(batch);
+    } catch (e) {
+      return _fail('Не сохранено: $e');
+    }
+    await load();
+    return true;
+  }
+
+  /// Новая (пустая) выдача на день [day]; есть — она же.
+  Future<SaleBatch?> addBatch(DateTime day) async {
+    final existing = batchOn(_batches, day);
+    if (existing != null) return existing;
+    final b = SaleBatch(id: newId(), day: calendarDay(day));
+    return await saveBatch(b) ? b : null;
+  }
+
+  /// Заменить строку [line] заказа и записать заказ: набор получает
+  /// состояние по частям, заказ, у которого не осталось несобранных
+  /// строк, становится «Собран» (и обратно — «Принят»).
+  Future<bool> updateLine(SaleOrderLine line) async {
+    final order = _orders.where((o) => o.id == line.orderId).firstOrNull;
+    final b = order == null ? null : batch(order.batchId);
+    if (order == null || b == null) return _fail('Заказ не найден');
+    var lines = [for (final l in linesOf(order.id)) l.id == line.id ? line : l];
+    final parentId = line.parentId;
+    if (parentId != null) {
+      final parts = [
+        for (final l in lines)
+          if (l.parentId == parentId) l,
+      ];
+      final state = setStateOf(parts);
+      lines = [
+        for (final l in lines)
+          l.id == parentId && state != null && l.state != LineState.missing
+              ? l.copyWith(state: state)
+              : l,
+      ];
+    }
+    var status = order.status;
+    final ready = orderAssembled(lines);
+    if (status == OrderStatus.accepted && ready) status = OrderStatus.assembled;
+    if (status == OrderStatus.assembled && !ready) {
+      status = OrderStatus.accepted;
+    }
+    return save(order.copyWith(status: status), lines, batch: b);
+  }
+
+  /// Взвесить строку: вес и/или штуки, строка — «Собрана».
+  Future<bool> weigh(SaleOrderLine line, {double? weight, int? pieces}) =>
+      updateLine(
+        line.copyWith(
+          weight: () => weight,
+          pieces: () => pieces,
+          state: weight == null && pieces == null
+              ? LineState.open
+              : LineState.assembled,
+        ),
+      );
+
+  /// Снять строку (не хватило) с причиной.
+  Future<bool> markMissing(SaleOrderLine line, String? note) =>
+      updateLine(line.copyWith(state: LineState.missing, note: () => note));
+
+  /// Вернуть снятую строку к сборке.
+  Future<bool> reopenLine(SaleOrderLine line) => updateLine(
+    line.copyWith(
+      state: line.weight != null || line.pieces != null
+          ? LineState.assembled
+          : LineState.open,
+    ),
+  );
+
+  /// Все собранные заказы выдачи — «Выдан». Возвращает, сколько выдано.
+  Future<int> issueAssembled(String batchId) async {
+    final b = batch(batchId);
+    if (b == null) return 0;
+    var n = 0;
+    for (final o in liveOrdersOf(batchId)) {
+      if (o.status != OrderStatus.assembled) continue;
+      if (!canEdit) break;
+      try {
+        await _repo.saveOrder(
+          o.copyWith(status: OrderStatus.issued),
+          linesOf(o.id),
+        );
+        n++;
+      } catch (e) {
+        _fail('Не всё выдано: $e');
+        break;
+      }
+    }
+    await load();
+    return n;
   }
 
   // ------------------------------------------------------------- правка

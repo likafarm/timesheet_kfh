@@ -548,7 +548,7 @@ class _LineTile extends StatelessWidget {
     final amount = lineAmount(line, p.products, parts: parts);
     final estimate = lineEstimate(line, p.products, parts: parts);
     final fact = factText(line, product, parts);
-    final off = weightOff(line, parts: parts);
+    final off = weightOff(line, parts: parts, tolerance: p.tolerance);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       onTap: onTap,
@@ -609,7 +609,8 @@ class _LineTile extends StatelessWidget {
   }
 }
 
-extension on String {
+extension IfEmpty on String {
+  /// Пустая строка — [other].
   String ifEmpty(String other) => isEmpty ? other : this;
 }
 
@@ -941,12 +942,17 @@ class _LineDialogState extends State<_LineDialog> {
               : x.state,
         ),
     ];
-    final problem = orderLineProblem(line);
+    // Набор собран, когда собраны (или сняты) все его части.
+    final fromParts = setStateOf(parts);
+    final result = fromParts == null || line.state == LineState.missing
+        ? line
+        : line.copyWith(state: fromParts);
+    final problem = orderLineProblem(result);
     if (problem != null) {
       setState(() => _problem = problem);
       return;
     }
-    Navigator.pop(context, _LineResult(line, parts));
+    Navigator.pop(context, _LineResult(result, parts));
   }
 
   @override
@@ -1131,6 +1137,31 @@ class _LineDialogState extends State<_LineDialog> {
 
 /// «Собрано 2,05 кг из 3 кг · осталось 0,95 кг» — под частями набора;
 /// перебор или недобор сверх допуска — красным.
+/// Ход сборки набора — строкой: «Собрано 1,2 кг из 3 кг · осталось 1,8 кг».
+String setProgressText(SetProgress pr) {
+  String kg(double v) => '${fmtQty(double.parse(v.toStringAsFixed(3)))} кг';
+  return <String>[
+    if (pr.orderedKg != null)
+      'Собрано ${kg(pr.collected)} из ${kg(pr.orderedKg!)}'
+    else
+      'Собрано ${kg(pr.collected)}',
+    if (pr.leftKg != null)
+      pr.leftKg! > 0.0005
+          ? 'осталось ${kg(pr.leftKg!)}'
+          : pr.leftKg! < -0.0005
+          ? 'перебор ${kg(-pr.leftKg!)}'
+          : 'ровно',
+    if (pr.collectedAmount != null && pr.collectedAmount! > 0)
+      'на ${rub(pr.collectedAmount!)}',
+    if (pr.leftAmount != null)
+      pr.leftAmount! > 0
+          ? 'до суммы осталось ${rub(pr.leftAmount!)}'
+          : pr.leftAmount! < 0
+          ? 'сверх суммы ${rub(-pr.leftAmount!)}'
+          : 'сумма набрана',
+  ].join(' · ');
+}
+
 class _SetProgressView extends StatelessWidget {
   final SetProgress progress;
   const _SetProgressView(this.progress);
@@ -1138,29 +1169,7 @@ class _SetProgressView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pr = progress;
-    String kg(double v) => '${fmtQty(double.parse(v.toStringAsFixed(3)))} кг';
-    final parts = <String>[
-      if (pr.orderedKg != null)
-        'Собрано ${kg(pr.collected)} из ${kg(pr.orderedKg!)}'
-      else
-        'Собрано ${kg(pr.collected)}',
-      if (pr.leftKg != null)
-        pr.leftKg! > 0.0005
-            ? 'осталось ${kg(pr.leftKg!)}'
-            : pr.leftKg! < -0.0005
-            ? 'перебор ${kg(-pr.leftKg!)}'
-            : 'ровно',
-      if (pr.collectedAmount != null && pr.collectedAmount! > 0)
-        'на ${rub(pr.collectedAmount!)}',
-      if (pr.leftAmount != null)
-        pr.leftAmount! > 0
-            ? 'до суммы осталось ${rub(pr.leftAmount!)}'
-            : pr.leftAmount! < 0
-            ? 'сверх суммы ${rub(-pr.leftAmount!)}'
-            : 'сумма набрана',
-    ];
-    final off = pr.off();
+    final off = progress.off(context.watch<OrdersProvider>().tolerance);
     final color = off ? theme.colorScheme.error : theme.colorScheme.primary;
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -1170,7 +1179,7 @@ class _SetProgressView extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        parts.join(' · '),
+        setProgressText(progress),
         style: TextStyle(color: color, fontWeight: FontWeight.w600),
       ),
     );
