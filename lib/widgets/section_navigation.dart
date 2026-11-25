@@ -25,7 +25,8 @@ enum AppSection {
   financeReports,
   financeCatalog,
 
-  /// Продажи (этап 11): прайс-лист, покупатели.
+  /// Продажи (этап 11): заказы, покупатели, прайс-лист.
+  orders,
   priceList,
   customers,
   sync,

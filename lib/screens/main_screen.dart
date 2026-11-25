@@ -12,6 +12,7 @@ import 'finance_balances_screen.dart';
 import 'finance_catalog_screen.dart';
 import 'finance_reports_screen.dart';
 import 'finance_screen.dart';
+import 'orders_screen.dart';
 import 'payment_calendar_screen.dart';
 import 'periods_screen.dart';
 import 'price_list_screen.dart';
@@ -104,6 +105,14 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.menu_book,
       label: 'Справочники',
       screen: const FinanceCatalogScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.orders,
+      group: NavGroup.sales,
+      icon: Icons.shopping_basket_outlined,
+      selectedIcon: Icons.shopping_basket,
+      label: 'Заказы',
+      screen: const OrdersScreen(),
     ),
     NavigationItem(
       section: AppSection.priceList,
@@ -214,9 +223,16 @@ class MainScreen extends StatefulWidget {
   ];
 
   /// Разделы специалиста по продажам (11.2, решение владельца
-  /// 2026-11-24; телефон, Windows и веб): прайс-лист, покупатели (11.3) и
-  /// сервер. Заказы и выдачи добавятся в 11.4–11.5.
+  /// 2026-11-24; телефон, Windows и веб): заказы (11.4), прайс-лист,
+  /// покупатели (11.3) и сервер. Выдачи и сборка — 11.5.
   static List<NavigationItem> salesSections() => [
+    NavigationItem(
+      section: AppSection.orders,
+      icon: Icons.shopping_basket_outlined,
+      selectedIcon: Icons.shopping_basket,
+      label: 'Заказы',
+      screen: const OrdersScreen(),
+    ),
     NavigationItem(
       section: AppSection.priceList,
       icon: Icons.sell_outlined,

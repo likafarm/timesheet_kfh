@@ -106,7 +106,7 @@ void main() {
       sales: true,
     );
     final menu = find.byType(SideMenu);
-    for (final label in ['Прайс-лист', 'Покупатели', 'Сервер']) {
+    for (final label in ['Заказы', 'Прайс-лист', 'Покупатели', 'Сервер']) {
       expect(
         find.descendant(of: menu, matching: find.text(label)),
         findsOneWidget,
@@ -120,7 +120,17 @@ void main() {
         reason: label,
       );
     }
-    // Первый раздел — прайс: печать есть, правки нет.
+    // Первый раздел — заказы; прайс: печать есть, правки нет.
+    expect(find.text('Заказ'), findsOneWidget, reason: 'кнопка нового заказа');
+    await tester.tap(
+      find.descendant(of: menu, matching: find.text('Прайс-лист')),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+    }
     expect(find.byTooltip('Печать / PDF'), findsOneWidget);
     expect(find.text('Товары и порядок'), findsNothing);
     expect(find.byTooltip('Загрузить из Excel'), findsNothing);
