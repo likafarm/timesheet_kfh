@@ -557,3 +557,84 @@ String? orderRowProblem(String table, Map<String, Object?> data) {
   }
   return null;
 }
+
+// ------------------------------------------------------ сборка набора
+
+/// Ход сборки набора: сколько уже набрано по частям против заказанного.
+class SetProgress {
+  /// Набрано, кг (сумма весов частей).
+  final double collected;
+
+  /// Набрано на сумму, копейки (по выбранной цене строки); null — не
+  /// посчитать (нет цен).
+  final int? collectedAmount;
+
+  /// Заказано, кг; null — заказано не в кг.
+  final double? orderedKg;
+
+  /// Заказано на сумму, копейки; null — заказано не «на сумму».
+  final int? orderedAmount;
+
+  const SetProgress({
+    required this.collected,
+    this.collectedAmount,
+    this.orderedKg,
+    this.orderedAmount,
+  });
+
+  /// Сколько осталось набрать, кг (минус — перебор); null — заказано не
+  /// в кг.
+  double? get leftKg => orderedKg == null ? null : orderedKg! - collected;
+
+  /// Сколько осталось набрать на сумму, копейки; null — не «на сумму».
+  int? get leftAmount => orderedAmount == null || collectedAmount == null
+      ? null
+      : orderedAmount! - collectedAmount!;
+
+  /// Отклонение от заказанного (0.2 — на 20 % больше); null — сравнивать
+  /// не с чем.
+  double? get deviation {
+    if (orderedKg != null && orderedKg! > 0) {
+      return (collected - orderedKg!) / orderedKg!;
+    }
+    if (orderedAmount != null &&
+        orderedAmount! > 0 &&
+        collectedAmount != null) {
+      return (collectedAmount! - orderedAmount!) / orderedAmount!;
+    }
+    return null;
+  }
+
+  /// Перебор или недобор сверх допуска.
+  bool off([double tolerance = defaultWeightTolerance]) {
+    final d = deviation;
+    return d != null && d.abs() > tolerance;
+  }
+}
+
+/// Ход сборки набора [line] с частями [parts] (веса частей — как введены,
+/// ещё не взвешенные не считаются).
+SetProgress setProgress(
+  SaleOrderLine line,
+  List<SaleOrderLine> parts,
+  Map<String, Product> products,
+) {
+  final live = [
+    for (final p in parts)
+      if (p.state != LineState.missing) p,
+  ];
+  final collected = live.fold<double>(0, (s, p) => s + (p.weight ?? 0));
+  final counted = line.copyWith(state: LineState.assembled);
+  final amount = collected == 0
+      ? 0
+      : lineAmount(counted, products, parts: live);
+  return SetProgress(
+    collected: collected,
+    collectedAmount: amount,
+    orderedKg: line.orderedUnit == OrderedUnit.kg ? line.orderedQty : null,
+    orderedAmount:
+        line.orderedUnit == OrderedUnit.rub && line.orderedQty != null
+        ? (line.orderedQty! * 100).round()
+        : null,
+  );
+}

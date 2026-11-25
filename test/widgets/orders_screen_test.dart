@@ -163,4 +163,201 @@ void main() {
     expect(find.text('Сколько'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'окно строки');
   });
+
+  testWidgets('набор: при сборке видно, сколько набрано и сколько осталось', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await initializeDateFormatting('ru');
+      db = LocalDatabase.memory();
+      app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: false)
+        ..salesMode = true;
+      final repos = DriftRepositories(db);
+      await repos.customers.saveCustomer(
+        const Customer(id: 'c1', name: 'Ольга'),
+      );
+      await repos.priceList.saveGroup(
+        const ProductGroup(id: 'g1', name: 'Говядина'),
+      );
+      await repos.priceList.saveProduct(
+        const Product(id: 'set', groupId: 'g1', name: 'Набор'),
+      );
+      await repos.priceList.saveProduct(
+        const Product(id: 'rib', groupId: 'g1', name: 'Ребро', sortOrder: 1),
+      );
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: OrdersScreen()),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.text('Заказ'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Товар'));
+    await settle(tester);
+    await tester.tap(find.text('Набор'));
+    await settle(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Сколько'), '3');
+    await tester.tap(find.text('Состав набора'));
+    await settle(tester);
+    await tester.tap(find.text('Ребро'));
+    await settle(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Вес').last, '1,2');
+    await tester.pump();
+    expect(
+      find.text('Собрано 1,2 кг из 3 кг · осталось 1,8 кг'),
+      findsOneWidget,
+    );
+    // Вторая часть — перебор.
+    await tester.tap(find.text('Часть набора'));
+    await settle(tester);
+    // «Ребро» уже есть в составе — нажать в окне выбора (оно поверх).
+    await tester.tap(find.text('Ребро').last);
+    await settle(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Вес').last, '2');
+    await tester.pump();
+    expect(
+      find.text('Собрано 3,2 кг из 3 кг · перебор 0,2 кг'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Готово'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('«Принят» — принятые заказы всех выдач, и прошедших', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await initializeDateFormatting('ru');
+      db = LocalDatabase.memory();
+      app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: false)
+        ..salesMode = true;
+      final repos = DriftRepositories(db);
+      await repos.customers.saveCustomer(
+        const Customer(id: 'c1', name: 'Ольга'),
+      );
+      await repos.customers.saveCustomer(
+        const Customer(id: 'c2', name: 'Пётр'),
+      );
+      await repos.customers.saveCustomer(
+        const Customer(id: 'c3', name: 'Нина'),
+      );
+      await repos.priceList.saveGroup(
+        const ProductGroup(id: 'g1', name: 'Говядина'),
+      );
+      await repos.priceList.saveProduct(
+        const Product(id: 'p1', groupId: 'g1', name: 'Вырезка'),
+      );
+      final old = SaleBatch(id: 'b1', day: DateTime(2026, 6, 27));
+      final next = SaleBatch(id: 'b2', day: addCalendarDays(day, 3));
+      await repos.orders.saveBatch(old);
+      await repos.orders.saveBatch(next);
+      SaleOrderLine line(String order) => SaleOrderLine(
+        id: 'l-$order',
+        orderId: order,
+        productId: 'p1',
+        orderedQty: 1,
+      );
+      await repos.orders.saveOrder(
+        const SaleOrder(id: 'o1', batchId: 'b1', customerId: 'c1', number: 1),
+        [line('o1')],
+      );
+      await repos.orders.saveOrder(
+        const SaleOrder(
+          id: 'o2',
+          batchId: 'b1',
+          customerId: 'c2',
+          number: 2,
+          status: OrderStatus.issued,
+        ),
+        [line('o2')],
+      );
+      await repos.orders.saveOrder(
+        const SaleOrder(id: 'o3', batchId: 'b2', customerId: 'c3', number: 1),
+        [line('o3')],
+      );
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: OrdersScreen()),
+      ),
+    );
+    await settle(tester);
+    // Открыта ближайшая выдача — только её заказ.
+    expect(find.textContaining('Нина'), findsWidgets);
+    expect(find.textContaining('Ольга'), findsNothing);
+    await tester.tap(
+      find.widgetWithText(ChoiceChip, OrderStatus.accepted.title),
+    );
+    await settle(tester);
+    expect(find.text('Принятые заказы всех выдач'), findsOneWidget);
+    expect(
+      find.textContaining(RegExp(r'^Выдача 27.06.2026.* — прошла$')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Ольга'), findsWidgets);
+    expect(find.textContaining('Нина'), findsWidgets);
+    expect(find.textContaining('Пётр'), findsNothing, reason: 'выдан');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('выбор покупателя: весь список прокручивается без поиска', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await initializeDateFormatting('ru');
+      db = LocalDatabase.memory();
+      app = AppProvider(AppDatabase(db, ':memory:'), operatorMode: false)
+        ..salesMode = true;
+      final repos = DriftRepositories(db);
+      for (var i = 1; i <= 60; i++) {
+        final n = i.toString().padLeft(2, '0');
+        await repos.customers.saveCustomer(
+          Customer(id: 'c$n', name: 'Покупатель $n'),
+        );
+      }
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: app,
+        child: const MaterialApp(home: OrdersScreen()),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.text('Заказ'));
+    await settle(tester);
+    await tester.tap(find.text('Выберите покупателя'));
+    await settle(tester);
+    expect(find.text('Все покупатели: 60'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Покупатель 60'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Scrollable),
+          )
+          .last,
+    );
+    await tester.tap(find.text('Покупатель 60'));
+    await settle(tester);
+    expect(find.text('Покупатель 60'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

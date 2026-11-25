@@ -13,6 +13,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/orders_provider.dart';
+import '../theme/app_theme.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/choice_buttons.dart';
 
@@ -582,6 +583,14 @@ class _LineTile extends StatelessWidget {
                 text:
                     '\nсостав: ${parts.map((x) => '${p.products[x.productId]?.name ?? '?'} ${fmtQty(x.weight)}').join(', ')}',
               ),
+            if (parts.isNotEmpty)
+              if (setProgress(line, parts, p.products).leftKg case final left?
+                  when left > 0.0005)
+                TextSpan(
+                  text:
+                      '   осталось ${fmtQty(double.parse(left.toStringAsFixed(3)))} кг',
+                  style: TextStyle(color: theme.colorScheme.primary),
+                ),
             if (line.pricing != LinePricing.list)
               TextSpan(text: '\nцена: ${line.pricing.title.toLowerCase()}'),
             if (line.note != null) TextSpan(text: '\n${line.note}'),
@@ -707,10 +716,12 @@ class _CustomerPicker extends StatefulWidget {
 
 class _CustomerPickerState extends State<_CustomerPicker> {
   final _query = TextEditingController();
+  final _scroll = ScrollController();
 
   @override
   void dispose() {
     _query.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -732,7 +743,7 @@ class _CustomerPickerState extends State<_CustomerPicker> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<OrdersProvider>();
-    final list = searchCustomers(p.customers.values, _query.text).take(30);
+    final list = searchCustomers(p.customers.values, _query.text);
     return AppDialog(
       title: const Text('Покупатель'),
       content: SizedBox(
@@ -743,8 +754,13 @@ class _CustomerPickerState extends State<_CustomerPicker> {
           children: [
             TextField(
               controller: _query,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
+              // На телефоне клавиатура закрыла бы половину списка.
+              autofocus:
+                  MediaQuery.sizeOf(context).width >= AppTheme.compactWidth,
+              onChanged: (_) {
+                if (_scroll.hasClients) _scroll.jumpTo(0);
+                setState(() {});
+              },
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
                 hintText: 'Имя, ник или телефон',
@@ -752,20 +768,46 @@ class _CustomerPickerState extends State<_CustomerPicker> {
                 border: OutlineInputBorder(),
               ),
             ),
-            for (final c in list)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(c.name),
-                subtitle: Text(
-                  [
-                    formatPhone(c.phone),
-                    ?c.contact,
-                    ?c.address,
-                  ].where((s) => s.isNotEmpty).join(' · '),
-                ),
-                onTap: () => Navigator.pop(context, c.id),
+            const SizedBox(height: 8),
+            Text(
+              _query.text.trim().isEmpty
+                  ? 'Все покупатели: ${list.length}'
+                  : 'Найдено: ${list.length}',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+            // Список прокручивается — выбрать можно и не вводя имени.
+            SizedBox(
+              height: (MediaQuery.sizeOf(context).height * 0.5).clamp(
+                200.0,
+                460.0,
               ),
+              child: list.isEmpty
+                  ? const Center(child: Text('Не найдено'))
+                  : Scrollbar(
+                      controller: _scroll,
+                      thumbVisibility: true,
+                      child: ListView.builder(
+                        controller: _scroll,
+                        itemCount: list.length,
+                        itemBuilder: (context, i) {
+                          final c = list[i];
+                          return ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.only(right: 12),
+                            title: Text(c.name),
+                            subtitle: Text(
+                              [
+                                formatPhone(c.phone),
+                                ?c.contact,
+                                ?c.address,
+                              ].where((s) => s.isNotEmpty).join(' · '),
+                            ),
+                            onTap: () => Navigator.pop(context, c.id),
+                          );
+                        },
+                      ),
+                    ),
+            ),
             if (_query.text.trim().isNotEmpty)
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -845,6 +887,13 @@ class _LineDialogState extends State<_LineDialog> {
     super.dispose();
   }
 
+  /// Ход сборки по тому, что сейчас введено в окне.
+  SetProgress _progress(OrdersProvider p) =>
+      setProgress(_l.copyWith(orderedQty: () => _num(_qty.text)), [
+        for (final x in _parts)
+          x.copyWith(weight: () => _num(_partWeights[x.id]!.text)),
+      ], p.products);
+
   Future<void> _addPart() async {
     final p = context.read<OrdersProvider>();
     final product = await pickProduct(context, p, widget.day);
@@ -917,6 +966,8 @@ class _LineDialogState extends State<_LineDialog> {
       width: width,
       child: TextField(
         controller: c,
+        // Ход сборки набора пересчитывается на каждый ввод.
+        onChanged: (_) => setState(() {}),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: label,
@@ -999,6 +1050,7 @@ class _LineDialogState extends State<_LineDialog> {
                     ),
                   ],
                 ),
+              if (isSet) _SetProgressView(_progress(p)),
             ],
             Align(
               alignment: Alignment.centerLeft,
@@ -1073,6 +1125,54 @@ class _LineDialogState extends State<_LineDialog> {
         ),
         FilledButton(onPressed: _save, child: const Text('Готово')),
       ],
+    );
+  }
+}
+
+/// «Собрано 2,05 кг из 3 кг · осталось 0,95 кг» — под частями набора;
+/// перебор или недобор сверх допуска — красным.
+class _SetProgressView extends StatelessWidget {
+  final SetProgress progress;
+  const _SetProgressView(this.progress);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pr = progress;
+    String kg(double v) => '${fmtQty(double.parse(v.toStringAsFixed(3)))} кг';
+    final parts = <String>[
+      if (pr.orderedKg != null)
+        'Собрано ${kg(pr.collected)} из ${kg(pr.orderedKg!)}'
+      else
+        'Собрано ${kg(pr.collected)}',
+      if (pr.leftKg != null)
+        pr.leftKg! > 0.0005
+            ? 'осталось ${kg(pr.leftKg!)}'
+            : pr.leftKg! < -0.0005
+            ? 'перебор ${kg(-pr.leftKg!)}'
+            : 'ровно',
+      if (pr.collectedAmount != null && pr.collectedAmount! > 0)
+        'на ${rub(pr.collectedAmount!)}',
+      if (pr.leftAmount != null)
+        pr.leftAmount! > 0
+            ? 'до суммы осталось ${rub(pr.leftAmount!)}'
+            : pr.leftAmount! < 0
+            ? 'сверх суммы ${rub(-pr.leftAmount!)}'
+            : 'сумма набрана',
+    ];
+    final off = pr.off();
+    final color = off ? theme.colorScheme.error : theme.colorScheme.primary;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        parts.join(' · '),
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

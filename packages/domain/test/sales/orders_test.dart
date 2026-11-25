@@ -144,6 +144,37 @@ void main() {
       expect(t.estimate, 150000);
     });
 
+    test('ход сборки: набрано, осталось, перебор', () {
+      final s = line('s', 'set', qty: 3, unit: OrderedUnit.kg, price: 92000);
+      var pr = setProgress(s, parts, products);
+      expect(pr.collected, closeTo(2.0, 1e-9));
+      expect(pr.leftKg, closeTo(1.0, 1e-9));
+      expect(pr.collectedAmount, 184000, reason: '2 кг × 920 по прайсу набора');
+      expect(pr.off(), isTrue, reason: 'недобор 33 %');
+      final more = [
+        ...parts,
+        line('p3', 'rib', parent: 's', weight: 1.1, price: 57500),
+      ];
+      pr = setProgress(s, more, products);
+      expect(pr.leftKg, closeTo(-0.1, 1e-9), reason: 'перебор 100 г');
+      expect(pr.off(), isFalse);
+      // Заказано на сумму — сколько осталось в рублях.
+      final rubSet = line(
+        's',
+        'set',
+        qty: 3000,
+        unit: OrderedUnit.rub,
+        price: 92000,
+      );
+      pr = setProgress(rubSet, parts, products);
+      expect(pr.leftKg, isNull);
+      expect(pr.leftAmount, 300000 - 184000);
+      // Пустые части — 0 кг.
+      pr = setProgress(s, [line('p9', 'rib', parent: 's')], products);
+      expect(pr.collected, 0);
+      expect(pr.leftKg, 3);
+    });
+
     test('отклонение набора — по сумме частей', () {
       final s = line('s', 'set', qty: 1.5, unit: OrderedUnit.kg);
       expect(weightDeviation(s, parts: parts), closeTo(0.3333, 1e-3));

@@ -48,7 +48,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
           final batch =
               (_batchId == null ? null : p.batch(_batchId!)) ?? p.nearestBatch;
           final q = _query.text.trim();
-          final all = batch == null ? <SaleOrder>[] : p.ordersOf(batch.id);
+          // «Принят» — все невыданные заказы, по всем выдачам (в том числе
+          // прошедшим): иначе принятый, но забытый заказ не найти.
+          final allBatches = _status == OrderStatus.accepted;
+          final all = allBatches
+              ? p.acceptedOrders
+              : batch == null
+              ? <SaleOrder>[]
+              : p.ordersOf(batch.id);
           final matched = q.isEmpty
               ? null
               : {for (final c in searchCustomers(p.customers.values, q)) c.id};
@@ -83,7 +90,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: p.batches.isEmpty
+                            child: allBatches
+                                ? Text(
+                                    'Принятые заказы всех выдач',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  )
+                                : p.batches.isEmpty
                                 ? const Text(
                                     'Выдач пока нет — первый заказ создаст '
                                     'выдачу на выбранный день',
@@ -154,18 +168,49 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
                             ),
-                          if (batch != null && list.isEmpty)
+                          if ((batch != null || allBatches) && list.isEmpty)
                             const Padding(
                               padding: EdgeInsets.all(24),
                               child: Center(child: Text('Заказов нет')),
                             ),
-                          for (final o in list) _OrderTile(o),
+                          for (var i = 0; i < list.length; i++) ...[
+                            if (allBatches &&
+                                (i == 0 ||
+                                    list[i].batchId != list[i - 1].batchId))
+                              _BatchHeader(p.batch(list[i].batchId)),
+                            _OrderTile(list[i]),
+                          ],
                         ],
                       ),
                     ),
                   ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Заголовок выдачи в списке по всем выдачам; прошедшая — с пометкой.
+class _BatchHeader extends StatelessWidget {
+  final SaleBatch? batch;
+  const _BatchHeader(this.batch);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final b = batch;
+    final past =
+        b != null && calendarDay(b.day).isBefore(calendarDay(DateTime.now()));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Text(
+        b == null
+            ? 'Выдача не найдена'
+            : 'Выдача ${_date.format(b.day)}${past ? ' — прошла' : ''}',
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: past ? theme.colorScheme.error : theme.colorScheme.primary,
+        ),
       ),
     );
   }

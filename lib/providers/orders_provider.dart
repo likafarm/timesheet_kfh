@@ -92,6 +92,22 @@ class OrdersProvider extends ChangeNotifier {
       if (o.batchId == batchId) o,
   ]..sort((a, b) => a.number.compareTo(b.number));
 
+  /// Принятые (невыданные) заказы всех выдач: по дню выдачи, старые
+  /// сначала, внутри выдачи — по номеру.
+  List<SaleOrder> get acceptedOrders {
+    final day = {for (final b in _batches) b.id: b.day};
+    return [
+      for (final o in _orders)
+        if (o.status == OrderStatus.accepted) o,
+    ]..sort((a, b) {
+      final da = day[a.batchId], db = day[b.batchId];
+      final c = da == null || db == null
+          ? a.batchId.compareTo(b.batchId)
+          : da.compareTo(db);
+      return c != 0 ? c : a.number.compareTo(b.number);
+    });
+  }
+
   /// Заказы покупателя, новые сначала.
   List<SaleOrder> ordersOfCustomer(String customerId) {
     final list = [
