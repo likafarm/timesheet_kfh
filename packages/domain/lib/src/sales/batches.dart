@@ -114,8 +114,8 @@ bool orderAssembled(Iterable<SaleOrderLine> lines) {
 bool _byWeight(Product? p) => (p?.unit ?? ProductUnit.kg) == ProductUnit.kg;
 
 /// Сборочный лист: товары по порядку прайса ([groups] и порядок товара),
-/// у каждого — строки заказов. Набор стоит у своего товара, его части —
-/// у своих (бронь частей туши видна по каждой части).
+/// у каждого — строки заказов. Части набора — внутри строки набора
+/// ([BatchEntry.parts]), сводка состава — [setComposition].
 List<PickItem> pickList(
   List<BatchEntry> entries,
   Map<String, Product> products, {
@@ -123,6 +123,8 @@ List<PickItem> pickList(
 }) {
   final byProduct = <String, List<BatchEntry>>{};
   for (final e in entries) {
+    // Части набора — внутри своего набора, не отдельным товаром.
+    if (e.isPart) continue;
     (byProduct[e.line.productId] ??= []).add(e);
   }
   final items = [
@@ -287,4 +289,37 @@ BatchSummary batchSummary(
         if (e.line.state == LineState.missing) e,
     ],
   );
+}
+
+/// Часть в составе наборов: товар, сколько строк и сколько собрано, кг.
+class CompositionPart {
+  final String productId;
+  final int count;
+  final double weight;
+  final int open;
+  const CompositionPart(this.productId, this.count, this.weight, this.open);
+}
+
+/// Состав наборов товара [item]: части по товару (сколько раз, собранный
+/// вес, ещё не взвешено), по порядку первого появления.
+List<CompositionPart> setComposition(PickItem item) {
+  final order = <String>[];
+  final count = <String, int>{}, open = <String, int>{};
+  final weight = <String, double>{};
+  for (final e in item.entries) {
+    for (final p in e.parts) {
+      if (!count.containsKey(p.productId)) order.add(p.productId);
+      count[p.productId] = (count[p.productId] ?? 0) + 1;
+      if (p.state == LineState.open) {
+        open[p.productId] = (open[p.productId] ?? 0) + 1;
+      }
+      if (p.state == LineState.assembled) {
+        weight[p.productId] = (weight[p.productId] ?? 0) + (p.weight ?? 0);
+      }
+    }
+  }
+  return [
+    for (final id in order)
+      CompositionPart(id, count[id]!, weight[id] ?? 0, open[id] ?? 0),
+  ];
 }

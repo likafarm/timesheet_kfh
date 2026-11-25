@@ -140,10 +140,28 @@ void main() {
     expect(find.textContaining('заказов: 2'), findsOneWidget);
     await tester.tap(find.textContaining('заказов: 2'));
     await settle(tester);
-    // Сборочный лист: товары и кому.
-    expect(find.text('Вырезка'), findsOneWidget);
-    expect(find.text('Голова'), findsOneWidget);
-    expect(find.textContaining('в наборе «Набор»'), findsOneWidget);
+    // Сборочный лист: товары и кому; части набора — внутри набора.
+    expect(find.text('Сборочный лист'), findsOneWidget);
+    expect(find.widgetWithText(ExpansionTile, 'Вырезка'), findsOneWidget);
+    expect(find.widgetWithText(ExpansionTile, 'Голова'), findsOneWidget);
+    final setCard = find.widgetWithText(ExpansionTile, 'Набор');
+    expect(setCard, findsWidgets);
+    expect(
+      find.descendant(of: setCard.first, matching: find.text('Ребро')),
+      findsOneWidget,
+      reason: 'ребро — внутри набора',
+    );
+    expect(find.textContaining('состав: Ребро ×1'), findsOneWidget);
+    // Свернуть всё — частей не видно; развернуть — снова видно.
+    await tester.tap(find.text('Свернуть всё'));
+    await settle(tester);
+    expect(find.text('Ребро'), findsNothing);
+    await tester.tap(find.text('Развернуть всё'));
+    await settle(tester);
+    expect(find.text('Ребро'), findsOneWidget);
+    // Итог — под сборочным листом.
+    await tester.scrollUntilVisible(find.text('Итог выдачи'), 200);
+    expect(find.text('По товарам'), findsOneWidget);
     await tester.tap(find.text('Взвешивать (3)'));
     await settle(tester);
     // Первая — вырезка Ольги: 2,6 кг — больше заказанного на 30 %.
@@ -199,6 +217,11 @@ void main() {
     expect(data.orders.length, 2);
     expect(data.orders.first.warning, isNotNull);
     expect(data.orders.last.warning, isNull, reason: 'снятое не в счёт');
+    // Бирки: вырезка и набор (с составом) — отдельно; снятой головы нет.
+    final tags = batchTags(data);
+    expect(tags.map((t) => t.line.product), ['Вырезка', 'Набор']);
+    expect(tags.last.line.composition, 'Ребро 3,1');
+    expect(tags.first.count, 2);
     expect(data.orders.last.delivery, isTrue);
     Future<ByteData> asset(String path) async =>
         ByteData.sublistView(await File(path).readAsBytes());
@@ -235,9 +258,8 @@ void main() {
     await tester.tap(find.textContaining('заказов: 2'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'сборочный лист');
-    await tester.tap(find.text('Итог'));
+    await tester.scrollUntilVisible(find.text('По товарам'), 200);
     await settle(tester);
-    expect(find.text('По товарам'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'итог');
     await tester.tap(find.text('Взвешивать (3)'));
     await settle(tester);

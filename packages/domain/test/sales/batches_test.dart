@@ -128,7 +128,11 @@ void main() {
       products,
       groups: groups,
     );
-    expect(items.map((i) => i.productId), ['head', 'vyr', 'set', 'rib']);
+    expect(items.map((i) => i.productId), [
+      'head',
+      'vyr',
+      'set',
+    ], reason: 'части набора — внутри набора');
     final vyr = items[1];
     expect(vyr.entries.map((e) => e.order.id), ['o1', 'o2', 'o4']);
     expect(vyr.orderedKg, 3);
@@ -141,7 +145,12 @@ void main() {
     final setItem = items[2];
     expect(setItem.orderedKg, 3);
     expect(setItem.open, 1, reason: 'набор ещё собирается');
-    expect(items[3].factKg, 1.5);
+    expect(setItem.entries.single.parts.length, 2);
+    final composition = setComposition(setItem);
+    expect(composition.single.productId, 'rib');
+    expect(composition.single.count, 2);
+    expect(composition.single.weight, 1.5);
+    expect(composition.single.open, 1);
   });
 
   test('итог выдачи: кг, к оплате, без оплаты, нехватка', () {
