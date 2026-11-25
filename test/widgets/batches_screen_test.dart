@@ -229,6 +229,7 @@ void main() {
     expect(tags.first.count, 2);
     // Этикетка: группа прайса, цена за единицу, день выдачи.
     expect(tags.first.line.group, 'Говядина');
+    expect(tags.first.line.ordered, '2 кг');
     expect(tags.first.line.price, startsWith('1'));
     expect(tags.first.line.price, endsWith('₽/кг'));
     expect(data.day, matches(RegExp(r'^\d\d\.\d\d\.\d{4}$')));
@@ -276,5 +277,24 @@ void main() {
     await settle(tester);
     expect(find.text('Записать и дальше'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'весы');
+
+    // Ничего не взвешено: на этикетке — места для записи ручкой.
+    final p = OrdersProvider(app);
+    await tester.runAsync(p.load);
+    final data = batchPrintData(p, p.batch('b1')!);
+    expect(batchTags(data).every((t) => t.line.fact.isEmpty), isTrue);
+    final out = Platform.environment['KFH_BATCH_OUT'];
+    await tester.runAsync(() async {
+      final bytes = await buildBatchLabelsPdf(
+        data,
+        asset: (path) async =>
+            ByteData.sublistView(await File(path).readAsBytes()),
+      );
+      expect(bytes.length, greaterThan(1000));
+      if (out != null) {
+        await File('$out/выдача_этикетки_пустые.pdf').writeAsBytes(bytes);
+      }
+    });
+    p.dispose();
   });
 }

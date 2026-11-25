@@ -43,6 +43,9 @@ class BatchPrintLine {
   /// Цена за единицу: «1 840 ₽/кг»; пусто — своя сумма или нет цены.
   final String price;
 
+  /// Единица факта: «кг», «шт».
+  final String unit;
+
   const BatchPrintLine({
     required this.product,
     required this.ordered,
@@ -52,6 +55,7 @@ class BatchPrintLine {
     this.missing = false,
     this.group = '',
     this.price = '',
+    this.unit = 'кг',
   });
 
   /// Товар с составом — для списка пакетов.
@@ -159,6 +163,7 @@ BatchPrint batchPrintData(OrdersProvider p, SaleBatch b) {
           ].join(', '),
           missing: l.state == LineState.missing,
           group: p.groupName(product?.groupId) ?? '',
+          unit: byWeight ? 'кг' : product?.unit.title ?? 'шт',
           price: l.pricing == LinePricing.fixed || l.price == null
               ? ''
               : '${_rub(l.price!)}/${ps.isNotEmpty ? 'кг' : product?.unit.title ?? 'кг'}',
@@ -501,6 +506,25 @@ final labelFormat = PdfPageFormat(70 * PdfPageFormat.mm, 50 * PdfPageFormat.mm);
 /// Чёрно-белый логотип для термопечати (цветной вышел бы серой рябью).
 const labelLogoAsset = 'assets/branding/logo_mono.png';
 
+/// Место для записи ручкой: «Вес ________ кг».
+pw.Widget _writeIn(String label, String unit) => pw.Row(
+  crossAxisAlignment: pw.CrossAxisAlignment.end,
+  children: [
+    pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
+    pw.SizedBox(width: 2),
+    pw.Expanded(
+      child: pw.Container(
+        height: 16,
+        decoration: const pw.BoxDecoration(
+          border: pw.Border(bottom: pw.BorderSide(width: 0.8)),
+        ),
+      ),
+    ),
+    pw.SizedBox(width: 2),
+    pw.Text(unit, style: const pw.TextStyle(fontSize: 8)),
+  ],
+);
+
 /// Этикетки на пакеты для принтера этикеток: страница PDF = одна
 /// этикетка [labelFormat] — логотип хозяйства, номер заказа и пакет,
 /// покупатель, товар (группа, состав набора), дата выдачи, цена за
@@ -570,6 +594,14 @@ Future<Uint8List> buildBatchLabelsPdf(
                         maxLines: 1,
                         textAlign: pw.TextAlign.right,
                       ),
+                      if (o.phone != null) pw.Text(o.phone!, style: small),
+                      if (l.ordered.isNotEmpty)
+                        pw.Text(
+                          'заказано: ${l.ordered}',
+                          style: _bold.copyWith(fontSize: 7),
+                          maxLines: 1,
+                          textAlign: pw.TextAlign.right,
+                        ),
                     ],
                   ),
                 ),
@@ -584,9 +616,16 @@ Future<Uint8List> buildBatchLabelsPdf(
               style: _bold.copyWith(fontSize: 10.5),
               maxLines: 2,
             ),
-            if (l.group.isNotEmpty) pw.Text(l.group, style: small, maxLines: 1),
-            if (l.composition.isNotEmpty)
-              pw.Text('Состав: ${l.composition}', style: small, maxLines: 2),
+            // Группа и состав набора — одной строкой (место на этикетке).
+            if (l.group.isNotEmpty || l.composition.isNotEmpty)
+              pw.Text(
+                [
+                  if (l.group.isNotEmpty) l.group,
+                  if (l.composition.isNotEmpty) 'состав: ${l.composition}',
+                ].join(' · '),
+                style: small,
+                maxLines: 2,
+              ),
             pw.Spacer(),
             pw.Row(
               children: [
@@ -598,17 +637,22 @@ Future<Uint8List> buildBatchLabelsPdf(
             pw.SizedBox(height: 1),
             rule,
             pw.SizedBox(height: 1),
-            // Вес и сумма — крупно.
+            // Вес и сумма — крупно; не взвешено — места для записи ручкой.
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Expanded(
-                  child: pw.Text(l.fact, style: _bold.copyWith(fontSize: 15)),
+                  child: l.fact.isEmpty
+                      ? _writeIn(l.unit == 'кг' ? 'Вес' : 'Кол-во', l.unit)
+                      : pw.Text(l.fact, style: _bold.copyWith(fontSize: 15)),
                 ),
+                pw.SizedBox(width: 8),
                 if (o.kind != OrderKind.sale)
                   pw.Text(o.kind.title, style: _bold.copyWith(fontSize: 11))
-                else if (l.amount != null)
-                  pw.Text(_rub(l.amount!), style: _bold.copyWith(fontSize: 15)),
+                else if (l.amount != null && l.fact.isNotEmpty)
+                  pw.Text(_rub(l.amount!), style: _bold.copyWith(fontSize: 15))
+                else
+                  pw.Expanded(child: _writeIn('Сумма', '₽')),
               ],
             ),
             pw.Row(
