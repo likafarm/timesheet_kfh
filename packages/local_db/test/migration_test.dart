@@ -341,7 +341,7 @@ void main() {
     await db.close();
   });
 
-  test('6 → 7: прайс на месте, покупатели работают', () async {
+  test('6 → 7: прайс на месте, покупатели и заказы работают', () async {
     final schema = await verifier.schemaAt(6);
     final raw = schema.rawDatabase;
     const now = '2026-11-25T10:00:00.000Z';
@@ -375,6 +375,60 @@ void main() {
     expect(saved.phone, '+7 916 683-18-54');
     expect(saved.channel, CustomerChannel.telegram);
     expect(saved.contact, isNull, reason: 'пустое — null');
+    // Заказ с набором из двух частей; повторное сохранение без одной
+    // части удаляет её.
+    raw.execute(
+      'INSERT INTO products (uuid, group_uuid, name, unit, sort_order, '
+      "hidden, updated_at, deleted) VALUES ('p1', 'g1', 'Набор', 'kg', 0, 0, "
+      "'$now', 0), ('p2', 'g1', 'Ребро', 'kg', 1, 0, '$now', 0)",
+    );
+    final o = repos.orders;
+    await o.saveBatch(SaleBatch(id: 'b1', day: DateTime(2026, 11, 28)));
+    const order = SaleOrder(
+      id: 'o1',
+      batchId: 'b1',
+      customerId: 'c1',
+      number: 1,
+    );
+    const set = SaleOrderLine(
+      id: 'l1',
+      orderId: 'o1',
+      productId: 'p1',
+      orderedQty: 3,
+      orderedUnit: OrderedUnit.kg,
+      pricing: LinePricing.parts,
+      price: 92000,
+    );
+    const rib = SaleOrderLine(
+      id: 'l2',
+      orderId: 'o1',
+      parentId: 'l1',
+      productId: 'p2',
+      weight: 0.7,
+      price: 57500,
+    );
+    const neck = SaleOrderLine(
+      id: 'l3',
+      orderId: 'o1',
+      parentId: 'l1',
+      productId: 'p2',
+      weight: 1.3,
+      price: 57500,
+    );
+    await o.saveOrder(order, [rib, set, neck]);
+    expect((await o.lines()).length, 3);
+    expect((await o.lines()).firstWhere((l) => l.id == 'l2').parentId, 'l1');
+    await o.saveOrder(order.copyWith(status: OrderStatus.assembled), [
+      set,
+      rib,
+    ]);
+    expect((await o.lines()).map((l) => l.id).toSet(), {'l1', 'l2'});
+    expect((await o.orders()).single.status, OrderStatus.assembled);
+    expect((await o.batches()).single.day, DateTime(2026, 11, 28));
+    await o.deleteOrder('o1');
+    expect(await o.orders(), isEmpty);
+    expect(await o.lines(), isEmpty);
+
     await repos.customers.deleteCustomer('c1');
     expect(await repos.customers.customers(), isEmpty);
     final fk = await db.customSelect('PRAGMA foreign_key_check').get();

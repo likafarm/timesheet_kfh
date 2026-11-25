@@ -5488,6 +5488,9 @@ final class Schema7 extends i0.VersionedSchema {
     products,
     productPrices,
     customers,
+    saleBatches,
+    saleOrders,
+    saleOrderLines,
     idxEmployeesFullName,
     idxEmployeeRatesEmployee,
     idxTimesheetUnique,
@@ -5517,6 +5520,10 @@ final class Schema7 extends i0.VersionedSchema {
     idxProductsName,
     idxProductPricesKey,
     idxCustomersName,
+    idxSaleBatchesDay,
+    idxSaleOrdersBatch,
+    idxSaleOrdersCustomer,
+    idxSaleOrderLinesOrder,
   ];
   late final Shape0 companySettings = Shape0(
     source: i0.VersionedTable(
@@ -6202,6 +6209,88 @@ final class Schema7 extends i0.VersionedSchema {
     ),
     alias: null,
   );
+  late final Shape29 saleBatches = Shape29(
+    source: i0.VersionedTable(
+      entityName: 'sale_batches',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_128,
+        _column_129,
+        _column_130,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape30 saleOrders = Shape30(
+    source: i0.VersionedTable(
+      entityName: 'sale_orders',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_131,
+        _column_132,
+        _column_133,
+        _column_134,
+        _column_135,
+        _column_125,
+        _column_136,
+        _column_137,
+        _column_112,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape31 saleOrderLines = Shape31(
+    source: i0.VersionedTable(
+      entityName: 'sale_order_lines',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(uuid)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_138,
+        _column_139,
+        _column_123,
+        _column_70,
+        _column_140,
+        _column_141,
+        _column_142,
+        _column_143,
+        _column_144,
+        _column_145,
+        _column_146,
+        _column_147,
+        _column_148,
+        _column_149,
+        _column_150,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
   final i1.Index idxEmployeesFullName = i1.Index(
     'idx_employees_full_name',
     'CREATE INDEX idx_employees_full_name ON employees (full_name)',
@@ -6318,6 +6407,22 @@ final class Schema7 extends i0.VersionedSchema {
     'idx_customers_name',
     'CREATE INDEX idx_customers_name ON customers (name)',
   );
+  final i1.Index idxSaleBatchesDay = i1.Index(
+    'idx_sale_batches_day',
+    'CREATE UNIQUE INDEX idx_sale_batches_day ON sale_batches (day) WHERE deleted = 0',
+  );
+  final i1.Index idxSaleOrdersBatch = i1.Index(
+    'idx_sale_orders_batch',
+    'CREATE INDEX idx_sale_orders_batch ON sale_orders (batch_uuid)',
+  );
+  final i1.Index idxSaleOrdersCustomer = i1.Index(
+    'idx_sale_orders_customer',
+    'CREATE INDEX idx_sale_orders_customer ON sale_orders (customer_uuid)',
+  );
+  final i1.Index idxSaleOrderLinesOrder = i1.Index(
+    'idx_sale_order_lines_order',
+    'CREATE INDEX idx_sale_order_lines_order ON sale_order_lines (order_uuid)',
+  );
 }
 
 class Shape28 extends i0.VersionedTable {
@@ -6373,6 +6478,307 @@ i1.GeneratedColumn<String> _column_127(String aliasedName) =>
       true,
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
+    );
+
+class Shape29 extends i0.VersionedTable {
+  Shape29({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get uuid =>
+      columnsByName['uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get legacyId =>
+      columnsByName['legacy_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get editedBy =>
+      columnsByName['edited_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get remoteUpdatedAt =>
+      columnsByName['remote_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get day =>
+      columnsByName['day']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get dayTo =>
+      columnsByName['day_to']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get notes =>
+      columnsByName['notes']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_128(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'day',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL',
+    );
+i1.GeneratedColumn<String> _column_129(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'day_to',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_130(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'title',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+
+class Shape30 extends i0.VersionedTable {
+  Shape30({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get uuid =>
+      columnsByName['uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get legacyId =>
+      columnsByName['legacy_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get editedBy =>
+      columnsByName['edited_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get remoteUpdatedAt =>
+      columnsByName['remote_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get batchUuid =>
+      columnsByName['batch_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get customerUuid =>
+      columnsByName['customer_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get number =>
+      columnsByName['number']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get kind =>
+      columnsByName['kind']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get delivery =>
+      columnsByName['delivery']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get address =>
+      columnsByName['address']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get comment =>
+      columnsByName['comment']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get status =>
+      columnsByName['status']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get createdBy =>
+      columnsByName['created_by']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_131(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'batch_uuid',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints:
+          'NOT NULL REFERENCES sale_batches(uuid)DEFERRABLE INITIALLY DEFERRED',
+    );
+i1.GeneratedColumn<String> _column_132(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'customer_uuid',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints:
+          'NOT NULL REFERENCES customers(uuid)DEFERRABLE INITIALLY DEFERRED',
+    );
+i1.GeneratedColumn<int> _column_133(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'number',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL',
+    );
+i1.GeneratedColumn<String> _column_134(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'kind',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'sale\'',
+      defaultValue: const i1.CustomExpression('\'sale\''),
+    );
+i1.GeneratedColumn<String> _column_135(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'delivery',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'pickup\'',
+      defaultValue: const i1.CustomExpression('\'pickup\''),
+    );
+i1.GeneratedColumn<String> _column_136(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'comment',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_137(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'status',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'new\'',
+      defaultValue: const i1.CustomExpression('\'new\''),
+    );
+
+class Shape31 extends i0.VersionedTable {
+  Shape31({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get uuid =>
+      columnsByName['uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get legacyId =>
+      columnsByName['legacy_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get editedBy =>
+      columnsByName['edited_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get remoteUpdatedAt =>
+      columnsByName['remote_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get orderUuid =>
+      columnsByName['order_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get parentLineUuid =>
+      columnsByName['parent_line_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get productUuid =>
+      columnsByName['product_uuid']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get sortOrder =>
+      columnsByName['sort_order']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get orderedQty =>
+      columnsByName['ordered_qty']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<String> get orderedUnit =>
+      columnsByName['ordered_unit']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get orderedText =>
+      columnsByName['ordered_text']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<double> get weight =>
+      columnsByName['weight']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<int> get pieces =>
+      columnsByName['pieces']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get pricing =>
+      columnsByName['pricing']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get price =>
+      columnsByName['price']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get fixedAmount =>
+      columnsByName['fixed_amount']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get state =>
+      columnsByName['state']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get note =>
+      columnsByName['note']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get added =>
+      columnsByName['added']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<String> _column_138(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'order_uuid',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints:
+          'NOT NULL REFERENCES sale_orders(uuid)DEFERRABLE INITIALLY DEFERRED',
+    );
+i1.GeneratedColumn<String> _column_139(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'parent_line_uuid',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints:
+          'NULL REFERENCES sale_order_lines(uuid)DEFERRABLE INITIALLY DEFERRED',
+    );
+i1.GeneratedColumn<double> _column_140(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'ordered_qty',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_141(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'ordered_unit',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_142(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'ordered_text',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<double> _column_143(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'weight',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_144(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'pieces',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_145(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'pricing',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'list\'',
+      defaultValue: const i1.CustomExpression('\'list\''),
+    );
+i1.GeneratedColumn<int> _column_146(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'price',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_147(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'fixed_amount',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<String> _column_148(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'state',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'open\'',
+      defaultValue: const i1.CustomExpression('\'open\''),
+    );
+i1.GeneratedColumn<String> _column_149(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'note',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_150(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'added',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 0 CHECK (added IN (0, 1))',
+      defaultValue: const i1.CustomExpression('0'),
     );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,

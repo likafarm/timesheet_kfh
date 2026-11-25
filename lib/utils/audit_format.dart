@@ -45,6 +45,7 @@ const auditKindLabels = <String, String>{
   'finance': 'Финансы',
   'prices': 'Прайс-лист',
   'customers': 'Покупатели',
+  'orders': 'Заказы',
   'access': 'Входы и пользователи',
 };
 
@@ -82,6 +83,9 @@ const _entity = {
   'products': 'товар',
   'product_prices': 'цена товара',
   'customers': 'покупатель',
+  'sale_batches': 'выдача',
+  'sale_orders': 'заказ',
+  'sale_order_lines': 'строка заказа',
 };
 
 /// Подписи полей по таблицам; поля не из списка не показываются.

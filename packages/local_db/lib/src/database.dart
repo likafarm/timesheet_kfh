@@ -39,7 +39,7 @@ String newUuid() => _uuid.v7();
 /// (`kfx_time_tracking_v2.db`), старая база v8 в него переносится
 /// конвертером, а не миграцией. Схема 2 (этап 8) — финансы, схема 3 —
 /// корректировки начисления за месяц, схема 4 — группы статей, схема 5 —
-/// платёжный календарь и БДДС, схема 6 (этап 11) — прайс-лист, схема 7 — покупатели. Снимки схем —
+/// платёжный календарь и БДДС, схема 6 (этап 11) — прайс-лист, схема 7 — покупатели и заказы. Снимки схем —
 /// `drift_schemas/`, помощник шагов — `schema_versions.dart`
 /// (`drift_dev schema steps`); миграции только добавляют.
 @DriftDatabase(
@@ -76,8 +76,11 @@ String newUuid() => _uuid.v7();
     ProductGroups,
     Products,
     ProductPrices,
-    // Покупатели (этап 11.3, схема 7)
+    // Покупатели и заказы (этап 11.3–11.4, схема 7)
     Customers,
+    SaleBatches,
+    SaleOrders,
+    SaleOrderLines,
   ],
   daos: [
     EmployeesDao,
@@ -195,9 +198,24 @@ class LocalDatabase extends _$LocalDatabase {
         await m.createIndex(schema.idxProductPricesKey);
       },
       from6To7: (m, schema) async {
-        // Покупатели: новая таблица, остальное не меняется.
-        await m.createTable(schema.customers);
-        await m.createIndex(schema.idxCustomersName);
+        // Покупатели и заказы: новые таблицы, остальное не меняется.
+        for (final table in [
+          schema.customers,
+          schema.saleBatches,
+          schema.saleOrders,
+          schema.saleOrderLines,
+        ]) {
+          await m.createTable(table);
+        }
+        for (final index in [
+          schema.idxCustomersName,
+          schema.idxSaleBatchesDay,
+          schema.idxSaleOrdersBatch,
+          schema.idxSaleOrdersCustomer,
+          schema.idxSaleOrderLinesOrder,
+        ]) {
+          await m.createIndex(index);
+        }
       },
     ),
     beforeOpen: (details) async {

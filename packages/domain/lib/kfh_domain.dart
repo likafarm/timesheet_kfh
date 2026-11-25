@@ -32,6 +32,7 @@ export 'src/production_calendar.dart';
 export 'src/rate_timeline.dart';
 export 'src/repositories.dart';
 export 'src/sales/customers.dart';
+export 'src/sales/orders.dart';
 export 'src/sales/price_import.dart';
 export 'src/sales/price_list.dart';
 export 'src/sync/period_guard.dart';

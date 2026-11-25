@@ -10,6 +10,9 @@ mixin _$SalesDaoMixin on DatabaseAccessor<LocalDatabase> {
   $EmployeesTable get employees => attachedDatabase.employees;
   $CounterpartiesTable get counterparties => attachedDatabase.counterparties;
   $CustomersTable get customers => attachedDatabase.customers;
+  $SaleBatchesTable get saleBatches => attachedDatabase.saleBatches;
+  $SaleOrdersTable get saleOrders => attachedDatabase.saleOrders;
+  $SaleOrderLinesTable get saleOrderLines => attachedDatabase.saleOrderLines;
   SalesDaoManager get managers => SalesDaoManager(this);
 }
 
@@ -31,4 +34,13 @@ class SalesDaoManager {
       );
   $$CustomersTableTableManager get customers =>
       $$CustomersTableTableManager(_db.attachedDatabase, _db.customers);
+  $$SaleBatchesTableTableManager get saleBatches =>
+      $$SaleBatchesTableTableManager(_db.attachedDatabase, _db.saleBatches);
+  $$SaleOrdersTableTableManager get saleOrders =>
+      $$SaleOrdersTableTableManager(_db.attachedDatabase, _db.saleOrders);
+  $$SaleOrderLinesTableTableManager get saleOrderLines =>
+      $$SaleOrderLinesTableTableManager(
+        _db.attachedDatabase,
+        _db.saleOrderLines,
+      );
 }

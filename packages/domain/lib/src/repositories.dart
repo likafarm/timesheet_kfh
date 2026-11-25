@@ -10,6 +10,7 @@ import 'finance/budget.dart';
 import 'finance/plans.dart';
 import 'rate_timeline.dart';
 import 'sales/customers.dart';
+import 'sales/orders.dart';
 import 'sales/price_list.dart';
 import 'models/company_settings.dart';
 import 'models/employee.dart';
@@ -223,4 +224,22 @@ abstract interface class CustomerRepository {
   Future<List<Customer>> customers();
   Future<void> saveCustomer(Customer customer);
   Future<void> deleteCustomer(String id);
+}
+
+/// Заказы и выдачи (этап 11.4). Удаление мягкое.
+abstract interface class OrderRepository {
+  Future<List<SaleBatch>> batches();
+  Future<void> saveBatch(SaleBatch batch);
+
+  Future<List<SaleOrder>> orders();
+
+  /// Строки всех заказов (и части наборов).
+  Future<List<SaleOrderLine>> lines();
+
+  /// Заказ со строками одной транзакцией: [lines] — все живые строки
+  /// заказа, строки, которых в списке нет, удаляются.
+  Future<void> saveOrder(SaleOrder order, List<SaleOrderLine> lines);
+
+  /// Удалить заказ вместе со строками.
+  Future<void> deleteOrder(String id);
 }

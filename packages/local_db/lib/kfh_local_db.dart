@@ -21,6 +21,7 @@ export 'src/database.dart';
 export 'src/raw_tables.dart';
 export 'src/repositories/drift_customer_repository.dart';
 export 'src/repositories/drift_finance_repository.dart';
+export 'src/repositories/drift_order_repository.dart';
 export 'src/repositories/drift_price_list_repository.dart';
 export 'src/repositories/drift_repositories.dart';
 export 'src/schema_info.dart';

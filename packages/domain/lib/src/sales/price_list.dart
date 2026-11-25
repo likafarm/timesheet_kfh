@@ -9,6 +9,7 @@
 
 import '../finance/money.dart';
 import 'customers.dart' show customerRowProblem;
+import 'orders.dart' show orderRowProblem;
 import '../utils/date_utils.dart';
 
 /// Таблицы прайс-листа: читают все роли, пишут админ и бухгалтер
@@ -145,7 +146,7 @@ String? salesRowProblem(
   'products' =>
     '${data['name'] ?? ''}'.trim().isEmpty ? 'Укажите название товара' : null,
   'customers' => customerRowProblem(data),
-  _ => null,
+  _ => orderRowProblem(table, data),
 };
 
 // ------------------------------------------------------------- цены и даты

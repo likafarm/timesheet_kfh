@@ -36,6 +36,9 @@ const recordKindLabels = <String, String>{
   'products': 'Товар',
   'product_prices': 'Цена товара',
   'customers': 'Покупатель',
+  'sale_batches': 'Выдача',
+  'sale_orders': 'Заказ',
+  'sale_order_lines': 'Строка заказа',
 };
 
 /// Что за запись: «Иванов Иван · 03.09.2026», «Иванов Иван · с 01.03.2025».

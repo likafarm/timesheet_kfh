@@ -678,6 +678,86 @@ void main() {
       expect(blank.single['code'], 'invalid');
     }, skip: mysqlSkip);
 
+    test('заказы (0.14.0): часть набора раньше набора, оператору — нет', () async {
+      final g = uuid(), set = uuid(), rib = uuid();
+      await push([
+        group(g, 'Говядина'),
+        product(set, g, 'Набор'),
+        product(rib, g, 'Ребро'),
+      ]);
+      final customer = uuid(), batch = uuid(), order = uuid();
+      final line = uuid(), part = uuid();
+      Map<String, Object?> orderLine(
+        String id, {
+        String? parent,
+        required String productId,
+        double? weight,
+        String pricing = 'list',
+        int? price,
+      }) => row('sale_order_lines', id, {
+        'order_uuid': order,
+        'parent_line_uuid': parent,
+        'product_uuid': productId,
+        'sort_order': 0,
+        'ordered_qty': parent == null ? 3.0 : null,
+        'ordered_unit': parent == null ? 'kg' : null,
+        'ordered_text': null,
+        'weight': weight,
+        'pieces': null,
+        'pricing': pricing,
+        'price': price,
+        'fixed_amount': null,
+        'state': 'open',
+        'note': null,
+        'added': false,
+      });
+      final results = await push([
+        orderLine(part, parent: line, productId: rib, weight: 0.7, price: 57500),
+        orderLine(line, productId: set, pricing: 'parts', price: 92000),
+        row('sale_orders', order, {
+          'batch_uuid': batch,
+          'customer_uuid': customer,
+          'number': 1,
+          'kind': 'sale',
+          'delivery': 'delivery',
+          'address': 'Калуга',
+          'comment': null,
+          'status': 'new',
+          'created_by': uuids[Role.sales],
+        }),
+        row('sale_batches', batch, {
+          'day': '2026-11-28',
+          'day_to': null,
+          'title': null,
+          'notes': null,
+        }),
+        row('customers', customer, {
+          'name': 'Ольга',
+          'phone': null,
+          'address': null,
+          'channel': null,
+          'contact': null,
+          'notes': null,
+          'counterparty_uuid': null,
+        }),
+      ], role: Role.sales);
+      expect(statuses(results), everyElement('applied'), reason: '$results');
+      final sales = await pull(tables: all, role: Role.sales);
+      final got = sales.firstWhere((c) => c['uuid'] == part);
+      expect(got['data']['parent_line_uuid'], line);
+      expect(got['data']['weight'], 0.7);
+      final operator = await pull(tables: all, role: Role.operator);
+      expect(
+        operator.any((c) => (c['table'] as String).startsWith('sale_')),
+        isFalse,
+      );
+      // Своя цена без цены — отказ.
+      final bad = await push([
+        orderLine(uuid(), productId: set, pricing: 'manual'),
+      ], role: Role.sales);
+      expect(bad.single['code'], 'invalid');
+    }, skip: mysqlSkip);
+
     test('вторая цена с того же дня и пустое название — отказ', () async {
       final g = uuid(), p = uuid();
       await push([

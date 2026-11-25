@@ -542,6 +542,77 @@ const syncTables = <SyncTable>[
     SyncColumn('notes', SyncType.text, nullable: true, maxLength: 2000),
     SyncColumn('counterparty_uuid', SyncType.uuid, nullable: true),
   ]),
+  // Заказы (этап 11.4, та же схема 7): выдачи, заказы, строки.
+  SyncTable(
+    'sale_batches',
+    unique: ['day'],
+    [
+      _legacyId,
+      SyncColumn('day', SyncType.date),
+      SyncColumn('day_to', SyncType.date, nullable: true),
+      SyncColumn('title', SyncType.text, nullable: true, maxLength: 255),
+      SyncColumn('notes', SyncType.text, nullable: true, maxLength: 2000),
+    ],
+  ),
+  SyncTable('sale_orders', [
+    _legacyId,
+    SyncColumn('batch_uuid', SyncType.uuid),
+    SyncColumn('customer_uuid', SyncType.uuid),
+    SyncColumn('number', SyncType.integer, min: 1, max: 100000),
+    SyncColumn('kind', SyncType.text, allowed: {'sale', 'free', 'own'}),
+    SyncColumn('delivery', SyncType.text, allowed: {'pickup', 'delivery'}),
+    SyncColumn('address', SyncType.text, nullable: true, maxLength: 500),
+    SyncColumn('comment', SyncType.text, nullable: true, maxLength: 2000),
+    SyncColumn(
+      'status',
+      SyncType.text,
+      allowed: {'new', 'assembled', 'issued', 'cancelled'},
+    ),
+    SyncColumn('created_by', SyncType.text, nullable: true, maxLength: 64),
+  ]),
+  SyncTable('sale_order_lines', [
+    _legacyId,
+    SyncColumn('order_uuid', SyncType.uuid),
+    SyncColumn('parent_line_uuid', SyncType.uuid, nullable: true),
+    SyncColumn('product_uuid', SyncType.uuid),
+    SyncColumn('sort_order', SyncType.integer),
+    SyncColumn('ordered_qty', SyncType.real, nullable: true, min: 0),
+    SyncColumn(
+      'ordered_unit',
+      SyncType.text,
+      nullable: true,
+      allowed: {'kg', 'pcs', 'rub'},
+    ),
+    SyncColumn('ordered_text', SyncType.text, nullable: true, maxLength: 500),
+    SyncColumn('weight', SyncType.real, nullable: true, min: 0, max: 10000),
+    SyncColumn('pieces', SyncType.integer, nullable: true, min: 0, max: 10000),
+    SyncColumn(
+      'pricing',
+      SyncType.text,
+      allowed: {'list', 'parts', 'manual', 'fixed'},
+    ),
+    SyncColumn(
+      'price',
+      SyncType.integer,
+      nullable: true,
+      min: 0,
+      max: maxProductPrice,
+    ),
+    SyncColumn(
+      'fixed_amount',
+      SyncType.integer,
+      nullable: true,
+      min: 0,
+      max: _maxKopecks,
+    ),
+    SyncColumn(
+      'state',
+      SyncType.text,
+      allowed: {'open', 'assembled', 'missing'},
+    ),
+    SyncColumn('note', SyncType.text, nullable: true, maxLength: 500),
+    SyncColumn('added', SyncType.boolean),
+  ]),
 ];
 
 /// Таблицы до финансов (схема 1). Программы до 1.18 спрашивают изменения

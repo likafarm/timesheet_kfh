@@ -54,7 +54,12 @@ Set<String> roleReadableTables(String role) => switch (role) {
 };
 
 /// Таблицы продаж, которые ведёт специалист по продажам (11.3–11.5).
-const salesRoleTables = {'customers'};
+const salesRoleTables = {
+  'customers',
+  'sale_batches',
+  'sale_orders',
+  'sale_order_lines',
+};
 
 /// Таблицы, которые роль может записать.
 Set<String> roleWritableTables(String role) => switch (role) {

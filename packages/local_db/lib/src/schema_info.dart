@@ -48,6 +48,9 @@ const salesTablesOrder = <String>[
   'products',
   'product_prices',
   'customers',
+  'sale_batches',
+  'sale_orders',
+  'sale_order_lines',
 ];
 
 /// Поля-даты таблиц продаж.
@@ -56,6 +59,9 @@ const salesTables = <String, List<String>>{
   'products': [],
   'product_prices': ['valid_from'],
   'customers': [],
+  'sale_batches': ['day', 'day_to'],
+  'sale_orders': [],
+  'sale_order_lines': [],
 };
 
 /// Таблицы с сотрудником в порядке вставки (сначала employees).
@@ -119,6 +125,7 @@ const uniqueKeys = <String, List<String>>{
   'product_groups': ['name'],
   'products': ['name'],
   'product_prices': ['product_uuid', 'valid_from'],
+  'sale_batches': ['day'],
 };
 
 final _identifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');

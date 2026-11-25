@@ -68,3 +68,76 @@ class Customers extends Table with SyncColumns {
     initiallyDeferred: true,
   )();
 }
+
+/// Выдача (этап 11.4, схема 7): день забоя / выдачи; `day_to` — диапазон
+/// для перенесённой истории.
+@DataClassName('SaleBatchRow')
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_sale_batches_day '
+  'ON sale_batches (day) WHERE deleted = 0',
+)
+class SaleBatches extends Table with SyncColumns {
+  TextColumn get day => text()();
+  TextColumn get dayTo => text().nullable()();
+  TextColumn get title => text().nullable()();
+  TextColumn get notes => text().nullable()();
+}
+
+/// Заказ (этап 11.4, схема 7). Номер в выдаче не уникален: два устройства
+/// без связи могли дать один номер — правится вручную, данные не теряются.
+@DataClassName('SaleOrderRow')
+@TableIndex(name: 'idx_sale_orders_batch', columns: {#batchUuid})
+@TableIndex(name: 'idx_sale_orders_customer', columns: {#customerUuid})
+class SaleOrders extends Table with SyncColumns {
+  TextColumn get batchUuid =>
+      text().references(SaleBatches, #uuid, initiallyDeferred: true)();
+  TextColumn get customerUuid =>
+      text().references(Customers, #uuid, initiallyDeferred: true)();
+  IntColumn get number => integer()();
+
+  /// `OrderKind.code`
+  TextColumn get kind => text().withDefault(const Constant('sale'))();
+
+  /// `Delivery.code`
+  TextColumn get delivery => text().withDefault(const Constant('pickup'))();
+  TextColumn get address => text().nullable()();
+  TextColumn get comment => text().nullable()();
+
+  /// `OrderStatus.code`
+  TextColumn get status => text().withDefault(const Constant('new'))();
+  TextColumn get createdBy => text().nullable()();
+}
+
+/// Строка заказа (этап 11.4, схема 7): «заказано» и «фактически» отдельно;
+/// часть набора — `parent_line_uuid`.
+@DataClassName('SaleOrderLineRow')
+@TableIndex(name: 'idx_sale_order_lines_order', columns: {#orderUuid})
+class SaleOrderLines extends Table with SyncColumns {
+  TextColumn get orderUuid =>
+      text().references(SaleOrders, #uuid, initiallyDeferred: true)();
+  TextColumn get parentLineUuid => text().nullable().references(
+    SaleOrderLines,
+    #uuid,
+    initiallyDeferred: true,
+  )();
+  TextColumn get productUuid =>
+      text().references(Products, #uuid, initiallyDeferred: true)();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  RealColumn get orderedQty => real().nullable()();
+
+  /// `OrderedUnit.code`
+  TextColumn get orderedUnit => text().nullable()();
+  TextColumn get orderedText => text().nullable()();
+  RealColumn get weight => real().nullable()();
+  IntColumn get pieces => integer().nullable()();
+
+  /// `LinePricing.code`
+  TextColumn get pricing => text().withDefault(const Constant('list'))();
+  IntColumn get price => integer().nullable()();
+  IntColumn get fixedAmount => integer().nullable()();
+
+  /// `LineState.code`
+  TextColumn get state => text().withDefault(const Constant('open'))();
+  TextColumn get note => text().nullable()();
+  BoolColumn get added => boolean().withDefault(const Constant(false))();
+}

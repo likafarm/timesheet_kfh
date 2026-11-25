@@ -35,6 +35,7 @@ final _uniqueKeys = <String, List<String>>{
   for (final t in syncTables)
     if (t.name.startsWith('fin_') ||
         t.name.startsWith('product') ||
+        t.name.startsWith('sale_') ||
         t.name == 'counterparties')
       if (t.unique.isNotEmpty) t.name: t.unique,
 };

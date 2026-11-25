@@ -7,9 +7,10 @@ void main() {
     expect(roleReadableTables(roleSales), {
       'company_settings',
       ...priceListTables,
-      'customers',
+      ...salesRoleTables,
     });
-    expect(roleWritableTables(roleSales), {'customers'});
+    expect(roleWritableTables(roleSales), salesRoleTables);
+    expect(salesRoleTables, containsAll(['customers', 'sale_orders']));
     // Телефоны и адреса покупателей оператору не выдаются.
     expect(roleReadableTables(roleOperator), isNot(contains('customers')));
     expect(isFullRole(roleSales), isFalse);
@@ -43,7 +44,7 @@ void main() {
     // После оператора продавцу — реквизиты и покупатели.
     expect(tablesToRefetch(from: roleOperator, to: roleSales), {
       'company_settings',
-      'customers',
+      ...salesRoleTables,
     });
   });
 }
