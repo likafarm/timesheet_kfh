@@ -221,7 +221,7 @@ Future<void> openBatch(BuildContext context, String batchId) {
   );
 }
 
-enum _Print { packages, tags, route }
+enum _Print { packages, labels, tags, route }
 
 class BatchScreen extends StatelessWidget {
   final String batchId;
@@ -280,6 +280,8 @@ class BatchScreen extends StatelessWidget {
       switch (what) {
         case _Print.packages:
           await PrintService.printBatchPackages(data);
+        case _Print.labels:
+          await PrintService.printBatchLabels(data);
         case _Print.tags:
           await PrintService.printBatchTags(data);
         case _Print.route:
@@ -325,7 +327,14 @@ class BatchScreen extends StatelessWidget {
                 value: _Print.packages,
                 child: Text('Список пакетов'),
               ),
-              PopupMenuItem(value: _Print.tags, child: Text('Бирки на пакеты')),
+              PopupMenuItem(
+                value: _Print.labels,
+                child: Text('Этикетки 50×70 (принтер этикеток)'),
+              ),
+              PopupMenuItem(
+                value: _Print.tags,
+                child: Text('Бирки на листе А4'),
+              ),
               PopupMenuItem(
                 value: _Print.route,
                 child: Text('Маршрут доставки'),

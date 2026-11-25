@@ -2,7 +2,8 @@
 //
 // Печать выдачи (этап 11.5): список пакетов (кому, что, фактический вес,
 // сумма; пометка, если итог сильно отличается от предварительного),
-// бирки на пакеты (8 на листе А4) и маршрут доставки (адрес, телефон,
+// этикетки 50 × 70 мм для принтера этикеток, бирки на листе А4 (8 на
+// лист) и маршрут доставки (адрес, телефон,
 // сумма, графа для отметки).
 
 import 'dart:typed_data';
@@ -457,6 +458,96 @@ Future<Uint8List> buildBatchTagsPdf(
   }
   if (tags.isEmpty) {
     doc.addPage(pw.Page(build: (_) => pw.Text('Пакетов нет')));
+  }
+  return doc.save();
+}
+
+/// Размер этикетки принтера этикеток (решение владельца 2026-11-25):
+/// 50 × 70 мм, прямая термопечать (Godex G530U через драйвер Windows).
+final labelFormat = PdfPageFormat(50 * PdfPageFormat.mm, 70 * PdfPageFormat.mm);
+
+/// Этикетки на пакеты для принтера этикеток: страница PDF = одна
+/// этикетка [labelFormat], та же раскладка, что у бирок ([batchTags]).
+/// Только чёрный, без рамок и серого: прямая термопечать.
+Future<Uint8List> buildBatchLabelsPdf(
+  BatchPrint data, {
+  required Future<ByteData> Function(String path) asset,
+}) async {
+  final doc = pw.Document(
+    title: '${data.title} — этикетки',
+    theme: await _theme(asset),
+  );
+  final tags = batchTags(data);
+  for (final t in tags) {
+    final o = t.order;
+    final l = t.line;
+    doc.addPage(
+      pw.Page(
+        pageFormat: labelFormat,
+        margin: const pw.EdgeInsets.all(3 * PdfPageFormat.mm),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: pw.Text(o.label, style: _bold.copyWith(fontSize: 20)),
+                ),
+                if (t.count > 1)
+                  pw.Text(
+                    '${t.index}/${t.count}',
+                    style: _bold.copyWith(fontSize: 11),
+                  ),
+              ],
+            ),
+            pw.Text(
+              o.customer,
+              style: _bold.copyWith(fontSize: 10),
+              maxLines: 2,
+            ),
+            if (o.phone != null)
+              pw.Text(o.phone!, style: const pw.TextStyle(fontSize: 8)),
+            pw.Text(
+              o.delivery ? 'Доставка: ${o.address ?? ''}' : 'Самовывоз',
+              style: const pw.TextStyle(fontSize: 7),
+              maxLines: 2,
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 3),
+              child: pw.Container(height: 0.8, color: PdfColors.black),
+            ),
+            pw.Text(
+              l.product,
+              style: _bold.copyWith(fontSize: 11),
+              maxLines: 3,
+            ),
+            if (l.composition.isNotEmpty)
+              pw.Text(
+                l.composition,
+                style: const pw.TextStyle(fontSize: 7.5),
+                maxLines: 5,
+              ),
+            pw.Spacer(),
+            pw.Text(l.fact, style: _bold.copyWith(fontSize: 16)),
+            if (o.kind != OrderKind.sale)
+              pw.Text(o.kind.title, style: _bold.copyWith(fontSize: 12))
+            else if (l.amount != null)
+              pw.Text(_rub(l.amount!), style: _bold.copyWith(fontSize: 14)),
+            if (t.count > 1 && o.kind == OrderKind.sale)
+              pw.Text(
+                'весь заказ: ${_dueText(o)}',
+                style: const pw.TextStyle(fontSize: 7),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  if (tags.isEmpty) {
+    doc.addPage(
+      pw.Page(pageFormat: labelFormat, build: (_) => pw.Text('Пакетов нет')),
+    );
   }
   return doc.save();
 }

@@ -392,6 +392,14 @@ class PrintService {
     '${data.title} — пакеты',
   );
 
+  /// Этикетки 50 × 70 мм — на принтер этикеток (драйвер Windows): каждая
+  /// страница — одна этикетка.
+  static Future<void> printBatchLabels(BatchPrint data) => _outputBytes(
+    buildBatchLabelsPdf(data, asset: rootBundle.load),
+    '${data.title} — этикетки',
+    format: labelFormat,
+  );
+
   static Future<void> printBatchTags(BatchPrint data) => _outputBytes(
     buildBatchTagsPdf(data, asset: rootBundle.load),
     '${data.title} — бирки',
@@ -402,13 +410,21 @@ class PrintService {
     '${data.title} — доставка',
   );
 
-  static Future<void> _outputBytes(Future<Uint8List> build, String name) async {
+  static Future<void> _outputBytes(
+    Future<Uint8List> build,
+    String name, {
+    PdfPageFormat format = PdfPageFormat.a4,
+  }) async {
     final bytes = await build;
     if (isAndroidApp) {
       await deliverFile('$name.pdf', bytes, pdfMimeType);
       return;
     }
-    await Printing.layoutPdf(onLayout: (_) async => bytes, name: name);
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: name,
+      format: format,
+    );
   }
 
   /// Печать; на телефоне (6.9) — файл PDF в «Поделиться».

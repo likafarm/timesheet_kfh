@@ -230,6 +230,7 @@ void main() {
       for (final (name, build) in [
         ('пакеты', buildBatchPackagesPdf),
         ('бирки', buildBatchTagsPdf),
+        ('этикетки', buildBatchLabelsPdf),
         ('маршрут', buildBatchRoutePdf),
       ]) {
         final bytes = await build(data, asset: asset);
