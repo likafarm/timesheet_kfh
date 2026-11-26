@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:kfh_domain/kfh_domain.dart';
 
 import '../database.dart';
+import 'drift_customer_repository.dart';
+import 'drift_price_list_repository.dart';
 
 class DriftOrderRepository implements OrderRepository {
   final LocalDatabase _db;
@@ -56,6 +58,7 @@ class DriftOrderRepository implements OrderRepository {
         comment: r.comment,
         status: OrderStatus.fromCode(r.status),
         createdBy: r.createdBy,
+        historyRow: r.legacyId,
       ),
   ];
 
@@ -126,6 +129,7 @@ class DriftOrderRepository implements OrderRepository {
             comment: Value(_text(o.comment)),
             status: Value(o.status.code),
             createdBy: Value(o.createdBy),
+            legacyId: Value(o.historyRow),
             deleted: const Value(false),
             updatedAt: Value(now),
             editedBy: Value(editor),
@@ -145,6 +149,27 @@ class DriftOrderRepository implements OrderRepository {
           await _saveLine(l);
         }
       });
+
+  @override
+  Future<void> saveHistory(HistoryImportPlan plan) => _db.transaction(() async {
+    final prices = DriftPriceListRepository(_db);
+    final customers = DriftCustomerRepository(_db);
+    for (final g in plan.newGroups) {
+      await prices.saveGroup(g);
+    }
+    for (final p in plan.newProducts) {
+      await prices.saveProduct(p);
+    }
+    for (final c in [...plan.newCustomers, ...plan.updatedCustomers]) {
+      await customers.saveCustomer(c);
+    }
+    for (final b in plan.newBatches) {
+      await saveBatch(b);
+    }
+    for (final (order, lines) in plan.orders) {
+      await saveOrder(order, lines);
+    }
+  });
 
   @override
   Future<void> deleteOrder(String id) => _db.transaction(() async {

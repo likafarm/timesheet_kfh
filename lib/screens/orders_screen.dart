@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
 import '../providers/orders_provider.dart';
+import 'history_import_screen.dart';
 import 'order_editor_screen.dart';
 
 final _date = DateFormat('dd.MM.yyyy, EEE', 'ru');
@@ -76,7 +77,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     .where((o) => o.status != OrderStatus.cancelled)
                     .fold<int>(0, (s, o) => s + p.totals(o.id).due);
           return Scaffold(
-            appBar: AppBar(title: const Text('Заказы')),
+            appBar: AppBar(
+              title: const Text('Заказы'),
+              actions: [
+                if (p.canImportHistory && p.loaded)
+                  IconButton(
+                    tooltip: 'Перенести историю из Excel',
+                    icon: const Icon(Icons.history_edu),
+                    onPressed: () => openHistoryImport(context),
+                  ),
+              ],
+            ),
             floatingActionButton: p.canEdit && p.loaded
                 ? FloatingActionButton.extended(
                     // Пункты меню живут рядом (IndexedStack) — без общего героя.
@@ -303,7 +314,7 @@ class _OrderTile extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: switch (p.paymentOf(order).state) {
                 PaymentState.unpaid || PaymentState.partial
-                    when order.status != OrderStatus.accepted =>
+                    when p.owes(order) =>
                   theme.colorScheme.error,
                 _ => null,
               },
@@ -321,5 +332,6 @@ String? _payText(OrderPayment pay) => switch (pay.state) {
   PaymentState.unpaid => 'не оплачен',
   PaymentState.partial => 'долг ${rub(pay.left)}',
   PaymentState.paid => 'оплачен',
+  PaymentState.history => 'оплачен до программы',
   PaymentState.overpaid => 'переплата ${rub(-pay.left)}',
 };

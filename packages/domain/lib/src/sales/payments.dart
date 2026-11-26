@@ -51,6 +51,10 @@ Map<String, List<FinOperation>> paymentsByOrder(Iterable<FinOperation> ops) {
 /// Оплата заказа.
 enum PaymentState {
   none('Без оплаты'),
+
+  /// Перенесён из Excel (11.7): деньги получены до программы, их нет в
+  /// финансах — не долг.
+  history('Оплачен до программы'),
   unpaid('Не оплачен'),
   partial('Оплачен частично'),
   paid('Оплачен'),
@@ -97,7 +101,9 @@ OrderPayment orderPayment(
       order.kind == OrderKind.sale && order.status != OrderStatus.cancelled;
   final due = charged ? totals.due : 0;
   final PaymentState state;
-  if (!charged) {
+  if (order.fromHistory && paid == 0) {
+    state = charged ? PaymentState.history : PaymentState.none;
+  } else if (!charged) {
     state = paid == 0 ? PaymentState.none : PaymentState.overpaid;
   } else if (paid <= 0) {
     state = PaymentState.unpaid;
@@ -139,6 +145,9 @@ CustomerBalance customerBalance(
     for (final op in payments[o.id] ?? const <FinOperation>[]) {
       paid += paymentAmount(op);
     }
+    // Перенесённый из Excel заказ оплачен до программы — если по нему не
+    // вносили денег здесь.
+    if (o.fromHistory && (payments[o.id] ?? const []).isEmpty) continue;
     if (o.kind == OrderKind.sale && o.status == OrderStatus.issued) {
       charged += totalsOf(o.id).due;
     }

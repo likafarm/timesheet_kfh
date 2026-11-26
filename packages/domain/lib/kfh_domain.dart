@@ -33,6 +33,7 @@ export 'src/rate_timeline.dart';
 export 'src/repositories.dart';
 export 'src/sales/batches.dart';
 export 'src/sales/customers.dart';
+export 'src/sales/history_import.dart';
 export 'src/sales/orders.dart';
 export 'src/sales/payments.dart';
 export 'src/sales/price_import.dart';

@@ -267,6 +267,72 @@ void main() {
     expect(await repo.payroll.forMonth(2026, 8), hasLength(1));
   });
 
+  test(
+    'перенос истории (11.7): одной транзакцией, строка Excel сохраняется',
+    () async {
+      final plan = HistoryImportPlan(
+        newGroups: const [ProductGroup(id: 'g', name: historyGroupName)],
+        newProducts: const [
+          Product(
+            id: 'p',
+            groupId: 'g',
+            name: historyOtherProduct,
+            hidden: true,
+          ),
+        ],
+        newCustomers: const [Customer(id: 'c', name: 'Ольга')],
+        updatedCustomers: const [],
+        newBatches: [
+          SaleBatch(
+            id: 'b',
+            day: DateTime(2025, 5, 3),
+            notes: historyBatchNote,
+          ),
+        ],
+        orders: [
+          (
+            const SaleOrder(
+              id: 'o',
+              batchId: 'b',
+              customerId: 'c',
+              number: 1,
+              status: OrderStatus.issued,
+              historyRow: 7,
+            ),
+            const [
+              SaleOrderLine(
+                id: 'l',
+                orderId: 'o',
+                productId: 'p',
+                orderedText: 'гречневая каша',
+                state: LineState.assembled,
+                note: 'вес не записан',
+              ),
+            ],
+          ),
+        ],
+        alreadyImported: 0,
+        skippedRows: const {},
+        notPaidRows: 0,
+        texts: const [],
+        customers: const [],
+      );
+      await repo.orders.saveHistory(plan);
+      final order = (await repo.orders.orders()).single;
+      expect(order.historyRow, 7);
+      expect(order.fromHistory, isTrue);
+      expect((await repo.orders.lines()).single.note, 'вес не записан');
+      expect((await repo.priceList.products()).single.hidden, isTrue);
+      expect((await repo.customers.customers()).single.name, 'Ольга');
+      // Правка заказа номер строки не теряет.
+      await repo.orders.saveOrder(
+        order.copyWith(comment: () => 'забрал'),
+        await repo.orders.lines(),
+      );
+      expect((await repo.orders.orders()).single.historyRow, 7);
+    },
+  );
+
   test('настройки хозяйства: чтение и сохранение', () async {
     final s = await repo.settings.get();
     expect(s.companyName, 'КФХ');

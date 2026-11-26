@@ -84,6 +84,8 @@ class OrderPaymentsView extends StatelessWidget {
               PaymentState.overpaid =>
                 'Переплата ${rub(-pay.left)} — останется авансом покупателя',
               PaymentState.none => '',
+              PaymentState.history =>
+                'Заказ перенесён из Excel — оплачен до программы',
             },
             style: theme.textTheme.titleSmall?.copyWith(
               color: switch (pay.state) {

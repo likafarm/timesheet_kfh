@@ -734,7 +734,7 @@ class _SummaryView extends StatelessWidget {
     for (final o in p.liveOrdersOf(batchId)) {
       final pay = p.paymentOf(o);
       paid += pay.paid;
-      if (o.status != OrderStatus.accepted && pay.left > 0) debt += pay.left;
+      if (p.owes(o)) debt += pay.left;
     }
     Widget row(String label, String value, {Color? color}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

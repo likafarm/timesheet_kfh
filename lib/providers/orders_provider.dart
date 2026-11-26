@@ -131,13 +131,60 @@ class OrdersProvider extends ChangeNotifier {
         if (o.kind == OrderKind.sale &&
             (o.status == OrderStatus.issued ||
                 o.status == OrderStatus.assembled) &&
-            paymentOf(o).left > 0)
+            _owes(paymentOf(o)))
           o,
     ]..sort((a, b) {
       final da = day[a.batchId], db = day[b.batchId];
       final c = da == null || db == null ? 0 : da.compareTo(db);
       return c != 0 ? c : a.number.compareTo(b.number);
     });
+  }
+
+  static bool _owes(OrderPayment p) =>
+      (p.state == PaymentState.unpaid || p.state == PaymentState.partial) &&
+      p.left > 0;
+
+  /// Заказ собран или выдан и не доплачен (перенесённые из Excel — нет).
+  bool owes(SaleOrder o) =>
+      o.status != OrderStatus.accepted &&
+      o.status != OrderStatus.cancelled &&
+      _owes(paymentOf(o));
+
+  // ----------------------------------------------- перенос истории (11.7)
+
+  /// Переносит историю только бухгалтер или админ.
+  bool get canImportHistory => _app.fullMode;
+
+  /// План переноса [source] поверх уже заведённых данных.
+  HistoryImportPlan planHistory(
+    HistorySource source, {
+    Map<String, String> overrides = const {},
+  }) => planHistoryImport(
+    source,
+    groups: _groups,
+    products: _products.values.toList(),
+    prices: _prices,
+    customers: _customers.values.toList(),
+    batches: _batches,
+    orders: _orders,
+    overrides: overrides,
+    today: DateTime.now(),
+    newId: newId,
+  );
+
+  /// Записать перенос одной транзакцией.
+  Future<bool> importHistory(HistoryImportPlan plan) async {
+    _lastProblem = null;
+    if (!canImportHistory) {
+      return _fail('Историю переносят бухгалтер и администратор');
+    }
+    try {
+      await _repo.saveHistory(plan);
+    } catch (e) {
+      return _fail('Не перенесено: $e');
+    }
+    await load();
+    return true;
   }
 
   /// Заказы покупателя, новые сначала.

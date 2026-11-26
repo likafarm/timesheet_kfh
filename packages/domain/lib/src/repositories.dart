@@ -10,6 +10,7 @@ import 'finance/budget.dart';
 import 'finance/plans.dart';
 import 'rate_timeline.dart';
 import 'sales/customers.dart';
+import 'sales/history_import.dart';
 import 'sales/orders.dart';
 import 'sales/price_list.dart';
 import 'models/company_settings.dart';
@@ -242,4 +243,8 @@ abstract interface class OrderRepository {
 
   /// Удалить заказ вместе со строками.
   Future<void> deleteOrder(String id);
+
+  /// Перенос истории из Excel (11.7): группы и товары, покупатели,
+  /// выдачи, заказы со строками — одной транзакцией.
+  Future<void> saveHistory(HistoryImportPlan plan);
 }

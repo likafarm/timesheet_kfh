@@ -101,6 +101,12 @@ class SaleOrder {
   /// uuid пользователя сервера, принявшего заказ.
   final String? createdBy;
 
+  /// Заказ перенесён из «Заказы мяса.xlsx» (11.7): номер строки Excel (лист
+  /// «Мясо безвозмездно» — с [historyFreeRowBase]). Хранится в `legacy_id`;
+  /// по нему повторная загрузка не задваивает заказы, а оплата такого
+  /// заказа — до программы (не долг).
+  final int? historyRow;
+
   const SaleOrder({
     required this.id,
     required this.batchId,
@@ -112,7 +118,11 @@ class SaleOrder {
     this.comment,
     this.status = OrderStatus.accepted,
     this.createdBy,
+    this.historyRow,
   });
+
+  /// Перенесён из Excel (11.7).
+  bool get fromHistory => historyRow != null;
 
   SaleOrder copyWith({
     String? batchId,
@@ -134,6 +144,7 @@ class SaleOrder {
     comment: comment == null ? this.comment : comment(),
     status: status ?? this.status,
     createdBy: createdBy,
+    historyRow: historyRow,
   );
 }
 

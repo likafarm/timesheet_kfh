@@ -98,9 +98,16 @@ List<List<String?>> readXlsx(Uint8List bytes, {int sheet = 0}) {
       final type = RegExp(r'\bt="(\w+)"').firstMatch(attrs)?[1];
       final body = c[2] ?? '';
       final v = RegExp(r'<v>(.*?)</v>', dotAll: true).firstMatch(body)?[1];
+      // Формула без сохранённого значения (файл записан не Excel) — её
+      // текст со знаком «=»: «=1.2+0.8» разбирает загрузка истории (11.7).
+      final f = RegExp(
+        r'<f\b[^>]*>(.*?)</f>',
+        dotAll: true,
+      ).firstMatch(body)?[1];
       final String? value = switch (type) {
         's' => v == null ? null : shared.elementAtOrNull(int.parse(v)),
         'inlineStr' => _runs(body),
+        _ when v == null && f != null => '=${_unescape(f)}',
         _ => v == null ? null : _unescape(v),
       };
       cells.add(value);
@@ -168,4 +175,18 @@ ImportedPriceList readPriceList(Uint8List bytes) {
     }
   }
   throw last ?? const PriceImportException('В файле не нашлось прайс-листа');
+}
+
+/// История заказов из «Заказы мяса.xlsx» (11.7): все листы книги —
+/// лист заказов и «Мясо безвозмездно» находятся по заголовкам.
+HistorySource readOrderHistory(Uint8List bytes) {
+  final count = xlsxSheetCount(bytes);
+  if (count == 0) throw const XlsxReadException('В файле нет листов');
+  try {
+    return parseHistoryWorkbook([
+      for (var s = 0; s < count; s++) readXlsx(bytes, sheet: s),
+    ]);
+  } on HistoryFormatException catch (e) {
+    throw XlsxReadException(e.message);
+  }
 }
