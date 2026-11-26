@@ -138,6 +138,7 @@ void main() {
       await tester.pump();
     }
     expect(find.byTooltip('Печать / PDF'), findsOneWidget);
+    expect(find.byTooltip('Выгрузить в Excel'), findsOneWidget);
     expect(find.text('Товары и порядок'), findsNothing);
     expect(find.byTooltip('Загрузить из Excel'), findsNothing);
     expect(tester.takeException(), isNull);
