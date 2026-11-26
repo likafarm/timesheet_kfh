@@ -59,3 +59,180 @@ task.korovatech.ru {
 	encode gzip
 	reverse_proxy 172.18.0.1:8787
 }
+
+# ─── Сайты других проектов на этом же VPS ───────────────────────────────
+# Caddy один на сервер, поэтому их блоки живут здесь. Выкладка kfh заменяет
+# этот файл целиком: блок, которого нет в репозитории, пропадёт при следующем
+# перезапуске Caddy (так было 24.11.2026). Правки на сервере — переносить сюда.
+# Скрипт выкладки «Седьмого чувства» (7chuvstv/deploy/setup.sh) ищет в блоке
+# 7chuvstvo.korovatech.ru маршруты /api/comments и /api/plan — не переименовывать.
+# Контейнеры chuvstvo-api, konogon-api, plan-api, suveniry-app, vitrina-api —
+# вне compose-проекта kfh, но в его сети kfh_default.
+
+# Опросник для сайта-витрины ЗООСувениры: статическая страница из /opt/kfh/web/oprosnik.
+suveniry.korovatech.ru {
+	root * /srv/web/oprosnik
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		X-Content-Type-Options "nosniff"
+		Cache-Control "no-cache"
+		-Server
+	}
+	file_server
+}
+
+# Сайт-визитка фермы «Лика»: статика из /opt/kfh/web/korovatech.
+# Когда korovatech.ru вернётся — добавить сюда korovatech.ru и редирект с www.
+ferma.korovatech.ru {
+	root * /srv/web/korovatech
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	@img path /img/*
+	header @img Cache-Control "public, max-age=604800"
+	@pages path / /*.html
+	header @pages Cache-Control "no-cache"
+	file_server
+}
+
+# Опросники команды «Седьмое чувство» (лидерская программа, 11 поток): статика из /opt/kfh/web/7chuvstvo,
+# ответы — контейнер chuvstvo-api (/opt/chuvstvo), доступ по личным ссылкам. Не индексируется.
+7chuvstvo.korovatech.ru {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	@api_small {
+		path /api/*
+		not path /api/plan*
+	}
+	request_body @api_small {
+		max_size 64KB
+	}
+	handle_errors 404 {
+		root * /srv/web/7chuvstvo
+		rewrite * /404.html
+		file_server
+	}
+	handle /api/plan* {
+		request_body {
+			max_size 25MB
+		}
+		reverse_proxy plan-api:8080
+	}
+	handle /api/comments* {
+		reverse_proxy konogon-api:8080
+	}
+	handle /api/* {
+		reverse_proxy chuvstvo-api:8080
+	}
+	handle {
+		root * /srv/web/7chuvstvo
+		header Cache-Control "no-cache"
+		file_server
+	}
+}
+
+# Магазин ЗООСУВЕНИРЫ (suveniry-app, /opt/suveniry). /u/* — фото из заявок (vitrina-api).
+zoosuveniry.ru {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 120MB
+	}
+	handle /u/* {
+		reverse_proxy vitrina-api:8080
+	}
+	handle {
+		reverse_proxy suveniry-app:3000
+	}
+}
+
+www.zoosuveniry.ru {
+	redir https://zoosuveniry.ru{uri} permanent
+}
+
+# Лендинг ЗООСУВЕНИРЫ «Наклейки»: главная страница — из магазина (suveniry-app: товары и тексты из админки),
+# шрифты, фото первого экрана и документы — статика /opt/kfh/web/landing-nakleyki, заявки и фото — vitrina-api.
+nakleyki.zoosuveniry.ru {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	request_body /api/* {
+		max_size 35MB
+	}
+	handle /api/lead {
+		reverse_proxy vitrina-api:8080
+	}
+	handle /u/* {
+		reverse_proxy vitrina-api:8080
+	}
+	handle /index.html {
+		redir * / 301
+	}
+	@static path /img/* /fonts/* /fonts.css /favicon* /apple-touch-icon.png /*.html
+	handle @static {
+		root * /srv/web/landing-nakleyki
+		@cache path /img/* /fonts/* /fonts.css /favicon* /apple-touch-icon.png
+		header @cache Cache-Control "public, max-age=604800"
+		# Документы те же, что на zoosuveniry.ru: в поиске не нужны.
+		header /*.html X-Robots-Tag "noindex"
+		file_server
+	}
+	handle {
+		reverse_proxy suveniry-app:3000
+	}
+}
+
+# Лендинг ЗООСУВЕНИРЫ «Значки и магниты»: главная страница — из магазина (suveniry-app: товары и тексты из админки),
+# шрифты, фото первого экрана и документы — статика /opt/kfh/web/landing-znachki, заявки и фото — vitrina-api.
+znachki.zoosuveniry.ru {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	request_body /api/* {
+		max_size 35MB
+	}
+	handle /api/lead {
+		reverse_proxy vitrina-api:8080
+	}
+	handle /u/* {
+		reverse_proxy vitrina-api:8080
+	}
+	handle /index.html {
+		redir * / 301
+	}
+	@static path /img/* /fonts/* /fonts.css /favicon* /apple-touch-icon.png /*.html
+	handle @static {
+		root * /srv/web/landing-znachki
+		@cache path /img/* /fonts/* /fonts.css /favicon* /apple-touch-icon.png
+		header @cache Cache-Control "public, max-age=604800"
+		# Документы те же, что на zoosuveniry.ru: в поиске не нужны.
+		header /*.html X-Robots-Tag "noindex"
+		file_server
+	}
+	handle {
+		reverse_proxy suveniry-app:3000
+	}
+}
