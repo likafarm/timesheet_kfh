@@ -45,9 +45,10 @@ void main() {
   }
 
   /// Дождаться [finder]: база, изолят и расшифровка идут вне поддельного
-  /// времени теста.
+  /// времени теста. До 20 с: на машине CI чтение старой копии (перенос
+  /// формата в изоляте) бывает дольше 5 с.
   Future<void> waitFor(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 100 && finder.evaluate().isEmpty; i++) {
+    for (var i = 0; i < 400 && finder.evaluate().isEmpty; i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
@@ -196,7 +197,8 @@ void main() {
       matching: find.byType(ListTile),
     );
     await tester.tap(find.descendant(of: tile, matching: find.text('Открыть')));
-    await waitFor(tester, find.byType(BackupViewScreen));
+    await waitFor(tester, find.textContaining('Копия старого формата'));
+    expect(find.byType(BackupViewScreen), findsOneWidget);
     expect(find.textContaining('Копия старого формата'), findsOneWidget);
     expect(find.text('Что изменилось с тех пор'), findsNothing);
     expect(countOf(tester, 'Сотрудники'), 1);
