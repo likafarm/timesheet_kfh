@@ -155,6 +155,7 @@ void main() {
       ),
     );
     await settle(tester);
+    expect(find.text('Покупатель'), findsNothing, reason: 'телефон — карточки');
     await tester.tap(find.text('Заказ'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'карточка заказа');
@@ -299,6 +300,9 @@ void main() {
     await settle(tester);
     // Открыта ближайшая выдача — только её заказ.
     expect(find.textContaining('Нина'), findsWidgets);
+    // Компьютер — таблица: заголовок колонок над строками.
+    expect(find.text('Покупатель'), findsOneWidget);
+    expect(find.text('Состояние'), findsOneWidget);
     expect(find.textContaining('Ольга'), findsNothing);
     await tester.tap(
       find.widgetWithText(ChoiceChip, OrderStatus.accepted.title),

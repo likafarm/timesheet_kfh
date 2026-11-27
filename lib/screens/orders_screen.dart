@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
 import '../providers/orders_provider.dart';
+import '../theme/app_theme.dart';
 import 'history_import_screen.dart';
 import 'order_editor_screen.dart';
 
@@ -52,6 +53,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
           final batch =
               (_batchId == null ? null : p.batch(_batchId!)) ?? p.nearestBatch;
           final q = _query.text.trim();
+          final wide =
+              MediaQuery.sizeOf(context).width >= AppTheme.compactWidth;
           // «Принят» — все невыданные заказы, по всем выдачам (в том числе
           // прошедшим): иначе принятый, но забытый заказ не найти.
           final allBatches = _debts || _status == OrderStatus.accepted;
@@ -102,7 +105,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 : Align(
                     alignment: Alignment.topLeft,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 860),
+                      constraints: BoxConstraints(maxWidth: wide ? 1400 : 860),
                       child: ListView(
                         padding: const EdgeInsets.only(bottom: 88),
                         children: [
@@ -213,7 +216,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 (i == 0 ||
                                     list[i].batchId != list[i - 1].batchId))
                               _BatchHeader(p.batch(list[i].batchId)),
-                            _OrderTile(list[i]),
+                            // На компьютере — таблица (заголовок над первой
+                            // строкой и после каждой выдачи), на телефоне —
+                            // карточки.
+                            if (wide &&
+                                (i == 0 ||
+                                    (allBatches &&
+                                        list[i].batchId !=
+                                            list[i - 1].batchId)))
+                              const _OrderTableHeader(),
+                            if (wide)
+                              _OrderRow(list[i])
+                            else
+                              _OrderTile(list[i]),
                           ],
                         ],
                       ),
@@ -321,6 +336,168 @@ class _OrderTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------- таблица (компьютер)
+
+const _colNumber = 72.0;
+const _colWeight = 80.0;
+const _colSum = 110.0;
+const _colPay = 170.0;
+const _colStatus = 90.0;
+
+class _OrderTableHeader extends StatelessWidget {
+  const _OrderTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold);
+    Widget cell(String t, {double? width, int flex = 0, bool right = false}) {
+      final text = Text(
+        t,
+        style: style,
+        textAlign: right ? TextAlign.right : TextAlign.left,
+      );
+      return width != null
+          ? SizedBox(width: width, child: text)
+          : Expanded(flex: flex, child: text);
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+        ),
+      ),
+      child: Row(
+        children: [
+          cell('№', width: _colNumber),
+          cell('Покупатель', flex: 3),
+          cell('Заказ', flex: 6),
+          cell('Вес', width: _colWeight, right: true),
+          cell('Сумма', width: _colSum, right: true),
+          const SizedBox(width: 16),
+          cell('Оплата', width: _colPay),
+          cell('Состояние', width: _colStatus),
+        ],
+      ),
+    );
+  }
+}
+
+/// Заказ строкой таблицы: нажатие — карточка заказа.
+class _OrderRow extends StatelessWidget {
+  final SaleOrder order;
+  const _OrderRow(this.order);
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<OrdersProvider>();
+    final theme = Theme.of(context);
+    final customer = p.customers[order.customerId];
+    final totals = p.totals(order.id);
+    final pay = p.paymentOf(order);
+    final (:top, :parts) = orderLines(p.linesOf(order.id), order.id);
+    final cancelled = order.status == OrderStatus.cancelled;
+    final muted = cancelled ? theme.colorScheme.onSurfaceVariant : null;
+    final text = theme.textTheme.bodyMedium?.copyWith(
+      color: muted,
+      decoration: cancelled ? TextDecoration.lineThrough : null,
+    );
+    final lines = [
+      for (final l in top)
+        [
+          p.products[l.productId]?.name ?? '?',
+          orderedText(l),
+          if (factText(l, p.products[l.productId], parts[l.id] ?? const [])
+              case final f when f.isNotEmpty)
+            '› $f',
+        ].where((s) => s.isNotEmpty).join(' '),
+    ];
+    final owes = p.owes(order);
+    return InkWell(
+      onTap: () => openOrderEditor(context, order: order),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: _colNumber,
+              child: Text(
+                p.label(order),
+                style: text?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                [
+                  customer?.name ?? 'Покупатель удалён',
+                  if (order.delivery == Delivery.delivery) '· доставка',
+                  if (order.kind != OrderKind.sale)
+                    '· ${order.kind.title.toLowerCase()}',
+                ].join(' '),
+                style: text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Expanded(
+              flex: 6,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  lines.join('; '),
+                  style: text,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _colWeight,
+              child: Text(
+                totals.weight > 0 ? '${fmtQty(totals.weight)} кг' : '',
+                style: text,
+                textAlign: TextAlign.right,
+              ),
+            ),
+            SizedBox(
+              width: _colSum,
+              child: Text(
+                '${totals.complete ? '' : '≈ '}${rub(totals.due)}',
+                style: text?.copyWith(fontWeight: FontWeight.w600),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: _colPay,
+              child: Text(
+                _payText(pay) ?? '—',
+                style: text?.copyWith(
+                  color: owes ? theme.colorScheme.error : muted,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _colStatus,
+              child: Text(order.status.title, style: text),
+            ),
+          ],
+        ),
       ),
     );
   }
