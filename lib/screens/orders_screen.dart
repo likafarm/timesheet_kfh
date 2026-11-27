@@ -295,7 +295,7 @@ class _OrderTile extends StatelessWidget {
               orderedText(l),
               if (factText(l, p.products[l.productId], parts[l.id] ?? const [])
                   case final f when f.isNotEmpty)
-                '→ $f',
+                '› $f',
             ].where((s) => s.isNotEmpty).join(' '),
         ].join('; '),
         maxLines: 3,

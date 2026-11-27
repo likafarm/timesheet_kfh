@@ -438,7 +438,7 @@ class _ChangeTile extends StatelessWidget {
           for (final f in fields)
             Text(
               change.kind == RecordChangeKind.changed
-                  ? '${f.label}: в копии ${f.before ?? '—'} → сейчас ${f.after ?? '—'}'
+                  ? '${f.label}: в копии ${f.before ?? '—'} › сейчас ${f.after ?? '—'}'
                   : '${f.label}: ${f.after ?? f.before ?? '—'}',
               style: TextStyle(color: muted),
             ),

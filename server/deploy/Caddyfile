@@ -38,6 +38,12 @@
 		header Cross-Origin-Embedder-Policy require-corp
 		@wasm path *.wasm
 		header @wasm Content-Type application/wasm
+		# Запасных шрифтов у нас нет (с fonts.gstatic.com не берём): на
+		# знак вне Roboto движок Flutter просит шрифт из fonts/fallback/ и
+		# на 404 повторяет запрос без конца — браузер зависает. Отдаём
+		# Roboto: запрос удаётся, знак без шрифта — квадратик, повторов нет.
+		@fallback path /app/fonts/fallback/*
+		rewrite @fallback /app/assets/assets/fonts/Roboto-Regular.ttf
 		file_server
 	}
 

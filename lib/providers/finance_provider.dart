@@ -381,7 +381,7 @@ class FinanceProvider extends ChangeNotifier {
   String whatLabel(FinOperation op) => switch (op.type) {
     OperationType.income ||
     OperationType.expense => categoryName(op.categoryId),
-    OperationType.transfer => '→ ${accountName(op.toAccountId)}',
+    OperationType.transfer => '› ${accountName(op.toAccountId)}',
     OperationType.debt => '${op.debtMove?.title ?? ''}: ${debtName(op.debtId)}',
   };
 

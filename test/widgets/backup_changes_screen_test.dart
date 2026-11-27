@@ -121,7 +121,7 @@ void main() {
   testWidgets('отличия и отбор по сотруднику и месяцу', (tester) async {
     await pumpScreen(tester);
     expect(find.text('Отличий: 6'), findsOneWidget);
-    expect(find.text('Место: в копии Поле → сейчас База'), findsNWidgets(2));
+    expect(find.text('Место: в копии Поле › сейчас База'), findsNWidgets(2));
     expect(find.text('Табель: Иванов Иван · 03.09.2026'), findsOneWidget);
     expect(find.text('Удалено после копии'), findsOneWidget);
     expect(find.text('Добавлено после копии'), findsNWidgets(3));
