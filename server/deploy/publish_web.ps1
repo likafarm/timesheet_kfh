@@ -34,6 +34,9 @@ if ($Min -eq "") { $Min = $version }
 $web = Join-Path $root 'build\web'
 if (-not $SkipBuild) {
     Write-Host "Sborka veb-versii $version..."
+    # Flutter ne obnovlyaet spisok veb-plaginov v keshe sborki: s 28.09.2026
+    # v vebe ne bylo vybora fayla i "Podelitsya". Udalyaem - sozdastsya zanovo.
+    Get-ChildItem (Join-Path $root '.dart_tool\flutter_build') -Filter web_plugin_registrant.dart -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
     $ErrorActionPreference = $nativeErrors
     & flutter build web --release --base-href /app/ --no-web-resources-cdn --no-source-maps | Select-Object -Last 3
     $code = $LASTEXITCODE
@@ -44,6 +47,10 @@ $built = (Get-Content (Join-Path $web 'version.json') -Raw | ConvertFrom-Json).v
 if ($built -ne $version) { throw "v build\web versiya $built, a v pubspec.yaml $version - soberite zanovo" }
 if ((Get-Content (Join-Path $web 'index.html') -Raw) -notmatch '<base href="/app/">') {
     throw "build\web sobran ne dlya adresa /app/ - soberite bez -SkipBuild"
+}
+# Veb-chast vybora fayla (file_selector_web) dolzhna byt v sborke.
+if ((Get-Content (Join-Path $web 'main.dart.js') -Raw) -notmatch 'file-selector') {
+    throw "v build\web net vybora fayla (staryy spisok plaginov) - soberite bez -SkipBuild"
 }
 
 # Tekushchiy spisok versiy s servera (esli est).
