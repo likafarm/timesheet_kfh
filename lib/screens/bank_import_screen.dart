@@ -44,19 +44,29 @@ class _Row {
   /// Второй кошелёк перевода.
   String? otherAccountId;
 
+  /// Это оплата заказа из другого кошелька — перенести её сюда, а не
+  /// записывать доход второй раз (выручка от мяса — только из заказов).
+  bool asOrderPayment;
+
   _Row(this.match)
     : transfer = match.transfer,
       otherAccountId = match.otherAccountId,
       categoryId = match.categoryId,
+      asOrderPayment = match.orderPayment != null,
       take =
           match.status == BankLineStatus.fresh &&
-          (match.transfer
-              ? match.otherAccountId != null
-              : !match.own && match.categoryId != null);
+          (match.orderPayment != null ||
+              (match.transfer
+                  ? match.otherAccountId != null
+                  : !match.own && match.categoryId != null));
 
   /// Строку можно записать: у перевода есть второй кошелёк, у дохода и
-  /// расхода — статья.
-  bool get ready => transfer ? otherAccountId != null : categoryId != null;
+  /// расхода — статья; оплату заказа — перенести.
+  bool get ready => asOrderPayment
+      ? true
+      : transfer
+      ? otherAccountId != null
+      : categoryId != null;
 }
 
 class _BankImportScreenState extends State<BankImportScreen> {
@@ -221,7 +231,10 @@ class _BankImportScreenState extends State<BankImportScreen> {
     final rows = _rows!, account = _accountId!;
     final fresh = [
       for (final r in rows)
-        if (r.take && r.match.status == BankLineStatus.fresh && r.ready)
+        if (r.take &&
+            r.match.status == BankLineStatus.fresh &&
+            r.ready &&
+            !r.asOrderPayment)
           r.transfer
               ? (r.match.line, null, null, r.otherAccountId)
               : (r.match.line, r.categoryId, r.match.counterpartyId, null),
@@ -230,11 +243,21 @@ class _BankImportScreenState extends State<BankImportScreen> {
       for (final r in rows)
         if (r.match.status == BankLineStatus.matched) r.match,
     ];
+    // Оплаты заказов, записанные продавцом в другой кошелёк, — сюда.
+    final moves = [
+      for (final r in rows)
+        if (r.take &&
+            r.asOrderPayment &&
+            r.match.status == BankLineStatus.fresh &&
+            r.match.orderPayment != null)
+          r.match.orderPayment!,
+    ];
     setState(() => _busy = true);
     final written = await fin.importStatement(
       accountId: account,
       fresh: fresh,
       matched: matched,
+      moves: moves,
     );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -246,7 +269,8 @@ class _BankImportScreenState extends State<BankImportScreen> {
       SnackBar(
         content: Text(
           'Записано операций: $written; связано с введёнными: '
-          '${matched.length}',
+          '${matched.length}'
+          '${moves.isEmpty ? '' : '; оплат заказов перенесено сюда: ${moves.length}'}',
         ),
       ),
     );
@@ -388,6 +412,11 @@ class _BankImportScreenState extends State<BankImportScreen> {
         children: [
           Text('Уже загружено: ${count(BankLineStatus.imported)}'),
           Text('Найдено среди введённых: ${count(BankLineStatus.matched)}'),
+          if (rows.any((r) => r.match.isOrderPayment))
+            Text(
+              'из них оплат заказов: '
+              '${rows.where((r) => r.match.isOrderPayment).length}',
+            ),
           Text(
             'Новых: ${count(BankLineStatus.fresh)}',
             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -459,77 +488,124 @@ class _BankImportScreenState extends State<BankImportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l.purpose, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ChoiceButton(
-                  label: l.type.title,
-                  color: operationTypeColors[l.type] ?? Colors.grey,
-                  selected: !r.transfer,
-                  dense: true,
-                  onPressed: () => setState(() {
-                    r.transfer = false;
-                    r.take = !r.match.own && r.categoryId != null;
-                  }),
-                ),
-                ChoiceButton(
-                  label: 'Перевод',
-                  color:
-                      operationTypeColors[OperationType.transfer] ??
-                      Colors.grey,
-                  selected: r.transfer,
-                  dense: true,
-                  onPressed: () => setState(() {
-                    r.transfer = true;
-                    r.take = r.otherAccountId != null;
-                  }),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (r.transfer)
-              ChoiceGroup<String?>(
-                label: l.incoming ? 'Откуда пришли деньги' : 'Куда ушли деньги',
-                options: [
-                  for (final a in others)
-                    ChoiceOption<String?>(
-                      a.id,
-                      a.name,
-                      theme.colorScheme.primary,
-                    ),
-                ],
-                value: r.otherAccountId,
-                onChanged: (v) => setState(() {
-                  r.otherAccountId = v;
-                  r.take = true;
-                }),
-              )
-            else
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => _chooseCategory(r),
-                  icon: Icon(
-                    Icons.category_outlined,
-                    size: 16,
-                    color: category == null ? theme.colorScheme.error : null,
+            if (r.match.orderPayment case final pay?) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Похоже на оплату заказа: «${pay.description ?? 'оплата'}» от '
+                '${DateFormat('dd.MM.yyyy').format(pay.date)}, кошелёк '
+                '«${fin.catalog.accounts[pay.accountId]?.name ?? '?'}». '
+                'Выручка от мяса — только из заказов: перенесите оплату на '
+                'этот счёт, а не записывайте второй раз.',
+                style: TextStyle(color: theme.colorScheme.primary),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceButton(
+                    label: 'Это оплата заказа — перенести сюда',
+                    color: theme.colorScheme.primary,
+                    selected: r.asOrderPayment,
+                    dense: true,
+                    onPressed: () => setState(() {
+                      r.asOrderPayment = true;
+                      r.take = true;
+                    }),
                   ),
-                  label: Text(
-                    category?.name ?? 'Выбрать статью',
-                    style: TextStyle(
+                  ChoiceButton(
+                    label: 'Другое поступление',
+                    color: theme.colorScheme.outline,
+                    selected: !r.asOrderPayment,
+                    dense: true,
+                    onPressed: () => setState(() {
+                      r.asOrderPayment = false;
+                      r.take = r.categoryId != null;
+                    }),
+                  ),
+                ],
+              ),
+            ],
+            if (!r.asOrderPayment) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceButton(
+                    label: l.type.title,
+                    color: operationTypeColors[l.type] ?? Colors.grey,
+                    selected: !r.transfer,
+                    dense: true,
+                    onPressed: () => setState(() {
+                      r.transfer = false;
+                      r.take = !r.match.own && r.categoryId != null;
+                    }),
+                  ),
+                  ChoiceButton(
+                    label: 'Перевод',
+                    color:
+                        operationTypeColors[OperationType.transfer] ??
+                        Colors.grey,
+                    selected: r.transfer,
+                    dense: true,
+                    onPressed: () => setState(() {
+                      r.transfer = true;
+                      r.take = r.otherAccountId != null;
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              if (r.transfer)
+                ChoiceGroup<String?>(
+                  label: l.incoming
+                      ? 'Откуда пришли деньги'
+                      : 'Куда ушли деньги',
+                  options: [
+                    for (final a in others)
+                      ChoiceOption<String?>(
+                        a.id,
+                        a.name,
+                        theme.colorScheme.primary,
+                      ),
+                  ],
+                  value: r.otherAccountId,
+                  onChanged: (v) => setState(() {
+                    r.otherAccountId = v;
+                    r.take = true;
+                  }),
+                )
+              else
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => _chooseCategory(r),
+                    icon: Icon(
+                      Icons.category_outlined,
+                      size: 16,
                       color: category == null ? theme.colorScheme.error : null,
                     ),
+                    label: Text(
+                      category?.name ?? 'Выбрать статью',
+                      style: TextStyle(
+                        color: category == null
+                            ? theme.colorScheme.error
+                            : null,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            if (r.match.own && !r.transfer)
-              Text(
-                'Вторая сторона — ваш ИНН: скорее перевод между своими '
-                'кошельками',
-                style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
-              ),
+              if (r.match.own && !r.transfer)
+                Text(
+                  'Вторая сторона — ваш ИНН: скорее перевод между своими '
+                  'кошельками',
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
           ],
         ),
       ),

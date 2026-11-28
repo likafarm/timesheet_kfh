@@ -242,6 +242,13 @@ class BankLineMatch {
   /// кошелька, иначе касса; null — подсказать нечего.
   final String? otherAccountId;
 
+  /// Новое поступление похоже на оплату заказа, записанную в другой
+  /// кошелёк (та же сумма, ±3 дня): скорее всего, продавец выбрал не тот
+  /// кошелёк — предлагается перенести оплату сюда, а не записывать доход
+  /// второй раз (решение владельца 2026-11-28: выручка от мяса — только из
+  /// заказов).
+  final FinOperation? orderPayment;
+
   const BankLineMatch(
     this.line,
     this.status, {
@@ -251,8 +258,15 @@ class BankLineMatch {
     this.own = false,
     this.transfer = false,
     this.otherAccountId,
+    this.orderPayment,
   });
+
+  /// Найденная операция — оплата заказа (`order:<uuid>`).
+  bool get isOrderPayment => isOrderRef(operation?.sourceRef);
 }
+
+/// Ссылка операции — на заказ (оплата или возврат по заказу, 11.6).
+bool isOrderRef(String? sourceRef) => sourceRef?.startsWith('order:') ?? false;
 
 /// Назначения платежа, которые означают перевод между своими кошельками
 /// (решение владельца 2026-10-14: внесение наличных на счёт — перевод
@@ -421,6 +435,29 @@ List<BankLineMatch> matchBankLines({
         otherAccountId: suggestOther(l),
       );
     }
+    // Оплата заказа той же суммы в другом кошельке (±3 дня, ближайшая).
+    final elsewhere = !l.incoming
+        ? null
+        : ([
+                for (final op in ops)
+                  if (op.type == OperationType.income &&
+                      isOrderRef(op.sourceRef) &&
+                      op.accountId != accountId &&
+                      op.amount == l.amount &&
+                      !used.contains(op.id) &&
+                      calendarDay(op.date).difference(l.date).inDays.abs() <= 3)
+                    op,
+              ]..sort(
+                (a, b) => calendarDay(a.date)
+                    .difference(l.date)
+                    .inDays
+                    .abs()
+                    .compareTo(
+                      calendarDay(b.date).difference(l.date).inDays.abs(),
+                    ),
+              ))
+              .firstOrNull;
+    if (elsewhere != null) used.add(elsewhere.id);
     final viaBank = bankInns.contains(l.counterpartyInn);
     final counterparty = viaBank
         ? null
@@ -468,9 +505,10 @@ List<BankLineMatch> matchBankLines({
     return BankLineMatch(
       l,
       BankLineStatus.fresh,
-      categoryId: category,
+      categoryId: category ?? elsewhere?.categoryId,
       counterpartyId: counterparty?.id,
       own: own,
+      orderPayment: elsewhere,
     );
   }
 

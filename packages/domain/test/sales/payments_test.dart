@@ -178,4 +178,28 @@ void main() {
     expect(salesSeesOperation(null, 'u', 'u'), isTrue);
     expect(salesSeesOperation(null, 'buh', 'u'), isFalse);
   });
+
+  test('поступление из выписки для оплаты — тот же доход, ±3 дня', () {
+    FinOperation op(String id, int day, int amount, String? ref) =>
+        FinOperation(
+          id: id,
+          date: DateTime(2026, 11, day),
+          type: OperationType.income,
+          amount: amount,
+          accountId: 'bank',
+          sourceRef: ref,
+        );
+    final ops = [
+      op('far', 20, 500000, 'bank:a'),
+      op('near', 27, 500000, 'bank:b'),
+      op('linked', 28, 500000, 'order:o9'),
+      op('manual', 28, 500000, null),
+      op('other', 28, 400000, 'bank:c'),
+    ];
+    expect(
+      bankTwin(ops, amount: 500000, date: DateTime(2026, 11, 28))?.id,
+      'near',
+    );
+    expect(bankTwin(ops, amount: 700000, date: DateTime(2026, 11, 28)), isNull);
+  });
 }

@@ -425,6 +425,15 @@ class OrdersProvider extends ChangeNotifier {
   List<FinDirection> _directions = const [];
   Map<String, List<FinOperation>> _payments = const {};
 
+  /// Поступления из выписки банка (видят бухгалтер и админ; продавцу
+  /// сервер чужих операций не отдаёт).
+  List<FinOperation> _bankIncome = const [];
+
+  /// Поступление из выписки, похожее на вносимую оплату (вариант А,
+  /// 2026-11-28): найдено — связать с заказом, а не записывать второй раз.
+  FinOperation? bankTwinFor(int amount, DateTime date) =>
+      bankTwin(_bankIncome, amount: amount, date: date);
+
   /// Открытые кошельки — куда пришли деньги.
   List<FinAccount> get accounts => [
     for (final a in _accounts)
@@ -473,7 +482,14 @@ class OrdersProvider extends ChangeNotifier {
     _accounts = await f.accounts();
     _categories = await f.categories();
     _directions = await f.directions();
-    _payments = paymentsByOrder(await f.operations());
+    final ops = await f.operations();
+    _payments = paymentsByOrder(ops);
+    _bankIncome = [
+      for (final op in ops)
+        if (op.type == OperationType.income &&
+            (op.sourceRef?.startsWith('bank:') ?? false))
+          op,
+    ];
     try {
       final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
       _lastAccountId = prefs.getString(_accountKey);
@@ -510,6 +526,10 @@ class OrdersProvider extends ChangeNotifier {
     required DateTime date,
     bool refund = false,
     String? notes,
+
+    /// Поступление из выписки ([bankTwinFor]) — это оно: связать с
+    /// заказом (дата, сумма и кошелёк — как в выписке).
+    FinOperation? linkTo,
   }) async {
     _lastProblem = null;
     if (!canEdit) return _fail('Оплаты вносят продавец и бухгалтер');
@@ -530,12 +550,13 @@ class OrdersProvider extends ChangeNotifier {
     }
     try {
       final counterpartyId = await _counterpartyFor(customer);
+      final link = refund ? null : linkTo;
       final op = FinOperation(
-        id: newId(),
-        date: calendarDay(date),
+        id: link?.id ?? newId(),
+        date: link?.date ?? calendarDay(date),
         type: refund ? OperationType.expense : OperationType.income,
-        amount: amount,
-        accountId: accountId,
+        amount: link?.amount ?? amount,
+        accountId: link?.accountId ?? accountId,
         categoryId: categoryId,
         directionId: directionId,
         allocationKeyId: directionId == null ? category.allocationKeyId : null,
@@ -543,9 +564,14 @@ class OrdersProvider extends ChangeNotifier {
         description:
             '${refund ? 'Возврат по заказу' : 'Оплата заказа'} '
             '${label(order)} · ${customer.name}',
-        notes: notes,
+        // У связанной — назначение платежа из выписки остаётся в примечании.
+        notes: [
+          ?notes,
+          if (link != null) ?link.description,
+        ].where((s) => s.trim().isNotEmpty).join('\n').ifBlank(),
+        source: link?.source ?? OperationSource.manual,
         sourceRef: orderSourceRef(order.id),
-        createdBy: _app.userUuid,
+        createdBy: link?.createdBy ?? _app.userUuid,
       );
       final catalog = FinanceCatalog(
         accounts: _accounts,
@@ -554,7 +580,11 @@ class OrdersProvider extends ChangeNotifier {
       );
       final problem = operationProblem(op, catalog);
       if (problem != null) return _fail('Не записано: $problem');
-      await _app.repos.finance.addOperation(op);
+      if (link != null) {
+        await _app.repos.finance.updateOperation(op);
+      } else {
+        await _app.repos.finance.addOperation(op);
+      }
       _lastAccountId = accountId;
       try {
         final prefs = await SharedPreferences.getInstance().timeout(_prefsWait);
@@ -696,4 +726,9 @@ class OrdersProvider extends ChangeNotifier {
     await load();
     return true;
   }
+}
+
+extension _Blank on String {
+  /// Пустая строка — null.
+  String? ifBlank() => trim().isEmpty ? null : this;
 }

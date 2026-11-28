@@ -285,6 +285,18 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
         onChanged: (v) => on(v!),
       );
 
+  /// Выручка от мяса по заказам вносится только в заказе (вариант А,
+  /// решение владельца 2026-11-28): вручную — только продажи без заказа.
+  String? _meatHint() {
+    if (_type != OperationType.income) return null;
+    if (isOrderRef(editing?.sourceRef)) return null;
+    final name = fin.catalog.categories[_categoryId]?.name.toLowerCase() ?? '';
+    if (!name.contains('мяс')) return null;
+    return 'Оплаты по заказам вносятся в заказе («Продажи → Заказы»), там '
+        'же они становятся доходом. Здесь — только продажи мяса без заказа, '
+        'иначе выручка посчитается дважды.';
+  }
+
   Widget _categoryField() {
     final wanted = _type == OperationType.income
         ? CategoryType.income
@@ -509,6 +521,16 @@ class _FinanceOperationDialogState extends State<FinanceOperationDialog> {
               if (_hasCategory) ...[
                 gap,
                 _categoryField(),
+                if (_meatHint() case final hint?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      hint,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
                 gap,
                 _targetChoice(),
                 if (_type == OperationType.expense) ...[gap, _assetField()],

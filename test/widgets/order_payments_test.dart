@@ -163,6 +163,55 @@ void main() {
     expect(counterparties.single.kind, CounterpartyKind.buyer);
   });
 
+  testWidgets('поступление уже из выписки — оплата связывается с ним', (
+    tester,
+  ) async {
+    await tester.runAsync(seed);
+    addTearDown(() => tester.runAsync(db.close));
+    app.salesMode = false; // бухгалтер: видит операции из выписки
+    final repos = DriftRepositories(db);
+    await tester.runAsync(
+      () => repos.finance.addOperation(
+        FinOperation(
+          id: 'bank1',
+          date: addCalendarDays(day, -1),
+          type: OperationType.income,
+          amount: 460000,
+          accountId: 'card',
+          description: 'Перевод СБП от Ольги',
+          source: OperationSource.bank,
+          sourceRef: 'bank:x',
+        ),
+      ),
+    );
+    final p = OrdersProvider(app);
+    await tester.runAsync(p.load);
+    final order = p.orders.single;
+    final twin = p.bankTwinFor(460000, day);
+    expect(twin?.id, 'bank1');
+    await tester.runAsync(
+      () => p.addPayment(
+        order,
+        amount: 460000,
+        accountId: 'cash',
+        categoryId: 'meat',
+        date: day,
+        linkTo: twin,
+      ),
+    );
+    expect(p.lastProblem, isNull);
+    final ops = (await tester.runAsync(repos.finance.operations))!;
+    expect(ops.length, 1, reason: 'второй доход не записан');
+    final op = ops.single;
+    expect(op.sourceRef, 'order:o1');
+    expect(op.accountId, 'card', reason: 'кошелёк — как в выписке');
+    expect(op.categoryId, 'meat');
+    expect(op.notes, contains('Перевод СБП'));
+    expect(p.paymentOf(order).state, PaymentState.paid);
+    expect(p.bankTwinFor(460000, day), isNull, reason: 'уже связано');
+    p.dispose();
+  });
+
   testWidgets('переплата — аванс, возврат — расход; «Долги» и сообщение', (
     tester,
   ) async {

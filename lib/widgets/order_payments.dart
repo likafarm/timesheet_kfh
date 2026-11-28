@@ -304,6 +304,37 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       setState(() => _problem = 'Выберите статью');
       return;
     }
+    // Такое поступление уже загружено из выписки банка — это оно? Тогда
+    // связать с заказом, а не записывать доход второй раз (вариант А).
+    FinOperation? link;
+    final twin = widget.refund ? null : _p.bankTwinFor(amount, _date);
+    if (twin != null) {
+      final answer = await showAppDialog<bool>(
+        context: context,
+        builder: (context) => AppDialog(
+          title: const Text('Поступление уже есть в выписке'),
+          content: Text(
+            '${_day.format(twin.date)} на «${_p.accountName(twin.accountId)}» '
+            'пришло ${rub(twin.amount)}'
+            '${(twin.description ?? '').trim().isEmpty ? '' : ': «${twin.description!.trim()}»'}.'
+            '\n\nЭто оплата этого заказа? Тогда поступление станет оплатой '
+            'заказа — второй раз доход не запишется.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Нет, другая оплата'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Да, это она'),
+            ),
+          ],
+        ),
+      );
+      if (answer == null || !mounted) return;
+      if (answer) link = twin;
+    }
     setState(() {
       _saving = true;
       _problem = null;
@@ -316,6 +347,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       date: _date,
       refund: widget.refund,
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      linkTo: link,
     );
     if (!mounted) return;
     if (ok) {

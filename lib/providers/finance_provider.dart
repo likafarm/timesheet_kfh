@@ -632,6 +632,9 @@ class FinanceProvider extends ChangeNotifier {
     >
     fresh,
     required List<BankLineMatch> matched,
+
+    /// Оплаты заказов из другого кошелька — перенести в [accountId].
+    List<FinOperation> moves = const [],
   }) async {
     if (!_allowed()) return null;
     for (final (line, category, _, transferTo) in fresh) {
@@ -714,6 +717,10 @@ class FinanceProvider extends ChangeNotifier {
         final op = m.operation;
         if (op == null || op.sourceRef != null) continue;
         await _repo.updateOperation(op.copyWith(sourceRef: m.line.key));
+      }
+      // Ссылка на заказ остаётся: оплата та же, меняется только кошелёк.
+      for (final op in moves) {
+        await _repo.updateOperation(op.copyWith(accountId: accountId));
       }
     });
     return ok ? written : null;

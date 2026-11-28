@@ -216,6 +216,49 @@ void main() {
       expect(matches[4].transfer, isTrue, reason: 'свой ИНН — перевод');
     });
 
+    test('оплата заказа: в том же кошельке — найдена, в другом — '
+        'предложено перенести, а не записать второй раз', () {
+      FinOperation pay(String id, String account, int amount) => FinOperation(
+        id: id,
+        date: DateTime(2026, 11, 28),
+        type: OperationType.income,
+        amount: amount,
+        accountId: account,
+        categoryId: 'meat',
+        sourceRef: 'order:$id',
+      );
+      final here = line(
+        DateTime(2026, 11, 29),
+        500000,
+        incoming: true,
+        doc: '10',
+      );
+      final there = line(
+        DateTime(2026, 11, 30),
+        320000,
+        incoming: true,
+        doc: '11',
+      );
+      final stranger = line(
+        DateTime(2026, 11, 30),
+        999900,
+        incoming: true,
+        doc: '12',
+      );
+      final m = matchBankLines(
+        lines: [here, there, stranger],
+        accountId: 'bank',
+        operations: [pay('a', 'bank', 500000), pay('b', 'cash', 320000)],
+        catalog: catalog,
+      );
+      expect(m[0].status, BankLineStatus.matched);
+      expect(m[0].isOrderPayment, isTrue);
+      expect(m[1].status, BankLineStatus.fresh);
+      expect(m[1].orderPayment?.id, 'b', reason: 'продавец выбрал кассу');
+      expect(m[1].categoryId, 'meat');
+      expect(m[2].orderPayment, isNull);
+    });
+
     test('операция из строки помнит ключ', () {
       final l = line(DateTime(2025, 2, 4), 320875, doc: '3', purpose: 'Свет');
       final o = bankOperation(
@@ -275,7 +318,8 @@ void main() {
       amount: amount,
       incoming: true,
       docNumber: doc,
-      purpose: 'Зачисление собственных средств;'
+      purpose:
+          'Зачисление собственных средств;'
           '${d.day.toString().padLeft(2, '0')}/'
           '${d.month.toString().padLeft(2, '0')}/${d.year}',
       counterpartyName: 'ПАО Сбербанк',

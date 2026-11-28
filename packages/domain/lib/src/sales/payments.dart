@@ -14,6 +14,7 @@
 // контрагентов. Те же правила проверяет сервер.
 
 import '../finance/models.dart';
+import '../utils/date_utils.dart';
 import 'orders.dart';
 
 /// Ссылка операции финансов на заказ.
@@ -26,6 +27,29 @@ String? orderIdOfRef(String? sourceRef) =>
     sourceRef != null && sourceRef.startsWith(_orderRefPrefix)
     ? sourceRef.substring(_orderRefPrefix.length)
     : null;
+
+/// Поступление из выписки банка, похожее на вносимую оплату [amount] от
+/// [date] (решение владельца 2026-11-28, вариант А: выручка от мяса —
+/// только из заказов): доход той же суммы ±3 дня, загруженный из выписки
+/// и ещё не связанный с заказом; ближайший по дате. Найден — оплату не
+/// записывают второй раз, а связывают с ним.
+FinOperation? bankTwin(
+  Iterable<FinOperation> ops, {
+  required int amount,
+  required DateTime date,
+}) {
+  final day = calendarDay(date);
+  int gap(FinOperation op) => calendarDay(op.date).difference(day).inDays.abs();
+  final found = [
+    for (final op in ops)
+      if (op.type == OperationType.income &&
+          op.amount == amount &&
+          (op.sourceRef?.startsWith('bank:') ?? false) &&
+          gap(op) <= 3)
+        op,
+  ]..sort((a, b) => gap(a).compareTo(gap(b)));
+  return found.firstOrNull;
+}
 
 /// Деньги по заказу, копейки: доход — плюс, возврат (расход) — минус.
 int paymentAmount(FinOperation op) => switch (op.type) {
