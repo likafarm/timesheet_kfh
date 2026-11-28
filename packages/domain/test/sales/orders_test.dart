@@ -173,6 +173,13 @@ void main() {
       pr = setProgress(s, [line('p9', 'rib', parent: 's')], products);
       expect(pr.collected, 0);
       expect(pr.leftKg, 3);
+      // Часть ещё не на весах — недобор пока не ошибка (перебор — сразу).
+      final collecting = [...parts, line('p9', 'rib', parent: 's')];
+      pr = setProgress(s, collecting, products);
+      expect(pr.complete, isFalse);
+      expect(pr.off(), isFalse, reason: 'набор ещё собирается');
+      expect(weightOff(s, parts: collecting), isFalse);
+      expect(weightOff(s, parts: parts), isTrue, reason: 'собран, недобор');
     });
 
     test('отклонение набора — по сумме частей', () {

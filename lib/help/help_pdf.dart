@@ -15,6 +15,7 @@ String helpPdfName(HelpRole role) => switch (role) {
   HelpRole.operator => 'instrukciya-operator.pdf',
   HelpRole.accountant => 'instrukciya-buhgalter.pdf',
   HelpRole.admin => 'instrukciya-administrator.pdf',
+  HelpRole.sales => 'instrukciya-prodazhi.pdf',
 };
 
 /// PDF инструкции для [role]. [asset] — чтение файла программы (шрифты

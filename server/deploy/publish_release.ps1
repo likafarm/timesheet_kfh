@@ -38,7 +38,7 @@ $serverVersion = [regex]::Match($serverPubspec, '(?m)^version:\s*(\S+)').Groups[
 $installer = "installer_output\KFH_TimeTracking_Setup_$version.exe"
 $apk = "installer_output\kfh-$version.apk"
 $exe = "build\windows\x64\runner\Release\timesheet_kfh.exe"
-$help = @("instrukciya-operator.pdf", "instrukciya-buhgalter.pdf", "instrukciya-administrator.pdf")
+$help = @("instrukciya-operator.pdf", "instrukciya-buhgalter.pdf", "instrukciya-administrator.pdf", "instrukciya-prodazhi.pdf")
 
 # --- proverka gotovykh faylov -------------------------------------------
 $problems = @()

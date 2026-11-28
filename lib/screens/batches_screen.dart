@@ -816,7 +816,7 @@ class _EntryInfo {
       return _EntryInfo(
         who:
             '${p.label(e.order)} · ${p.customers[e.order.customerId]?.name ?? '?'}',
-        product: '$name (набор, частей: ${e.parts.length})',
+        product: '$name · частей: ${e.parts.length}',
         ordered: orderedText(l),
         fact: factText(l, product, e.parts),
         note: setProgressText(progress),
@@ -894,8 +894,9 @@ class _EntryRow extends StatelessWidget {
                   ? info.product
                   : [
                       p.customers[e.order.customerId]?.name ?? '?',
-                      if (e.isSet) '— ${info.product}',
-                    ].join(' '),
+                      // Товар — в заголовке группы: у набора только части.
+                      if (e.isSet) 'набор, частей: ${e.parts.length}',
+                    ].join(' · '),
               muted: missing,
             ),
             CellText(info.ordered.ifEmpty(e.isPart ? '' : '—')),

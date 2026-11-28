@@ -406,28 +406,46 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
         ],
       ),
       const SizedBox(height: 12),
-      ChoiceGroup<OrderKind>(
-        label: 'Вид',
-        value: _order.kind,
-        options: [
-          for (final k in OrderKind.values)
-            ChoiceOption(k, k.title, theme.colorScheme.primary),
+      // Вид, получение и состояние — в строку; на телефоне переносятся
+      // друг под друга.
+      Wrap(
+        spacing: 32,
+        runSpacing: 12,
+        children: [
+          ChoiceGroup<OrderKind>(
+            label: 'Вид',
+            value: _order.kind,
+            options: [
+              for (final k in OrderKind.values)
+                ChoiceOption(k, k.title, theme.colorScheme.primary),
+            ],
+            onChanged: p.canEdit
+                ? (k) => setState(() => _order = _order.copyWith(kind: k))
+                : null,
+          ),
+          ChoiceGroup<Delivery>(
+            label: 'Получение',
+            value: _order.delivery,
+            options: [
+              for (final d in Delivery.values)
+                ChoiceOption(d, d.title, theme.colorScheme.primary),
+            ],
+            onChanged: p.canEdit
+                ? (d) => setState(() => _order = _order.copyWith(delivery: d))
+                : null,
+          ),
+          ChoiceGroup<OrderStatus>(
+            label: 'Состояние',
+            value: _order.status,
+            options: [
+              for (final s in OrderStatus.values)
+                ChoiceOption(s, s.title, theme.colorScheme.primary),
+            ],
+            onChanged: p.canEdit
+                ? (s) => setState(() => _order = _order.copyWith(status: s))
+                : null,
+          ),
         ],
-        onChanged: p.canEdit
-            ? (k) => setState(() => _order = _order.copyWith(kind: k))
-            : null,
-      ),
-      const SizedBox(height: 12),
-      ChoiceGroup<Delivery>(
-        label: 'Получение',
-        value: _order.delivery,
-        options: [
-          for (final d in Delivery.values)
-            ChoiceOption(d, d.title, theme.colorScheme.primary),
-        ],
-        onChanged: p.canEdit
-            ? (d) => setState(() => _order = _order.copyWith(delivery: d))
-            : null,
       ),
       if (_order.delivery == Delivery.delivery) ...[
         const SizedBox(height: 12),
@@ -440,18 +458,6 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
           ),
         ),
       ],
-      const SizedBox(height: 12),
-      ChoiceGroup<OrderStatus>(
-        label: 'Состояние',
-        value: _order.status,
-        options: [
-          for (final s in OrderStatus.values)
-            ChoiceOption(s, s.title, theme.colorScheme.primary),
-        ],
-        onChanged: p.canEdit
-            ? (s) => setState(() => _order = _order.copyWith(status: s))
-            : null,
-      ),
       const SizedBox(height: 12),
       TextField(
         controller: _comment,

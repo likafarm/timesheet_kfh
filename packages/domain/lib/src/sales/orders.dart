@@ -542,7 +542,12 @@ bool weightOff(
   double tolerance = defaultWeightTolerance,
 }) {
   final d = weightDeviation(line, parts: parts);
-  return d != null && d.abs() > tolerance;
+  if (d == null) return false;
+  // Набор ещё собирается — недобор пока не ошибка (как в [SetProgress.off]).
+  final collecting = parts.any(
+    (p) => p.state != LineState.missing && p.weight == null,
+  );
+  return d > tolerance || (!collecting && d < -tolerance);
 }
 
 // ------------------------------------------------------------- проверки
@@ -600,11 +605,15 @@ class SetProgress {
   /// Заказано на сумму, копейки; null — заказано не «на сумму».
   final int? orderedAmount;
 
+  /// Все части взвешены или сняты — набор собран, недобор окончательный.
+  final bool complete;
+
   const SetProgress({
     required this.collected,
     this.collectedAmount,
     this.orderedKg,
     this.orderedAmount,
+    this.complete = true,
   });
 
   /// Сколько осталось набрать, кг (минус — перебор); null — заказано не
@@ -630,10 +639,12 @@ class SetProgress {
     return null;
   }
 
-  /// Перебор или недобор сверх допуска.
+  /// Перебор или недобор сверх допуска. Недобор — только у собранного
+  /// набора: пока части не все на весах, «осталось» — не ошибка.
   bool off([double tolerance = defaultWeightTolerance]) {
     final d = deviation;
-    return d != null && d.abs() > tolerance;
+    if (d == null) return false;
+    return d > tolerance || (complete && d < -tolerance);
   }
 }
 
@@ -661,5 +672,6 @@ SetProgress setProgress(
         line.orderedUnit == OrderedUnit.rub && line.orderedQty != null
         ? (line.orderedQty! * 100).round()
         : null,
+    complete: live.every((p) => p.weight != null),
   );
 }

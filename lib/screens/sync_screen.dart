@@ -17,6 +17,7 @@ import '../services/platform.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/sync_dialogs.dart';
 import '../widgets/sync_status_bar.dart';
+import '../widgets/theme_mode_tile.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -76,6 +77,11 @@ class _SyncScreenState extends State<SyncScreen> {
         children: [
           _AccountCard(sync: sync, onChanged: _load),
           const SizedBox(height: 16),
+          // У оператора и продавца «Настроек» нет — оформление здесь.
+          if (sync.user != null && !sync.user!.isFull) ...[
+            const Card(margin: EdgeInsets.zero, child: ThemeModeTile()),
+            const SizedBox(height: 16),
+          ],
           if (_rejected.isNotEmpty) ...[
             _RejectedCard(rejected: _rejected, sync: sync, onRetry: _load),
             const SizedBox(height: 16),

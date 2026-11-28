@@ -17,7 +17,7 @@ $root = git rev-parse --show-toplevel
 if (-not $?) { throw "ne git-repozitoriy" }
 Set-Location $root
 
-$names = @("instrukciya-operator.pdf", "instrukciya-buhgalter.pdf", "instrukciya-administrator.pdf")
+$names = @("instrukciya-operator.pdf", "instrukciya-buhgalter.pdf", "instrukciya-administrator.pdf", "instrukciya-prodazhi.pdf")
 $files = @()
 foreach ($n in $names) {
     $path = Join-Path $Dir $n

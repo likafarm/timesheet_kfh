@@ -126,6 +126,29 @@ void main() {
     await shots.openSection('Прайс-лист');
     await shots.save('price_list');
 
+    // Продажи (этап 11).
+    await shots.openSection('Заказы');
+    await shots.save('orders');
+    await shots.tapText('Смирнова Анна');
+    await shots.save('order_editor');
+    await shots.tapText('Отмена', last: true);
+    await shots.openSection('Выдачи');
+    await shots.save('batches');
+    await tester.tap(find.byIcon(Icons.inventory_2_outlined).first);
+    await shots.settle();
+    await shots.save('batch');
+    await shots.tapText('По покупателям');
+    await shots.save('batch_customers');
+    await tester.tap(find.textContaining('Взвешивать ('));
+    await shots.settle();
+    await shots.save('weighing');
+    await shots.tapText('Закрыть', last: true);
+    await shots.back();
+    await shots.openSection('Покупатели');
+    await shots.save('customers');
+    await shots.openSection('Отчёты продаж');
+    await shots.save('sales_reports');
+
     await shots.openSection('Закрытие месяцев');
     await shots.save('periods');
 
@@ -269,6 +292,128 @@ Future<void> _seed(LocalDatabase db) async {
   }
   await _seedFinance(repos.finance, today);
   await _seedPrices(repos.priceList, today);
+  await _seedSales(repos, today);
+}
+
+/// Продажи (этап 11): покупатели, прошедшая выдача (выдана) и ближайшая —
+/// часть взвешена, набор собирается по частям.
+Future<void> _seedSales(DriftRepositories r, DateTime today) async {
+  String id(String kind, int n) =>
+      '01900000-0000-7000-8000-0000000$kind${n.toString().padLeft(4, '0')}';
+  String product(int i) =>
+      '01900000-0000-7000-8000-00000000b${i.toString().padLeft(3, '0')}';
+  final customers = [
+    ('Смирнова Анна', '89101234501', CustomerChannel.telegram, null),
+    ('Кузнецов Борис', '89101234502', CustomerChannel.whatsapp, null),
+    ('Попова Вера', '89101234503', CustomerChannel.max, 'Юхнов, ул. Лесная, 4'),
+    ('Соколов Глеб', '89101234504', CustomerChannel.phone, null),
+  ];
+  for (final (i, (name, phone, channel, address)) in customers.indexed) {
+    await r.customers.saveCustomer(
+      Customer(
+        id: id('e', i),
+        name: name,
+        phone: phone,
+        channel: channel,
+        address: address,
+      ),
+    );
+  }
+  final past = SaleBatch(
+    id: id('f', 1),
+    day: addCalendarDays(calendarDay(today), -12),
+  );
+  final next = SaleBatch(
+    id: id('f', 2),
+    day: addCalendarDays(calendarDay(today), 3),
+    title: 'бычок Борька',
+  );
+  await r.orders.saveBatch(past);
+  await r.orders.saveBatch(next);
+  var n = 0;
+  SaleOrderLine line(
+    String order,
+    int productIndex,
+    int price, {
+    double? ordered,
+    OrderedUnit unit = OrderedUnit.kg,
+    double? weight,
+    int? pieces,
+    LineState state = LineState.open,
+    String? parent,
+    int sort = 0,
+  }) => SaleOrderLine(
+    id: id('a', ++n),
+    orderId: order,
+    parentId: parent,
+    productId: product(productIndex),
+    sortOrder: sort,
+    orderedQty: ordered,
+    orderedUnit: unit,
+    weight: weight,
+    pieces: pieces,
+    price: price * 100,
+    state: state,
+  );
+  // Прошедшая выдача — всё выдано.
+  for (final (i, (customer, productIndex, price, ordered, weight)) in [
+    (0, 0, 1840, 2.0, 2.2),
+    (1, 1, 1150, 3.0, 2.85),
+    (2, 6, 520, 1.0, 1.1),
+  ].indexed) {
+    final o = id('b', i);
+    await r.orders.saveOrder(
+      SaleOrder(
+        id: o,
+        batchId: past.id,
+        customerId: id('e', customer),
+        number: i + 1,
+        status: OrderStatus.issued,
+      ),
+      [
+        line(
+          o,
+          productIndex,
+          price,
+          ordered: ordered,
+          weight: weight,
+          state: LineState.assembled,
+        ),
+      ],
+    );
+  }
+  // Ближайшая выдача.
+  final o1 = id('c', 1), o2 = id('c', 2), o3 = id('c', 3), o4 = id('c', 4);
+  await r.orders.saveOrder(
+    SaleOrder(id: o1, batchId: next.id, customerId: id('e', 0), number: 1),
+    [
+      line(o1, 0, 1840, ordered: 2, weight: 2.15, state: LineState.assembled),
+      line(o1, 6, 520, ordered: 1, sort: 1),
+    ],
+  );
+  final set = line(o2, 2, 920, ordered: 5);
+  await r.orders.saveOrder(
+    SaleOrder(id: o2, batchId: next.id, customerId: id('e', 1), number: 2),
+    [
+      set,
+      line(o2, 3, 920, weight: 2.4, state: LineState.assembled, parent: set.id),
+      line(o2, 4, 920, parent: set.id, sort: 1),
+    ],
+  );
+  await r.orders.saveOrder(
+    SaleOrder(
+      id: o3,
+      batchId: next.id,
+      customerId: id('e', 2),
+      number: 3,
+      delivery: Delivery.delivery,
+    ),
+    [line(o3, 7, 1150, ordered: 1)],
+  );
+  await r.orders.saveOrder(
+    SaleOrder(id: o4, batchId: next.id, customerId: id('e', 3), number: 4),
+    [line(o4, 5, 1000, ordered: 1, unit: OrderedUnit.pcs)],
+  );
 }
 
 /// Прайс-лист (11.1): две группы, редакция весны и новая — с первого
@@ -276,9 +421,7 @@ Future<void> _seed(LocalDatabase db) async {
 Future<void> _seedPrices(PriceListRepository p, DateTime today) async {
   const meat = '01900000-0000-7000-8000-00000000a001';
   const offal = '01900000-0000-7000-8000-00000000a002';
-  await p.saveGroup(
-    const ProductGroup(id: meat, name: 'Говядина охлаждённая'),
-  );
+  await p.saveGroup(const ProductGroup(id: meat, name: 'Говядина охлаждённая'));
   await p.saveGroup(
     const ProductGroup(id: offal, name: 'Субпродукты говяжьи', sortOrder: 1),
   );
@@ -296,7 +439,8 @@ Future<void> _seedPrices(PriceListRepository p, DateTime today) async {
   final current = DateTime(today.year, today.month - 1, 1);
   final prices = <ProductPrice>[];
   for (final (i, (group, name, before, after, unit)) in items.indexed) {
-    final id = '01900000-0000-7000-8000-00000000b${i.toString().padLeft(3, '0')}';
+    final id =
+        '01900000-0000-7000-8000-00000000b${i.toString().padLeft(3, '0')}';
     await p.saveProduct(
       Product(id: id, groupId: group, name: name, unit: unit, sortOrder: i),
     );
@@ -311,8 +455,7 @@ Future<void> _seedPrices(PriceListRepository p, DateTime today) async {
     if (after != before) {
       prices.add(
         ProductPrice(
-          id:
-              '01900000-0000-7000-8000-00000000d${i.toString().padLeft(3, '0')}',
+          id: '01900000-0000-7000-8000-00000000d${i.toString().padLeft(3, '0')}',
           productId: id,
           validFrom: current,
           price: after * 100,

@@ -18,6 +18,7 @@ HelpRole helpRoleOf(SyncProvider? sync) {
   if (user == null) return HelpRole.accountant;
   if (user.isAdmin) return HelpRole.admin;
   if (user.isOperator) return HelpRole.operator;
+  if (user.isSales) return HelpRole.sales;
   return HelpRole.accountant;
 }
 
