@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/choice_buttons.dart';
 import '../widgets/order_payments.dart';
+import '../widgets/row_table.dart';
 
 final _date = DateFormat('dd.MM.yyyy');
 
@@ -56,28 +57,39 @@ String factText(SaleOrderLine l, Product? p, List<SaleOrderLine> parts) {
 
 /// Открыть карточку заказа: [order] — правка, null — новый (на выдачу
 /// [day] покупателю [customerId], если заданы; [repeatOf] — заказ, строки
-/// которого повторить).
+/// которого повторить). На компьютере — окно формы поверх списка, на
+/// телефоне — форма на весь экран.
 Future<void> openOrderEditor(
   BuildContext context, {
   SaleOrder? order,
   DateTime? day,
   String? customerId,
   SaleOrder? repeatOf,
+  OrdersProvider? provider,
 }) {
-  final p = context.read<OrdersProvider>();
-  return Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider.value(
-        value: p,
-        child: OrderEditorScreen(
-          order: order,
-          day: day,
-          customerId: customerId,
-          repeatOf: repeatOf,
-        ),
-      ),
+  final p = provider ?? context.read<OrdersProvider>();
+  final wide = isWideScreen(context);
+  Widget editor(BuildContext _) => ChangeNotifierProvider.value(
+    value: p,
+    child: OrderEditorScreen(
+      order: order,
+      day: day,
+      customerId: customerId,
+      repeatOf: repeatOf,
+      dialog: wide,
     ),
   );
+  if (wide) {
+    return showDialog<void>(
+      context: context,
+      // Закрыть — только кнопками: случайный щелчок мимо не теряет правки.
+      barrierDismissible: false,
+      builder: editor,
+    );
+  }
+  return Navigator.of(
+    context,
+  ).push(MaterialPageRoute(fullscreenDialog: true, builder: editor));
 }
 
 class OrderEditorScreen extends StatefulWidget {
@@ -86,12 +98,16 @@ class OrderEditorScreen extends StatefulWidget {
   final String? customerId;
   final SaleOrder? repeatOf;
 
+  /// Окно формы (компьютер), иначе — экран формы (телефон).
+  final bool dialog;
+
   const OrderEditorScreen({
     super.key,
     this.order,
     this.day,
     this.customerId,
     this.repeatOf,
+    this.dialog = false,
   });
 
   @override
@@ -298,6 +314,21 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
     if (await _p.delete(_order.id) && mounted) Navigator.pop(context);
   }
 
+  /// «Повторить заказ»: закрыть этот и открыть новый с теми же строками.
+  void _repeat() {
+    final p = _p;
+    final nav = Navigator.of(context);
+    final host = nav.overlay!.context;
+    nav.pop();
+    openOrderEditor(
+      host,
+      provider: p,
+      customerId: _order.customerId,
+      repeatOf: _order,
+      day: p.nearestBatch?.day,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<OrdersProvider>();
@@ -305,45 +336,245 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
     final muted = theme.colorScheme.onSurfaceVariant;
     final totals = orderTotals(_lines, _order.id, p.products);
     final customer = _customer;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _isNew
-              ? 'Новый заказ'
-              : 'Заказ ${batchCode(_batch.day)}-${_order.number}',
+    final wide = isWideScreen(context);
+    final title = _isNew
+        ? 'Новый заказ'
+        : 'Заказ ${batchCode(_batch.day)}-${_order.number}';
+    final tools = [
+      if (!_isNew && p.canEdit)
+        IconButton(
+          tooltip: 'Повторить заказ',
+          icon: const Icon(Icons.replay),
+          onPressed: _repeat,
         ),
-        actions: [
-          if (!_isNew && p.canEdit)
-            IconButton(
-              tooltip: 'Повторить заказ',
-              icon: const Icon(Icons.replay),
-              onPressed: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => ChangeNotifierProvider.value(
-                    value: p,
-                    child: OrderEditorScreen(
-                      customerId: _order.customerId,
-                      repeatOf: _order,
-                      day: p.nearestBatch?.day,
-                    ),
-                  ),
+      if (!_isNew && p.canEdit)
+        IconButton(
+          tooltip: 'Удалить заказ',
+          icon: const Icon(Icons.delete_outline),
+          onPressed: _delete,
+        ),
+    ];
+    final saveButton = FilledButton.icon(
+      onPressed: _saving ? null : _save,
+      icon: const Icon(Icons.save_outlined),
+      label: const Text('Сохранить'),
+    );
+    final fields = <Widget>[
+      Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Icon(Icons.person_outline),
+          title: Text(customer?.name ?? 'Выберите покупателя'),
+          subtitle: customer == null
+              ? null
+              : Text(
+                  [
+                    if (formatPhone(customer.phone).isNotEmpty)
+                      formatPhone(customer.phone),
+                    [?customer.channel?.short, ?customer.contact].join(' '),
+                  ].where((s) => s.isNotEmpty).join(' · '),
                 ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: p.canEdit ? _pickCustomer : null,
+        ),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          OutlinedButton.icon(
+            onPressed: p.canEdit ? _pickDay : null,
+            icon: const Icon(Icons.event),
+            label: Text('Выдача ${_date.format(_batch.day)}'),
+          ),
+          SizedBox(
+            width: 120,
+            child: TextField(
+              controller: _number,
+              readOnly: !p.canEdit,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Номер',
+                prefixText: '${batchCode(_batch.day)}-',
+                isDense: true,
+                border: const OutlineInputBorder(),
               ),
             ),
-          if (!_isNew && p.canEdit)
-            IconButton(
-              tooltip: 'Удалить заказ',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _delete,
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      ChoiceGroup<OrderKind>(
+        label: 'Вид',
+        value: _order.kind,
+        options: [
+          for (final k in OrderKind.values)
+            ChoiceOption(k, k.title, theme.colorScheme.primary),
+        ],
+        onChanged: p.canEdit
+            ? (k) => setState(() => _order = _order.copyWith(kind: k))
+            : null,
+      ),
+      const SizedBox(height: 12),
+      ChoiceGroup<Delivery>(
+        label: 'Получение',
+        value: _order.delivery,
+        options: [
+          for (final d in Delivery.values)
+            ChoiceOption(d, d.title, theme.colorScheme.primary),
+        ],
+        onChanged: p.canEdit
+            ? (d) => setState(() => _order = _order.copyWith(delivery: d))
+            : null,
+      ),
+      if (_order.delivery == Delivery.delivery) ...[
+        const SizedBox(height: 12),
+        TextField(
+          controller: _address,
+          readOnly: !p.canEdit,
+          decoration: const InputDecoration(
+            labelText: 'Адрес доставки',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+      const SizedBox(height: 12),
+      ChoiceGroup<OrderStatus>(
+        label: 'Состояние',
+        value: _order.status,
+        options: [
+          for (final s in OrderStatus.values)
+            ChoiceOption(s, s.title, theme.colorScheme.primary),
+        ],
+        onChanged: p.canEdit
+            ? (s) => setState(() => _order = _order.copyWith(status: s))
+            : null,
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _comment,
+        readOnly: !p.canEdit,
+        maxLines: 2,
+        decoration: const InputDecoration(
+          labelText: 'Комментарий («напомнить забрать»)',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      const SizedBox(height: 20),
+      Row(
+        children: [
+          Expanded(child: Text('Товары', style: theme.textTheme.titleMedium)),
+          if (p.canEdit)
+            FilledButton.tonalIcon(
+              onPressed: _addLine,
+              icon: const Icon(Icons.add),
+              label: const Text('Товар'),
             ),
+        ],
+      ),
+      if (_top.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            'Добавьте товары из прайса',
+            style: TextStyle(color: muted),
+          ),
+        ),
+      // Состав: на компьютере — таблица, на телефоне — карточки.
+      if (wide && _top.isNotEmpty) const RowTableHeader(lineCols),
+      for (final l in _top)
+        if (wide)
+          _LineRows(
+            line: l,
+            parts: _partsOf(l.id),
+            onTap: p.canEdit ? () => _editLine(l) : null,
+          )
+        else
+          _LineTile(
+            line: l,
+            parts: _partsOf(l.id),
+            onTap: p.canEdit ? () => _editLine(l) : null,
+          ),
+      const Divider(height: 32),
+      _TotalsView(totals),
+      const Divider(height: 32),
+      if (_isNew)
+        Text(
+          'Оплату можно внести после сохранения заказа',
+          style: TextStyle(color: muted),
+        )
+      else
+        OrderPaymentsView(order: _order, totals: totals),
+    ];
+    final problem = _problem == null
+        ? null
+        : Text(_problem!, style: TextStyle(color: theme.colorScheme.error));
+    if (widget.dialog) {
+      // Окно формы: заголовок с действиями, поля прокручиваются, внизу —
+      // ошибка и кнопки.
+      return Dialog(
+        insetPadding: const EdgeInsets.all(24),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(title, style: theme.textTheme.titleLarge),
+                    ),
+                    ...tools,
+                    IconButton(
+                      tooltip: 'Закрыть без сохранения',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                  children: fields,
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                child: Row(
+                  children: [
+                    Expanded(child: problem ?? const SizedBox.shrink()),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(p.canEdit ? 'Отмена' : 'Закрыть'),
+                    ),
+                    if (p.canEdit) ...[const SizedBox(width: 8), saveButton],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          ...tools,
           if (p.canEdit)
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Сохранить'),
-              ),
+              child: saveButton,
             ),
         ],
       ),
@@ -354,157 +585,11 @@ class _OrderEditorScreenState extends State<OrderEditorScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
             children: [
-              Card(
-                margin: EdgeInsets.zero,
-                child: ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: Text(customer?.name ?? 'Выберите покупателя'),
-                  subtitle: customer == null
-                      ? null
-                      : Text(
-                          [
-                            if (formatPhone(customer.phone).isNotEmpty)
-                              formatPhone(customer.phone),
-                            [
-                              ?customer.channel?.short,
-                              ?customer.contact,
-                            ].join(' '),
-                          ].where((s) => s.isNotEmpty).join(' · '),
-                        ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: p.canEdit ? _pickCustomer : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: p.canEdit ? _pickDay : null,
-                    icon: const Icon(Icons.event),
-                    label: Text('Выдача ${_date.format(_batch.day)}'),
-                  ),
-                  SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: _number,
-                      readOnly: !p.canEdit,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Номер',
-                        prefixText: '${batchCode(_batch.day)}-',
-                        isDense: true,
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ChoiceGroup<OrderKind>(
-                label: 'Вид',
-                value: _order.kind,
-                options: [
-                  for (final k in OrderKind.values)
-                    ChoiceOption(k, k.title, theme.colorScheme.primary),
-                ],
-                onChanged: p.canEdit
-                    ? (k) => setState(() => _order = _order.copyWith(kind: k))
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              ChoiceGroup<Delivery>(
-                label: 'Получение',
-                value: _order.delivery,
-                options: [
-                  for (final d in Delivery.values)
-                    ChoiceOption(d, d.title, theme.colorScheme.primary),
-                ],
-                onChanged: p.canEdit
-                    ? (d) =>
-                          setState(() => _order = _order.copyWith(delivery: d))
-                    : null,
-              ),
-              if (_order.delivery == Delivery.delivery) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _address,
-                  readOnly: !p.canEdit,
-                  decoration: const InputDecoration(
-                    labelText: 'Адрес доставки',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              ChoiceGroup<OrderStatus>(
-                label: 'Состояние',
-                value: _order.status,
-                options: [
-                  for (final s in OrderStatus.values)
-                    ChoiceOption(s, s.title, theme.colorScheme.primary),
-                ],
-                onChanged: p.canEdit
-                    ? (s) => setState(() => _order = _order.copyWith(status: s))
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _comment,
-                readOnly: !p.canEdit,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Комментарий («напомнить забрать»)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text('Товары', style: theme.textTheme.titleMedium),
-                  ),
-                  if (p.canEdit)
-                    FilledButton.tonalIcon(
-                      onPressed: _addLine,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Товар'),
-                    ),
-                ],
-              ),
-              if (_top.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text(
-                    'Добавьте товары из прайса',
-                    style: TextStyle(color: muted),
-                  ),
-                ),
-              for (final l in _top)
-                _LineTile(
-                  line: l,
-                  parts: _partsOf(l.id),
-                  onTap: p.canEdit ? () => _editLine(l) : null,
-                ),
-              const Divider(height: 32),
-              _TotalsView(totals),
-              const Divider(height: 32),
-              if (_isNew)
-                Text(
-                  'Оплату можно внести после сохранения заказа',
-                  style: TextStyle(color: muted),
-                )
-              else
-                OrderPaymentsView(order: _order, totals: totals),
-              if (_problem != null)
+              ...fields,
+              if (problem != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    _problem!,
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
+                  child: problem,
                 ),
             ],
           ),
@@ -614,6 +699,119 @@ class _LineTile extends StatelessWidget {
             : '',
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
+    );
+  }
+}
+
+/// Столбцы состава заказа (компьютер).
+const lineCols = [
+  RowCol('Товар', flex: 4),
+  RowCol('Заказано', flex: 3),
+  RowCol('Фактически', width: 110, right: true),
+  RowCol('Цена', width: 120, right: true),
+  RowCol('Сумма', width: 120, right: true),
+];
+
+/// Строка состава таблицей; у набора под ней — части с отступом.
+class _LineRows extends StatelessWidget {
+  final SaleOrderLine line;
+  final List<SaleOrderLine> parts;
+  final VoidCallback? onTap;
+  const _LineRows({required this.line, required this.parts, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<OrdersProvider>();
+    final theme = Theme.of(context);
+    final product = p.products[line.productId];
+    final amount = lineAmount(line, p.products, parts: parts);
+    final estimate = lineEstimate(line, p.products, parts: parts);
+    final fact = factText(line, product, parts);
+    final off = weightOff(line, parts: parts, tolerance: p.tolerance);
+    final missing = line.state == LineState.missing;
+    final unit = parts.isNotEmpty ? 'кг' : product?.unit.title ?? 'кг';
+    final price = switch (line.pricing) {
+      LinePricing.fixed => 'за всё',
+      LinePricing.parts => 'по частям',
+      _ => line.price == null ? '—' : '${rub(line.price!)}/$unit',
+    };
+    final progress = parts.isEmpty
+        ? null
+        : setProgress(line, parts, p.products);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RowTableRow(
+          cols: lineCols,
+          onTap: onTap,
+          cells: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CellText(
+                  [
+                    product?.name ?? 'Товар удалён',
+                    if (line.added) '(добавлено при сборке)',
+                  ].join(' '),
+                  bold: true,
+                  muted: missing,
+                ),
+                if (line.note != null)
+                  Text(line.note!, style: theme.textTheme.bodySmall),
+                if (progress != null)
+                  Text(
+                    setProgressText(progress),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: progress.off(p.tolerance)
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.primary,
+                    ),
+                  ),
+              ],
+            ),
+            CellText(orderedText(line).ifEmpty('—')),
+            CellText(
+              fact,
+              right: true,
+              bold: off,
+              color: off ? theme.colorScheme.error : null,
+            ),
+            CellText(price, right: true),
+            CellText(
+              amount != null
+                  ? rub(amount)
+                  : estimate != null
+                  ? '≈ ${rub(estimate)}'
+                  : '',
+              right: true,
+              bold: true,
+            ),
+          ],
+        ),
+        for (final x in parts)
+          RowTableRow(
+            cols: lineCols,
+            indent: 24,
+            onTap: onTap,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            cells: [
+              CellText(
+                '— ${p.products[x.productId]?.name ?? '?'}',
+                muted: x.state == LineState.missing,
+              ),
+              const SizedBox.shrink(),
+              CellText(
+                x.weight == null ? '' : '${fmtQty(x.weight)} кг',
+                right: true,
+              ),
+              CellText(
+                x.price == null ? '' : '${rub(x.price!)}/кг',
+                right: true,
+              ),
+              const SizedBox.shrink(),
+            ],
+          ),
+      ],
     );
   }
 }

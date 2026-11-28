@@ -1,7 +1,7 @@
 // lib/screens/weighing_screen.dart
 //
-// Взвешивание подряд (этап 11.5, удобно на телефоне): строки заказов
-// выдачи одна за другой — кому, что заказано, вес (штуки), «Записать» —
+// Взвешивание подряд (этап 11.5): окно ввода поверх выдачи (на телефоне —
+// панель снизу), строки заказов выдачи одна за другой — кому, что заказано, вес (штуки), «Записать» —
 // и сразу следующая. Набор взвешивается по частям, общий вес считается
 // сам (ход сборки набора — как в окне строки). Отклонение от заказанного
 // сверх допуска подсвечивается. «Не хватило» — снять строку с причиной.
@@ -12,6 +12,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/orders_provider.dart';
+import '../widgets/adaptive_dialog.dart';
 import 'batches_screen.dart';
 import 'order_editor_screen.dart';
 
@@ -23,12 +24,13 @@ Future<void> openWeighing(
   String? start,
 }) {
   final p = context.read<OrdersProvider>();
-  return Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider.value(
-        value: p,
-        child: WeighingScreen(batchId: batchId, start: start),
-      ),
+  return showAppDialog<void>(
+    context: context,
+    // Случайный щелчок мимо окна не прерывает взвешивание.
+    barrierDismissible: false,
+    builder: (_) => ChangeNotifierProvider.value(
+      value: p,
+      child: WeighingScreen(batchId: batchId, start: start),
     ),
   );
 }
@@ -51,6 +53,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
   String? _current;
   bool _onlyOpen = true;
   bool _busy = false;
+  String? _error;
   final _weight = TextEditingController();
   final _pieces = TextEditingController();
   final _focus = FocusNode();
@@ -79,6 +82,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   void _show(BatchEntry? e) {
     _current = e?.line.id;
+    _error = null;
     _weight.text = fmtQty(e?.line.weight);
     _pieces.text = e?.line.pieces?.toString() ?? '';
     _weight.selection = TextSelection(
@@ -107,9 +111,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
     final weight = byWeight ? _num(_weight.text) : null;
     final pieces = int.tryParse(_pieces.text.trim());
     if (byWeight && _weight.text.trim().isNotEmpty && weight == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вес — числом, например 2,35')),
-      );
+      setState(() => _error = 'Вес — числом, например 2,35');
       return;
     }
     setState(() => _busy = true);
@@ -145,62 +147,77 @@ class _WeighingScreenState extends State<WeighingScreen> {
     final index = queue.indexWhere((e) => e.line.id == _current);
     final e = index < 0 ? null : queue[index];
     final done = queue.where((x) => x.done).length;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Взвешено $done из ${queue.length}'),
-        actions: [
-          Row(
+    return AppDialog(
+      title: Text('Взвешено $done из ${queue.length}'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Только невзвешенные'),
-              Switch(
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: const Text('Только невзвешенные'),
                 value: _onlyOpen,
                 onChanged: (v) => setState(() => _onlyOpen = v),
               ),
+              if (e == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.task_alt,
+                        size: 48,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        queue.isEmpty ? 'Взвешивать нечего' : 'Всё взвешено',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _EntryForm(
+                  key: ValueKey(e.line.id),
+                  entry: e,
+                  position: '${index + 1} из ${queue.length}',
+                  weight: _weight,
+                  pieces: _pieces,
+                  focus: _focus,
+                  busy: _busy,
+                  onChanged: () => setState(() {}),
+                  onSave: (byWeight) => _save(p, e, byWeight),
+                  onMissing: () => _missing(p, e),
+                  onBack: index > 0
+                      ? () => setState(() => _show(queue[index - 1]))
+                      : null,
+                  onSkip: index < queue.length - 1
+                      ? () => setState(() => _show(queue[index + 1]))
+                      : null,
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
             ],
           ),
-        ],
+        ),
       ),
-      body: e == null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.task_alt,
-                    size: 48,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    queue.isEmpty ? 'Взвешивать нечего' : 'Всё взвешено',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('К выдаче'),
-                  ),
-                ],
-              ),
-            )
-          : _EntryForm(
-              key: ValueKey(e.line.id),
-              entry: e,
-              position: '${index + 1} из ${queue.length}',
-              weight: _weight,
-              pieces: _pieces,
-              focus: _focus,
-              busy: _busy,
-              onChanged: () => setState(() {}),
-              onSave: (byWeight) => _save(p, e, byWeight),
-              onMissing: () => _missing(p, e),
-              onBack: index > 0
-                  ? () => setState(() => _show(queue[index - 1]))
-                  : null,
-              onSkip: index < queue.length - 1
-                  ? () => setState(() => _show(queue[index + 1]))
-                  : null,
-            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(e == null ? 'К выдаче' : 'Закрыть'),
+        ),
+      ],
     );
   }
 }
@@ -272,148 +289,143 @@ class _EntryForm extends StatelessWidget {
     final address = o.delivery == Delivery.delivery
         ? (o.address ?? customer?.address)
         : null;
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(position, style: theme.textTheme.labelMedium),
+        const SizedBox(height: 4),
+        Text(
+          '${p.label(o)} · ${customer?.name ?? '?'}',
+          style: theme.textTheme.headlineSmall,
+        ),
+        Text(
+          [
+            o.delivery.title,
+            ?address,
+            if (o.kind != OrderKind.sale) o.kind.title,
+            if ((o.comment ?? '').trim().isNotEmpty) o.comment!.trim(),
+          ].join(' · '),
+          style: theme.textTheme.bodySmall,
+        ),
+        const Divider(height: 24),
+        Text(
+          product?.name ?? 'Товар не найден',
+          style: theme.textTheme.titleLarge,
+        ),
+        if (parent != null)
+          Text(
+            'часть набора «${p.products[parent.productId]?.name ?? '?'}»',
+            style: theme.textTheme.bodyMedium,
+          ),
+        const SizedBox(height: 4),
+        Text(
+          'заказано: ${ordered.isEmpty ? '—' : ordered}',
+          style: theme.textTheme.titleMedium,
+        ),
+        if (l.state == LineState.missing)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Снята${(l.note ?? '').isEmpty ? '' : ': ${l.note}'}',
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Row(
           children: [
-            Text(position, style: theme.textTheme.labelMedium),
-            const SizedBox(height: 4),
-            Text(
-              '${p.label(o)} · ${customer?.name ?? '?'}',
-              style: theme.textTheme.headlineSmall,
-            ),
-            Text(
-              [
-                o.delivery.title,
-                ?address,
-                if (o.kind != OrderKind.sale) o.kind.title,
-                if ((o.comment ?? '').trim().isNotEmpty) o.comment!.trim(),
-              ].join(' · '),
-              style: theme.textTheme.bodySmall,
-            ),
-            const Divider(height: 24),
-            Text(
-              product?.name ?? 'Товар не найден',
-              style: theme.textTheme.titleLarge,
-            ),
-            if (parent != null)
-              Text(
-                'часть набора «${p.products[parent.productId]?.name ?? '?'}»',
-                style: theme.textTheme.bodyMedium,
-              ),
-            const SizedBox(height: 4),
-            Text(
-              'заказано: ${ordered.isEmpty ? '—' : ordered}',
-              style: theme.textTheme.titleMedium,
-            ),
-            if (l.state == LineState.missing)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'Снята${(l.note ?? '').isEmpty ? '' : ': ${l.note}'}',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (byWeight)
-                  Expanded(
-                    child: TextField(
-                      controller: weight,
-                      focusNode: focus,
-                      autofocus: true,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                      ],
-                      style: theme.textTheme.headlineMedium,
-                      decoration: const InputDecoration(
-                        labelText: 'Вес',
-                        suffixText: 'кг',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => onChanged(),
-                      onSubmitted: (_) => onSave(byWeight),
-                    ),
+            if (byWeight)
+              Expanded(
+                child: TextField(
+                  controller: weight,
+                  focusNode: focus,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                if (byWeight) const SizedBox(width: 12),
-                SizedBox(
-                  width: byWeight ? 120 : 200,
-                  child: TextField(
-                    controller: pieces,
-                    focusNode: byWeight ? null : focus,
-                    autofocus: !byWeight,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: byWeight ? null : theme.textTheme.headlineMedium,
-                    decoration: InputDecoration(
-                      labelText: byWeight ? 'Штук' : 'Количество',
-                      suffixText: byWeight ? null : product?.unit.title,
-                      border: const OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => onChanged(),
-                    onSubmitted: (_) => onSave(byWeight),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                  style: theme.textTheme.headlineMedium,
+                  decoration: const InputDecoration(
+                    labelText: 'Вес',
+                    suffixText: 'кг',
+                    border: OutlineInputBorder(),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (progress != null)
-              Text(
-                setProgressText(progress),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: off ? theme.colorScheme.error : null,
-                ),
-              )
-            else if (dev != null)
-              Text(
-                dev >= 0
-                    ? 'Больше заказанного на ${(dev * 100).round()} %'
-                    : 'Меньше заказанного на ${(-dev * 100).round()} %',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: off ? theme.colorScheme.error : null,
+                  onChanged: (_) => onChanged(),
+                  onSubmitted: (_) => onSave(byWeight),
                 ),
               ),
-            if (amount != null)
-              Text('Сумма: ${rub(amount)}', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: busy ? null : () => onSave(byWeight),
-              icon: const Icon(Icons.check),
-              label: const Text('Записать и дальше'),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Назад'),
+            if (byWeight) const SizedBox(width: 12),
+            SizedBox(
+              width: byWeight ? 120 : 200,
+              child: TextField(
+                controller: pieces,
+                focusNode: byWeight ? null : focus,
+                autofocus: !byWeight,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: byWeight ? null : theme.textTheme.headlineMedium,
+                decoration: InputDecoration(
+                  labelText: byWeight ? 'Штук' : 'Количество',
+                  suffixText: byWeight ? null : product?.unit.title,
+                  border: const OutlineInputBorder(),
                 ),
-                OutlinedButton.icon(
-                  onPressed: busy ? null : onMissing,
-                  icon: const Icon(Icons.remove_circle_outline),
-                  label: const Text('Не хватило'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onSkip,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('Пропустить'),
-                ),
-              ],
+                onChanged: (_) => onChanged(),
+                onSubmitted: (_) => onSave(byWeight),
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        if (progress != null)
+          Text(
+            setProgressText(progress),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: off ? theme.colorScheme.error : null,
+            ),
+          )
+        else if (dev != null)
+          Text(
+            dev >= 0
+                ? 'Больше заказанного на ${(dev * 100).round()} %'
+                : 'Меньше заказанного на ${(-dev * 100).round()} %',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: off ? theme.colorScheme.error : null,
+            ),
+          ),
+        if (amount != null)
+          Text('Сумма: ${rub(amount)}', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: busy ? null : () => onSave(byWeight),
+          icon: const Icon(Icons.check),
+          label: const Text('Записать и дальше'),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
+          children: [
+            OutlinedButton.icon(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Назад'),
+            ),
+            OutlinedButton.icon(
+              onPressed: busy ? null : onMissing,
+              icon: const Icon(Icons.remove_circle_outline),
+              label: const Text('Не хватило'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onSkip,
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('Пропустить'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

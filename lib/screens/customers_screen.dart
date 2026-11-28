@@ -15,6 +15,7 @@ import '../providers/app_provider.dart';
 import '../providers/customers_provider.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/choice_buttons.dart';
+import '../widgets/row_table.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -43,6 +44,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Consumer<CustomersProvider>(
         builder: (context, p, _) {
           final list = p.search(_query.text);
+          final wide = isWideScreen(context);
           return Scaffold(
             appBar: AppBar(title: Text('Покупатели (${p.customers.length})')),
             floatingActionButton: p.canEdit
@@ -57,7 +59,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             body: Align(
               alignment: Alignment.topLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
+                constraints: BoxConstraints(maxWidth: wide ? 1300 : 760),
                 child: Column(
                   children: [
                     Padding(
@@ -92,6 +94,35 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     : 'Никого не нашлось',
                               ),
                             )
+                          : wide
+                          // На компьютере — таблица, на телефоне — карточки.
+                          ? Column(
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: RowTableHeader(_cols),
+                                ),
+                                Expanded(
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      6,
+                                      0,
+                                      6,
+                                      88,
+                                    ),
+                                    itemCount: list.length,
+                                    itemBuilder: (context, i) => _CustomerRow(
+                                      list[i],
+                                      onTap: () => showCustomerDialog(
+                                        context,
+                                        p,
+                                        customer: list[i],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
                           : ListView.builder(
                               padding: const EdgeInsets.only(bottom: 88),
                               itemCount: list.length,
@@ -114,6 +145,79 @@ class _CustomersScreenState extends State<CustomersScreen> {
       ),
     );
   }
+}
+
+const _cols = [
+  RowCol('Имя', flex: 3),
+  RowCol('Телефон', width: 150),
+  RowCol('Как связаться', flex: 2),
+  RowCol('Адрес', flex: 3),
+  RowCol('Примечание', flex: 2),
+  RowCol('Долг / аванс', width: 130, right: true),
+  RowCol('', width: 48),
+];
+
+/// Покупатель строкой таблицы (компьютер).
+class _CustomerRow extends StatelessWidget {
+  final Customer customer;
+  final VoidCallback onTap;
+  const _CustomerRow(this.customer, {required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = customer;
+    final theme = Theme.of(context);
+    final phone = formatPhone(c.phone);
+    final balance = context.watch<CustomersProvider>().balances[c.id];
+    Widget pad(Widget w) =>
+        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: w);
+    return RowTableRow(
+      cols: _cols,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      cells: [
+        pad(CellText(c.name, bold: true, maxLines: 2)),
+        pad(CellText(phone)),
+        pad(CellText([?c.channel?.short, ?c.contact].join(' '))),
+        pad(CellText(c.address ?? '', maxLines: 2)),
+        pad(CellText(c.notes ?? '', maxLines: 2)),
+        pad(
+          balance != null && balance.debt > 0
+              ? CellText(
+                  'долг ${formatPrice(balance.debt)} ₽',
+                  color: theme.colorScheme.error,
+                  bold: true,
+                  right: true,
+                )
+              : balance != null && balance.advance > 0
+              ? CellText(
+                  'аванс ${formatPrice(balance.advance)} ₽',
+                  color: theme.colorScheme.primary,
+                  right: true,
+                )
+              : const SizedBox.shrink(),
+        ),
+        phone.isEmpty ? const SizedBox(height: 40) : _CopyPhone(phone),
+      ],
+    );
+  }
+}
+
+class _CopyPhone extends StatelessWidget {
+  final String phone;
+  const _CopyPhone(this.phone);
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: 'Скопировать телефон',
+    icon: const Icon(Icons.copy, size: 18),
+    onPressed: () {
+      Clipboard.setData(ClipboardData(text: phone));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Скопировано: $phone')));
+    },
+  );
 }
 
 class _CustomerTile extends StatelessWidget {
@@ -157,18 +261,7 @@ class _CustomerTile extends StatelessWidget {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: phone.isEmpty
-          ? null
-          : IconButton(
-              tooltip: 'Скопировать телефон',
-              icon: const Icon(Icons.copy, size: 18),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: phone));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Скопировано: $phone')));
-              },
-            ),
+      trailing: phone.isEmpty ? null : _CopyPhone(phone),
       onTap: onTap,
     );
   }

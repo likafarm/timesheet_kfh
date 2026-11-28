@@ -9,6 +9,7 @@ import 'screens/main_screen.dart';
 import 'services/app_keys.dart';
 import 'services/platform.dart';
 import 'services/startup.dart';
+import 'services/theme_settings.dart';
 import 'services/window_front.dart';
 import 'theme/app_theme.dart';
 import 'utils/constants.dart';
@@ -22,6 +23,7 @@ const afterUpdateArgument = '--after-update';
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
+  await ThemeSettings.instance.load();
   if (args.contains(afterUpdateArgument)) {
     // Окно показывается после первого кадра; ещё раз — на случай долгого
     // запуска (перенос или проверка базы).
@@ -163,18 +165,22 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider.value(value: _app),
         ChangeNotifierProvider.value(value: _sync),
       ],
-      child: MaterialApp(
-        navigatorKey: appNavigatorKey,
-        scaffoldMessengerKey: appMessengerKey,
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        locale: const Locale('ru', 'RU'),
-        supportedLocales: const [Locale('ru', 'RU')],
-        localizationsDelegates: _localizations,
-        theme: _theme,
-        darkTheme: AppTheme.darkTheme,
-        // Без входа программа не запускается (все платформы).
-        home: const AuthGate(child: MainScreen()),
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeSettings.instance.mode,
+        builder: (context, themeMode, _) => MaterialApp(
+          navigatorKey: appNavigatorKey,
+          scaffoldMessengerKey: appMessengerKey,
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          locale: const Locale('ru', 'RU'),
+          supportedLocales: const [Locale('ru', 'RU')],
+          localizationsDelegates: _localizations,
+          theme: _theme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          // Без входа программа не запускается (все платформы).
+          home: const AuthGate(child: MainScreen()),
+        ),
       ),
     );
   }

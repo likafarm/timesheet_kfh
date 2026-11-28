@@ -142,35 +142,42 @@ void main() {
       ),
     );
     await settle(tester);
-    expect(find.textContaining('заказов: 2'), findsOneWidget);
-    await tester.tap(find.textContaining('заказов: 2'));
+    // Список выдач — таблицей: строка открывает выдачу.
+    expect(find.text('Заказов'), findsOneWidget, reason: 'заголовок таблицы');
+    await tester.tap(find.byIcon(Icons.inventory_2_outlined).first);
     await settle(tester);
-    // Сборочный лист: товары и кому; части набора — внутри набора.
+    // Сборочный лист по товарам: группа — товар, строки — кому; части
+    // набора — под набором с отступом.
     expect(find.text('Сборочный лист'), findsOneWidget);
-    expect(find.widgetWithText(ExpansionTile, 'Вырезка'), findsOneWidget);
-    expect(find.widgetWithText(ExpansionTile, 'Голова'), findsOneWidget);
-    final setCard = find.widgetWithText(ExpansionTile, 'Набор');
-    expect(setCard, findsWidgets);
-    expect(
-      find.descendant(of: setCard.first, matching: find.text('Ребро')),
-      findsOneWidget,
-      reason: 'ребро — внутри набора',
-    );
+    // (те же названия — и в итоге по товарам ниже)
+    expect(find.text('Вырезка'), findsWidgets);
+    expect(find.text('Голова'), findsWidgets);
+    expect(find.text('Набор'), findsWidgets);
+    expect(find.text('— Ребро'), findsOneWidget, reason: 'часть набора');
     expect(find.textContaining('состав: Ребро ×1'), findsOneWidget);
     // Свернуть всё — частей не видно; развернуть — снова видно.
     await tester.tap(find.text('Свернуть всё'));
     await settle(tester);
-    expect(find.text('Ребро'), findsNothing);
+    expect(find.text('— Ребро'), findsNothing);
     await tester.tap(find.text('Развернуть всё'));
     await settle(tester);
-    expect(find.text('Ребро'), findsOneWidget);
+    expect(find.text('— Ребро'), findsOneWidget);
+    // По покупателям: группа — заказ, строки — товары.
+    await tester.tap(find.text('По покупателям'));
+    await settle(tester);
+    expect(find.textContaining('· Ольга'), findsOneWidget);
+    expect(find.textContaining('· Пётр'), findsOneWidget);
+    expect(find.text('— Ребро'), findsOneWidget);
+    await tester.tap(find.text('По товарам'));
+    await settle(tester);
     // Итог — под сборочным листом.
     await tester.scrollUntilVisible(find.text('Итог выдачи'), 200);
-    expect(find.text('По товарам'), findsOneWidget);
+    expect(find.text('Итог по товарам'), findsOneWidget);
     await tester.tap(find.text('Взвешивать (3)'));
     await settle(tester);
-    // Первая — вырезка Ольги: 2,6 кг — больше заказанного на 30 %.
-    expect(find.text('Вырезка'), findsOneWidget);
+    // Взвешивание — окно поверх выдачи. Первая — вырезка Ольги: 2,6 кг —
+    // больше заказанного на 30 %.
+    expect(find.widgetWithText(AlertDialog, 'Вырезка'), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextField, 'Вес'), '2,6');
     await tester.pump();
     expect(find.text('Больше заказанного на 30 %'), findsOneWidget);
@@ -191,7 +198,7 @@ void main() {
     await tester.tap(find.text('Записать и дальше'));
     await settle(tester);
     // Голова Петра — не хватило.
-    expect(find.text('Голова'), findsOneWidget);
+    expect(find.widgetWithText(AlertDialog, 'Голова'), findsOneWidget);
     await tester.tap(find.text('Не хватило'));
     await settle(tester);
     await tester.tap(find.text('Снять'));
@@ -270,7 +277,10 @@ void main() {
     await tester.tap(find.textContaining('заказов: 2'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'сборочный лист');
-    await tester.scrollUntilVisible(find.text('По товарам'), 200);
+    await tester.tap(find.text('По покупателям'));
+    await settle(tester);
+    expect(tester.takeException(), isNull, reason: 'по покупателям');
+    await tester.scrollUntilVisible(find.text('Итог по товарам'), 200);
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'итог');
     await tester.tap(find.text('Взвешивать (3)'));

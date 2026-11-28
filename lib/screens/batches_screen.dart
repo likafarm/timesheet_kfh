@@ -16,6 +16,7 @@ import '../providers/orders_provider.dart';
 import '../services/batch_pdf.dart';
 import '../services/print_service.dart';
 import '../widgets/adaptive_dialog.dart';
+import '../widgets/row_table.dart';
 import 'order_editor_screen.dart';
 import 'weighing_screen.dart';
 
@@ -107,15 +108,34 @@ class _BatchesScreenState extends State<BatchesScreen> {
                 : Align(
                     alignment: Alignment.topLeft,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 860),
+                      constraints: BoxConstraints(
+                        maxWidth: isWideScreen(context) ? 1300 : 860,
+                      ),
                       child: ListView(
-                        padding: const EdgeInsets.only(bottom: 88),
+                        padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
                         children: [
-                          for (final b in p.batches)
-                            _BatchTile(
-                              b,
-                              past: calendarDay(b.day).isBefore(today),
+                          // На компьютере — таблица, на телефоне — карточки.
+                          if (isWideScreen(context)) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: RowTableHeader(_batchCols),
                             ),
+                            for (final b in p.batches)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: _BatchRow(
+                                  b,
+                                  past: calendarDay(b.day).isBefore(today),
+                                ),
+                              ),
+                          ] else
+                            for (final b in p.batches)
+                              _BatchTile(
+                                b,
+                                past: calendarDay(b.day).isBefore(today),
+                              ),
                         ],
                       ),
                     ),
@@ -123,6 +143,78 @@ class _BatchesScreenState extends State<BatchesScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+const _batchCols = [
+  RowCol('', width: 32),
+  RowCol('Выдача', flex: 4),
+  RowCol('Заказов', width: 80, right: true),
+  RowCol('Взвешено', width: 110, right: true),
+  RowCol('Выдано', width: 80, right: true),
+  RowCol('Не хватило', width: 100, right: true),
+  RowCol('К оплате', width: 130, right: true),
+  RowCol('Оплачено', width: 120, right: true),
+  RowCol('Долг', width: 110, right: true),
+];
+
+/// Выдача строкой таблицы (компьютер).
+class _BatchRow extends StatelessWidget {
+  final SaleBatch batch;
+  final bool past;
+  const _BatchRow(this.batch, {required this.past});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<OrdersProvider>();
+    final s = p.summaryOf(batch.id);
+    final theme = Theme.of(context);
+    final issued = s.byStatus[OrderStatus.issued] ?? 0;
+    final done = s.orders > 0 && issued == s.orders;
+    var paid = 0, debt = 0;
+    for (final o in p.liveOrdersOf(batch.id)) {
+      final pay = p.paymentOf(o);
+      paid += pay.paid;
+      if (p.owes(o)) debt += pay.left;
+    }
+    return RowTableRow(
+      cols: _batchCols,
+      onTap: () => openBatch(context, batch.id),
+      cells: [
+        Icon(
+          done ? Icons.task_alt : Icons.inventory_2_outlined,
+          size: 20,
+          color: done
+              ? theme.colorScheme.primary
+              : past
+              ? theme.colorScheme.outline
+              : null,
+        ),
+        CellText(batchTitle(batch), bold: true),
+        CellText('${s.orders}', right: true),
+        CellText(
+          s.toWeigh == 0 ? '' : '${s.toWeigh - s.open} из ${s.toWeigh}',
+          right: true,
+        ),
+        CellText('$issued', right: true),
+        CellText(
+          s.missing > 0 ? '${s.missing}' : '',
+          right: true,
+          color: theme.colorScheme.error,
+        ),
+        CellText(
+          s.due > 0 ? '${s.final_ ? '' : '≈ '}${rub(s.due)}' : '',
+          right: true,
+          bold: true,
+        ),
+        CellText(paid > 0 ? rub(paid) : '', right: true),
+        CellText(
+          debt > 0 ? rub(debt) : '',
+          right: true,
+          color: theme.colorScheme.error,
+        ),
+      ],
     );
   }
 }
@@ -307,7 +399,7 @@ class BatchScreen extends StatelessWidget {
       );
     }
     final s = p.summaryOf(batchId);
-    final items = p.pickListOf(batchId);
+    final wide = isWideScreen(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(batchTitle(b)),
@@ -361,17 +453,11 @@ class BatchScreen extends StatelessWidget {
       body: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 860),
+          constraints: BoxConstraints(maxWidth: wide ? 1300 : 860),
           child: ListView(
             padding: const EdgeInsets.only(bottom: 88),
             children: [
-              if (items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: Text('Заказов в выдаче нет')),
-                )
-              else
-                _PickList(items),
+              _PickList(batchId),
               const Divider(height: 32),
               _SummaryView(batchId),
             ],
@@ -384,59 +470,213 @@ class BatchScreen extends StatelessWidget {
 
 // ------------------------------------------------------- сборочный лист
 
-/// Товары сборочного листа; каждый товар и каждый набор сворачиваются.
+/// Как сгруппирован сборочный лист.
+enum PickGrouping {
+  product('По товарам'),
+  customer('По покупателям');
+
+  final String title;
+  const PickGrouping(this.title);
+}
+
+/// Группа сборочного листа: товар (все его строки) или заказ покупателя.
+class _PickGroup {
+  final String key;
+  final String title;
+  final String subtitle;
+  final List<BatchEntry> entries;
+  const _PickGroup(this.key, this.title, this.subtitle, this.entries);
+}
+
+/// Сборочный лист выдачи: по товарам или по покупателям; группы и наборы
+/// сворачиваются. На компьютере — таблица, на телефоне — карточки.
 class _PickList extends StatefulWidget {
-  final List<PickItem> items;
-  const _PickList(this.items);
+  final String batchId;
+  const _PickList(this.batchId);
 
   @override
   State<_PickList> createState() => _PickListState();
 }
 
 class _PickListState extends State<_PickList> {
-  bool _expanded = true;
+  PickGrouping _grouping = PickGrouping.product;
 
-  /// Меняется по «Свернуть / развернуть всё» — плитки строятся заново.
-  int _generation = 0;
+  /// Свёрнутые группы и наборы (ключ группы или id строки набора).
+  final _collapsed = <String>{};
+
+  List<_PickGroup> _groups(OrdersProvider p, ThemeData theme) {
+    if (_grouping == PickGrouping.product) {
+      return [
+        for (final i in p.pickListOf(widget.batchId))
+          _PickGroup(
+            'p:${i.productId}',
+            p.products[i.productId]?.name ?? 'Товар не найден',
+            _productSubtitle(p, i),
+            i.entries,
+          ),
+      ];
+    }
+    final byOrder = <String, List<BatchEntry>>{};
+    for (final e in p.entriesOf(widget.batchId)) {
+      if (!e.isPart) (byOrder[e.order.id] ??= []).add(e);
+    }
+    return [
+      for (final o in p.liveOrdersOf(widget.batchId))
+        if (byOrder[o.id] case final entries?)
+          _orderGroup(p, theme, o, entries),
+    ];
+  }
+
+  static String _productSubtitle(OrdersProvider p, PickItem i) {
+    final fact = [
+      if (i.factKg > 0) kg(i.factKg),
+      if (i.factPcs > 0) '${i.factPcs} шт',
+    ].join(' + ');
+    final composition = [
+      for (final c in setComposition(i))
+        '${p.products[c.productId]?.name ?? '?'} ×${c.count}'
+            '${c.weight > 0 ? ' (${kg(c.weight)})' : ''}',
+    ];
+    return [
+      'заказов: ${i.entries.length}',
+      'заказано: ${pickOrdered(i).ifEmpty('—')}',
+      if (fact.isNotEmpty) 'выдано: $fact',
+      if (i.open > 0) 'осталось: ${i.open}',
+      if (i.missing > 0) 'не хватило: ${i.missing}',
+      if (composition.isNotEmpty) 'состав: ${composition.join(', ')}',
+    ].join(' · ');
+  }
+
+  _PickGroup _orderGroup(
+    OrdersProvider p,
+    ThemeData theme,
+    SaleOrder o,
+    List<BatchEntry> entries,
+  ) {
+    final customer = p.customers[o.customerId];
+    final totals = p.totals(o.id);
+    final open = entries
+        .expand((e) => e.isSet ? e.parts : [e.line])
+        .where((l) => l.state == LineState.open)
+        .length;
+    final address = o.delivery == Delivery.delivery
+        ? (o.address ?? customer?.address)
+        : null;
+    return _PickGroup(
+      'o:${o.id}',
+      '${p.label(o)} · ${customer?.name ?? '?'}',
+      [
+        o.status.title,
+        if (o.delivery == Delivery.delivery)
+          'доставка${address == null ? '' : ': $address'}',
+        if (o.kind != OrderKind.sale) o.kind.title,
+        if (open > 0) 'не взвешено строк: $open',
+        '${totals.complete ? '' : '≈ '}${rub(totals.due)}',
+        if ((o.comment ?? '').trim().isNotEmpty) o.comment!.trim(),
+      ].join(' · '),
+      entries,
+    );
+  }
+
+  void _toggle(String key) => setState(() {
+    if (!_collapsed.remove(key)) _collapsed.add(key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<OrdersProvider>();
     final theme = Theme.of(context);
+    final wide = isWideScreen(context);
+    final groups = _groups(p, theme);
+    final setKeys = [
+      for (final g in groups)
+        for (final e in g.entries)
+          if (e.isSet) e.line.id,
+    ];
+    final allKeys = [for (final g in groups) g.key, ...setKeys];
+    final anyOpen = allKeys.any((k) => !_collapsed.contains(k));
+    final byProduct = _grouping == PickGrouping.product;
+    final cols = byProduct ? _byProductCols : _byCustomerCols;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  'Сборочный лист',
-                  style: theme.textTheme.titleLarge,
-                ),
+              Text('Сборочный лист', style: theme.textTheme.titleLarge),
+              SegmentedButton<PickGrouping>(
+                showSelectedIcon: false,
+                segments: [
+                  for (final g in PickGrouping.values)
+                    ButtonSegment(value: g, label: Text(g.title)),
+                ],
+                selected: {_grouping},
+                onSelectionChanged: (s) => setState(() => _grouping = s.first),
               ),
               TextButton.icon(
                 onPressed: () => setState(() {
-                  _expanded = !_expanded;
-                  _generation++;
+                  if (anyOpen) {
+                    _collapsed.addAll(allKeys);
+                  } else {
+                    _collapsed.clear();
+                  }
                 }),
-                icon: Icon(_expanded ? Icons.unfold_less : Icons.unfold_more),
-                label: Text(_expanded ? 'Свернуть всё' : 'Развернуть всё'),
+                icon: Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more),
+                label: Text(anyOpen ? 'Свернуть всё' : 'Развернуть всё'),
               ),
             ],
           ),
         ),
-        for (final i in widget.items)
-          _PickItemCard(
-            i,
-            key: ValueKey('${i.productId}/$_generation'),
-            expanded: _expanded,
-            generation: _generation,
+        if (groups.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: Text('Заказов в выдаче нет')),
+          ),
+        if (wide && groups.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: RowTableHeader(cols),
+          ),
+        for (final g in groups)
+          Padding(
+            padding: wide
+                ? const EdgeInsets.symmetric(horizontal: 12)
+                : const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: _GroupView(
+              group: g,
+              wide: wide,
+              byProduct: byProduct,
+              collapsed: _collapsed,
+              onToggle: _toggle,
+            ),
           ),
       ],
     );
   }
 }
+
+const _byProductCols = [
+  RowCol('', width: 32),
+  RowCol('№', width: 80),
+  RowCol('Покупатель', flex: 3),
+  RowCol('Заказано', flex: 3),
+  RowCol('Фактически', width: 120, right: true),
+  RowCol('Примечание', flex: 2),
+  RowCol('', width: 48),
+];
+
+const _byCustomerCols = [
+  RowCol('', width: 32),
+  RowCol('Товар', flex: 4),
+  RowCol('Заказано', flex: 3),
+  RowCol('Фактически', width: 120, right: true),
+  RowCol('Примечание', flex: 2),
+  RowCol('', width: 48),
+];
 
 /// Заказано товара — для заголовка: «12 кг + 3 шт + на 1 500 ₽ + 2 без
 /// количества».
@@ -447,114 +687,94 @@ String pickOrdered(PickItem i) => [
   if (i.orderedText > 0) '${i.orderedText} без количества',
 ].join(' + ');
 
-class _PickItemCard extends StatelessWidget {
-  final PickItem item;
-  final bool expanded;
-  final int generation;
-  const _PickItemCard(
-    this.item, {
-    super.key,
-    required this.expanded,
-    required this.generation,
+/// Группа: заголовок (нажатие — свернуть) и строки.
+class _GroupView extends StatelessWidget {
+  final _PickGroup group;
+  final bool wide;
+  final bool byProduct;
+  final Set<String> collapsed;
+  final void Function(String key) onToggle;
+  const _GroupView({
+    required this.group,
+    required this.wide,
+    required this.byProduct,
+    required this.collapsed,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final p = context.watch<OrdersProvider>();
     final theme = Theme.of(context);
-    final product = p.products[item.productId];
-    final fact = [
-      if (item.factKg > 0) kg(item.factKg),
-      if (item.factPcs > 0) '${item.factPcs} шт',
-    ].join(' + ');
-    final composition = [
-      for (final c in setComposition(item))
-        '${p.products[c.productId]?.name ?? '?'} ×${c.count}'
-            '${c.weight > 0 ? ' (${kg(c.weight)})' : ''}',
-    ];
-    final n = item.entries.length;
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        initiallyExpanded: expanded,
-        shape: const Border(),
-        collapsedShape: const Border(),
-        title: Text(
-          product?.name ?? 'Товар не найден',
-          style: theme.textTheme.titleMedium,
+    final open = !collapsed.contains(group.key);
+    final header = InkWell(
+      onTap: () => onToggle(group.key),
+      child: Container(
+        color: wide ? theme.colorScheme.surfaceContainerHigh : null,
+        padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(open ? Icons.expand_more : Icons.chevron_right),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(group.title, style: theme.textTheme.titleMedium),
+                  Text(group.subtitle, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(
-          [
-            'заказов: $n',
-            'заказано: ${pickOrdered(item).ifEmpty('—')}',
-            if (fact.isNotEmpty) 'выдано: $fact',
-            if (item.open > 0) 'осталось: ${item.open}',
-            if (item.missing > 0) 'не хватило: ${item.missing}',
-            if (composition.isNotEmpty) 'состав: ${composition.join(', ')}',
-          ].join(' · '),
-          style: theme.textTheme.bodySmall,
-        ),
-        childrenPadding: const EdgeInsets.only(bottom: 8),
-        children: [
-          for (final e in item.entries)
-            if (e.isSet)
-              _SetEntryTile(
-                e,
-                key: ValueKey('${e.line.id}/$generation'),
-                expanded: expanded,
-              )
-            else
-              _EntryTile(e),
-        ],
       ),
     );
-  }
-}
-
-/// Набор заказа: строка набора, внутри — его части (сворачиваются).
-class _SetEntryTile extends StatelessWidget {
-  final BatchEntry entry;
-  final bool expanded;
-  const _SetEntryTile(this.entry, {super.key, required this.expanded});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.watch<OrdersProvider>();
-    final theme = Theme.of(context);
-    final l = entry.line;
-    final customer = p.customers[entry.order.customerId];
-    final progress = setProgress(l, entry.parts, p.products);
-    final ordered = orderedText(l);
-    final off = progress.off(p.tolerance);
-    final (icon, color) = _stateIcon(theme, l.state);
-    return ExpansionTile(
-      initiallyExpanded: expanded,
-      shape: const Border(),
-      collapsedShape: const Border(),
-      dense: true,
-      leading: Icon(icon, color: color),
-      title: Text('${p.label(entry.order)} · ${customer?.name ?? '?'}'),
-      subtitle: Text(
-        [
-          'набор, частей: ${entry.parts.length}',
-          if (ordered.isNotEmpty) 'заказано $ordered',
-          if (entry.order.kind != OrderKind.sale) entry.order.kind.title,
-          setProgressText(progress),
-        ].join(' · '),
-        style: off ? TextStyle(color: theme.colorScheme.error) : null,
-      ),
-      childrenPadding: const EdgeInsets.only(left: 40),
-      children: [
-        for (final part in entry.parts)
-          _EntryTile(BatchEntry(order: entry.order, line: part, parent: l)),
-        ListTile(
-          dense: true,
-          leading: const Icon(Icons.open_in_new),
-          title: const Text('Открыть заказ (состав, цена набора)'),
-          onTap: () => openOrderEditor(context, order: entry.order),
-        ),
+    final rows = [
+      for (final e in group.entries) ...[
+        if (wide)
+          _EntryRow(
+            e,
+            byProduct: byProduct,
+            collapsed: e.isSet && collapsed.contains(e.line.id),
+            onToggle: e.isSet ? () => onToggle(e.line.id) : null,
+          )
+        else
+          _EntryTile(
+            e,
+            byProduct: byProduct,
+            collapsed: e.isSet && collapsed.contains(e.line.id),
+            onToggle: e.isSet ? () => onToggle(e.line.id) : null,
+          ),
+        if (e.isSet && !collapsed.contains(e.line.id))
+          for (final part in e.parts)
+            if (wide)
+              _EntryRow(
+                BatchEntry(order: e.order, line: part, parent: e.line),
+                byProduct: byProduct,
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(left: 32),
+                child: _EntryTile(
+                  BatchEntry(order: e.order, line: part, parent: e.line),
+                  byProduct: byProduct,
+                ),
+              ),
       ],
+    ];
+    if (wide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [header, if (open) ...rows],
+      );
+    }
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [header, if (open) ...rows],
+      ),
     );
   }
 }
@@ -568,102 +788,245 @@ class _SetEntryTile extends StatelessWidget {
   LineState.missing => (Icons.remove_circle_outline, theme.colorScheme.error),
 };
 
-class _EntryTile extends StatelessWidget {
-  final BatchEntry entry;
-  const _EntryTile(this.entry);
+/// Что показать о строке выдачи — одинаково для таблицы и карточки.
+class _EntryInfo {
+  final String who;
+  final String product;
+  final String ordered;
+  final String fact;
+  final String note;
+  final bool off;
+  final Color? noteColor;
+  const _EntryInfo({
+    required this.who,
+    required this.product,
+    required this.ordered,
+    required this.fact,
+    required this.note,
+    required this.off,
+    this.noteColor,
+  });
 
-  Future<void> _missing(BuildContext context, OrdersProvider p) async {
-    final note = await askMissingReason(context, entry.line.note);
-    if (note == null) return;
-    await p.markMissing(entry.line, note.isEmpty ? null : note);
+  factory _EntryInfo.of(OrdersProvider p, ThemeData theme, BatchEntry e) {
+    final l = e.line;
+    final product = p.products[l.productId];
+    final name = product?.name ?? '?';
+    if (e.isSet) {
+      final progress = setProgress(l, e.parts, p.products);
+      return _EntryInfo(
+        who:
+            '${p.label(e.order)} · ${p.customers[e.order.customerId]?.name ?? '?'}',
+        product: '$name (набор, частей: ${e.parts.length})',
+        ordered: orderedText(l),
+        fact: factText(l, product, e.parts),
+        note: setProgressText(progress),
+        off: progress.off(p.tolerance),
+        noteColor: progress.off(p.tolerance)
+            ? theme.colorScheme.error
+            : theme.colorScheme.primary,
+      );
+    }
+    return _EntryInfo(
+      who:
+          '${p.label(e.order)} · ${p.customers[e.order.customerId]?.name ?? '?'}',
+      product: e.isPart ? '— $name' : name,
+      ordered: orderedText(l),
+      fact: factText(l, product, e.parts),
+      note: [
+        if (!e.isPart && e.order.kind != OrderKind.sale) e.order.kind.title,
+        if (l.state == LineState.missing && (l.note ?? '').isNotEmpty) l.note!,
+      ].join(' · '),
+      off: !e.isPart && weightOff(l, parts: e.parts, tolerance: p.tolerance),
+    );
   }
+}
+
+/// Нажатие на строку: набор — открыть заказ, иначе — взвесить.
+Future<void> _openEntry(BuildContext context, OrdersProvider p, BatchEntry e) =>
+    e.isSet || !p.canEdit
+    ? openOrderEditor(context, order: e.order)
+    : openWeighing(context, e.order.batchId, start: e.line.id);
+
+/// Строка выдачи таблицей (компьютер).
+class _EntryRow extends StatelessWidget {
+  final BatchEntry entry;
+  final bool byProduct;
+  final bool collapsed;
+  final VoidCallback? onToggle;
+  const _EntryRow(
+    this.entry, {
+    required this.byProduct,
+    this.collapsed = false,
+    this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<OrdersProvider>();
     final theme = Theme.of(context);
-    final l = entry.line;
-    final customer = p.customers[entry.order.customerId];
-    final product = p.products[l.productId];
-    final ordered = orderedText(l);
-    final fact = factText(l, product, entry.parts);
-    final off =
-        !entry.isPart &&
-        weightOff(l, parts: entry.parts, tolerance: p.tolerance);
-    final (icon, color) = _stateIcon(theme, l.state);
+    final e = entry;
+    final info = _EntryInfo.of(p, theme, e);
+    final (icon, color) = _stateIcon(theme, e.line.state);
+    final missing = e.line.state == LineState.missing;
+    final lead = onToggle != null
+        ? InkWell(
+            onTap: onToggle,
+            child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
+          )
+        : Icon(icon, color: color, size: 20);
+    final fact = CellText(
+      info.fact,
+      right: true,
+      bold: true,
+      color: info.off ? theme.colorScheme.error : null,
+    );
+    final note = CellText(info.note, color: info.noteColor, maxLines: 2);
+    final menu = p.canEdit ? _EntryMenu(e) : const SizedBox(height: 36);
+    final cells = byProduct
+        ? <Widget>[
+            lead,
+            if (e.isPart)
+              const SizedBox.shrink()
+            else
+              CellText(p.label(e.order), bold: true, muted: missing),
+            CellText(
+              e.isPart
+                  ? info.product
+                  : [
+                      p.customers[e.order.customerId]?.name ?? '?',
+                      if (e.isSet) '— ${info.product}',
+                    ].join(' '),
+              muted: missing,
+            ),
+            CellText(info.ordered.ifEmpty(e.isPart ? '' : '—')),
+            fact,
+            note,
+            menu,
+          ]
+        : <Widget>[
+            lead,
+            CellText(info.product, bold: !e.isPart, muted: missing),
+            CellText(info.ordered.ifEmpty(e.isPart ? '' : '—')),
+            fact,
+            note,
+            menu,
+          ];
+    // Текст — на одной линии с кнопкой меню.
+    Widget pad(Widget w) => w is _EntryMenu || w is SizedBox
+        ? w
+        : Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: w);
+    return RowTableRow(
+      cols: byProduct ? _byProductCols : _byCustomerCols,
+      cells: [for (final c in cells) pad(c)],
+      indent: e.isPart ? 24 : 0,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      onTap: () => _openEntry(context, p, e),
+    );
+  }
+}
+
+/// Строка выдачи карточкой (телефон).
+class _EntryTile extends StatelessWidget {
+  final BatchEntry entry;
+  final bool byProduct;
+  final bool collapsed;
+  final VoidCallback? onToggle;
+  const _EntryTile(
+    this.entry, {
+    required this.byProduct,
+    this.collapsed = false,
+    this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<OrdersProvider>();
+    final theme = Theme.of(context);
+    final e = entry;
+    final info = _EntryInfo.of(p, theme, e);
+    final (icon, color) = _stateIcon(theme, e.line.state);
+    final title = e.isPart
+        ? info.product
+        : byProduct
+        ? info.who
+        : info.product;
     return ListTile(
       dense: true,
-      leading: Icon(icon, color: color),
-      // Часть набора — внутри набора: заголовок — сама часть.
-      title: Text(
-        entry.isPart
-            ? product?.name ?? '?'
-            : '${p.label(entry.order)} · ${customer?.name ?? '?'}',
-      ),
+      leading: onToggle != null
+          ? IconButton(
+              tooltip: collapsed ? 'Показать части' : 'Скрыть части',
+              icon: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
+              onPressed: onToggle,
+            )
+          : Icon(icon, color: color),
+      title: Text(byProduct && e.isSet ? '$title — ${info.product}' : title),
       subtitle: Text(
         [
-          if (ordered.isNotEmpty) ordered,
-          if (!entry.isPart && entry.order.kind != OrderKind.sale)
-            entry.order.kind.title,
-          if (l.state == LineState.missing && (l.note ?? '').isNotEmpty)
-            l.note!,
+          if (info.ordered.isNotEmpty) info.ordered,
+          if (info.note.isNotEmpty) info.note,
         ].join(' · '),
+        style: info.noteColor == null ? null : TextStyle(color: info.noteColor),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (fact.isNotEmpty)
+          if (info.fact.isNotEmpty)
             Text(
-              fact,
+              info.fact,
               style: theme.textTheme.titleSmall?.copyWith(
-                color: off ? theme.colorScheme.error : null,
+                color: info.off ? theme.colorScheme.error : null,
               ),
             ),
-          if (p.canEdit)
-            PopupMenuButton<String>(
-              tooltip: 'Действия',
-              onSelected: (a) async {
-                switch (a) {
-                  case 'weigh':
-                    await openWeighing(
-                      context,
-                      entry.order.batchId,
-                      start: l.id,
-                    );
-                  case 'missing':
-                    await _missing(context, p);
-                  case 'reopen':
-                    await p.reopenLine(l);
-                  case 'order':
-                    if (context.mounted) {
-                      await openOrderEditor(context, order: entry.order);
-                    }
-                }
-              },
-              itemBuilder: (_) => [
-                if (!entry.isSet)
-                  const PopupMenuItem(value: 'weigh', child: Text('Взвесить')),
-                if (l.state != LineState.missing)
-                  const PopupMenuItem(
-                    value: 'missing',
-                    child: Text('Не хватило — снять'),
-                  )
-                else
-                  const PopupMenuItem(
-                    value: 'reopen',
-                    child: Text('Вернуть к сборке'),
-                  ),
-                const PopupMenuItem(
-                  value: 'order',
-                  child: Text('Открыть заказ (заменить товар)'),
-                ),
-              ],
-            ),
+          if (p.canEdit) _EntryMenu(e),
         ],
       ),
-      onTap: entry.isSet || !p.canEdit
-          ? () => openOrderEditor(context, order: entry.order)
-          : () => openWeighing(context, entry.order.batchId, start: l.id),
+      onTap: () => _openEntry(context, p, e),
+    );
+  }
+}
+
+/// Меню строки выдачи: взвесить, снять, вернуть, открыть заказ.
+class _EntryMenu extends StatelessWidget {
+  final BatchEntry entry;
+  const _EntryMenu(this.entry);
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.read<OrdersProvider>();
+    final l = entry.line;
+    return PopupMenuButton<String>(
+      tooltip: 'Действия',
+      onSelected: (a) async {
+        switch (a) {
+          case 'weigh':
+            await openWeighing(context, entry.order.batchId, start: l.id);
+          case 'missing':
+            final note = await askMissingReason(context, l.note);
+            if (note == null) return;
+            await p.markMissing(l, note.isEmpty ? null : note);
+          case 'reopen':
+            await p.reopenLine(l);
+          case 'order':
+            if (context.mounted) {
+              await openOrderEditor(context, order: entry.order);
+            }
+        }
+      },
+      itemBuilder: (_) => [
+        if (!entry.isSet)
+          const PopupMenuItem(value: 'weigh', child: Text('Взвесить')),
+        if (l.state != LineState.missing)
+          const PopupMenuItem(
+            value: 'missing',
+            child: Text('Не хватило — снять'),
+          )
+        else
+          const PopupMenuItem(value: 'reopen', child: Text('Вернуть к сборке')),
+        const PopupMenuItem(
+          value: 'order',
+          child: Text('Открыть заказ (состав, замена товара)'),
+        ),
+      ],
     );
   }
 }
@@ -790,7 +1153,7 @@ class _SummaryView extends StatelessWidget {
                 color: theme.colorScheme.error,
               ),
             const SizedBox(height: 16),
-            Text('По товарам', style: theme.textTheme.titleMedium),
+            Text('Итог по товарам', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Table(
               columnWidths: const {

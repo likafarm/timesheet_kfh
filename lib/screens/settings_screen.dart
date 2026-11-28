@@ -8,6 +8,7 @@ import 'package:kfh_domain/kfh_domain.dart';
 import '../providers/app_provider.dart';
 import '../providers/sync_provider.dart';
 import '../services/platform.dart';
+import '../services/theme_settings.dart';
 import 'about_screen.dart';
 import 'audit_screen.dart';
 import 'users_screen.dart';
@@ -330,6 +331,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const Divider(height: 1),
 
+                        const _ThemeTile(),
+                        const Divider(height: 1),
+
                         ListTile(
                           leading: const Icon(Icons.help_outline),
                           title: const Text('Справка'),
@@ -416,6 +420,42 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(padding: const EdgeInsets.all(16), child: child),
+    );
+  }
+}
+
+/// «Оформление»: как в системе, светлое или тёмное (на этом устройстве).
+class _ThemeTile extends StatelessWidget {
+  const _ThemeTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ThemeSettings.instance;
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: settings.mode,
+      builder: (context, mode, _) => ListTile(
+        leading: const Icon(Icons.brightness_6_outlined),
+        title: const Text('Оформление'),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<ThemeMode>(
+              showSelectedIcon: false,
+              segments: [
+                for (final m in const [
+                  ThemeMode.system,
+                  ThemeMode.light,
+                  ThemeMode.dark,
+                ])
+                  ButtonSegment(value: m, label: Text(themeModeTitle(m))),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) => settings.set(s.first),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

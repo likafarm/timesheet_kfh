@@ -35,8 +35,9 @@ $web = Join-Path $root 'build\web'
 if (-not $SkipBuild) {
     Write-Host "Sborka veb-versii $version..."
     # Flutter ne obnovlyaet spisok veb-plaginov v keshe sborki: s 28.09.2026
-    # v vebe ne bylo vybora fayla i "Podelitsya". Udalyaem - sozdastsya zanovo.
-    Get-ChildItem (Join-Path $root '.dart_tool\flutter_build') -Filter web_plugin_registrant.dart -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+    # v vebe ne bylo vybora fayla i "Podelitsya". Udalyaem papku kesha veb-sborki
+    # celikom (odin fayl Flutter ne sozdaet zanovo - sborka padaet).
+    Get-ChildItem (Join-Path $root '.dart_tool\flutter_build') -Filter web_plugin_registrant.dart -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item $_.DirectoryName -Recurse -Force }
     $ErrorActionPreference = $nativeErrors
     & flutter build web --release --base-href /app/ --no-web-resources-cdn --no-source-maps | Select-Object -Last 3
     $code = $LASTEXITCODE

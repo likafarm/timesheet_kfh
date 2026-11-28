@@ -17,6 +17,7 @@ import '../providers/orders_provider.dart';
 import '../screens/order_editor_screen.dart' show rub;
 import '../services/platform.dart';
 import 'adaptive_dialog.dart';
+import 'row_table.dart';
 
 final _day = DateFormat('dd.MM.yyyy', 'ru');
 
@@ -95,29 +96,66 @@ class OrderPaymentsView extends StatelessWidget {
             ),
           ),
         ],
-        for (final op in payments)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              op.type == OperationType.income
-                  ? Icons.south_west
-                  : Icons.north_east,
-              color: op.type == OperationType.income ? null : error,
+        // Оплаты и возвраты: на компьютере — таблица.
+        if (isWideScreen(context) && payments.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const RowTableHeader(_payCols),
+          for (final op in payments)
+            RowTableRow(
+              cols: _payCols,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              cells: [
+                _padded(CellText(_day.format(op.date))),
+                _padded(
+                  CellText(
+                    op.type == OperationType.income ? 'Оплата' : 'Возврат',
+                    color: op.type == OperationType.income ? null : error,
+                  ),
+                ),
+                _padded(
+                  CellText(
+                    '${op.type == OperationType.income ? '' : '−'}'
+                    '${rub(op.amount)}',
+                    right: true,
+                    bold: true,
+                    color: op.type == OperationType.income ? null : error,
+                  ),
+                ),
+                _padded(CellText(p.accountName(op.accountId))),
+                _padded(CellText(op.notes ?? '')),
+                p.canDeletePayment(op)
+                    ? IconButton(
+                        tooltip: 'Удалить оплату',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _delete(context, p, op),
+                      )
+                    : const SizedBox(height: 40),
+              ],
             ),
-            title: Text(
-              '${op.type == OperationType.income ? '' : 'Возврат −'}'
-              '${rub(op.amount)} · ${p.accountName(op.accountId)}',
+        ] else
+          for (final op in payments)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                op.type == OperationType.income
+                    ? Icons.south_west
+                    : Icons.north_east,
+                color: op.type == OperationType.income ? null : error,
+              ),
+              title: Text(
+                '${op.type == OperationType.income ? '' : 'Возврат −'}'
+                '${rub(op.amount)} · ${p.accountName(op.accountId)}',
+              ),
+              subtitle: Text([_day.format(op.date), ?op.notes].join(' · ')),
+              trailing: p.canDeletePayment(op)
+                  ? IconButton(
+                      tooltip: 'Удалить оплату',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _delete(context, p, op),
+                    )
+                  : null,
             ),
-            subtitle: Text([_day.format(op.date), ?op.notes].join(' · ')),
-            trailing: p.canDeletePayment(op)
-                ? IconButton(
-                    tooltip: 'Удалить оплату',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => _delete(context, p, op),
-                  )
-                : null,
-          ),
         if (balance.debt > 0 || balance.advance > 0)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -142,6 +180,18 @@ class OrderPaymentsView extends StatelessWidget {
       ],
     );
   }
+
+  static const _payCols = [
+    RowCol('Дата', width: 110),
+    RowCol('Вид', width: 90),
+    RowCol('Сумма', width: 120, right: true),
+    RowCol('Кошелёк', flex: 2),
+    RowCol('Примечание', flex: 3),
+    RowCol('', width: 48),
+  ];
+
+  static Widget _padded(Widget w) =>
+      Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: w);
 
   Future<void> _delete(
     BuildContext context,
