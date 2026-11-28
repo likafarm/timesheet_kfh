@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
 import '../providers/finance_provider.dart';
+import '../providers/orders_provider.dart';
 import '../providers/sync_provider.dart';
 import '../widgets/adaptive_dialog.dart';
 import '../widgets/finance_operation_dialog.dart' show operationTypeColors;
@@ -90,14 +91,19 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Финансы для плиток: сам перечитывается после правок и синхронизации.
   late final FinanceProvider _finance;
 
+  /// Продажи для плиток (11.8): ближайшая выдача, несобранные, долги.
+  late final OrdersProvider _sales;
+
   @override
   void initState() {
     super.initState();
     _app = context.read<AppProvider>()..addListener(_scheduleReload);
     _finance = FinanceProvider(_app)..addListener(_onFinance);
+    _sales = OrdersProvider(_app)..addListener(_onFinance);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _load();
       unawaited(_loadFinance());
+      unawaited(_loadSales());
     });
   }
 
@@ -108,7 +114,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _finance
       ..removeListener(_onFinance)
       ..dispose();
+    _sales
+      ..removeListener(_onFinance)
+      ..dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSales() async {
+    try {
+      await _sales.load();
+    } catch (_) {
+      // Плитки продаж не обязательны.
+    }
   }
 
   void _onFinance() {
@@ -247,6 +264,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         forecast: _finance.forecast(),
                         open: (section) => _open(section),
                       );
+                final salesSummary = _sales.loaded
+                    ? buildSalesDashboard(_sales.salesData, summary.today)
+                    : null;
+                final sales = salesSummary == null || salesSummary.isEmpty
+                    ? null
+                    : _SalesCard(summary: salesSummary, open: _open);
                 const gap = SizedBox(height: 12, width: 12);
                 if (constraints.maxWidth < 720) {
                   return ListView(
@@ -255,6 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       reminders,
                       gap,
                       if (money != null) ...[money, gap],
+                      if (sales != null) ...[sales, gap],
                       debts,
                       gap,
                       month,
@@ -272,6 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           children: [
                             if (money != null) ...[money, gap],
+                            if (sales != null) ...[sales, gap],
                             debts,
                           ],
                         ),
@@ -287,6 +312,65 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+    );
+  }
+}
+
+/// Продажи (11.8): ближайшая выдача, несобранные заказы, долги
+/// покупателей; нажатие — в «Выдачи» или «Заказы».
+class _SalesCard extends StatelessWidget {
+  final SalesDashboard summary;
+  final void Function(AppSection section, {DateTime? month}) open;
+  const _SalesCard({required this.summary, required this.open});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = summary;
+    final next = s.nextBatch;
+    return _Block(
+      title: 'Продажи',
+      icon: Icons.shopping_basket_outlined,
+      children: [
+        if (next != null)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.inventory_2_outlined),
+            title: Text(
+              'Ближайшая выдача — '
+              '${DateFormat('dd.MM.yyyy, EEE', 'ru').format(next.day)}',
+            ),
+            subtitle: Text('заказов: ${s.nextOrders}'),
+            onTap: () => open(AppSection.batches),
+          ),
+        if (s.unassembled > 0)
+          ListTile(
+            dense: true,
+            leading: Icon(
+              Icons.pending_actions_outlined,
+              color: s.overdue > 0 ? theme.colorScheme.error : null,
+            ),
+            title: Text('Не собрано заказов: ${s.unassembled}'),
+            subtitle: s.overdue > 0
+                ? Text(
+                    'из них у прошедших выдач: ${s.overdue}',
+                    style: TextStyle(color: theme.colorScheme.error),
+                  )
+                : null,
+            onTap: () => open(AppSection.orders),
+          ),
+        if (s.debt > 0)
+          ListTile(
+            dense: true,
+            leading: Icon(
+              Icons.money_off_outlined,
+              color: theme.colorScheme.error,
+            ),
+            title: Text('Долги покупателей: ${formatRub(s.debt)} ₽'),
+            subtitle: Text('покупателей: ${s.debtors}'),
+            onTap: () => open(AppSection.salesReports),
+          ),
+      ],
     );
   }
 }

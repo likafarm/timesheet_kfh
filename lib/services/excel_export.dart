@@ -1217,7 +1217,9 @@ XlsxWorkbook priceListWorkbook({
         XlsxCell.text(row.product.name, _cell),
         XlsxCell.number(price.price / 100, money),
         XlsxCell.text(row.product.unit.title, _cell),
-        change == null ? const XlsxCell.empty(_cell) : XlsxCell.number(change, percent),
+        change == null
+            ? const XlsxCell.empty(_cell)
+            : XlsxCell.number(change, percent),
       ]);
     }
   }
@@ -1230,5 +1232,203 @@ XlsxWorkbook priceListWorkbook({
     ..[3] = 10
     ..[4] = 12;
   sheet.frozenRows = 4;
+  return book;
+}
+
+// ------------------------------------------------- отчёты продаж (11.8)
+
+/// Книга отчётов по продажам за [periodTitle]: товары (итог и по месяцам),
+/// выдачи, заказано против выданного, покупатели. [productName] и
+/// [customerName] — названия по id.
+XlsxWorkbook salesReportWorkbook({
+  required String periodTitle,
+  required ProductSalesReport products,
+  required List<BatchSales> batches,
+  required List<OrderedVsIssued> ordered,
+  required List<CustomerSales> customers,
+  required String Function(String productId) productName,
+  required String Function(String customerId) customerName,
+  required String Function(SaleBatch batch) batchName,
+  required DateTime today,
+  CompanySettings? companySettings,
+}) {
+  final book = XlsxWorkbook(
+    title: 'Продажи, $periodTitle',
+    author: _company(companySettings),
+  );
+  final money = _cell.copyWith(numFmt: _money);
+  final qty = _cell.copyWith(numFmt: '0.###');
+  final pct = _cell.copyWith(numFmt: '+0.0%;-0.0%;0%');
+  final day = _cell.copyWith(numFmt: 'dd.mm.yyyy');
+  XlsxCell rubCell(int kopecks) => XlsxCell.number(kopecks / 100, money);
+  XlsxCell dayCell(DateTime? d) => d == null
+      ? const XlsxCell.empty(_cell)
+      : XlsxCell.number(_excelDay(d), day);
+  void header(XlsxSheet s, String title, List<String> heads) {
+    s.addRow([XlsxCell.text('$title, $periodTitle', _title)], height: 20);
+    s.addRow([XlsxCell.text(_company(companySettings), _note)]);
+    s.addRow([]);
+    s.addRow([for (final h in heads) XlsxCell.text(h, _head)], height: 30);
+    s.frozenRows = 4;
+  }
+
+  // Товары: итог и по месяцам (кг/шт и рубли).
+  final ps = book.addSheet('Товары');
+  final months = products.months;
+  header(ps, 'Продажи по товарам', [
+    'Товар',
+    'Ед.',
+    'Продано',
+    'Сумма',
+    'Средняя цена',
+    'Заказов',
+    'Без оплаты и себе',
+    for (final (y, m) in months) ...[
+      '${m.toString().padLeft(2, '0')}.$y, кол-во',
+      '${m.toString().padLeft(2, '0')}.$y, сумма',
+    ],
+  ]);
+  for (final r in products.rows) {
+    final avg = r.total.averagePrice;
+    ps.addRow([
+      XlsxCell.text(productName(r.productId), _cell),
+      XlsxCell.text(r.byWeight ? 'кг' : 'шт', _cell),
+      XlsxCell.number(r.total.qty, qty),
+      rubCell(r.total.amount),
+      avg == null ? const XlsxCell.empty(_cell) : rubCell(avg),
+      XlsxCell.number(r.orders, _cell),
+      rubCell(r.freeValue + r.ownValue),
+      for (final m in months) ...[
+        XlsxCell.number(r.months[m]?.qty ?? 0, qty),
+        rubCell(r.months[m]?.amount ?? 0),
+      ],
+    ]);
+  }
+  ps.addRow([
+    XlsxCell.text('Итого', _total),
+    const XlsxCell.empty(_total),
+    const XlsxCell.empty(_total),
+    XlsxCell.number(
+      products.total.amount / 100,
+      _total.copyWith(numFmt: _money),
+    ),
+    const XlsxCell.empty(_total),
+    const XlsxCell.empty(_total),
+    XlsxCell.number(
+      (products.freeValue + products.ownValue) / 100,
+      _total.copyWith(numFmt: _money),
+    ),
+    for (final m in months) ...[
+      const XlsxCell.empty(_total),
+      XlsxCell.number(
+        (products.monthTotals[m]?.amount ?? 0) / 100,
+        _total.copyWith(numFmt: _money),
+      ),
+    ],
+  ]);
+  ps.columnWidths[0] = 32;
+  for (var i = 1; i < 7 + months.length * 2; i++) {
+    ps.columnWidths[i] = i == 1 ? 6 : 14;
+  }
+
+  // Выдачи.
+  final bs = book.addSheet('Выдачи');
+  header(bs, 'Продажи по выдачам', [
+    'Выдача',
+    'Заказов',
+    'Продано, кг',
+    'Выручка',
+    'Без оплаты, кг',
+    'Себе, кг',
+    'Без оплаты и себе, ₽',
+    'Оплачено',
+    'Долг',
+  ]);
+  for (final b in batches) {
+    bs.addRow([
+      XlsxCell.text(batchName(b.batch), _cell),
+      XlsxCell.number(b.orders, _cell),
+      XlsxCell.number(b.saleKg, qty),
+      rubCell(b.saleAmount),
+      XlsxCell.number(b.freeKg, qty),
+      XlsxCell.number(b.ownKg, qty),
+      rubCell(b.freeValue),
+      rubCell(b.paid),
+      rubCell(b.debt),
+    ]);
+  }
+  bs.columnWidths[0] = 30;
+  for (var i = 1; i < 9; i++) {
+    bs.columnWidths[i] = 14;
+  }
+
+  // Заказано против выданного.
+  final os = book.addSheet('Заказано и выдано');
+  header(os, 'Заказано против выданного', [
+    'Товар',
+    'Строк',
+    'Заказано, кг',
+    'Выдано, кг',
+    'Отклонение',
+    'Больше допуска',
+    'Меньше допуска',
+    'Не хватило, раз',
+    'Не хватило, кг',
+  ]);
+  for (final r in ordered) {
+    final dev = r.deviation;
+    os.addRow([
+      XlsxCell.text(productName(r.productId), _cell),
+      XlsxCell.number(r.lines, _cell),
+      XlsxCell.number(r.orderedKg, qty),
+      XlsxCell.number(r.factKg, qty),
+      dev == null ? const XlsxCell.empty(_cell) : XlsxCell.number(dev, pct),
+      XlsxCell.number(r.over, _cell),
+      XlsxCell.number(r.under, _cell),
+      XlsxCell.number(r.missing, _cell),
+      XlsxCell.number(r.missingKg, qty),
+    ]);
+  }
+  os.columnWidths[0] = 32;
+  for (var i = 1; i < 9; i++) {
+    os.columnWidths[i] = 14;
+  }
+
+  // Покупатели.
+  final cs = book.addSheet('Покупатели');
+  header(cs, 'Покупатели', [
+    'Покупатель',
+    'Заказов',
+    'Сумма',
+    'Средний чек',
+    'Первый',
+    'Последний',
+    'Дней назад',
+    'Долг (−) / аванс (+)',
+  ]);
+  for (final c in customers) {
+    final avg = c.averageCheck;
+    final since = c.daysSince(today);
+    cs.addRow([
+      XlsxCell.text(customerName(c.customerId), _cell),
+      XlsxCell.number(c.orders, _cell),
+      rubCell(c.amount),
+      avg == null ? const XlsxCell.empty(_cell) : rubCell(avg),
+      dayCell(c.first),
+      dayCell(c.last),
+      since == null
+          ? const XlsxCell.empty(_cell)
+          : XlsxCell.number(since, _cell),
+      rubCell(c.balance),
+    ]);
+  }
+  cs.columnWidths[0] = 32;
+  for (var i = 1; i < 8; i++) {
+    cs.columnWidths[i] = 14;
+  }
+  for (final s in [ps, bs, os, cs]) {
+    s.addRow([]);
+    s.addRow([XlsxCell.text(_stamp(), _note)]);
+  }
   return book;
 }

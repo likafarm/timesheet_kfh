@@ -38,6 +38,7 @@ export 'src/sales/orders.dart';
 export 'src/sales/payments.dart';
 export 'src/sales/price_import.dart';
 export 'src/sales/price_list.dart';
+export 'src/sales/reports.dart';
 export 'src/sync/period_guard.dart';
 export 'src/sync/roles.dart';
 export 'src/sync/sync_change.dart';

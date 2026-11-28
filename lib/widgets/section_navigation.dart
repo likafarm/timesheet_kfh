@@ -30,6 +30,9 @@ enum AppSection {
   batches,
   priceList,
   customers,
+
+  /// Отчёты по продажам (11.8).
+  salesReports,
   sync,
   settings,
 }

@@ -40,6 +40,20 @@ class OrdersProvider extends ChangeNotifier {
   Map<String, Product> get products => _products;
   List<ProductGroup> get groups => _groups;
 
+  /// Всё для отчётов по продажам (11.8).
+  SalesData get salesData => SalesData(
+    batches: _batches,
+    orders: _orders,
+    lines: _lines,
+    products: _products,
+    payments: _payments,
+  );
+
+  /// Порядок групп прайса — для порядка товаров в отчётах.
+  Map<String, int> get groupOrder => {
+    for (final g in _groups) g.id: g.sortOrder,
+  };
+
   bool get canEdit => !_app.operatorMode;
 
   /// Настройки хозяйства (название, телефон — для этикеток).

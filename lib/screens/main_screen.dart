@@ -17,6 +17,7 @@ import 'batches_screen.dart';
 import 'payment_calendar_screen.dart';
 import 'periods_screen.dart';
 import 'price_list_screen.dart';
+import 'sales_reports_screen.dart';
 import 'timesheet_screen.dart';
 import 'payments_screen.dart';
 import 'reports_screen.dart';
@@ -138,6 +139,14 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.people_alt,
       label: 'Покупатели',
       screen: const CustomersScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.salesReports,
+      group: NavGroup.sales,
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.insights,
+      label: 'Отчёты продаж',
+      screen: const SalesReportsScreen(),
     ),
     NavigationItem(
       section: AppSection.employees,
@@ -262,6 +271,13 @@ class MainScreen extends StatefulWidget {
       selectedIcon: Icons.people_alt,
       label: 'Покупатели',
       screen: const CustomersScreen(),
+    ),
+    NavigationItem(
+      section: AppSection.salesReports,
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.insights,
+      label: 'Отчёты',
+      screen: const SalesReportsScreen(),
     ),
     NavigationItem(
       section: AppSection.sync,
