@@ -99,8 +99,11 @@ log "запуск API и Caddy"
 "${COMPOSE[@]}" up -d --wait --remove-orphans api caddy
 
 # Caddyfile смонтирован в контейнер по пути, а каталог src заменён целиком:
-# без перезапуска Caddy работает с прежним файлом (из src.prev).
-if ! cmp -s "$SRC/server/deploy/Caddyfile" "$ROOT/src.prev/server/deploy/Caddyfile"; then
+# без перезапуска Caddy работает с прежним файлом. Сравнивается с тем, что
+# видит работающий Caddy (не с src.prev: после неудачной выкладки там уже
+# новый файл).
+if ! "${COMPOSE[@]}" exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null |
+  cmp -s - "$SRC/server/deploy/Caddyfile"; then
   log "Caddyfile изменился — перезапуск Caddy"
   "${COMPOSE[@]}" restart caddy
 fi
