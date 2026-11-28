@@ -98,6 +98,13 @@ log "миграции"
 log "запуск API и Caddy"
 "${COMPOSE[@]}" up -d --wait --remove-orphans api caddy
 
+# Caddyfile смонтирован в контейнер по пути, а каталог src заменён целиком:
+# без перезапуска Caddy работает с прежним файлом (из src.prev).
+if ! cmp -s "$SRC/server/deploy/Caddyfile" "$ROOT/src.prev/server/deploy/Caddyfile"; then
+  log "Caddyfile изменился — перезапуск Caddy"
+  "${COMPOSE[@]}" restart caddy
+fi
+
 # 8. Таймер ежедневного бэкапа (systemd). Файлы юнитов — из исходников.
 if [ -n "${KFH_BACKUP_BUCKET:-}" ] && [ -n "${KFH_BACKUP_AGE_RECIPIENT:-}" ] && [ -s "$SECRETS/s3.env" ]; then
   changed=false
